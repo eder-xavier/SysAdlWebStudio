@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SysADL RTC Simulator</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.9/codemirror.min.css" />
+</head>
+<body>
+  <h1>SysADL RTC Simulator</h1>
+  <textarea id="input">
+abstract component def Clock {
+  ports: tick:out:String, sync:in:String
+  activities: ClockTick(value:String)
+}
+
+component def Display {
+  ports: tick:in:String
+  activities: ShowTime(value:String)
+}
+
+connector def Conn1 {
+  ports: Clock.tick, Display.tick
+}
+
+flow Clock.tick -> Display.tick
+
+executable def Tick {
+  in time:Int out result:String
+  {
+    let message:String = "Tick at " + time;
+    return message;
+  }
+}
+
+executable def Sync {
+  in signal:String out response:String
+  {
+    let reply:String = "Sync_" + signal;
+    return reply;
+  }
+}
+
+configuration {
+  components: c1:Clock, d1:Display
+  connectors: conn1:Conn1
+  protocols: P1
+}
+
+protocol P1 {
+  send msg via Clock.tick;
+  receive response from Clock.sync;
+}
+
+constraint def C1 {
+  pre: time > 0
+  post: result != null
+}
+
+datatype def Time {
+  hours:Int
+  minutes:Int
+}
+
+simulation {
+  flow Clock.tick = "start_signal";
+  flow Clock.sync = "sync_signal";
+  executable Tick = [500];
+  executable Sync = ["clock_sync"];
+}
+  </textarea>
+  <button onclick="interpretSysADL()">Interpret</button>
+  <h2>Execution Log</h2>
+  <div id="log"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.9/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.9/mode/javascript/javascript.min.js"></script>
+    <script src="sysadl-runtime-classes.js"></script>
+    <script src="sysadl-utils.js"></script>
+    <script src="sysadl-parser.js"></script>
+    <script src="sysadl-interpreter.js"></script>
+    <script>
+        // Initialize CodeMirror (manter aqui ou em um arquivo de UI separado)
+        const textarea = document.getElementById("input");
+        const editor = CodeMirror.fromTextArea(textarea, {
+            mode: "javascript", // Altere para um modo que suporte destaque de sintaxe da sua linguagem, se houver um.
+            lineNumbers: true,
+            theme: "default"
+        });
+    </script>
+</body>
+</html>
