@@ -26,7 +26,7 @@ class SysADLVisualizer {
             this.activeFlows.add(`${source}-->${target}`);
             this.activePorts.set(source, data);
             this.activePorts.set(target, data);
-            setTimeout(() => this.renderDiagram(), 500); // Delay para animação
+            setTimeout(() => this.renderDiagram(), 500);
         });
 
         this.on("portUpdated", ({ port, value }) => {
@@ -35,6 +35,12 @@ class SysADLVisualizer {
         });
 
         this.on("simulationStart", () => {
+            this.activeFlows.clear();
+            this.activePorts.clear();
+            this.renderDiagram();
+        });
+
+        this.on("simulationReset", () => {
             this.activeFlows.clear();
             this.activePorts.clear();
             this.renderDiagram();
@@ -50,13 +56,17 @@ class SysADLVisualizer {
         const styles = [];
         const configComponents = new Set(this.model.configurations.flatMap(c => c.components.map(comp => comp.name)));
 
-        // Adicionar apenas componentes instanciados na configuração
+        // Adicionar componentes instanciados
         Object.values(this.model.components).forEach(comp => {
             if (configComponents.has(comp.qualifiedName)) {
                 mermaidCode += `    ${comp.qualifiedName}[${comp.qualifiedName}];\n`;
                 comp.ports.forEach(port => {
                     const portId = `${comp.qualifiedName}.${port.name}`;
+                    const value = this.activePorts.has(portId) ? JSON.stringify(this.activePorts.get(portId)) : "";
                     mermaidCode += `    ${portId}((${port.name} : ${port.type})) --> ${comp.qualifiedName};\n`;
+                    if (value) {
+                        mermaidCode += `    ${portId}:::tooltip --> ${portId}; classDef tooltip tooltip:"${value}";\n`;
+                    }
                     if (this.activePorts.has(portId)) {
                         styles.push(`style ${portId} fill:#87CEEB,stroke:#000;`);
                     }
@@ -64,7 +74,7 @@ class SysADLVisualizer {
             }
         });
 
-        // Adicionar apenas conectores (sem fluxos diretos)
+        // Adicionar conectores
         Object.values(this.model.connectors).forEach(conn => {
             if (conn.ports.length === 2) {
                 const [source, target] = conn.ports;

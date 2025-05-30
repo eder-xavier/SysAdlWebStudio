@@ -18,6 +18,12 @@ let blockLines = [];
 let currentComponent = null;
 let blockDepth = 0;
 let currentPackage = null;
+let simulationState = {
+    steps: [],
+    currentStep: -1,
+    isPaused: true,
+    isRunning: false
+};
 
 function parseProtocolBody(lines) {
     const actions = [];
@@ -58,16 +64,58 @@ function parseProtocolBody(lines) {
     return actions;
 }
 
-function interpretSysADL() {
+function resetSimulation() {
+    simulationState.steps = [];
+    simulationState.currentStep = -1;
+    simulationState.isPaused = true;
+    simulationState.isRunning = false;
+    visualizer.emit("simulationReset", {});
+    document.getElementById("log").innerText = "";
+}
+
+async function executeStep() {
+    if (simulationState.isPaused || simulationState.currentStep >= simulationState.steps.length - 1) {
+        simulationState.isRunning = false;
+        return;
+    }
+    simulationState.currentStep++;
+    const step = simulationState.steps[simulationState.currentStep];
+    await step();
+    if (!simulationState.isPaused) {
+        setTimeout(executeStep, 1000); // Atraso para visualização
+    }
+}
+
+function startSimulation() {
+    if (simulationState.isRunning) return;
+    simulationState.isPaused = false;
+    simulationState.isRunning = true;
+    if (simulationState.currentStep === -1) {
+        interpretSysADL(true); 
+    }
+    executeStep();
+}
+
+function pauseSimulation() {
+    simulationState.isPaused = true;
+    simulationState.isRunning = false;
+}
+
+function interpretSysADL(fullRun = false) {
     if (!window.editor) {
         console.error("CodeMirror editor not initialized");
         return;
     }
     const input = window.editor.getValue();
     const logEl = document.getElementById("log");
-    logEl.innerText = "";
+    if (fullRun) logEl.innerText = "";
     const log = msg => (logEl.innerText += msg + "\n");
     const trace = [];
+
+    if (fullRun) {
+        resetSimulation();
+        visualizer.emit("simulationStart", {});
+    }
 
     Object.keys(sysadlModel).forEach(key => {
         if (Array.isArray(sysadlModel[key])) {
@@ -85,7 +133,6 @@ function interpretSysADL() {
     currentPackage = null;
 
     try {
-        visualizer.emit("simulationStart", {});
         const lines = input.split("\n");
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i].trim();
@@ -267,8 +314,16 @@ function interpretSysADL() {
                                         throw new Error(`Invalid value for ${port}: expected ${sysadlModel.ports[port].type}, got ${JSON.stringify(value)}`);
                                     }
                                     sysadlModel.simulationInputs.flows[port] = value;
-                                    visualizer.emit("portUpdated", { port, value });
-                                    log(`  Simulation input: flow ${port} = ${JSON.stringify(value)}`);
+                                    if (fullRun) {
+                                        visualizer.emit("portUpdated", { port, value });
+                                        log(`  Simulation input: flow ${port} = ${JSON.stringify(value)}`);
+                                    } else {
+                                        simulationState.steps.push(() => {
+                                            sysadlModel.ports[port].value = value;
+                                            visualizer.emit("portUpdated", { port, value });
+                                            log(`  Simulation input: flow ${port} = ${JSON.stringify(value)}`);
+                                        });
+                                    }
                                 }
                             } else if (l.startsWith("executable ")) {
                                 const match = l.match(/executable\s+(\w+)\s*=\s*\[([^;]+)\]/);
@@ -391,7 +446,9 @@ function interpretSysADL() {
             }
         }
 
-        log(`Final executables registered: ${Object.keys(sysadlModel.executables).join(", ")}`);
+        if (fullRun) {
+            log(`Final executables registered: ${Object.keys(sysadlModel.executables).join(", ")}`);
+        }
 
         Object.values(sysadlModel.requirements).forEach(req => {
             const context = { variables: {} };
@@ -399,27 +456,40 @@ function interpretSysADL() {
                 context.variables[p.name] = p.value;
             });
             const valid = evaluateConstraint(req.condition, context);
-            if (valid) {
-                log(`Requirement '${req.name}' passed: ${req.condition}`);
-                trace.push(`Requirement '${req.name}' passed: ${req.condition}`);
+            const step = () => {
+                if (valid) {
+                    log(`Requirement '${req.name}' passed: ${req.condition}`);
+                    trace.push(`Requirement '${req.name}' passed: ${req.condition}`);
+                } else {
+                    log(`Requirement '${req.name}' failed: ${req.condition}`);
+                }
+            };
+            if (fullRun) {
+                step();
             } else {
-                log(`Requirement '${req.name}' failed: ${req.condition}`);
+                simulationState.steps.push(step);
             }
         });
 
         Object.entries(sysadlModel.simulationInputs.flows).forEach(([port, value]) => {
             if (sysadlModel.ports[port]) {
-                sysadlModel.ports[port].value = value;
                 const compName = port.split(".")[0];
                 if (sysadlModel.components[compName]) {
                     sysadlModel.components[compName].state[port.split(".")[1]] = value;
                 }
                 trace.push(`Port ${port} initialized with: ${JSON.stringify(value)}`);
-                visualizer.emit("portUpdated", { port, value });
+                if (fullRun) {
+                    sysadlModel.ports[port].value = value;
+                    visualizer.emit("portUpdated", { port, value });
+                }
             }
         });
 
-        log("\n--- Simulation Start ---");
+        if (fullRun) {
+            log("\n--- Simulation Start ---");
+        } else {
+            simulationState.steps.push(() => log("\n--- Simulation Start ---"));
+        }
 
         sysadlModel.flows.forEach(f => {
             const srcPort = sysadlModel.ports[f.source];
@@ -427,16 +497,23 @@ function interpretSysADL() {
                 ? sysadlModel.simulationInputs.flows[f.source]
                 : getDefaultValue(srcPort?.type);
             if (srcPort) {
-                trace.push(`Flow ${f.source} initialized with: ${JSON.stringify(flowData)}`);
-                const propagatedData = f.propagate(flowData, sysadlModel.components, sysadlModel.ports, log, trace, sysadlModel.dataTypes);
-                visualizer.emit("flowPropagated", { source: f.source, target: f.target, data: propagatedData });
-                const tgtPort = sysadlModel.ports[f.target];
-                const tgtComp = sysadlModel.components[tgtPort?.component];
-                if (tgtComp) {
-                    tgtComp.activities.forEach(act => {
-                        const result = act.execute(tgtComp, [propagatedData], trace);
-                        log(result.log);
-                    });
+                const step = () => {
+                    trace.push(`Flow ${f.source} initialized with: ${JSON.stringify(flowData)}`);
+                    const propagatedData = f.propagate(flowData, sysadlModel.components, sysadlModel.ports, log, trace, sysadlModel.dataTypes);
+                    visualizer.emit("flowPropagated", { source: f.source, target: f.target, data: propagatedData });
+                    const tgtPort = sysadlModel.ports[f.target];
+                    const tgtComp = sysadlModel.components[tgtPort?.component];
+                    if (tgtComp) {
+                        tgtComp.activities.forEach(act => {
+                            const result = act.execute(tgtComp, [propagatedData], trace);
+                            log(result.log);
+                        });
+                    }
+                };
+                if (fullRun) {
+                    step();
+                } else {
+                    simulationState.steps.push(step);
                 }
             }
         });
@@ -460,8 +537,15 @@ function interpretSysADL() {
                             sysadlModel.simulationInputs.flows[`${subComp.type}.${paramName}`] ||
                             sysadlModel.simulationInputs.flows[`${c.name}.${paramName}`] ||
                             getDefaultValue(paramType);
-                        const result = act.execute(subComp, [input], trace);
-                        log(result.log);
+                        const step = () => {
+                            const result = act.execute(subComp, [input], trace);
+                            log(result.log);
+                        };
+                        if (fullRun) {
+                            step();
+                        } else {
+                            simulationState.steps.push(step);
+                        }
                     });
                 } else {
                     log(`Warning: Component definition ${c.definition} not found for ${c.name}`);
@@ -472,13 +556,20 @@ function interpretSysADL() {
                 if (proto) {
                     const comp = sysadlModel.components[config.components[0]?.name] || Object.values(sysadlModel.components)[0];
                     if (comp) {
-                        const result = proto.execute(comp, sysadlModel.ports, log, trace, 3);
-                        result.forEach(action => {
-                            if (action.action === "send") {
-                                visualizer.emit("portUpdated", { port: action.port, value: action.value });
-                            }
-                        });
-                        log(`Protocol '${proto.qualifiedName}' executed: ${JSON.stringify(result)}`);
+                        const step = () => {
+                            const result = proto.execute(comp, sysadlModel.ports, log, trace, 3);
+                            result.forEach(action => {
+                                if (action.action === "send") {
+                                    visualizer.emit("portUpdated", { port: action.port, value: action.value });
+                                }
+                            });
+                            log(`Protocol '${proto.qualifiedName}' executed: ${JSON.stringify(result)}`);
+                        };
+                        if (fullRun) {
+                            step();
+                        } else {
+                            simulationState.steps.push(step);
+                        }
                     } else {
                         log(`Warning: No component found to execute protocol '${proto.qualifiedName}'`);
                     }
@@ -486,7 +577,12 @@ function interpretSysADL() {
             });
         });
 
-        log(`Available executables: ${Object.keys(sysadlModel.executables).join(", ")}`);
+        if (fullRun) {
+            log(`Available executables: ${Object.keys(sysadlModel.executables).join(", ")}`);
+        } else {
+            simulationState.steps.push(() => log(`Available executables: ${Object.keys(sysadlModel.executables).join(", ")}`));
+        }
+
         sysadlModel.allocations.forEach(alloc => {
             const activity = Object.values(sysadlModel.components)
                 .flatMap(c => c.activities)
@@ -505,14 +601,26 @@ function interpretSysADL() {
                     (c.precondition && executable.params.some(p => c.precondition.includes(p.name))) ||
                     (c.postcondition && (executable.params.some(p => c.postcondition.includes(p.name)) || c.postcondition.includes("result")))
                 );
-                const result = executable.execute([input], log, applicableConstraints, trace, sysadlModel.dataTypes);
-                log(`Executable '${executable.qualifiedName}' for activity '${activity.name}' result: ${JSON.stringify(result)}`);
+                const step = () => {
+                    const result = executable.execute([input], log, applicableConstraints, trace, sysadlModel.dataTypes);
+                    log(`Executable '${executable.qualifiedName}' for activity '${activity.name}' result: ${JSON.stringify(result)}`);
+                };
+                if (fullRun) {
+                    step();
+                } else {
+                    simulationState.steps.push(step);
+                }
             } else {
                 log(`Warning: Allocation ${alloc.activity} -> ${alloc.executable} not resolved`);
             }
         });
 
-        log(`Available simulation inputs: ${Object.keys(sysadlModel.simulationInputs.executables).join(", ")}`);
+        if (fullRun) {
+            log(`Available simulation inputs: ${Object.keys(sysadlModel.simulationInputs.executables).join(", ")}`);
+        } else {
+            simulationState.steps.push(() => log(`Available simulation inputs: ${Object.keys(sysadlModel.simulationInputs.executables).join(", ")}`));
+        }
+
         Object.values(sysadlModel.executables).forEach(ex => {
             if (!sysadlModel.allocations.some(a => a.executable === ex.qualifiedName)) {
                 const inputs = sysadlModel.simulationInputs.executables[ex.qualifiedName] || ex.params.map(p => getDefaultValue(p.type));
@@ -520,18 +628,35 @@ function interpretSysADL() {
                     (c.precondition && ex.params.some(p => c.precondition.includes(p.name))) ||
                     (c.postcondition && (ex.params.some(p => c.postcondition.includes(p.name)) || c.postcondition.includes("result")))
                 );
-                const result = ex.execute(inputs, log, applicableConstraints, trace, sysadlModel.dataTypes);
-                log(`Executable '${ex.qualifiedName}' result: ${JSON.stringify(result)}`);
+                const step = () => {
+                    const result = ex.execute(inputs, log, applicableConstraints, trace, sysadlModel.dataTypes);
+                    log(`Executable '${ex.qualifiedName}' result: ${JSON.stringify(result)}`);
+                };
+                if (fullRun) {
+                    step();
+                } else {
+                    simulationState.steps.push(step);
+                }
             }
         });
 
-        log("\n--- Parameter Trace Summary ---");
-        trace.forEach((entry, i) => {
-            log(`${i + 1}. ${entry}`);
-        });
-
-        log("--- Simulation End ---");
-        visualizer.emit("simulationEnd", {});
+        if (fullRun) {
+            log("\n--- Parameter Trace Summary ---");
+            trace.forEach((entry, i) => {
+                log(`${i + 1}. ${entry}`);
+            });
+            log("--- Simulation End ---");
+            visualizer.emit("simulationEnd", {});
+        } else {
+            simulationState.steps.push(() => {
+                log("\n--- Parameter Trace Summary ---");
+                trace.forEach((entry, i) => {
+                    log(`${i + 1}. ${entry}`);
+                });
+                log("--- Simulation End ---");
+                visualizer.emit("simulationEnd", {});
+            });
+        }
 
     } catch (e) {
         log(`Error: ${e.message}`);
