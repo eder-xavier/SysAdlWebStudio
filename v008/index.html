@@ -1,13 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
-  <title>SysADL Simulator</title>
+  <title>SysADL RTC Simulator</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.9/codemirror.min.css" />
 </head>
-
 <body>
   <h1>SysADL Simulator</h1>
   <textarea id="input">
@@ -55,9 +53,9 @@ package RTCPkg {
     ports: Controller.coolerCtrl, Cooler.control
   }
 
-flow RTCPkg.Sensor.temp -> RTCPkg.Controller.temp;
-flow RTCPkg.Controller.heaterCtrl -> RTCPkg.Heater.control;
-flow RTCPkg.Controller.coolerCtrl -> RTCPkg.Cooler.control;
+  flow Sensor.temp -> Controller.temp
+  flow Controller.heaterCtrl -> Heater.control
+  flow Controller.coolerCtrl -> Cooler.control
 
   executable def Regulate (in temp:Float): out ControlMode
   {
@@ -91,41 +89,37 @@ flow RTCPkg.Controller.coolerCtrl -> RTCPkg.Cooler.control;
 }
 
 configuration {
-    components: s1:RTCPkg.Sensor, h1:RTCPkg.Heater, c1:RTCPkg.Cooler, ctrl1:RTCPkg.Controller;
-    connectors: conn1:RTCPkg.SensorToController, conn2:RTCPkg.ControllerToHeater, conn3:RTCPkg.ControllerToCooler;
-    protocols: RTCPkg.TempControl;
+  components: s1:Sensor, h1:Heater, c1:Cooler, ctrl1:Controller
+  connectors: conn1:SensorToController, conn2:ControllerToHeater, conn3:ControllerToCooler
+  protocols: TempControl
 }
 
 allocation RegulateTemp -> Regulate
 
 simulation {
-    flow RTCPkg.Sensor.temp = {"value":26, "unit":"Celsius"};
-    flow RTCPkg.Controller.heaterCtrl = "OFF";
-    flow RTCPkg.Controller.coolerCtrl = "COOLING";
-    executable RTCPkg.Regulate = [26];
+  flow Sensor.temp = { value: 26.0, unit: "Celsius" };
+  flow Controller.heaterCtrl = OFF;
+  flow Controller.coolerCtrl = COOLING;
+  executable Regulate = [26.0];
 }
-
-
-
   </textarea>
   <button onclick="interpretSysADL()">Interpret</button>
   <h2>Execution Log</h2>
   <div id="log"></div>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.9/codemirror.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.9/mode/javascript/javascript.min.js"></script>
-  <script src="sysadl-runtime-classes.js"></script>
-  <script src="sysadl-utils.js"></script>
-  <script src="sysadl-parser.js"></script>
-  <script src="sysadl-interpreter.js"></script>
-  <script>
-    // Initialize CodeMirror (manter aqui ou em um arquivo de UI separado)
-    const textarea = document.getElementById("input");
-    const editor = CodeMirror.fromTextArea(textarea, {
-      mode: "javascript", // Altere para um modo que suporte destaque de sintaxe da sua linguagem, se houver um.
-      lineNumbers: true,
-      theme: "default"
-    });
-  </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.9/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.9/mode/javascript/javascript.min.js"></script>
+    <script src="sysadl-runtime-classes.js"></script>
+    <script src="sysadl-utils.js"></script>
+    <script src="sysadl-parser.js"></script>
+    <script src="sysadl-interpreter.js"></script>
+    <script>
+        // Initialize CodeMirror (manter aqui ou em um arquivo de UI separado)
+        const textarea = document.getElementById("input");
+        const editor = CodeMirror.fromTextArea(textarea, {
+            mode: "javascript", // Altere para um modo que suporte destaque de sintaxe da sua linguagem, se houver um.
+            lineNumbers: true,
+            theme: "default"
+        });
+    </script>
 </body>
-
 </html>
