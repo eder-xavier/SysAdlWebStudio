@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SysADL Editor and Log Viewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.7/codemirror.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.7/codemirror.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.7/theme/dracula.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.7/mode/javascript/javascript.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>SysADL Editor and Log Viewer</h1>
+    <div id="input-section">
+        <input type="file" id="sysadlFile" accept=".sysadl" multiple>
+        <button onclick="loadFilesToEditor()">Load Files to Editor</button>
+        <button onclick="processSysADL()">Process SysADL Code</button>
+    </div>
+    <h2>SysADL Editor</h2>
+    <textarea id="sysadl-editor"></textarea>
+    <h2>Parser Log</h2>
+    <textarea id="log-output"></textarea>
+    <script src="script.js"></script>
+</body>
+</html>

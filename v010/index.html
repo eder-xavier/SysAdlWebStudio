@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SysADL Simulator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.7/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.7/theme/monokai.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.7/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.7/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chevrotain@10.5.0/lib/chevrotain.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>SysADL Simulator</h1>
+        <div class="editor-section">
+            <h3>SysADL Code</h3>
+            <textarea id="sysadlEditor"></textarea>
+        </div>
+        <div class="actions">
+            <button onclick="parseAndGenerate()">Parse & Generate JS</button>
+            <button onclick="runSimulation()">Run Simulation</button>
+            <button onclick="downloadJS()">Download JS</button>
+        </div>
+        <div class="editor-section">
+            <h3>Parser Log</h3>
+            <textarea id="logEditor" readonly></textarea>
+        </div>
+        <div class="editor-section">
+            <h3>Generated JavaScript</h3>
+            <textarea id="jsEditor"></textarea>
+        </div>
+        <div class="editor-section">
+            <h3>Simulation Results</h3>
+            <textarea id="resultEditor" readonly></textarea>
+        </div>
+    </div>
+    <script src="sysadl-mode.js"></script>
+    <script src="runtime.js"></script>
+    <script src="parser.js"></script>
+    <script src="codeGenerator.js"></script>
+    <script src="simulator.js"></script>
+    <script src="client.js"></script>
+    <script>
+        // Inicializar editores CodeMirror
+        window.sysadlEditor = CodeMirror.fromTextArea(document.getElementById('sysadlEditor'), {
+            mode: 'sysadl',
+            lineNumbers: true,
+            theme: 'monokai',
+            value: `Model SysADLModel ; \npackage types {\n  value type Int {}\n  value type Boolean {}\n  value type String {}\n  value type Void {}\n  value type Real {}\n  enum Command {On , Off }\n  datatype Commands {attributes : heater : Command ; cooler : Command ; }\n  dimension Temperature unit Celsius {dimension = Temperature }\n  unit Fahrenheit {dimension = Temperature }\n  value type temperature extends Real { dimension = Temperature }\n  value type FahrenheitTemperature extends temperature { unit = Fahrenheit dimension = Temperature }\n  value type CelsiusTemperature extends temperature { unit = Celsius dimension = Temperature }\n}\npackage Ports { import types ; port def FTemperatureOPT { flow out FahrenheitTemperature }\n  port def PresenceIPT { flow in Boolean }\n  port def PresenceOPT { flow out Boolean }\n  port def CTemperatureIPT { flow in CelsiusTemperature }\n  port def CommandIPT { flow in Command }\n  port def CommandOPT { flow out Command }\n  port def CTemperatureOPT { flow out CelsiusTemperature }\n}\npackage Connectors { import types ; import Ports ; connector def FahrenheitToCelsiusCN { participants : ~ Ft : FTemperatureOPT ; ~ Ct : CTemperatureIPT ; flows : FahrenheitTemperature from Ft to Ct }\n  connector def PresenceCN { participants : ~ pOut : PresenceOPT ; ~ pIn : PresenceIPT ; flows : Boolean from pOut to pIn }\n  connector def CommandCN { participants : ~ commandOut : CommandOPT ; ~ commandIn : CommandIPT ; flows : Command from commandOut to commandIn }\n  connector def CTemperatureCN { participants : ~ CtOut : CTemperatureOPT ; ~ ctIn : CTemperatureIPT ; flows : CelsiusTemperature from CtOut to ctIn }\n}\npackage Components { import Connectors ; import types ; import Ports ;\n\tcomponent def RTCSystemCFD {\t configuration {\t components : s1 : TemperatureSensorCP {\t using ports : current1 : FTemperatureOPT ; }\n\t  s2 : TemperatureSensorCP {\t using ports : current2 : FTemperatureOPT ; }\n\t  s3 : PresenceSensorCP {\t using ports : detectedS : PresenceOPT ; }\n\t  ui : UserInterfaceCP {\t using ports : desired : CTemperatureOPT ; }\n\t  a2 : CoolerCP {\t using ports : controllerC : CommandIPT ; }\n\t  a1 : HeaterCP {\t using ports : controllerH : CommandIPT ; }\n\t  rtc : RoomTemperatureControllerCP {\t using ports : detected : PresenceIPT ; localtemp1 : CTemperatureIPT ; localTemp2 : CTemperatureIPT ; userTemp : CTemperatureIPT ; heating : CommandOPT ; cooling : CommandOPT ; }\n\t  connectors : c1 : FahrenheitToCelsiusCN bindings current1 = localtemp1 ; uc : CTemperatureCN bindings desired = userTemp ; cc2 : CommandCN bindings cooling = controllerC ; pc : PresenceCN bindings detectedS = detected ; c2 : FahrenheitToCelsiusCN bindings current2 = localTemp2 ; cc1 : CommandCN bindings heating = controllerH ; }\n\t}\n\n\tcomponent def RoomTemperatureControllerCP {\t ports : detectedRTC : PresenceIPT ; localtemp1 : CTemperatureIPT ; localTemp2 : CTemperatureIPT ; userTempRTC : CTemperatureIPT ; heatingRTC : CommandOPT ; coolingRTC : CommandOPT ; configuration {\t components : sm : SensorsMonitorCP {\t using ports : s1 : CTemperatureIPT ; s2 : CTemperatureIPT ; average : CTemperatureOPT ; }\n\t  cm : CommanderCP {\t using ports : target2 : CTemperatureIPT ; average2 : CTemperatureIPT ; heating : CommandOPT ; cooling : CommandOPT ; }\n\t  pc : PresenceCheckerCP {\t using ports : detected : PresenceIPT ; userTemp : CTemperatureIPT ; target : CTemperatureOPT ; }\n\t  connectors : target : CTemperatureCN bindings target = target2 ; average : CTemperatureCN bindings average = average2 ; delegations : userTemp to userTempRTC detected to detectedRTC s1 to localtemp1 s2 to localtemp2 heating to heatingRTC cooling to coolingRTC }\n\t} boundary\n\tcomponent def TemperatureSensorCP {\t ports : current : FTemperatureOPT ; } boundary\n\tcomponent def PresenceSensorCP {\t ports : detected : PresenceOPT ; } boundary\n\tcomponent def UserInterfaceCP {\t ports : desired : CTemperatureOPT ; } boundary\n\tcomponent def HeaterCP {\t ports : controllerH : CommandIPT ; } boundary\n\tcomponent def CoolerCP {\t ports : controllerC : CommandIPT ; }\n\n\tcomponent def PresenceCheckerCP {\t ports : detected : PresenceIPT ; userTemp : CTemperatureIPT ; target : CTemperatureOPT ; }\n\n\tcomponent def CommanderCP {\t ports : target2 : CTemperatureIPT ; average2 : CTemperatureIPT ; heating : CommandOPT ; cooling : CommandOPT ; }\n\n\tcomponent def SensorsMonitorCP { ports : s1 : CTemperatureIPT ; s2 : CTemperatureIPT ; average : CTemperatureOPT ; }\n\tconstraint CalculateAverageTemperatureEQ ( t1 : CelsiusTemperature , t2 : CelsiusTemperature ) : ( av : CelsiusTemperature ) {\n\t\tequation = av == (t1 + t2)/2\n\t} \n\tactivity def CalculateAverageTemperatureAC ( s1 : CelsiusTemperature ) ( s2 : CelsiusTemperature ) : ( average : CelsiusTemperature ) { body { actions : CalcAvTemp : CalculateAverageTemperatureAN { using pins : s1 : CelsiusTemperature ; s2 : CelsiusTemperature ; } delegate s1 to s1 delegate s2 to s2 delegate average to CalcAvTemp } } \n\taction def CalculateAverageTemperatureAN ( t1 : CelsiusTemperature , t2 : CelsiusTemperature ) : CelsiusTemperature { constraint : post-condition CalculateAverageTemperatureEQ } \n\tactivity def CheckPresenceToSetTemperatureAC ( detected : Boolean ) ( userTemp : CelsiusTemperature ) : ( target : CelsiusTemperature ) { body { actions : CheckPeresenceToSetTemperatureAN : CheckPeresenceToSetTemperatureAN { using pins : detected : Boolean ; userTemp : CelsiusTemperature ; } delegate detected to detected delegate userTemp to userTemp delegate target to CheckPeresenceToSetTemperatureAN } } \n\tactivity def DecideCommandAC ( average2 : CelsiusTemperature ) ( target2 : CelsiusTemperature ) : ( cooling : Command , heating : Command ) { body { actions : ct : CompareTemperatureAN { using pins : average2 : CelsiusTemperature ; target2 : CelsiusTemperature ; } cmdH : CommandHeaterAN { using pins : cmdsH : Commands ; } cmdC : CommandCoolerAN { using pins : cmdsC : Commands ; } delegate average2 to average2 delegate target2 to target2 delegate heating to cmdH delegate cooling to cmdC flow from ct to cmdsH flow from ct to cmdsC } } \n\tactivity def FahrenheitToCelsiusAC ( current1 : FahrenheitTemperature ) : ( loalTemp1 : CelsiusTemperature ) { body { actions : FtC : FahrenheitToCelsiusAN { using pins : current1 : FahrenheitTemperature ; } delegate loalTemp1 to FtC delegate current1 to current1 } } \n\taction def CompareTemperatureAN ( average2 : CelsiusTemperature , target2 : CelsiusTemperature ) : Commands { constraint : post-condition CompareTemperatureEQ } \n\taction def CommandHeaterAN ( cmds : Commands ) : Command { constraint : post-condition CommandHeaterEQ } \n\taction def CommandCoolerAN ( cmds : Commands ) : Command { constraint : post-condition CommandCoolerEQ } \n\tconstraint CompareTemperatureEQ ( target : CelsiusTemperature , average : CelsiusTemperature ) : ( cmds : Commands ) { equation = average > target ? cmds == types.Commands.heater->Off && types.Commands.cooler->On : types.Commands.heater->On && cmds == types.Commands.cooler->Off } \n\tconstraint FahrenheitToCelsiusEQ ( f : FahrenheitTemperature ) : ( c : CelsiusTemperature ) { equation = c == (5*(f - 32)/9)} \n\tconstraint CommandHeaterEQ ( cmds : Commands ) : ( c : Command ) { equation = c == cmds->heater } \n\tconstraint CommandCoolerEQ ( cmds : Commands ) : ( c : Command ) {equation = c == cmds->cooler } \n\taction def FahrenheitToCelsiusAN ( current1 : FahrenheitTemperature ) : CelsiusTemperature { constraint : post-condition FahrenheitToCelsiusEQ } \t\n\taction def CheckPeresenceToSetTemperatureAN ( detected : Boolean , userTemp : CelsiusTemperature ) : CelsiusTemperature { constraint : post-condition CheckPresenceToSetTemperatureEQ } \n\tconstraint CheckPresenceToSetTemperatureEQ ( detected : Boolean , userTemp : CelsiusTemperature ) : ( target : CelsiusTemperature ) {equation = detected == true ? target == userTemp : target == 2 } \n\texecutable def CommandCoolerEx(in cmds:Commands): out Command{return cmds->cooler ; }\n\texecutable def CommandHeaterEx(in cmds:Commands): out Command{return cmds->heater ; }\n\texecutable def FahrenheitToCelsiusEx(in f:FahrenheitTemperature): out CelsiusTemperature{return 5*(f - 32)/9 ; }\n\texecutable def CalculateAverageTemperatureEx(in temp1:CelsiusTemperature,in temp2:CelsiusTemperature):out CelsiusTemperature{return (temp1 + temp2)/2 ; }\n\texecutable def CheckPresenceToSetTemperature(in presence:Boolean, in userTemp:CelsiusTemperature):out CelsiusTemperature{if(presence == true) return userTemp; else return 2; }\n\texecutable def CompareTemperatureEx(in target:CelsiusTemperature, in average:CelsiusTemperature):out Commands{let heater:Command = types.Command::Off; let cooler:Command = types.Command::Off; if(average > target) {heater = types.Command::Off; cooler = types.Command::On ; } else {heater = types.Command::On; cooler = types.Command::Off ;} } } \nallocations { activity FahrenheitToCelsiusAC to FahrenheitToCelsiusCN activity DecideCommandAC to CommanderCP activity CheckPresenceToSetTemperatureAC to PresenceCheckerCP activity CalculateAverageTemperatureAC to SensorsMonitorCP executable FahrenheitToCelsiusEx to FahrenheitToCelsiusAN executable CompareTemperatureEx to CompareTemperatureAN executable CommandHeaterEx to CommandHeaterAN executable CommandCoolerEx to CommandCoolerAN executable CheckPresenceToSetTemperature to CheckPeresenceToSetTemperatureAN executable CalculateAverageTemperatureEx to CalculateAverageTemperatureAN }`
+        });
+        window.logEditor = CodeMirror.fromTextArea(document.getElementById('logEditor'), {
+            mode: 'text',
+            lineNumbers: true,
+            theme: 'monokai',
+            readOnly: true
+        });
+        window.jsEditor = CodeMirror.fromTextArea(document.getElementById('jsEditor'), {
+            mode: 'javascript',
+            lineNumbers: true,
+            theme: 'monokai'
+        });
+        window.resultEditor = CodeMirror.fromTextArea(document.getElementById('resultEditor'), {
+            mode: 'text',
+            lineNumbers: true,
+            theme: 'monokai',
+            readOnly: true
+        });
+    </script>
+</body>
+</html>
