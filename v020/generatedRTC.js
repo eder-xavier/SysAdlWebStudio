@@ -179,7 +179,7 @@ class FahrenheitToCelsiusCN {
         const source = this.participants.get('Ft');
         const target = this.participants.get('Ct');
         if (source && target) {
-            source.subscribe('Ft', null, target, data => target.receive('Ct', null, data));
+            source.subscribe('Ft', null, target, data => target.receive('Ct', data));
         }
     }
     setParticipant(name, component) {
@@ -196,7 +196,7 @@ class PresenceCN {
         const source = this.participants.get('pOut');
         const target = this.participants.get('pIn');
         if (source && target) {
-            source.subscribe('pOut', null, target, data => target.receive('pIn', null, data));
+            source.subscribe('pOut', null, target, data => target.receive('pIn', data));
         }
     }
     setParticipant(name, component) {
@@ -213,7 +213,7 @@ class CommandCN {
         const source = this.participants.get('commandOut');
         const target = this.participants.get('commandIn');
         if (source && target) {
-            source.subscribe('commandOut', null, target, data => target.receive('commandIn', null, data));
+            source.subscribe('commandOut', null, target, data => target.receive('commandIn', data));
         }
     }
     setParticipant(name, component) {
@@ -230,7 +230,7 @@ class CTemperatureCN {
         const source = this.participants.get('CtOut');
         const target = this.participants.get('ctIn');
         if (source && target) {
-            source.subscribe('CtOut', null, target, data => target.receive('ctIn', null, data));
+            source.subscribe('CtOut', null, target, data => target.receive('ctIn', data));
         }
     }
     setParticipant(name, component) {
@@ -287,9 +287,9 @@ function CompareTemperatureEx(params = {}) {
 
 // Constraints
 function validateCalculateAverageTemperatureEQ(params = {}) {
-    let t1 = params["t1"] ?? null;
-    let t2 = params["t2"] ?? null;
-    let av = params["av"] ?? null;
+    let t1 = params["t1"] ?? 20;
+    let t2 = params["t2"] ?? 20;
+    let av = params["av"] ?? 20;
     const result = params["av"] === (params["t1"] + params["t2"])/2
 	;
     if (!result) {
@@ -299,10 +299,10 @@ function validateCalculateAverageTemperatureEQ(params = {}) {
 }
 
 function validateCompareTemperatureEQ(params = {}) {
-    let target = params["target"] ?? null;
-    let average = params["average"] ?? null;
+    let target = params["target"] ?? 20;
+    let average = params["average"] ?? 20;
     let cmds = params["cmds"] ?? new Commands();
-    const result = params["average"] > params["target"] ? params["cmds"] === params["types"].Commands.params["heater"].params["Off"] && types.Commands.params["cooler"].params["On"] : types.Commands.params["heater"].On && cmds === types.Commands.params["cooler"].Off ;
+    const result = params["average"] > params["target"] ? params["cmds"] === Command.heater.params["Off"] && Command.On : Command.params["heater"].On && cmds === Command.params["cooler"].Off ;
     if (!result) {
         throw new Error('Constraint CompareTemperatureEQ violated');
     }
@@ -310,8 +310,8 @@ function validateCompareTemperatureEQ(params = {}) {
 }
 
 function validateFahrenheitToCelsiusEQ(params = {}) {
-    let f = params["f"] ?? null;
-    let c = params["c"] ?? null;
+    let f = params["f"] ?? 20;
+    let c = params["c"] ?? 20;
     const result = params["c"] === (5*(params["f"] - 32)/9);
     if (!result) {
         throw new Error('Constraint FahrenheitToCelsiusEQ violated');
@@ -340,9 +340,9 @@ function validateCommandCoolerEQ(params = {}) {
 }
 
 function validateCheckPresenceToSetTemperatureEQ(params = {}) {
-    let detected = params["detected"] ?? null;
-    let userTemp = params["userTemp"] ?? null;
-    let target = params["target"] ?? null;
+    let detected = params["detected"] ?? false;
+    let userTemp = params["userTemp"] ?? 20;
+    let target = params["target"] ?? 20;
     const result = params["detected"] === true ? params["target"] === params["userTemp"] : target === 2 ;
     if (!result) {
         throw new Error('Constraint CheckPresenceToSetTemperatureEQ violated');
@@ -352,7 +352,7 @@ function validateCheckPresenceToSetTemperatureEQ(params = {}) {
 
 // System Initialization
 class SysADLModel extends SysADLComponent {
-    constructor() {
+    constructor(config = {}) {
         super('SysADLModel');
         // Initialize top-level components
         this.subComponents.set('RTCSystemCFD', new RTCSystemCFD());
@@ -376,43 +376,94 @@ class SysADLModel extends SysADLComponent {
         this.connectors.set('CTemperatureCN', new CTemperatureCN());
         this.connectors.get('CTemperatureCN').setParticipant('CtOut', this.subComponents.get('UserInterfaceCP'));
         this.connectors.get('CTemperatureCN').connectCtOut_ctIn();
+        const RoomTemperatureControllerCP_detectedRTC = config["detectedRTC"] ?? false;
+        this.subComponents.get('RoomTemperatureControllerCP').receive('detectedRTC', RoomTemperatureControllerCP_detectedRTC);
+        const RoomTemperatureControllerCP_s1 = config["s1"] ?? 20;
+        this.subComponents.get('RoomTemperatureControllerCP').receive('s1', RoomTemperatureControllerCP_s1);
+        const HeaterCP_controllerH = config["controllerH"] ?? Command.Off;
+        this.subComponents.get('HeaterCP').receive('controllerH', HeaterCP_controllerH);
+        const CoolerCP_controllerC = config["controllerC"] ?? Command.Off;
+        this.subComponents.get('CoolerCP').receive('controllerC', CoolerCP_controllerC);
+        const PresenceCheckerCP_detected = config["detected"] ?? false;
+        this.subComponents.get('PresenceCheckerCP').receive('detected', PresenceCheckerCP_detected);
+        const CommanderCP_target2 = config["target2"] ?? 20;
+        this.subComponents.get('CommanderCP').receive('target2', CommanderCP_target2);
+        const SensorsMonitorCP_s1 = config["s1"] ?? 20;
+        this.subComponents.get('SensorsMonitorCP').receive('s1', SensorsMonitorCP_s1);
+        this.connectors.get('FahrenheitToCelsiusCN').connectFt_Ct();
+        this.connectors.get('PresenceCN').connectpOut_pIn();
+        this.connectors.get('CommandCN').connectcommandOut_commandIn();
+        this.connectors.get('CTemperatureCN').connectCtOut_ctIn();
     }
 
     async run() {
         console.log('Running system SysADLModel');
-        await this.subComponents.get('FahrenheitToCelsiusCN').executeFahrenheitToCelsiusAC();
+        // Step 1: Process inputs and calculate results
+        const RoomTemperatureControllerCP_detectedRTC = this.subComponents.get('RoomTemperatureControllerCP').state.detectedRTC ?? null;
+        const RoomTemperatureControllerCP_s1 = this.subComponents.get('RoomTemperatureControllerCP').state.s1 ?? null;
+        const HeaterCP_controllerH = this.subComponents.get('HeaterCP').state.controllerH ?? null;
+        const CoolerCP_controllerC = this.subComponents.get('CoolerCP').state.controllerC ?? null;
+        const PresenceCheckerCP_detected = this.subComponents.get('PresenceCheckerCP').state.detected ?? null;
+        const CommanderCP_target2 = this.subComponents.get('CommanderCP').state.target2 ?? null;
+        const SensorsMonitorCP_s1 = this.subComponents.get('SensorsMonitorCP').state.s1 ?? null;
+        const CommandCoolerEx_result = CommandCoolerEx({  });
+        console.log('CommandCoolerEx result: ' + JSON.stringify(CommandCoolerEx_result));
+        const CommandHeaterEx_result = CommandHeaterEx({  });
+        console.log('CommandHeaterEx result: ' + JSON.stringify(CommandHeaterEx_result));
+        const FahrenheitToCelsiusEx_result = FahrenheitToCelsiusEx({  });
+        console.log('FahrenheitToCelsiusEx result: ' + JSON.stringify(FahrenheitToCelsiusEx_result));
+        const CalculateAverageTemperatureEx_result = CalculateAverageTemperatureEx({  });
+        console.log('CalculateAverageTemperatureEx result: ' + JSON.stringify(CalculateAverageTemperatureEx_result));
+        const CheckPresenceToSetTemperature_result = CheckPresenceToSetTemperature({  });
+        console.log('CheckPresenceToSetTemperature result: ' + JSON.stringify(CheckPresenceToSetTemperature_result));
+        const CompareTemperatureEx_result = CompareTemperatureEx({  });
+        console.log('CompareTemperatureEx result: ' + JSON.stringify(CompareTemperatureEx_result));
         try {
-            validateCalculateAverageTemperatureEQ({});
+            validateCalculateAverageTemperatureEQ({  });
+            console.log('Constraint CalculateAverageTemperatureEQ satisfied');
         } catch (e) {
             console.error(e.message);
         }
         try {
-            validateCompareTemperatureEQ({});
+            validateCompareTemperatureEQ({  });
+            console.log('Constraint CompareTemperatureEQ satisfied');
         } catch (e) {
             console.error(e.message);
         }
         try {
-            validateFahrenheitToCelsiusEQ({});
+            validateFahrenheitToCelsiusEQ({  });
+            console.log('Constraint FahrenheitToCelsiusEQ satisfied');
         } catch (e) {
             console.error(e.message);
         }
         try {
-            validateCommandHeaterEQ({});
+            validateCommandHeaterEQ({  });
+            console.log('Constraint CommandHeaterEQ satisfied');
         } catch (e) {
             console.error(e.message);
         }
         try {
-            validateCommandCoolerEQ({});
+            validateCommandCoolerEQ({  });
+            console.log('Constraint CommandCoolerEQ satisfied');
         } catch (e) {
             console.error(e.message);
         }
         try {
-            validateCheckPresenceToSetTemperatureEQ({});
+            validateCheckPresenceToSetTemperatureEQ({  });
+            console.log('Constraint CheckPresenceToSetTemperatureEQ satisfied');
         } catch (e) {
             console.error(e.message);
         }
     }
 }
 
-const system = new SysADLModel();
+const config = {
+    detectedRTC: process.argv[2] || false,
+    s1: process.argv[3] || 20,
+    controllerH: process.argv[4] || Command.Off,
+    controllerC: process.argv[5] || Command.Off,
+    detected: process.argv[6] || false,
+    target2: process.argv[7] || 20,
+};
+const system = new SysADLModel(config);
 system.run().catch(err => console.error(err));

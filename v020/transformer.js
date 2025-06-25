@@ -195,7 +195,7 @@ function generateJsCode(model) {
                     if (execAlloc) {
                         const exec = model.executables.find(e => e.name === execAlloc.source);
                         if (exec) {
-                            const constraint = model.constraints.find(c => activity.body.includes(c.name));
+                            const constraint = model.constraints.find(c => c.name && activity.body.includes(c.name));
                             if (constraint) {
                                 jsCode += `        try {\n`;
                                 jsCode += `            validate${constraint.name}({ ${activity.inputs.split(',').map(p => {
@@ -213,6 +213,8 @@ function generateJsCode(model) {
                                 let defaultValue = 'null';
                                 if (typeDef?.kind === 'datatype') defaultValue = `new ${type}()`;
                                 if (typeDef?.kind === 'enum') defaultValue = `${type}.Off`;
+                                if (type.includes('emperature')) defaultValue = '20';
+                                if (type === 'Boolean') defaultValue = 'false';
                                 return `${name}: this.state['${name}'] ?? ${defaultValue}`;
                             }).join(', ')} };\n`;
                             jsCode += `        const result = ${exec.name}(params);\n`;
@@ -361,7 +363,16 @@ function generateJsCode(model) {
 
     // Gerar funções para constraints
     jsCode += '// Constraints\n';
-    model.constraints.forEach(([name, constraint]) => {
+    if (!Array.isArray(model.constraints)) {
+        console.error('model.constraints is not an array:', model.constraints);
+        throw new Error('model.constraints must be an array');
+    }
+    model.constraints.forEach(constraint => {
+        const name = constraint.name;
+        if (!name || !constraint.equation || !constraint.inputs || !constraint.outputs) {
+            console.error('Invalid constraint structure:', constraint);
+            throw new Error(`Invalid constraint structure for ${name || 'unknown'}`);
+        }
         jsCode += `function validate${name}(params = {}) {\n`;
         let equation = constraint.equation || 'true';
         // Substituir Type::Value por Type.Value
@@ -385,7 +396,7 @@ function generateJsCode(model) {
                 (t.content.match(/(\w+)/g) || []).map(v => `${t.name}.${v}`)
             )
         ]);
-        equation = equation.replace(/\b(\w]+)/g, (match) => {
+        equation = equation.replace(/\b(\w+)\b/g, (match) => {
             if (protectedIdentifiers.has(match) || 
                 match.includes('.') || 
                 match.match(/^\d+$/) || 
@@ -399,13 +410,17 @@ function generateJsCode(model) {
         equation = equation.replace(/==/g, '===');
         // Corrigir expressões ternárias
         equation = equation.replace(/(\w+\s*[><=]+\s*[^?]+)\s*\?\s*([^:]+)\s*:\s*([^;]+)/g, '($1) ? ($2) : ($3)');
-        // Ajustar acesso a objetos em constraints
+        // Ajustar acesso a objetos em constraints (específico para Commands)
         equation = equation.replace(/params\["cmds"\]\s*===?\s*([^:;]+)/g, (match, value) => {
             if (value.includes('heater') || value.includes('cooler')) {
-                return match; // Já está correto
+                return match;
             }
-            return `params["cmds"].heater === ${value} || params["cmds"].cooler === ${value}`;
+            return `(params["cmds"].heater === ${value} || params["cmds"].cooler === ${value})`;
         });
+        // Corrigir acesso a Commands em constraints
+        equation = equation.replace(/types\.Commands\.params\["(\w+)"\]\.params\["(\w+)"\]/g, 'Command.$2');
+        equation = equation.replace(/types\.Commands\.(\w+)/g, 'Command.$1');
+        equation = equation.replace(/params\["types"\]\.Commands\.params\["(\w+)"\]/g, 'Command.$1');
         // Inicializar variáveis de entrada
         constraint.inputs.split(',').forEach(input => {
             const [name, type] = input.trim().split(':').map(s => s.trim());
@@ -414,6 +429,8 @@ function generateJsCode(model) {
                 let defaultValue = 'null';
                 if (typeDef?.kind === 'datatype') defaultValue = `new ${type}()`;
                 if (typeDef?.kind === 'enum') defaultValue = `${type}.Off`;
+                if (type.includes('emperature')) defaultValue = '20';
+                if (type === 'Boolean') defaultValue = 'false';
                 jsCode += `    let ${name} = params["${name}"] ?? ${defaultValue};\n`;
             }
         });
@@ -425,6 +442,8 @@ function generateJsCode(model) {
                 let defaultValue = 'null';
                 if (typeDef?.kind === 'datatype') defaultValue = `new ${type}()`;
                 if (typeDef?.kind === 'enum') defaultValue = `${type}.Off`;
+                if (type.includes('emperature')) defaultValue = '20';
+                if (type === 'Boolean') defaultValue = 'false';
                 jsCode += `    let ${name} = params["${name}"] ?? ${defaultValue};\n`;
             }
         });
@@ -462,19 +481,14 @@ function generateJsCode(model) {
                 jsCode += `        this.connectors.get('${conn.name}').connect${flow.source}_${flow.target}();\n`;
             });
             conn.bindings.forEach(binding => {
-                const sourceMatch = binding.source.match(/(\w+)\.(\w+)(?:\.(\w+))$/);
-                const targetMatch = binding.target.match(/(\w+)\.(\w+)(?:\.(\w+))$/);
+                const sourceMatch = binding.source.match(/(\w+)\.(\w+)(?:\.(\w+))?/);
+                const targetMatch = binding.target.match(/(\w+)\.(\w+)(?:\.(\w+))?/);
                 if (sourceMatch && targetMatch) {
                     const [, sourceComp, sourcePort, sourceSubPort] = sourceMatch;
                     const [, targetComp, targetPort, targetSubPort] = targetMatch;
                     jsCode += `        this.connectors.get('${conn.name}').bind${sourceComp}_${sourcePort}${sourceSubPort ? `_${sourceSubPort}` : ''}_to_${targetComp}_${targetPort}${targetSubPort ? `_${targetSubPort}` : ''}();\n`;
                 }
             });
-        // Configuração para CommandCTR
-        jsCode += `        this.connectors.set('CommandCTR', new CommandCTR());\n`;
-        jsCode += `        this.connectors.get('CommandCTR').setParticipant('command1', this.subComponents.get('CommanderCPRT')); \n`;
-        jsCode += `        this.connectors.get('CommandCTR').setParticipant('CTR', this);\n`;
-        jsCode += `        this.connectors.get('CommandCTR').connectcommand1_CTR();\n`;
         }
     });
 
@@ -488,14 +502,18 @@ function generateJsCode(model) {
             }
         });
     });
+    const declaredVars = new Set();
     inputPorts.forEach(p => {
-        let configName = p.port;
-        let defaultValue = 'null';
-        if (p.type === 'Boolean') defaultValue = 'false';
-        else if (p.type.includes('emperature')) defaultValue = '20';
-        else if (model.types.find(t => t.name === p.type && t.kind === 'enum')) defaultValue = `${p.type}.Off`;
-        jsCode += `        const ${configName} = config["${configName}"] ?? ${defaultValue};\n`;
-        jsCode += `        this.subComponents.get('${p.component}').receive('${p.port}', ${configName});\n`;
+        const configName = `${p.component}_${p.port}`;
+        if (!declaredVars.has(configName)) {
+            let defaultValue = 'null';
+            if (p.type === 'Boolean') defaultValue = 'false';
+            else if (p.type.includes('emperature')) defaultValue = '20';
+            else if (model.types.find(t => t.name === p.type && t.kind === 'enum')) defaultValue = `${p.type}.Off`;
+            jsCode += `        const ${configName} = config["${p.port}"] ?? ${defaultValue};\n`;
+            jsCode += `        this.subComponents.get('${p.component}').receive('${p.port}', ${configName});\n`;
+            declaredVars.add(configName);
+        }
     });
 
     // Propagar inicializações
@@ -512,35 +530,60 @@ function generateJsCode(model) {
     // Gerar função run
     jsCode += `    async run() {\n`;
     jsCode += `        console.log('Running system ${model.name}');\n`;
-    // Executar passos principais
     jsCode += `        // Step 1: Process inputs and calculate results\n`;
     const inputComps = topLevelComps.filter(c => c.ports.some(p => model.ports.find(pd => pd.name === p.type)?.flows.some(f => f.direction === 'in')));
+    const declaredRunVars = new Set();
     inputComps.forEach(comp => {
         comp.ports.forEach(p => {
             if (model.ports.find(pd => pd.name === p.type)?.flows.some(f => f.direction === 'in')) {
-                jsCode += `        const ${comp.name}_${p.name} = this.subComponents.get('${comp.name}').state.${p.name} || null;\n`;
+                const varName = `${comp.name}_${p.name}`;
+                if (!declaredRunVars.has(varName)) {
+                    jsCode += `        const ${varName} = this.subComponents.get('${comp.name}').state.${p.name} ?? null;\n`;
+                    declaredRunVars.add(varName);
+                }
             }
         });
     });
 
     model.executables.forEach(exec => {
         const inputs = [];
-        exec.body.match(/\b(\w+)\b/g)?.forEach(param => {
-            if (!['let', 'if', 'else', 'return', 'true', 'false', 'null'].includes(param) && !protectedVars.has(param)) {
+        const inputRegex = /\b(\w+)\b/g;
+        let match;
+        while ((match = inputRegex.exec(exec.body)) !== null) {
+            const param = match[1];
+            if (!['let', 'if', 'else', 'return', 'true', 'false', 'null', 'types', 'Command', 'On', 'Off'].includes(param) && 
+                !param.match(/^\d+$/) && 
+                !model.types.find(t => t.name === param)) {
                 inputs.push(param);
             }
-        });
-        jsCode += `        const ${exec.name}_result = ${exec.name}({ ${inputs.map(i => `${i}: this.state.${i} || 0`).join(', ')} });\n`;
+        }
+        const paramMappings = inputs.map(i => {
+            const comp = inputComps.find(c => c.ports.some(p => p.name === i));
+            if (comp) {
+                return `${i}: this.subComponents.get('${comp.name}').state.${i} ?? null`;
+            } else {
+                console.warn(`No component found for input ${i} in executable ${exec.name}`);
+                return null;
+            }
+        }).filter(mapping => mapping !== null);
+        jsCode += `        const ${exec.name}_result = ${exec.name}({ ${paramMappings.join(', ')} });\n`;
         jsCode += `        console.log('${exec.name} result: ' + JSON.stringify(${exec.name}_result));\n`;
     });
 
-    model.constraints.forEach(([name, constraint]) => {
-        jsCode += `        try {\n`;
-        jsCode += `            validate${name}({ ${constraint.inputs.split(',').map(i => {
+    model.constraints.forEach(constraint => {
+        const paramMappings = constraint.inputs.split(',').map(i => {
             const [n] = i.trim().split(':');
-            return `${n}: this.state.${n} || null`;
-        }).join(', ')} });\n`;
-        jsCode += `            console.log('Constraint ${name} satisfied');\n`;
+            const comp = inputComps.find(c => c.ports.some(p => p.name === n));
+            if (comp) {
+                return `${n}: this.subComponents.get('${comp.name}').state.${n} ?? null`;
+            } else {
+                console.warn(`No component found for constraint input ${n} in ${constraint.name}`);
+                return null;
+            }
+        }).filter(mapping => mapping !== null);
+        jsCode += `        try {\n`;
+        jsCode += `            validate${constraint.name}({ ${paramMappings.join(', ')} });\n`;
+        jsCode += `            console.log('Constraint ${constraint.name} satisfied');\n`;
         jsCode += `        } catch (e) {\n`;
         jsCode += `            console.error(e.message);\n`;
         jsCode += `        }\n`;
@@ -551,12 +594,17 @@ function generateJsCode(model) {
 
     // Adicionar execução no Node.js
     jsCode += `const config = {\n`;
+    const configKeys = new Set();
     inputPorts.forEach(p => {
-        let defaultValue = 'null';
-        if (p.type === 'Boolean') defaultValue = 'false';
-        else if (p.type.includes('emperature')) defaultValue = '20';
-        else if (model.types.find(t => t.name === p.type && t.kind === 'enum')) defaultValue = `${p.type}.Off`;
-        jsCode += `    ${p.port}: process.argv[${2 + inputPorts.indexOf(p)}] || ${defaultValue},\n`;
+        const configKey = p.port;
+        if (!configKeys.has(configKey)) {
+            let defaultValue = 'null';
+            if (p.type === 'Boolean') defaultValue = 'false';
+            else if (p.type.includes('emperature')) defaultValue = '20';
+            else if (model.types.find(t => t.name === p.type && t.kind === 'enum')) defaultValue = `${p.type}.Off`;
+            jsCode += `    ${configKey}: process.argv[${2 + Array.from(configKeys).length}] || ${defaultValue},\n`;
+            configKeys.add(configKey);
+        }
     });
     jsCode += '};\n';
     jsCode += `const system = new ${model.name}(config);\n`;
