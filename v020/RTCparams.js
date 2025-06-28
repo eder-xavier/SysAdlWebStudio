@@ -360,7 +360,7 @@ function validateCommandCoolerEQ(params = {}) {
 
 function validateCheckPresenceToSetTemperatureEQ(params = {}) {
     let detected = params["detected"] ?? false;
-    let userTemp = params["userTemp"] ?? 20;
+    let userTemp = params["userTemp"] ?? 70;
     let target = params["target"] ?? 2;
     const result = detected ? target === userTemp : target === 2;
     if (!result) {
@@ -492,7 +492,7 @@ class SysADLModel extends SysADLComponent {
 const config = {
     currentTemperature: parseFloat(process.argv[2]) || 77, // Fahrenheit
     desiredTemperature: parseFloat(process.argv[3]) || 22, // Celsius
-    presenceDetected: process.argv[4] === 'true' || true
+    presenceDetected: process.argv[4] === 'false' || false
 };
 
 const system = new SysADLModel(config);
