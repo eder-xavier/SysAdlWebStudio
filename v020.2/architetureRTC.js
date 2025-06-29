@@ -15,7 +15,7 @@ class Port {
   }
 }
 
-// Porta de saída para enviar temperaturas
+// Porta de saída 
 class OutputPort extends Port {
   constructor(name, connector) {
     super(name);
@@ -32,7 +32,7 @@ class OutputPort extends Port {
   }
 }
 
-// Porta de entrada para receber temperaturas
+// Porta de entrada
 class InputPort extends Port {
   constructor(name, component) {
     super(name);
@@ -47,7 +47,7 @@ class InputPort extends Port {
           this.component.onDataReceived(this.name, data); // Notifica o componente
         }
         resolve();
-      }, 500); // Atraso de 500ms para simular processamento
+      }, 500); // Atraso de 500ms para processamento
     });
   }
 }
@@ -55,7 +55,7 @@ class InputPort extends Port {
 // Conector para transmitir dados entre portas
 class Connector {
   constructor(name, sourcePort, targetPort) {
-    this.name = name; // Nome do conector, conforme SysADL
+    this.name = name; 
     this.sourcePort = sourcePort;
     this.targetPort = targetPort;
     this.messageQueue = []; // Fila para mensagens
@@ -99,7 +99,7 @@ class Component {
   }
 }
 
-// Componente de fronteira (Heater ou Cooler)
+// Componente de fronteira 
 class BoundaryComponent extends Component {
   constructor(name) {
     super(name, true);
