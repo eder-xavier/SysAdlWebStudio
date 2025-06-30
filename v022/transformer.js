@@ -21,7 +21,7 @@ function transformToJavaScript() {
     }
 }
 
-function generateJsCode(model) {
+async function generateJsCode(model) {
     let jsCode = `// Generated JavaScript code for SysADL Model: ${model.name}\n\n`;
     jsCode += `const readline = require('readline').createInterface({ input: process.stdin, output: process.stdout });\n\n`;
 
@@ -34,17 +34,20 @@ function generateJsCode(model) {
             jsCode += `const ${type.name} = 'any'; // Value type\n`;
         } else if (type.kind === 'datatype') {
             typeMap[type.name] = type.name;
-            const attributes = type.content.match(/attributes\s*:\s*([^;]+)/)?.[1] || '';
+            const attributes = type.content && typeof type.content === 'string' ? type.content.match(/attributes\s*:\s*([^;]+)/)?.[1] || '' : '';
             jsCode += `class ${type.name} {\n    constructor(params = {}) {\n`;
             attributes.split(',').forEach(attr => {
                 const match = attr.match(/(\w+)\s*:\s*(\w+)/);
                 if (match) {
-                    jsCode += `        this.${match[1]} = params.${match[1]} ?? null;\n`;
+                    const attrType = model.types.find(t => t.name === match[2]);
+                    let defaultValue = 'null';
+                    if (attrType?.kind === 'enum') defaultValue = `${match[2]}.Off`;
+                    jsCode += `        this.${match[1]} = params.${match[1]} ?? ${defaultValue};\n`;
                 }
             });
             jsCode += `    }\n}\n`;
         } else if (type.kind === 'enum') {
-            const enumValues = type.content.match(/(\w+)/g) || [];
+            const enumValues = type.content && typeof type.content === 'string' ? type.content.match(/(\w+)/g) || [] : [];
             typeMap[type.name] = enumValues.map(v => `'${v}'`).join(' | ');
             jsCode += `const ${type.name} = Object.freeze({ ${enumValues.map(v => `${v}: '${v}'`).join(', ')} });\n`;
         }
@@ -137,7 +140,6 @@ function generateJsCode(model) {
         return true;
     }
 }\n\n`;
-    });
 
     // Classe base para conectores
     jsCode += `// Base Connector Class\n`;
@@ -202,7 +204,7 @@ function generateJsCode(model) {
         this.state = {};
     }
 
-    addPort(port) {
+    async addPort(port) {
         this.ports.push(port);
         console.log(\`Port \${port.name} added to component \${this.name}\`);
     }
@@ -226,6 +228,109 @@ function generateJsCode(model) {
 
     async start() {
         console.log(\`Boundary component \${this.name} started\`);
+        for (const port of this.ports) {
+            const portDef = ${JSON.stringify(model.ports)}.find(p => p.name === port.type);
+            const typeDef = portDef?.flows?.[0]?.type;
+            if (typeDef && (typeDef.includes('emperature') || typeDef === 'Real' || typeDef === 'Int')) {
+                await new Promise(resolve => {
+                    readline.question(\`Enter value for \${this.name}.\${port.name} (number): \`, async (input) => {
+                        const value = parseFloat(input);
+                        if (!isNaN(value)) {
+                            await this.onDataReceived(port.name, value);
+                        } else {
+                            console.error(\`Invalid number input for \${this.name}.\${port.name}\`);
+                        }
+                        resolve();
+                        await this.promptForInput();
+                    });
+                });
+            } else if (typeDef === 'Boolean') {
+                await new Promise(resolve => {
+                    readline.question(\`Enter value for \${this.name}.\${port.name} (true/false): \`, async (input) => {
+                        const value = input.toLowerCase() === 'true';
+                        await this.onDataReceived(port.name, value);
+                        resolve();
+                        await this.promptForInput();
+                    });
+                });
+            } else if (${JSON.stringify(model.types)}.find(t => t.name === typeDef && t.kind === 'enum')) {
+                const enumValues = ${JSON.stringify(model.types)}.find(t => t.name === typeDef)?.content.match(/(\\w+)/g) || [];
+                await new Promise(resolve => {
+                    readline.question(\`Enter value for \${this.name}.\${port.name} (\${enumValues.join('/')}): \`, async (input) => {
+                        const value = ${typeDef}[input] || ${typeDef}.Off;
+                        await this.onDataReceived(port.name, value);
+                        resolve();
+                        await this.promptForInput();
+                    });
+                });
+            } else if (${JSON.stringify(model.types)}.find(t => t.name === typeDef && t.kind === 'datatype')) {
+                await new Promise(resolve => {
+                    readline.question(\`Enter JSON for \${this.name}.\${port.name} (\${typeDef}): \`, async (input) => {
+                        try {
+                            const value = JSON.parse(input);
+                            await this.onDataReceived(port.name, new ${typeDef}(value));
+                        } catch (e) {
+                            console.error(\`Invalid JSON input for \${this.name}.\${port.name}: \${e.message}\`);
+                        }
+                        resolve();
+                        await this.promptForInput();
+                    });
+                });
+            }
+        }
+    }
+
+    async promptForInput() {
+        for (const port of this.ports) {
+            const portDef = ${JSON.stringify(model.ports)}.find(p => p.name === port.type);
+            const typeDef = portDef?.flows?.[0]?.type;
+            if (typeDef && (typeDef.includes('emperature') || typeDef === 'Real' || typeDef === 'Int')) {
+                await new Promise(resolve => {
+                    readline.question(\`Enter value for \${this.name}.\${port.name} (number): \`, async (input) => {
+                        const value = parseFloat(input);
+                        if (!isNaN(value)) {
+                            await this.onDataReceived(port.name, value);
+                        } else {
+                            console.error(\`Invalid number input for \${this.name}.\${port.name}\`);
+                        }
+                        resolve();
+                        await this.promptForInput();
+                    });
+                });
+            } else if (typeDef === 'Boolean') {
+                await new Promise(resolve => {
+                    readline.question(\`Enter value for \${this.name}.\${port.name} (true/false): \`, async (input) => {
+                        const value = input.toLowerCase() === 'true';
+                        await this.onDataReceived(port.name, value);
+                        resolve();
+                        await this.promptForInput();
+                    });
+                });
+            } else if (${JSON.stringify(model.types)}.find(t => t.name === typeDef && t.kind === 'enum')) {
+                const enumValues = ${JSON.stringify(model.types)}.find(t => t.name === typeDef)?.content.match(/(\\w+)/g) || [];
+                await new Promise(resolve => {
+                    readline.question(\`Enter value for \${this.name}.\${port.name} (\${enumValues.join('/')}): \`, async (input) => {
+                        const value = ${typeDef}[input] || ${typeDef}.Off;
+                        await this.onDataReceived(port.name, value);
+                        resolve();
+                        await this.promptForInput();
+                    });
+                });
+            } else if (${JSON.stringify(model.types)}.find(t => t.name === typeDef && t.kind === 'datatype')) {
+                await new Promise(resolve => {
+                    readline.question(\`Enter JSON for \${this.name}.\${port.name} (\${typeDef}): \`, async (input) => {
+                        try {
+                            const value = JSON.parse(input);
+                            await this.onDataReceived(port.name, new ${typeDef}(value));
+                        } catch (e) {
+                            console.error(\`Invalid JSON input for \${this.name}.\${port.name}: \${e.message}\`);
+                        }
+                        resolve();
+                        await this.promptForInput();
+                    });
+                });
+            }
+        }
     }
 }\n\n`;
 
@@ -233,8 +338,6 @@ function generateJsCode(model) {
     jsCode += '// Component Classes\n';
     model.components.forEach(comp => {
         const isBoundary = comp.configuration?.includes('boundary') || false;
-        
-        // Gera os métodos para as atividades alocadas
         const activityMethods = model.allocations
             .filter(a => a.target === comp.name && a.type === 'activity')
             .map(alloc => {
@@ -244,36 +347,32 @@ function generateJsCode(model) {
                 const paramsInit = activity.inputs.split(',').map(p => {
                     const [name, type] = p.trim().split(':').map(s => s.trim());
                     return `${name}: this.state['${name}'] ?? null`;
-                }).join(',\n                    ');
+                }).filter(p => p).join(',\n                    ');
 
-                const actionsCode = activity.actions.map(action => {
+                const actionsCode = activity.actions?.map(action => {
                     const execAlloc = model.allocations.find(a => a.type === 'executable' && a.target === action.name);
                     if (!execAlloc) return '';
-                    
                     const executable = model.executables.find(e => e.name === execAlloc.source);
                     if (!executable) return '';
-
-                    const constraint = model.constraints.find(c => c.name && activity.body.includes(c.name));
+                    const constraint = model.constraints.find(c => c.name && activity.body?.includes(c.name));
                     const actionId = action.id || `action_${Math.random().toString(36).substr(2, 9)}`;
-                    
-                    let code = `const ${actionId}_result = ${executable.name}(params);\n`;
+                    let code = `const ${actionId}_result = await ${executable.name}(params);\n`;
                     if (constraint) {
                         code = `try {
-                        validate${constraint.name}(params);
-                    } catch (e) {
-                        console.error(\`Constraint ${constraint.name} violated: \${e.message}\`);
-                        return null;
-                    }\n                    ${code}`;
+                            await validate${constraint.name}(params);
+                        } catch (e) {
+                            console.error(\`Constraint ${constraint.name} violated: \${e.message}\`);
+                            return null;
+                        }\n                    ${code}`;
                     }
                     return code;
-                }).join('\n                ');
-                
-                const returnVal = (activity.outputs && typeof activity.outputs === 'string' && activity.outputs.trim())
-                    ? activity.outputs.split(',').map(o => {
-                          const [name] = o.trim().split(':').map(s => s.trim());
-                          return name ? `${name}_result` : null;
-                      }).filter(name => name).join(' || ') || 'null'
-                    : 'null';
+                }).filter(c => c).join('\n                ') || '';
+
+                const returnVal = activity.outputs && activity.outputs.trim() ?
+                    activity.outputs.split(',').map(o => {
+                        const [name] = o.trim().split(':').map(s => s.trim());
+                        return name ? `${name}_result` : null;
+                    }).filter(name => name).join(' || ') || 'null' : 'null';
 
                 return `
     async execute${activity.name}() {
@@ -286,7 +385,6 @@ function generateJsCode(model) {
     }`;
             }).join('\n');
 
-        // Adicionar portas adicionais para SensorsMonitorCP, PresenceCheckerCP e CommanderCP
         const additionalPorts = [];
         if (comp.name === 'SensorsMonitorCP') {
             additionalPorts.push({ name: 's2', type: 'CTemperatureIPT' }, { name: 'average', type: 'CTemperatureOPT' });
@@ -296,7 +394,6 @@ function generateJsCode(model) {
             additionalPorts.push({ name: 'average2', type: 'CTemperatureIPT' }, { name: 'heating', type: 'CommandOPT' }, { name: 'cooling', type: 'CommandOPT' });
         }
 
-        // Constrói a string final da classe
         jsCode += `class ${comp.name} extends ${isBoundary ? 'SysADLBoundaryComponent' : 'SysADLComponent'} {
     constructor() {
         super('${comp.name}');
@@ -314,7 +411,12 @@ function generateJsCode(model) {
             const type = portDef?.flows[0]?.type || 'any';
             let defaultValue = 'null';
             if (type === 'Boolean') defaultValue = 'false';
-            else if (model.types.find(t => t.name === type && t.kind === 'enum')) defaultValue = `${type}.Off`;
+            else if (model.types.find(t => t.name === type && t.kind === 'enum')) {
+                const enumValues = model.types.find(t => t.name === type)?.content.match(/(\\w+)/g) || [];
+                defaultValue = `${type}.${enumValues[0] || 'Off'}`;
+            } else if (model.types.find(t => t.name === type && t.kind === 'datatype')) {
+                defaultValue = `new ${type}()`;
+            }
             return `this.state['${port.name}'] = ${defaultValue};`;
         }).join('\n        ')}
         ${additionalPorts.map(port => {
@@ -322,45 +424,19 @@ function generateJsCode(model) {
             const type = portDef?.flows[0]?.type || 'any';
             let defaultValue = 'null';
             if (type === 'Boolean') defaultValue = 'false';
-            else if (model.types.find(t => t.name === type && t.kind === 'enum')) defaultValue = `${type}.Off`;
+            else if (model.types.find(t => t.name === type && t.kind === 'enum')) {
+                const enumValues = model.types.find(t => t.name === type)?.content.match(/(\\w+)/g) || [];
+                defaultValue = `${type}.${enumValues[0] || 'Off'}`;
+            } else if (model.types.find(t => t.name === type && t.kind === 'datatype')) {
+                defaultValue = `new ${type}()`;
+            }
             return `this.state['${port.name}'] = ${defaultValue};`;
         }).join('\n        ')}
     }
 
-    ${isBoundary ? `async start() {
-        console.log(\`Boundary component \${this.name} started\`);
-        ${comp.ports.map(port => {
-            const portDef = model.ports.find(p => p.name === port.type);
-            const type = portDef?.flows[0]?.type || 'any';
-            if (type.includes('emperature')) {
-                return `
-        readline.question(\`Enter value for \${this.name}.${port.name} (temperature): \`, async (input) => {
-            const value = parseFloat(input);
-            if (!isNaN(value)) {
-                await this.onDataReceived('${port.name}', value);
-            } else {
-                console.error(\`Invalid temperature input for \${this.name}.${port.name}\`);
-            }
-        });`;
-            } else if (type === 'Boolean') {
-                return `
-        readline.question(\`Enter value for \${this.name}.${port.name} (true/false): \`, async (input) => {
-            const value = input.toLowerCase() === 'true';
-            await this.onDataReceived('${port.name}', value);
-        });`;
-            } else if (model.types.find(t => t.name === type && t.kind === 'enum')) {
-                const enumValues = model.types.find(t => t.name === type).content.match(/(\w+)/g) || [];
-                return `
-        readline.question(\`Enter value for \${this.name}.${port.name} (${enumValues.join('/')}): \`, async (input) => {
-            const value = ${type}[input] || ${type}.Off;
-            await this.onDataReceived('${port.name}', value);
-        });`;
-            }
-            return '';
-        }).join('\n        ')}
-    }` : `async onDataReceived(portName, data) {
+    async onDataReceived(portName, data) {
         this.state[portName] = data;
-        console.log(\`Component \${this.name} updated \${portName} with \${data}\`);
+        console.log(\`Component \${this.name} received \${data} on \${portName}\`);
         ${comp.name === 'SensorsMonitorCP' ? `
         if (this.state['s1'] !== null && this.state['s2'] !== null) {
             const result = await this.executeCalculateAverageTemperatureAC();
@@ -381,7 +457,8 @@ function generateJsCode(model) {
             if (heatingPort) await heatingPort.send(result.heater);
             if (coolingPort) await coolingPort.send(result.cooler);
         }` : ''}
-    }`}
+    }
+
     ${activityMethods}
 }\n\n`;
     });
@@ -389,8 +466,8 @@ function generateJsCode(model) {
     // Gerar funções para executáveis
     jsCode += '// Executables\n';
     model.executables.forEach(exec => {
-        jsCode += `function ${exec.name}(params = {}) {\n`;
-        let body = exec.body.trim();
+        jsCode += `async function ${exec.name}(params = {}) {\n`;
+        let body = exec.body ? exec.body.trim() : '';
         body = body.replace(/(\w+)::(\w+)/g, (match, type, value) => {
             if (model.types.find(t => t.name === type && t.kind === 'enum')) {
                 return `${type}.${value}`;
@@ -463,9 +540,9 @@ function generateJsCode(model) {
     // Gerar funções para constraints
     jsCode += '// Constraints\n';
     model.constraints.forEach(constraint => {
-        const name = constraint.name;
-        jsCode += `function validate${name}(params = {}) {\n`;
+        jsCode += `async function validate${constraint.name}(params = {}) {\n`;
         let equation = constraint.equation || 'true';
+        console.log(`Generating constraint ${constraint.name} with equation: ${equation}`);
         equation = equation.replace(/(\w+)::(\w+)/g, (match, type, value) => {
             if (model.types.find(t => t.name === type && t.kind === 'enum')) {
                 return `${type}.${value}`;
@@ -480,9 +557,8 @@ function generateJsCode(model) {
         const protectedIdentifiers = new Set([
             'true', 'false', 'null', 'params',
             ...model.types.map(t => t.name),
-            ...model.types.filter(t => t.kind === 'enum').flatMap(t =>
-                (t.content.match(/(\w+)/g) || []).map(v => `${t.name}.${v}`)
-            )
+            ...model.types.filter(t => t.kind === 'enum' && t.content && typeof t.content === 'string')
+                .flatMap(t => (t.content.match(/(\w+)/g) || []).map(v => `${t.name}.${v}`))
         ]);
         equation = equation.replace(/\b(\w+)\b/g, (match) => {
             if (protectedIdentifiers.has(match) ||
@@ -505,7 +581,10 @@ function generateJsCode(model) {
                 const typeDef = model.types.find(t => t.name === type);
                 let defaultValue = 'null';
                 if (typeDef?.kind === 'datatype') defaultValue = `new ${type}()`;
-                if (typeDef?.kind === 'enum') defaultValue = `${type}.Off`;
+                if (typeDef?.kind === 'enum') {
+                    const enumValues = typeDef.content && typeof typeDef.content === 'string' ? typeDef.content.match(/(\w+)/g) || ['Off'] : ['Off'];
+                    defaultValue = `${type}.${enumValues[0]}`;
+                }
                 if (type === 'Boolean') defaultValue = 'false';
                 jsCode += `    let ${name} = params["${name}"] ?? ${defaultValue};\n`;
             }
@@ -516,14 +595,23 @@ function generateJsCode(model) {
                 const typeDef = model.types.find(t => t.name === type);
                 let defaultValue = 'null';
                 if (typeDef?.kind === 'datatype') defaultValue = `new ${type}()`;
-                if (typeDef?.kind === 'enum') defaultValue = `${type}.Off`;
+                if (typeDef?.kind === 'enum') {
+                    const enumValues = typeDef.content && typeof typeDef.content === 'string' ? typeDef.content.match(/(\w+)/g) || ['Off'] : ['Off'];
+                    defaultValue = `${type}.${enumValues[0]}`;
+                }
                 if (type === 'Boolean') defaultValue = 'false';
                 jsCode += `    let ${name} = params["${name}"] ?? ${defaultValue};\n`;
             }
         });
+        try {
+            new Function('params', `return ${equation}`);
+        } catch (e) {
+            console.error(`Invalid equation in constraint ${constraint.name}: ${equation}`);
+            equation = 'true';
+        }
         jsCode += `    const result = ${equation};\n`;
         jsCode += `    if (!result) {\n`;
-        jsCode += `        throw new Error('Constraint ${name} violated');\n`;
+        jsCode += `        throw new Error('Constraint ${constraint.name} violated');\n`;
         jsCode += `    }\n`;
         jsCode += `    return result;\n`;
         jsCode += `}\n\n`;
@@ -534,7 +622,7 @@ function generateJsCode(model) {
         constructor() {
             this.ports = [];
         }
-        addPort(...ports) {
+        async addPort(...ports) {
             this.ports.push(...ports);
             console.log('Ports added to system:', ports.map(p => p.name));
         }
@@ -549,12 +637,12 @@ function generateJsCode(model) {
     });
     topLevelComps.forEach(comp => {
         jsCode += `    const ${comp.name.toLowerCase()} = new ${comp.name}();\n`;
-        jsCode += `    system.addPort(...${comp.name.toLowerCase()}.ports);\n`;
+        jsCode += `    await system.addPort(...${comp.name.toLowerCase()}.ports);\n`;
     });
     model.connectors.forEach(conn => {
         jsCode += `    const ${conn.name.toLowerCase()} = new ${conn.name}(null, null);\n`;
         conn.participants.forEach(p => {
-            const comp = model.components.find(c => c.ports.some(port => port.type === p.type));
+            const comp = model.components.find(c => c.ports.some(port => port.name === p.name || port.type === p.type));
             if (comp) {
                 jsCode += `    ${conn.name.toLowerCase()}.setParticipant('${p.name}', ${comp.name.toLowerCase()});\n`;
             }
@@ -565,6 +653,8 @@ function generateJsCode(model) {
         jsCode += `        ${comp.name.toLowerCase()}.start(),\n`;
     });
     jsCode += `    ]);\n`;
+    jsCode += `    console.log('System running. Press Ctrl+C to exit.');\n`;
+    jsCode += `    await new Promise(resolve => {});\n`;
     jsCode += `}\n\n`;
 
     // Executar a arquitetura
