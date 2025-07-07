@@ -1,6 +1,8 @@
 // Generated JavaScript code for SysADL Model: SysADLModel
 
-const readline = require('readline').createInterface({ input: process.stdin, output: process.stdout });
+// Model Metadata
+const modelPorts = [{"name":"FTemperatureOPT","flows":[{"direction":"out","type":"FahrenheitTemperature"}],"subPorts":[]},{"name":"PresenceIPT","flows":[{"direction":"in","type":"Boolean"}],"subPorts":[]},{"name":"PresenceOPT","flows":[{"direction":"out","type":"Boolean"}],"subPorts":[]},{"name":"CTemperatureIPT","flows":[{"direction":"in","type":"CelsiusTemperature"}],"subPorts":[]},{"name":"CommandIPT","flows":[{"direction":"in","type":"Command"}],"subPorts":[]},{"name":"CommandOPT","flows":[{"direction":"out","type":"Command"}],"subPorts":[]},{"name":"CTemperatureOPT","flows":[{"direction":"out","type":"CelsiusTemperature"}],"subPorts":[]}];
+const modelTypes = [{"kind":"value type","name":"Int","extends":null,"content":""},{"kind":"value type","name":"Boolean","extends":null,"content":""},{"kind":"value type","name":"String","extends":null,"content":""},{"kind":"value type","name":"Void","extends":null,"content":""},{"kind":"value type","name":"Real","extends":null,"content":""},{"kind":"enum","name":"Command","extends":null,"content":"On , Off"},{"kind":"datatype","name":"Commands","extends":null,"content":"attributes : heater : Command ; cooler : Command ;"},{"kind":"value type","name":"temperature","extends":"Real","content":"dimension = Temperature"},{"kind":"value type","name":"FahrenheitTemperature","extends":"temperature","content":"unit = Fahrenheit dimension = Temperature"},{"kind":"value type","name":"CelsiusTemperature","extends":"temperature","content":"unit = Celsius dimension = Temperature"}];
 
 // Types
 const Int = 'any'; // Value type
@@ -11,7 +13,7 @@ const Real = 'any'; // Value type
 const Command = Object.freeze({ On: 'On', Off: 'Off' });
 class Commands {
     constructor(params = {}) {
-        this.heater = params.heater ?? null;
+        this.heater = params["heater"] ?? Command.Off;
     }
 }
 const temperature = 'any'; // Value type
@@ -20,17 +22,62 @@ const CelsiusTemperature = 'any'; // Value type
 
 // Base Port Class
 class SysADLPort {
-    constructor(name) {
+    constructor(name, type, direction = 'inout', subPorts = [], flowType = 'any') {
+        console.log('Initializing port ' + name + ' with type ' + type + ', direction ' + direction + ', flowType ' + flowType);
         this.name = name;
+        this.type = type;
+        this.direction = direction;
+        this.flowType = flowType || 'any';
         this.value = null;
+        this.subPorts = new Map(subPorts.map(sp => {
+            console.log('Initializing subPort ' + sp.name + ' with type ' + sp.type + ', flowType ' + (sp.flowType || 'any'));
+            return [sp.name, sp];
+        }));
+        this.connector = null;
     }
 
-    async send(data) {
-        throw new Error(`Method send must be implemented in ${this.name}`);
+    async send(data, subPortName = null) {
+        console.log('Port ' + this.name + ' sending data: ' + data + (subPortName ? ' via subPort ' + subPortName : ''));
+        if (this.subPorts.size > 0 && subPortName) {
+            const subPort = this.subPorts.get(subPortName);
+            if (!subPort || (subPort.direction !== 'out' && subPort.direction !== 'inout')) {
+                console.error('Cannot send via subPort ' + subPortName + ' in ' + this.name + ': invalid direction');
+                return false;
+            }
+            subPort.value = data;
+            if (subPort.connector) await subPort.connector.transmit(data);
+            return true;
+        }
+        if (this.direction !== 'out' && this.direction !== 'inout') {
+            console.error('Cannot send via ' + this.name + ': invalid direction (' + this.direction + ')');
+            return false;
+        }
+        if (!this.connector) {
+            console.warn('No connector attached to ' + this.name + '; data not sent');
+            return false;
+        }
+        this.value = data;
+        await this.connector.transmit(data);
+        return true;
     }
 
-    async receive(data) {
-        throw new Error(`Method receive must be implemented in ${this.name}`);
+    async receive(data, subPortName = null) {
+        console.log('Port ' + this.name + ' receiving data: ' + data + (subPortName ? ' via subPort ' + subPortName : ''));
+        if (this.subPorts.size > 0 && subPortName) {
+            const subPort = this.subPorts.get(subPortName);
+            if (!subPort || (subPort.direction !== 'in' && subPort.direction !== 'inout')) {
+                console.error('Cannot receive via subPort ' + subPortName + ' in ' + this.name + ': invalid direction');
+                return false;
+            }
+            subPort.value = data;
+            return true;
+        }
+        if (this.direction !== 'in' && this.direction !== 'inout') {
+            console.error('Cannot receive via ' + this.name + ': invalid direction (' + this.direction + ')');
+            return false;
+        }
+        this.value = data;
+        return true;
     }
 
     getValue() {
@@ -38,933 +85,474 @@ class SysADLPort {
     }
 }
 
-// Port Classes
-class FTemperatureOPT extends SysADLPort {
-    constructor(name = 'FTemperatureOPT') {
-        super(name);
-        this.type = 'FahrenheitTemperature';
-        this.direction = 'out';
-        this.isComposite = false;
-        this.subPorts = new Map();
-        
-        this.connector = null;
-    }
-
-    async send(data, subPortName = null) {
-        if (this.isComposite && subPortName) {
-            const subPort = this.subPorts.get(subPortName);
-            if (!subPort || (subPort.direction !== 'out' && subPort.direction !== 'inout')) {
-                console.error(`Cannot send via subPort ${subPortName} in ${this.name}`);
-                return false;
-            }
-            console.log(`Sending ${data} via subPort ${subPortName} in ${this.name}`);
-            subPort.value = data;
-            if (subPort.connector) {
-                await subPort.connector.transmit(data);
-            }
-            return true;
-        }
-        if ((this.direction !== 'out' && this.direction !== 'inout') || !this.connector) {
-            console.error(`Cannot send via ${this.name}: invalid direction or no connector`);
-            return false;
-        }
-        console.log(`Sending ${data} via ${this.name}`);
-        this.value = data;
-        await this.connector.transmit(data);
-        return true;
-    }
-
-    async receive(data, subPortName = null) {
-        if (this.isComposite && subPortName) {
-            const subPort = this.subPorts.get(subPortName);
-            if (!subPort || (subPort.direction !== 'in' && subPort.direction !== 'inout')) {
-                console.error(`Cannot receive via subPort ${subPortName} in ${this.name}`);
-                return false;
-            }
-            console.log(`Received ${data} via subPort ${subPortName} in ${this.name}`);
-            subPort.value = data;
-            return true;
-        }
-        if (this.direction !== 'in' && this.direction !== 'inout') {
-            console.error(`Cannot receive via ${this.name}: invalid direction`);
-            return false;
-        }
-        console.log(`Received ${data} via ${this.name}`);
-        this.value = data;
-        return true;
-    }
-}
-
-class PresenceIPT extends SysADLPort {
-    constructor(name = 'PresenceIPT') {
-        super(name);
-        this.type = 'Boolean';
-        this.direction = 'in';
-        this.isComposite = false;
-        this.subPorts = new Map();
-        
-        this.connector = null;
-    }
-
-    async send(data, subPortName = null) {
-        if (this.isComposite && subPortName) {
-            const subPort = this.subPorts.get(subPortName);
-            if (!subPort || (subPort.direction !== 'out' && subPort.direction !== 'inout')) {
-                console.error(`Cannot send via subPort ${subPortName} in ${this.name}`);
-                return false;
-            }
-            console.log(`Sending ${data} via subPort ${subPortName} in ${this.name}`);
-            subPort.value = data;
-            if (subPort.connector) {
-                await subPort.connector.transmit(data);
-            }
-            return true;
-        }
-        if ((this.direction !== 'out' && this.direction !== 'inout') || !this.connector) {
-            console.error(`Cannot send via ${this.name}: invalid direction or no connector`);
-            return false;
-        }
-        console.log(`Sending ${data} via ${this.name}`);
-        this.value = data;
-        await this.connector.transmit(data);
-        return true;
-    }
-
-    async receive(data, subPortName = null) {
-        if (this.isComposite && subPortName) {
-            const subPort = this.subPorts.get(subPortName);
-            if (!subPort || (subPort.direction !== 'in' && subPort.direction !== 'inout')) {
-                console.error(`Cannot receive via subPort ${subPortName} in ${this.name}`);
-                return false;
-            }
-            console.log(`Received ${data} via subPort ${subPortName} in ${this.name}`);
-            subPort.value = data;
-            return true;
-        }
-        if (this.direction !== 'in' && this.direction !== 'inout') {
-            console.error(`Cannot receive via ${this.name}: invalid direction`);
-            return false;
-        }
-        console.log(`Received ${data} via ${this.name}`);
-        this.value = data;
-        return true;
-    }
-}
-
-class PresenceOPT extends SysADLPort {
-    constructor(name = 'PresenceOPT') {
-        super(name);
-        this.type = 'Boolean';
-        this.direction = 'out';
-        this.isComposite = false;
-        this.subPorts = new Map();
-        
-        this.connector = null;
-    }
-
-    async send(data, subPortName = null) {
-        if (this.isComposite && subPortName) {
-            const subPort = this.subPorts.get(subPortName);
-            if (!subPort || (subPort.direction !== 'out' && subPort.direction !== 'inout')) {
-                console.error(`Cannot send via subPort ${subPortName} in ${this.name}`);
-                return false;
-            }
-            console.log(`Sending ${data} via subPort ${subPortName} in ${this.name}`);
-            subPort.value = data;
-            if (subPort.connector) {
-                await subPort.connector.transmit(data);
-            }
-            return true;
-        }
-        if ((this.direction !== 'out' && this.direction !== 'inout') || !this.connector) {
-            console.error(`Cannot send via ${this.name}: invalid direction or no connector`);
-            return false;
-        }
-        console.log(`Sending ${data} via ${this.name}`);
-        this.value = data;
-        await this.connector.transmit(data);
-        return true;
-    }
-
-    async receive(data, subPortName = null) {
-        if (this.isComposite && subPortName) {
-            const subPort = this.subPorts.get(subPortName);
-            if (!subPort || (subPort.direction !== 'in' && subPort.direction !== 'inout')) {
-                console.error(`Cannot receive via subPort ${subPortName} in ${this.name}`);
-                return false;
-            }
-            console.log(`Received ${data} via subPort ${subPortName} in ${this.name}`);
-            subPort.value = data;
-            return true;
-        }
-        if (this.direction !== 'in' && this.direction !== 'inout') {
-            console.error(`Cannot receive via ${this.name}: invalid direction`);
-            return false;
-        }
-        console.log(`Received ${data} via ${this.name}`);
-        this.value = data;
-        return true;
-    }
-}
-
-class CTemperatureIPT extends SysADLPort {
-    constructor(name = 'CTemperatureIPT') {
-        super(name);
-        this.type = 'CelsiusTemperature';
-        this.direction = 'in';
-        this.isComposite = false;
-        this.subPorts = new Map();
-        
-        this.connector = null;
-    }
-
-    async send(data, subPortName = null) {
-        if (this.isComposite && subPortName) {
-            const subPort = this.subPorts.get(subPortName);
-            if (!subPort || (subPort.direction !== 'out' && subPort.direction !== 'inout')) {
-                console.error(`Cannot send via subPort ${subPortName} in ${this.name}`);
-                return false;
-            }
-            console.log(`Sending ${data} via subPort ${subPortName} in ${this.name}`);
-            subPort.value = data;
-            if (subPort.connector) {
-                await subPort.connector.transmit(data);
-            }
-            return true;
-        }
-        if ((this.direction !== 'out' && this.direction !== 'inout') || !this.connector) {
-            console.error(`Cannot send via ${this.name}: invalid direction or no connector`);
-            return false;
-        }
-        console.log(`Sending ${data} via ${this.name}`);
-        this.value = data;
-        await this.connector.transmit(data);
-        return true;
-    }
-
-    async receive(data, subPortName = null) {
-        if (this.isComposite && subPortName) {
-            const subPort = this.subPorts.get(subPortName);
-            if (!subPort || (subPort.direction !== 'in' && subPort.direction !== 'inout')) {
-                console.error(`Cannot receive via subPort ${subPortName} in ${this.name}`);
-                return false;
-            }
-            console.log(`Received ${data} via subPort ${subPortName} in ${this.name}`);
-            subPort.value = data;
-            return true;
-        }
-        if (this.direction !== 'in' && this.direction !== 'inout') {
-            console.error(`Cannot receive via ${this.name}: invalid direction`);
-            return false;
-        }
-        console.log(`Received ${data} via ${this.name}`);
-        this.value = data;
-        return true;
-    }
-}
-
-class CommandIPT extends SysADLPort {
-    constructor(name = 'CommandIPT') {
-        super(name);
-        this.type = 'Command';
-        this.direction = 'in';
-        this.isComposite = false;
-        this.subPorts = new Map();
-        
-        this.connector = null;
-    }
-
-    async send(data, subPortName = null) {
-        if (this.isComposite && subPortName) {
-            const subPort = this.subPorts.get(subPortName);
-            if (!subPort || (subPort.direction !== 'out' && subPort.direction !== 'inout')) {
-                console.error(`Cannot send via subPort ${subPortName} in ${this.name}`);
-                return false;
-            }
-            console.log(`Sending ${data} via subPort ${subPortName} in ${this.name}`);
-            subPort.value = data;
-            if (subPort.connector) {
-                await subPort.connector.transmit(data);
-            }
-            return true;
-        }
-        if ((this.direction !== 'out' && this.direction !== 'inout') || !this.connector) {
-            console.error(`Cannot send via ${this.name}: invalid direction or no connector`);
-            return false;
-        }
-        console.log(`Sending ${data} via ${this.name}`);
-        this.value = data;
-        await this.connector.transmit(data);
-        return true;
-    }
-
-    async receive(data, subPortName = null) {
-        if (this.isComposite && subPortName) {
-            const subPort = this.subPorts.get(subPortName);
-            if (!subPort || (subPort.direction !== 'in' && subPort.direction !== 'inout')) {
-                console.error(`Cannot receive via subPort ${subPortName} in ${this.name}`);
-                return false;
-            }
-            console.log(`Received ${data} via subPort ${subPortName} in ${this.name}`);
-            subPort.value = data;
-            return true;
-        }
-        if (this.direction !== 'in' && this.direction !== 'inout') {
-            console.error(`Cannot receive via ${this.name}: invalid direction`);
-            return false;
-        }
-        console.log(`Received ${data} via ${this.name}`);
-        this.value = data;
-        return true;
-    }
-}
-
-class CommandOPT extends SysADLPort {
-    constructor(name = 'CommandOPT') {
-        super(name);
-        this.type = 'Command';
-        this.direction = 'out';
-        this.isComposite = false;
-        this.subPorts = new Map();
-        
-        this.connector = null;
-    }
-
-    async send(data, subPortName = null) {
-        if (this.isComposite && subPortName) {
-            const subPort = this.subPorts.get(subPortName);
-            if (!subPort || (subPort.direction !== 'out' && subPort.direction !== 'inout')) {
-                console.error(`Cannot send via subPort ${subPortName} in ${this.name}`);
-                return false;
-            }
-            console.log(`Sending ${data} via subPort ${subPortName} in ${this.name}`);
-            subPort.value = data;
-            if (subPort.connector) {
-                await subPort.connector.transmit(data);
-            }
-            return true;
-        }
-        if ((this.direction !== 'out' && this.direction !== 'inout') || !this.connector) {
-            console.error(`Cannot send via ${this.name}: invalid direction or no connector`);
-            return false;
-        }
-        console.log(`Sending ${data} via ${this.name}`);
-        this.value = data;
-        await this.connector.transmit(data);
-        return true;
-    }
-
-    async receive(data, subPortName = null) {
-        if (this.isComposite && subPortName) {
-            const subPort = this.subPorts.get(subPortName);
-            if (!subPort || (subPort.direction !== 'in' && subPort.direction !== 'inout')) {
-                console.error(`Cannot receive via subPort ${subPortName} in ${this.name}`);
-                return false;
-            }
-            console.log(`Received ${data} via subPort ${subPortName} in ${this.name}`);
-            subPort.value = data;
-            return true;
-        }
-        if (this.direction !== 'in' && this.direction !== 'inout') {
-            console.error(`Cannot receive via ${this.name}: invalid direction`);
-            return false;
-        }
-        console.log(`Received ${data} via ${this.name}`);
-        this.value = data;
-        return true;
-    }
-}
-
-class CTemperatureOPT extends SysADLPort {
-    constructor(name = 'CTemperatureOPT') {
-        super(name);
-        this.type = 'CelsiusTemperature';
-        this.direction = 'out';
-        this.isComposite = false;
-        this.subPorts = new Map();
-        
-        this.connector = null;
-    }
-
-    async send(data, subPortName = null) {
-        if (this.isComposite && subPortName) {
-            const subPort = this.subPorts.get(subPortName);
-            if (!subPort || (subPort.direction !== 'out' && subPort.direction !== 'inout')) {
-                console.error(`Cannot send via subPort ${subPortName} in ${this.name}`);
-                return false;
-            }
-            console.log(`Sending ${data} via subPort ${subPortName} in ${this.name}`);
-            subPort.value = data;
-            if (subPort.connector) {
-                await subPort.connector.transmit(data);
-            }
-            return true;
-        }
-        if ((this.direction !== 'out' && this.direction !== 'inout') || !this.connector) {
-            console.error(`Cannot send via ${this.name}: invalid direction or no connector`);
-            return false;
-        }
-        console.log(`Sending ${data} via ${this.name}`);
-        this.value = data;
-        await this.connector.transmit(data);
-        return true;
-    }
-
-    async receive(data, subPortName = null) {
-        if (this.isComposite && subPortName) {
-            const subPort = this.subPorts.get(subPortName);
-            if (!subPort || (subPort.direction !== 'in' && subPort.direction !== 'inout')) {
-                console.error(`Cannot receive via subPort ${subPortName} in ${this.name}`);
-                return false;
-            }
-            console.log(`Received ${data} via subPort ${subPortName} in ${this.name}`);
-            subPort.value = data;
-            return true;
-        }
-        if (this.direction !== 'in' && this.direction !== 'inout') {
-            console.error(`Cannot receive via ${this.name}: invalid direction`);
-            return false;
-        }
-        console.log(`Received ${data} via ${this.name}`);
-        this.value = data;
-        return true;
-    }
-}
-
 // Base Connector Class
 class SysADLConnector {
-    constructor(name, sourcePort, targetPort) {
+    constructor(name, flows = []) {
+        console.log('Initializing connector ' + name);
         this.name = name;
-        this.sourcePort = sourcePort;
-        this.targetPort = targetPort;
+        this.flows = flows;
         this.messageQueue = [];
         this.isProcessing = false;
     }
 
     async transmit(data) {
+        console.log('Connector ' + this.name + ' transmitting data: ' + data);
         this.messageQueue.push(data);
         if (this.isProcessing) return;
         this.isProcessing = true;
 
         while (this.messageQueue.length > 0) {
             const currentData = this.messageQueue.shift();
-            console.log(`Connector ${this.name} transmitting: ${currentData}`);
-            if (this.targetPort) {
-                await this.targetPort.receive(currentData);
-            } else {
-                console.error(`No target port for connector ${this.name}`);
+            for (const flow of this.flows) {
+                console.log('Connector ' + this.name + ' processing flow from ' + flow.source + ' to ' + flow.target + ', type: ' + flow.type);
+                if (flow.targetPort) {
+                    await flow.targetPort.receive(currentData);
+                } else {
+                    console.warn('No target port defined for flow from ' + flow.source + ' to ' + flow.target);
+                }
             }
         }
         this.isProcessing = false;
     }
 }
 
-// Connector Classes
-class FahrenheitToCelsiusCN extends SysADLConnector {
-    constructor(sourcePort, targetPort) {
-        super('FahrenheitToCelsiusCN', sourcePort, targetPort);
-        this.participants = new Map();
-        this.participants.set('Ft', null);
+// Binding Class
+class Binding {
+    constructor(sourceComponent, sourcePort, targetComponent, targetPort, connector) {
+        console.log('Creating binding from ' + sourceComponent.name + '.' + sourcePort.name + ' to ' + targetComponent.name + '.' + targetPort.name + ' via connector ' + connector.name);
+        this.sourceComponent = sourceComponent;
+        this.sourcePort = sourcePort;
+        this.targetComponent = targetComponent;
+        this.targetPort = targetPort;
+        this.connector = connector;
+        this.sourcePort.connector = connector;
+        connector.flows.push({ source: sourcePort.name, target: targetPort.name, type: sourcePort.flowType || 'any', targetPort: this.targetPort });
     }
 
-    setParticipant(name, component) {
-        this.participants.set(name, component);
-        
-        if (params["name"] === 'Ft') {
-            this.sourcePort = component.ports.find(p => p.params["name"] === 'Ft');
-            if (this.sourcePort) this.sourcePort.connector = this;
-        }
-        if (params["name"] === 'Ct') {
-            this.targetPort = component.ports.find(p => p.params["name"] === 'Ct');
-        }
+    async transmit(data) {
+        console.log('Binding transmitting data ' + data + ' from ' + this.sourceComponent.name + '.' + this.sourcePort.name + ' to ' + this.targetComponent.name + '.' + this.targetPort.name);
+        await this.connector.transmit(data);
+    }
+}
+
+// Connector Classes
+class FahrenheitToCelsiusCN extends SysADLConnector {
+    constructor() {
+        super('FahrenheitToCelsiusCN', [
+            { type: 'FahrenheitTemperature', source: 'Ft', target: 'Ct' }
+        ]);
     }
 }
 
 class PresenceCN extends SysADLConnector {
-    constructor(sourcePort, targetPort) {
-        super('PresenceCN', sourcePort, targetPort);
-        this.participants = new Map();
-        this.participants.set('pOut', null);
-    }
-
-    setParticipant(name, component) {
-        this.participants.set(name, component);
-        
-        if (params["name"] === 'pOut') {
-            this.sourcePort = component.ports.find(p => p.params["name"] === 'pOut');
-            if (this.sourcePort) this.sourcePort.connector = this;
-        }
-        if (params["name"] === 'pIn') {
-            this.targetPort = component.ports.find(p => p.params["name"] === 'pIn');
-        }
+    constructor() {
+        super('PresenceCN', [
+            { type: 'Boolean', source: 'pOut', target: 'pIn' }
+        ]);
     }
 }
 
 class CommandCN extends SysADLConnector {
-    constructor(sourcePort, targetPort) {
-        super('CommandCN', sourcePort, targetPort);
-        this.participants = new Map();
-        this.participants.set('commandOut', null);
-    }
-
-    setParticipant(name, component) {
-        this.participants.set(name, component);
-        
-        if (params["name"] === 'commandOut') {
-            this.sourcePort = component.ports.find(p => p.params["name"] === 'commandOut');
-            if (this.sourcePort) this.sourcePort.connector = this;
-        }
-        if (params["name"] === 'commandIn') {
-            this.targetPort = component.ports.find(p => p.params["name"] === 'commandIn');
-        }
+    constructor() {
+        super('CommandCN', [
+            { type: 'Command', source: 'commandOut', target: 'commandIn' }
+        ]);
     }
 }
 
 class CTemperatureCN extends SysADLConnector {
-    constructor(sourcePort, targetPort) {
-        super('CTemperatureCN', sourcePort, targetPort);
-        this.participants = new Map();
-        this.participants.set('CtOut', null);
-    }
-
-    setParticipant(name, component) {
-        this.participants.set(name, component);
-        
-        if (params["name"] === 'CtOut') {
-            this.sourcePort = component.ports.find(p => p.params["name"] === 'CtOut');
-            if (this.sourcePort) this.sourcePort.connector = this;
-        }
-        if (params["name"] === 'ctIn') {
-            this.targetPort = component.ports.find(p => p.params["name"] === 'ctIn');
-        }
+    constructor() {
+        super('CTemperatureCN', [
+            { type: 'CelsiusTemperature', source: 'CtOut', target: 'ctIn' }
+        ]);
     }
 }
 
 // Base Component Class
 class SysADLComponent {
-    constructor(name, isBoundary = false) {
+    constructor(name, isBoundary = false, modelPorts = [], modelTypes = []) {
+        console.log('Initializing component ' + name + ', isBoundary: ' + isBoundary);
         this.name = name;
         this.isBoundary = isBoundary;
         this.ports = [];
         this.state = {};
+        this.activities = [];
+        this.modelPorts = modelPorts;
+        this.modelTypes = modelTypes;
     }
 
-    addPort(port) {
+    async addPort(port) {
         this.ports.push(port);
-        console.log(`Port ${port.name} added to component ${this.name}`);
+        console.log('Port ' + port.name + ' added to component ' + this.name + ', flowType: ' + port.flowType);
     }
 
     async onDataReceived(portName, data) {
+        console.log('Component ' + this.name + ' received ' + data + ' on port ' + portName);
         this.state[portName] = data;
-        console.log(`Component ${this.name} received ${data} on ${portName}`);
+        for (const activity of this.activities) {
+            console.log('Triggering activity ' + activity.methodName + ' in component ' + this.name);
+            await this[activity.methodName]();
+        }
     }
 
     async start() {
-        console.log(`Component ${this.name} started`);
-    }
-}
-
-// Base Boundary Component Class
-class SysADLBoundaryComponent extends SysADLComponent {
-    constructor(name) {
-        super(name, true);
+        console.log('Starting component ' + this.name);
+        if (this.isBoundary) {
+            await this.simulateInput();
+        }
     }
 
-    async start() {
-        console.log(`Boundary component ${this.name} started`);
+    async simulateInput() {
+        console.log('Simulating input for component ' + this.name);
+        for (const port of this.ports) {
+            console.log('Processing port ' + port.name + ' with type ' + port.type + ', flowType: ' + port.flowType);
+            if (!port.flowType || typeof port.flowType !== 'string') {
+                console.warn('Skipping port ' + port.name + ' due to invalid flowType: ' + port.flowType);
+                continue;
+            }
+            let simulatedValue;
+            if (port.flowType.includes('emperature') || port.params["flowType"] === 'Real' || port.params["flowType"] === 'Int') {
+                simulatedValue = 42.0;
+                console.log('Simulating number input ' + simulatedValue + ' for ' + this.name + '.' + port.name);
+            } else if (port.params["flowType"] === 'Boolean') {
+                simulatedValue = true;
+                console.log('Simulating boolean input ' + simulatedValue + ' for ' + this.name + '.' + port.name);
+            } else if (this.modelTypes.find(t => t.params["name"] === port.flowType && t.params["kind"] === 'enum')) {
+                const enumValues = this.modelTypes.find(t => t.params["name"] === port.flowType)?.content.match(/(\w+)/g) || ['Off'];
+                simulatedValue = eval(port.flowType + '.' + enumValues[0]);
+                console.log('Simulating enum input ' + simulatedValue + ' for ' + this.name + '.' + port.name);
+            } else if (this.modelTypes.find(t => t.params["name"] === port.flowType && t.params["kind"] === 'datatype')) {
+                simulatedValue = eval('new ' + port.flowType + '({})');
+                console.log('Simulating datatype input for ' + this.name + '.' + port.name);
+            } else {
+                console.warn('Unsupported flow type ' + port.flowType + ' for port ' + this.name + '.' + port.name);
+                continue;
+            }
+            await this.onDataReceived(port.name, simulatedValue);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
     }
 }
 
 // Component Classes
 class RTCSystemCFD extends SysADLComponent {
     constructor() {
-        super('RTCSystemCFD');
+        super('RTCSystemCFD', false, modelPorts, modelTypes);
         // Initialize ports
-        this.addPort(new FTemperatureOPT('current1'));
-        
+        this.addPort(new SysADLPort('current1', 'FTemperatureOPT', 'out', [], 'FahrenheitTemperature'));
 
         // Initialize state
         this.state['current1'] = null;
-        
-    }
 
-    async onDataReceived(portName, data) {
-        this.state[portName] = data;
-        console.log(`Component ${this.name} updated ${portName} with ${data}`);
-        
+        // Register activities
     }
-    
 }
 
 class RoomTemperatureControllerCP extends SysADLComponent {
     constructor() {
-        super('RoomTemperatureControllerCP');
+        super('RoomTemperatureControllerCP', false, modelPorts, modelTypes);
         // Initialize ports
-        this.addPort(new PresenceIPT('detectedRTC'));
-        this.addPort(new CTemperatureIPT('s1'));
-        
+        this.addPort(new SysADLPort('detectedRTC', 'PresenceIPT', 'in', [], 'Boolean'));
+        this.addPort(new SysADLPort('s1', 'CTemperatureIPT', 'in', [], 'CelsiusTemperature'));
 
         // Initialize state
         this.state['detectedRTC'] = false;
         this.state['s1'] = null;
-        
-    }
 
-    async onDataReceived(portName, data) {
-        this.state[portName] = data;
-        console.log(`Component ${this.name} updated ${portName} with ${data}`);
-        
+        // Register activities
     }
-    
 }
 
 class TemperatureSensorCP extends SysADLComponent {
     constructor() {
-        super('TemperatureSensorCP');
+        super('TemperatureSensorCP', false, modelPorts, modelTypes);
         // Initialize ports
-        this.addPort(new FTemperatureOPT('current'));
-        
+        this.addPort(new SysADLPort('current', 'FTemperatureOPT', 'out', [], 'FahrenheitTemperature'));
 
         // Initialize state
         this.state['current'] = null;
-        
-    }
 
-    async onDataReceived(portName, data) {
-        this.state[portName] = data;
-        console.log(`Component ${this.name} updated ${portName} with ${data}`);
-        
+        // Register activities
     }
-    
 }
 
 class PresenceSensorCP extends SysADLComponent {
     constructor() {
-        super('PresenceSensorCP');
+        super('PresenceSensorCP', false, modelPorts, modelTypes);
         // Initialize ports
-        this.addPort(new PresenceOPT('detected'));
-        
+        this.addPort(new SysADLPort('detected', 'PresenceOPT', 'out', [], 'Boolean'));
 
         // Initialize state
         this.state['detected'] = false;
-        
-    }
 
-    async onDataReceived(portName, data) {
-        this.state[portName] = data;
-        console.log(`Component ${this.name} updated ${portName} with ${data}`);
-        
+        // Register activities
     }
-    
 }
 
 class UserInterfaceCP extends SysADLComponent {
     constructor() {
-        super('UserInterfaceCP');
+        super('UserInterfaceCP', false, modelPorts, modelTypes);
         // Initialize ports
-        this.addPort(new CTemperatureOPT('desired'));
-        
+        this.addPort(new SysADLPort('desired', 'CTemperatureOPT', 'out', [], 'CelsiusTemperature'));
 
         // Initialize state
         this.state['desired'] = null;
-        
-    }
 
-    async onDataReceived(portName, data) {
-        this.state[portName] = data;
-        console.log(`Component ${this.name} updated ${portName} with ${data}`);
-        
+        // Register activities
     }
-    
 }
 
 class HeaterCP extends SysADLComponent {
     constructor() {
-        super('HeaterCP');
+        super('HeaterCP', false, modelPorts, modelTypes);
         // Initialize ports
-        this.addPort(new CommandIPT('controllerH'));
-        
+        this.addPort(new SysADLPort('controllerH', 'CommandIPT', 'in', [], 'Command'));
 
         // Initialize state
         this.state['controllerH'] = Command.Off;
-        
-    }
 
-    async onDataReceived(portName, data) {
-        this.state[portName] = data;
-        console.log(`Component ${this.name} updated ${portName} with ${data}`);
-        
+        // Register activities
     }
-    
 }
 
 class CoolerCP extends SysADLComponent {
     constructor() {
-        super('CoolerCP');
+        super('CoolerCP', false, modelPorts, modelTypes);
         // Initialize ports
-        this.addPort(new CommandIPT('controllerC'));
-        
+        this.addPort(new SysADLPort('controllerC', 'CommandIPT', 'in', [], 'Command'));
 
         // Initialize state
         this.state['controllerC'] = Command.Off;
-        
-    }
 
-    async onDataReceived(portName, data) {
-        this.state[portName] = data;
-        console.log(`Component ${this.name} updated ${portName} with ${data}`);
-        
+        // Register activities
     }
-    
 }
 
 class PresenceCheckerCP extends SysADLComponent {
     constructor() {
-        super('PresenceCheckerCP');
+        super('PresenceCheckerCP', false, modelPorts, modelTypes);
         // Initialize ports
-        this.addPort(new PresenceIPT('detected'));
-        this.addPort(new CTemperatureIPT('userTemp'));
-        this.addPort(new CTemperatureOPT('target'));
+        this.addPort(new SysADLPort('detected', 'PresenceIPT', 'in', [], 'Boolean'));
 
         // Initialize state
         this.state['detected'] = false;
-        this.state['userTemp'] = null;
-        this.state['target'] = null;
-    }
 
-    async onDataReceived(portName, data) {
-        this.state[portName] = data;
-        console.log(`Component ${this.name} updated ${portName} with ${data}`);
-        
-        if (this.state['detected'] !== null && this.state['userTemp'] !== null) {
-            const result = await this.executeCheckPresenceToSetTemperatureAC();
-            const outputPort = this.ports.find(p => p.params["name"] === 'target');
-            if (outputPort) await outputPort.send(result);
-        }
+        // Register activities
     }
-    
 }
 
 class CommanderCP extends SysADLComponent {
     constructor() {
-        super('CommanderCP');
+        super('CommanderCP', false, modelPorts, modelTypes);
         // Initialize ports
-        this.addPort(new CTemperatureIPT('target2'));
-        this.addPort(new CTemperatureIPT('average2'));
-        this.addPort(new CommandOPT('heating'));
-        this.addPort(new CommandOPT('cooling'));
+        this.addPort(new SysADLPort('target2', 'CTemperatureIPT', 'in', [], 'CelsiusTemperature'));
 
         // Initialize state
         this.state['target2'] = null;
-        this.state['average2'] = null;
-        this.state['heating'] = Command.Off;
-        this.state['cooling'] = Command.Off;
-    }
 
-    async onDataReceived(portName, data) {
-        this.state[portName] = data;
-        console.log(`Component ${this.name} updated ${portName} with ${data}`);
-        
-        if (this.state['average2'] !== null && this.state['target2'] !== null) {
-            const result = await this.executeDecideCommandAC();
-            const heatingPort = this.ports.find(p => p.params["name"] === 'heating');
-            const coolingPort = this.ports.find(p => p.params["name"] === 'cooling');
-            if (heatingPort) await heatingPort.send(result.heater);
-            if (coolingPort) await coolingPort.send(result.cooler);
-        }
+        // Register activities
     }
-    
 }
 
 class SensorsMonitorCP extends SysADLComponent {
     constructor() {
-        super('SensorsMonitorCP');
+        super('SensorsMonitorCP', false, modelPorts, modelTypes);
         // Initialize ports
-        this.addPort(new CTemperatureIPT('s1'));
-        this.addPort(new CTemperatureIPT('s2'));
-        this.addPort(new CTemperatureOPT('average'));
+        this.addPort(new SysADLPort('s1', 'CTemperatureIPT', 'in', [], 'CelsiusTemperature'));
 
         // Initialize state
         this.state['s1'] = null;
-        this.state['s2'] = null;
-        this.state['average'] = null;
-    }
 
-    async onDataReceived(portName, data) {
-        this.state[portName] = data;
-        console.log(`Component ${this.name} updated ${portName} with ${data}`);
-        
-        if (this.state['s1'] !== null && this.state['s2'] !== null) {
-            const result = await this.executeCalculateAverageTemperatureAC();
-            const outputPort = this.ports.find(p => p.params["name"] === 'average');
-            if (outputPort) await outputPort.send(result);
-        }
+        // Register activities
     }
-    
 }
 
 // Executables
-function CommandCoolerEx(params = {}) {
+async function CommandCoolerEx(params = {}) {
+    console.log('Executing executable CommandCoolerEx with params: ' + JSON.stringify(params));
     let cooler = params["cooler"] ?? null;
     let cmds = params["cmds"] ?? null;
-    return params["cmds"].cooler ;
-
+return params["cmds"].cooler ;
 }
 
-function CommandHeaterEx(params = {}) {
+async function CommandHeaterEx(params = {}) {
+    console.log('Executing executable CommandHeaterEx with params: ' + JSON.stringify(params));
     let heater = params["heater"] ?? null;
     let cmds = params["cmds"] ?? null;
-    return params["cmds"].heater ;
-
+return params["cmds"].heater ;
 }
 
-function FahrenheitToCelsiusEx(params = {}) {
+async function FahrenheitToCelsiusEx(params = {}) {
+    console.log('Executing executable FahrenheitToCelsiusEx with params: ' + JSON.stringify(params));
     let f = params["f"] ?? null;
-    return 5*(f - 32)/9 ;
-
+return 5*(f - 32)/9 ;
 }
 
-function CalculateAverageTemperatureEx(params = {}) {
+async function CalculateAverageTemperatureEx(params = {}) {
+    console.log('Executing executable CalculateAverageTemperatureEx with params: ' + JSON.stringify(params));
     let temp2 = params["temp2"] ?? null;
     let temp1 = params["temp1"] ?? null;
-    return (temp1 + temp2)/2 ;
-
+return (temp1 + temp2)/2 ;
 }
 
-function CheckPresenceToSetTemperature(params = {}) {
+async function CheckPresenceToSetTemperature(params = {}) {
+    console.log('Executing executable CheckPresenceToSetTemperature with params: ' + JSON.stringify(params));
     let userTemp = params["userTemp"] ?? null;
     let presence = params["presence"] ?? null;
-    if(params["presence"] === true) return userTemp; else return 2;
-    return params.result ?? null;
-
+if(presence == true) return userTemp; else return 2;
 }
 
-function CompareTemperatureEx(params = {}) {
+async function CompareTemperatureEx(params = {}) {
+    console.log('Executing executable CompareTemperatureEx with params: ' + JSON.stringify(params));
     let target = params["target"] ?? null;
     let average = params["average"] ?? null;
     let heater = types.Command.Off;     let cooler = types.Command.Off; if(average > target) {heater = types.Command.Off; cooler = types.Command.On ;
-    }
-    return params.result ?? null;
-
 }
 
 // Constraints
-function validateCalculateAverageTemperatureEQ(params = {}) {
+async function validateCalculateAverageTemperatureEQ(params = {}) {
     let t1 = params["t1"] ?? null;
     let t2 = params["t2"] ?? null;
     let av = params["av"] ?? null;
+    console.log('Evaluating constraint CalculateAverageTemperatureEQ: ' + 'params["av"] === (params["t1"] + params["t2"])/2
+	');
     const result = params["av"] === (params["t1"] + params["t2"])/2
 	;
     if (!result) {
         throw new Error('Constraint CalculateAverageTemperatureEQ violated');
     }
+    console.log('Constraint CalculateAverageTemperatureEQ passed');
     return result;
 }
 
-function validateCompareTemperatureEQ(params = {}) {
+async function validateCompareTemperatureEQ(params = {}) {
     let target = params["target"] ?? null;
     let average = params["average"] ?? null;
     let cmds = params["cmds"] ?? new Commands();
-    const result = params["average"] > params["target"] ? params["cmds"] === params["types"].Commands.params["heater"].params["Off"] && Command.params["cooler"].params["On"] : Command.params["heater"].On && params["cmds"] === Command.params["cooler"].Off ;
+    console.log('Evaluating constraint CompareTemperatureEQ: ' + 'params["average"] > params["target"] ? params["cmds"] === params["types"].Commands.params["heater"].params["Off"] && types.Commands.params["cooler"].params["On"] : types.Commands.params["heater"].On && params["cmds"] === types.Commands.params["cooler"].Off ');
+    const result = params["average"] > params["target"] ? params["cmds"] === params["types"].Commands.params["heater"].params["Off"] && types.Commands.params["cooler"].params["On"] : types.Commands.params["heater"].On && params["cmds"] === types.Commands.params["cooler"].Off ;
     if (!result) {
         throw new Error('Constraint CompareTemperatureEQ violated');
     }
+    console.log('Constraint CompareTemperatureEQ passed');
     return result;
 }
 
-function validateFahrenheitToCelsiusEQ(params = {}) {
+async function validateFahrenheitToCelsiusEQ(params = {}) {
     let f = params["f"] ?? null;
     let c = params["c"] ?? null;
+    console.log('Evaluating constraint FahrenheitToCelsiusEQ: ' + 'params["c"] === (5*(params["f"] - 32)/9)');
     const result = params["c"] === (5*(params["f"] - 32)/9);
     if (!result) {
         throw new Error('Constraint FahrenheitToCelsiusEQ violated');
     }
+    console.log('Constraint FahrenheitToCelsiusEQ passed');
     return result;
 }
 
-function validateCommandHeaterEQ(params = {}) {
+async function validateCommandHeaterEQ(params = {}) {
     let cmds = params["cmds"] ?? new Commands();
-    let c = params["c"] ?? Command.Off;
+    let c = params["c"] ?? Command.On;
+    console.log('Evaluating constraint CommandHeaterEQ: ' + 'params["c"] === params["cmds"].params["heater"] ');
     const result = params["c"] === params["cmds"].params["heater"] ;
     if (!result) {
         throw new Error('Constraint CommandHeaterEQ violated');
     }
+    console.log('Constraint CommandHeaterEQ passed');
     return result;
 }
 
-function validateCommandCoolerEQ(params = {}) {
+async function validateCommandCoolerEQ(params = {}) {
     let cmds = params["cmds"] ?? new Commands();
-    let c = params["c"] ?? Command.Off;
+    let c = params["c"] ?? Command.On;
+    console.log('Evaluating constraint CommandCoolerEQ: ' + 'params["c"] === params["cmds"].params["cooler"] ');
     const result = params["c"] === params["cmds"].params["cooler"] ;
     if (!result) {
         throw new Error('Constraint CommandCoolerEQ violated');
     }
+    console.log('Constraint CommandCoolerEQ passed');
     return result;
 }
 
-function validateCheckPresenceToSetTemperatureEQ(params = {}) {
+async function validateCheckPresenceToSetTemperatureEQ(params = {}) {
     let detected = params["detected"] ?? false;
     let userTemp = params["userTemp"] ?? null;
     let target = params["target"] ?? null;
+    console.log('Evaluating constraint CheckPresenceToSetTemperatureEQ: ' + 'params["detected"] === true ? params["target"] === params["userTemp"] : params["target"] === 2 ');
     const result = params["detected"] === true ? params["target"] === params["userTemp"] : params["target"] === 2 ;
     if (!result) {
         throw new Error('Constraint CheckPresenceToSetTemperatureEQ violated');
     }
+    console.log('Constraint CheckPresenceToSetTemperatureEQ passed');
     return result;
 }
 
 class SysADLModel {
-        constructor() {
-            this.ports = [];
-        }
-        addPort(...ports) {
-            this.ports.push(...ports);
-            console.log('Ports added to system:', ports.map(p => p.name));
-        }
+    constructor() {
+        console.log('Initializing system SysADLModel');
+        this.components = new Map();
+        this.connectors = new Map();
+        this.bindings = [];
+        this.ports = [];
     }
+
+    async addComponent(name, component) {
+        this.components.set(name, component);
+        this.ports.push(...component.ports);
+        console.log('Component ' + name + ' added to system');
+    }
+
+    async addConnector(name, connector) {
+        this.connectors.set(name, connector);
+        console.log('Connector ' + name + ' added to system');
+    }
+
+    async addBinding(binding) {
+        this.bindings.push(binding);
+        console.log('Binding added: ' + binding.sourceComponent.name + '.' + binding.sourcePort.name + ' -> ' + binding.targetComponent.name + '.' + binding.targetPort.name);
+    }
+
+    async start() {
+        console.log('System SysADLModel starting');
+        await Promise.all(Array.from(this.components.values()).map(c => c.start()));
+        console.log('System SysADLModel simulation completed');
+    }
+}
 
 // Main Function
 async function main() {
+    console.log('Starting simulation of SysADLModel');
     const system = new SysADLModel();
     const rtcsystemcfd = new RTCSystemCFD();
-    system.addPort(...rtcsystemcfd.ports);
+    await system.addComponent('RTCSystemCFD', rtcsystemcfd);
     const roomtemperaturecontrollercp = new RoomTemperatureControllerCP();
-    system.addPort(...roomtemperaturecontrollercp.ports);
+    await system.addComponent('RoomTemperatureControllerCP', roomtemperaturecontrollercp);
     const temperaturesensorcp = new TemperatureSensorCP();
-    system.addPort(...temperaturesensorcp.ports);
+    await system.addComponent('TemperatureSensorCP', temperaturesensorcp);
     const presencesensorcp = new PresenceSensorCP();
-    system.addPort(...presencesensorcp.ports);
+    await system.addComponent('PresenceSensorCP', presencesensorcp);
     const userinterfacecp = new UserInterfaceCP();
-    system.addPort(...userinterfacecp.ports);
+    await system.addComponent('UserInterfaceCP', userinterfacecp);
     const heatercp = new HeaterCP();
-    system.addPort(...heatercp.ports);
+    await system.addComponent('HeaterCP', heatercp);
     const coolercp = new CoolerCP();
-    system.addPort(...coolercp.ports);
+    await system.addComponent('CoolerCP', coolercp);
     const presencecheckercp = new PresenceCheckerCP();
-    system.addPort(...presencecheckercp.ports);
+    await system.addComponent('PresenceCheckerCP', presencecheckercp);
     const commandercp = new CommanderCP();
-    system.addPort(...commandercp.ports);
+    await system.addComponent('CommanderCP', commandercp);
     const sensorsmonitorcp = new SensorsMonitorCP();
-    system.addPort(...sensorsmonitorcp.ports);
-    const fahrenheittocelsiuscn = new FahrenheitToCelsiusCN(null, null);
-    fahrenheittocelsiuscn.setParticipant('Ft', rtcsystemcfd);
-    const presencecn = new PresenceCN(null, null);
-    presencecn.setParticipant('pOut', presencesensorcp);
-    const commandcn = new CommandCN(null, null);
-    const ctemperaturecn = new CTemperatureCN(null, null);
-    ctemperaturecn.setParticipant('CtOut', userinterfacecp);
-    await Promise.all([
-        rtcsystemcfd.start(),
-        roomtemperaturecontrollercp.start(),
-        temperaturesensorcp.start(),
-        presencesensorcp.start(),
-        userinterfacecp.start(),
-        heatercp.start(),
-        coolercp.start(),
-        presencecheckercp.start(),
-        commandercp.start(),
-        sensorsmonitorcp.start(),
-    ]);
+    await system.addComponent('SensorsMonitorCP', sensorsmonitorcp);
+    const fahrenheittocelsiuscn = new FahrenheitToCelsiusCN();
+    await system.addConnector('FahrenheitToCelsiusCN', fahrenheittocelsiuscn);
+    const presencecn = new PresenceCN();
+    await system.addConnector('PresenceCN', presencecn);
+    const commandcn = new CommandCN();
+    await system.addConnector('CommandCN', commandcn);
+    const ctemperaturecn = new CTemperatureCN();
+    await system.addConnector('CTemperatureCN', ctemperaturecn);
+    await system.start();
+    console.log('System simulation completed');
 }
 
-main().catch(err => console.error(`Error in execution: ${err.message}`));
+main().catch(err => console.error('Error in execution: ' + err.message));

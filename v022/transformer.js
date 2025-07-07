@@ -1,6 +1,8 @@
+// @ts-nocheck
+// transformer.js
 const performance = typeof require === 'function' ? require('perf_hooks').performance : window.performance;
 
-function transformToJavaScript() {
+async function transformToJavaScript() {
     const content = sysadlEditor.getValue();
     if (!content.trim()) {
         jsEditor.setValue('No SysADL code to transform.');
@@ -11,63 +13,137 @@ function transformToJavaScript() {
         console.log('Starting transformation...');
         const parsedData = parseSysADL(content);
         console.log('Parsed data:', JSON.stringify(parsedData, null, 2));
-        let jsCode = generateJsCode(parsedData);
+        console.log('Model ports:', JSON.stringify(parsedData.ports, null, 2));
+        console.log('Model types:', JSON.stringify(parsedData.types, null, 2));
+        let jsCode = await generateJsCode(parsedData);
+        console.log('Generated code type:', typeof jsCode);
         console.log('Generated code:', jsCode);
+        if (typeof jsCode !== 'string') {
+            throw new Error('generateJsCode did not return a string, got type: ' + typeof jsCode);
+        }
         jsEditor.setValue(fixSyntax(jsCode));
         console.log('Transformation completed.');
     } catch (error) {
-        jsEditor.setValue(`Error transforming to JavaScript: ${error.message}`);
+        jsEditor.setValue('Error transforming to JavaScript: ' + error.message);
         console.error('Transformation error:', error);
     }
 }
 
 async function generateJsCode(model) {
-    let jsCode = `// Generated JavaScript code for SysADL Model: ${model.name}\n\n`;
-    jsCode += `const readline = require('readline').createInterface({ input: process.stdin, output: process.stdout });\n\n`;
+    let jsCode = '// Generated JavaScript code for SysADL Model: ' + model.name + '\n\n';
 
-    // Mapa de tipos SysADL para JavaScript
+    // Validate model.ports and model.types
+    if (!model.ports || !Array.isArray(model.ports)) {
+        console.error('Invalid or missing model.ports:', model.ports);
+        throw new Error('Model ports are undefined or not an array');
+    }
+    if (!model.types || !Array.isArray(model.types)) {
+        console.error('Invalid or missing model.types:', model.types);
+        throw new Error('Model types are undefined or not an array');
+    }
+    console.log('Model ports:', JSON.stringify(model.ports, null, 2));
+    console.log('Model types:', JSON.stringify(model.types, null, 2));
+
+    // Define ports and types as constants
+    jsCode += '// Model Metadata\n';
+    jsCode += 'const modelPorts = ' + JSON.stringify(model.ports || []) + ';\n';
+    jsCode += 'const modelTypes = ' + JSON.stringify(model.types || []) + ';\n\n';
+
+    // Map SysADL types to JavaScript
     const typeMap = {};
     jsCode += '// Types\n';
-    model.types.forEach(type => {
-        if (type.kind === 'value type') {
-            typeMap[type.name] = 'any';
-            jsCode += `const ${type.name} = 'any'; // Value type\n`;
-        } else if (type.kind === 'datatype') {
-            typeMap[type.name] = type.name;
-            const attributes = type.content && typeof type.content === 'string' ? type.content.match(/attributes\s*:\s*([^;]+)/)?.[1] || '' : '';
-            jsCode += `class ${type.name} {\n    constructor(params = {}) {\n`;
-            attributes.split(',').forEach(attr => {
-                const match = attr.match(/(\w+)\s*:\s*(\w+)/);
-                if (match) {
-                    const attrType = model.types.find(t => t.name === match[2]);
-                    let defaultValue = 'null';
-                    if (attrType?.kind === 'enum') defaultValue = `${match[2]}.Off`;
-                    jsCode += `        this.${match[1]} = params.${match[1]} ?? ${defaultValue};\n`;
-                }
-            });
-            jsCode += `    }\n}\n`;
-        } else if (type.kind === 'enum') {
-            const enumValues = type.content && typeof type.content === 'string' ? type.content.match(/(\w+)/g) || [] : [];
-            typeMap[type.name] = enumValues.map(v => `'${v}'`).join(' | ');
-            jsCode += `const ${type.name} = Object.freeze({ ${enumValues.map(v => `${v}: '${v}'`).join(', ')} });\n`;
-        }
-    });
-    jsCode += '\n';
+    try {
+        model.types.forEach(type => {
+            if (type.kind === 'value type') {
+                typeMap[type.name] = 'any';
+                jsCode += 'const ' + type.name + ' = \'any\'; // Value type\n';
+            } else if (type.kind === 'datatype') {
+                typeMap[type.name] = type.name;
+                const attributes = type.content?.match(/attributes\s*:\s*([^;]+)/)?.[1] || '';
+                jsCode += 'class ' + type.name + ' {\n    constructor(params = {}) {\n';
+                attributes.split(',').forEach(attr => {
+                    const match = attr.match(/(\w+)\s*:\s*(\w+)/);
+                    if (match) {
+                        const attrType = model.types.find(t => t.name === match[2]);
+                        let defaultValue = 'null';
+                        if (attrType?.kind === 'enum') defaultValue = match[2] + '.Off';
+                        else if (attrType?.kind === 'datatype') defaultValue = 'new ' + match[2] + '()';
+                        else if (match[2] === 'Boolean') defaultValue = 'false';
+                        jsCode += '        this.' + match[1] + ' = params["' + match[1] + '"] ?? ' + defaultValue + ';\n';
+                    }
+                });
+                jsCode += '    }\n}\n';
+            } else if (type.kind === 'enum') {
+                const enumValues = type.content?.match(/(\w+)/g) || [];
+                typeMap[type.name] = enumValues.map(v => `'${v}'`).join(' | ');
+                jsCode += 'const ' + type.name + ' = Object.freeze({ ' + enumValues.map(v => v + ': \'' + v + '\'').join(', ') + ' });\n';
+            }
+        });
+        jsCode += '\n';
+    } catch (error) {
+        console.error('Error processing types:', error);
+        throw new Error('Failed to process types: ' + error.message);
+    }
 
-    // Classe base para portas
-    jsCode += `// Base Port Class\n`;
+    // Base Port Class
+    jsCode += '// Base Port Class\n';
     jsCode += `class SysADLPort {
-    constructor(name) {
+    constructor(name, type, direction = 'inout', subPorts = [], flowType = 'any') {
+        console.log('Initializing port ' + name + ' with type ' + type + ', direction ' + direction + ', flowType ' + flowType);
         this.name = name;
+        this.type = type;
+        this.direction = direction;
+        this.flowType = flowType || 'any';
         this.value = null;
+        this.subPorts = new Map(subPorts.map(sp => {
+            console.log('Initializing subPort ' + sp.name + ' with type ' + sp.type + ', flowType ' + (sp.flowType || 'any'));
+            return [sp.name, sp];
+        }));
+        this.connector = null;
     }
 
-    async send(data) {
-        throw new Error(\`Method send must be implemented in \${this.name}\`);
+    async send(data, subPortName = null) {
+        console.log('Port ' + this.name + ' sending data: ' + data + (subPortName ? ' via subPort ' + subPortName : ''));
+        if (this.subPorts.size > 0 && subPortName) {
+            const subPort = this.subPorts.get(subPortName);
+            if (!subPort || (subPort.direction !== 'out' && subPort.direction !== 'inout')) {
+                console.error('Cannot send via subPort ' + subPortName + ' in ' + this.name + ': invalid direction');
+                return false;
+            }
+            subPort.value = data;
+            if (subPort.connector) await subPort.connector.transmit(data);
+            return true;
+        }
+        if (this.direction !== 'out' && this.direction !== 'inout') {
+            console.error('Cannot send via ' + this.name + ': invalid direction (' + this.direction + ')');
+            return false;
+        }
+        if (!this.connector) {
+            console.warn('No connector attached to ' + this.name + '; data not sent');
+            return false;
+        }
+        this.value = data;
+        await this.connector.transmit(data);
+        return true;
     }
 
-    async receive(data) {
-        throw new Error(\`Method receive must be implemented in \${this.name}\`);
+    async receive(data, subPortName = null) {
+        console.log('Port ' + this.name + ' receiving data: ' + data + (subPortName ? ' via subPort ' + subPortName : ''));
+        if (this.subPorts.size > 0 && subPortName) {
+            const subPort = this.subPorts.get(subPortName);
+            if (!subPort || (subPort.direction !== 'in' && subPort.direction !== 'inout')) {
+                console.error('Cannot receive via subPort ' + subPortName + ' in ' + this.name + ': invalid direction');
+                return false;
+            }
+            subPort.value = data;
+            return true;
+        }
+        if (this.direction !== 'in' && this.direction !== 'inout') {
+            console.error('Cannot receive via ' + this.name + ': invalid direction (' + this.direction + ')');
+            return false;
+        }
+        this.value = data;
+        return true;
     }
 
     getValue() {
@@ -75,591 +151,540 @@ async function generateJsCode(model) {
     }
 }\n\n`;
 
-    // Gerar classes para portas
-    jsCode += '// Port Classes\n';
-    model.ports.forEach(port => {
-        const direction = port.flows[0]?.direction || 'inout';
-        const portType = port.flows[0]?.type || 'any';
-        const isComposite = port.subPorts?.length > 0;
-        jsCode += `class ${port.name} extends SysADLPort {
-    constructor(name = '${port.name}') {
-        super(name);
-        this.type = '${portType}';
-        this.direction = '${direction}';
-        this.isComposite = ${isComposite};
-        this.subPorts = new Map();
-        ${isComposite && Array.isArray(port.subPorts) && port.subPorts.length > 0 ? port.subPorts.map(sp => {
-            const spName = (sp.name && /^[a-zA-Z_]\w*$/.test(sp.name)) ? sp.name : `subport_${Math.random().toString(36).substr(2, 9)}`;
-            const subPortType = (sp.type && /^[a-zA-Z_]\w*$/.test(sp.type)) ? sp.type : 'SysADLPort';
-            return `this.subPorts.set('${spName}', new ${subPortType}('${spName}'));`;
-        }).filter(line => line && line.includes('this.subPorts.set') && line.match(/this\.subPorts\.set\('[^']+',\s*new\s+[a-zA-Z_]\w*\s*\('[^']+'\)\);/)).join('\n        ') : ''}
-        this.connector = null;
-    }
-
-    async send(data, subPortName = null) {
-        if (this.isComposite && subPortName) {
-            const subPort = this.subPorts.get(subPortName);
-            if (!subPort || (subPort.direction !== 'out' && subPort.direction !== 'inout')) {
-                console.error(\`Cannot send via subPort \${subPortName} in \${this.name}\`);
-                return false;
-            }
-            console.log(\`Sending \${data} via subPort \${subPortName} in \${this.name}\`);
-            subPort.value = data;
-            if (subPort.connector) {
-                await subPort.connector.transmit(data);
-            }
-            return true;
-        }
-        if ((this.direction !== 'out' && this.direction !== 'inout') || !this.connector) {
-            console.error(\`Cannot send via \${this.name}: invalid direction or no connector\`);
-            return false;
-        }
-        console.log(\`Sending \${data} via \${this.name}\`);
-        this.value = data;
-        await this.connector.transmit(data);
-        return true;
-    }
-
-    async receive(data, subPortName = null) {
-        if (this.isComposite && subPortName) {
-            const subPort = this.subPorts.get(subPortName);
-            if (!subPort || (subPort.direction !== 'in' && subPort.direction !== 'inout')) {
-                console.error(\`Cannot receive via subPort \${subPortName} in \${this.name}\`);
-                return false;
-            }
-            console.log(\`Received \${data} via subPort \${subPortName} in \${this.name}\`);
-            subPort.value = data;
-            return true;
-        }
-        if (this.direction !== 'in' && this.direction !== 'inout') {
-            console.error(\`Cannot receive via \${this.name}: invalid direction\`);
-            return false;
-        }
-        console.log(\`Received \${data} via \${this.name}\`);
-        this.value = data;
-        return true;
-    }
-}\n\n`;
-
-    // Classe base para conectores
-    jsCode += `// Base Connector Class\n`;
+    // Base Connector Class
+    jsCode += '// Base Connector Class\n';
     jsCode += `class SysADLConnector {
-    constructor(name, sourcePort, targetPort) {
+    constructor(name, flows = []) {
+        console.log('Initializing connector ' + name);
         this.name = name;
-        this.sourcePort = sourcePort;
-        this.targetPort = targetPort;
+        this.flows = flows;
         this.messageQueue = [];
         this.isProcessing = false;
     }
 
     async transmit(data) {
+        console.log('Connector ' + this.name + ' transmitting data: ' + data);
         this.messageQueue.push(data);
         if (this.isProcessing) return;
         this.isProcessing = true;
 
         while (this.messageQueue.length > 0) {
             const currentData = this.messageQueue.shift();
-            console.log(\`Connector \${this.name} transmitting: \${currentData}\`);
-            if (this.targetPort) {
-                await this.targetPort.receive(currentData);
-            } else {
-                console.error(\`No target port for connector \${this.name}\`);
+            for (const flow of this.flows) {
+                console.log('Connector ' + this.name + ' processing flow from ' + flow.source + ' to ' + flow.target + ', type: ' + flow.type);
+                if (flow.targetPort) {
+                    await flow.targetPort.receive(currentData);
+                } else {
+                    console.warn('No target port defined for flow from ' + flow.source + ' to ' + flow.target);
+                }
             }
         }
         this.isProcessing = false;
     }
 }\n\n`;
 
-    // Gerar classes para conectores
-    jsCode += '// Connector Classes\n';
-    model.connectors.forEach(conn => {
-        jsCode += `class ${conn.name} extends SysADLConnector {
-    constructor(sourcePort, targetPort) {
-        super('${conn.name}', sourcePort, targetPort);
-        this.participants = new Map();
-        ${conn.participants.map(p => `this.participants.set('${p.name}', null);`).join('\n        ')}
+    // Binding Class
+    jsCode += '// Binding Class\n';
+    jsCode += `class Binding {
+    constructor(sourceComponent, sourcePort, targetComponent, targetPort, connector) {
+        console.log('Creating binding from ' + sourceComponent.name + '.' + sourcePort.name + ' to ' + targetComponent.name + '.' + targetPort.name + ' via connector ' + connector.name);
+        this.sourceComponent = sourceComponent;
+        this.sourcePort = sourcePort;
+        this.targetComponent = targetComponent;
+        this.targetPort = targetPort;
+        this.connector = connector;
+        this.sourcePort.connector = connector;
+        connector.flows.push({ source: sourcePort.name, target: targetPort.name, type: sourcePort.flowType || 'any', targetPort: this.targetPort });
     }
 
-    setParticipant(name, component) {
-        this.participants.set(name, component);
-        ${conn.flows.map(flow => `
-        if (name === '${flow.source}') {
-            this.sourcePort = component.ports.find(p => p.name === '${flow.source}');
-            if (this.sourcePort) this.sourcePort.connector = this;
-        }
-        if (name === '${flow.target}') {
-            this.targetPort = component.ports.find(p => p.name === '${flow.target}');
-        }`).join('\n        ')}
+    async transmit(data) {
+        console.log('Binding transmitting data ' + data + ' from ' + this.sourceComponent.name + '.' + this.sourcePort.name + ' to ' + this.targetComponent.name + '.' + this.targetPort.name);
+        await this.connector.transmit(data);
     }
 }\n\n`;
-    });
 
-    // Classe base para componentes
-    jsCode += `// Base Component Class\n`;
+    // Generate connector classes
+    jsCode += '// Connector Classes\n';
+    try {
+        model.connectors.forEach(conn => {
+            jsCode += 'class ' + conn.name + ' extends SysADLConnector {\n';
+            jsCode += '    constructor() {\n';
+            jsCode += '        super(\'' + conn.name + '\', [\n';
+            jsCode += '            ' + conn.flows.map(f => '{ type: \'' + (f.type || 'any') + '\', source: \'' + f.source + '\', target: \'' + f.target + '\' }').join(', ') + '\n';
+            jsCode += '        ]);\n';
+            jsCode += '    }\n';
+            jsCode += '}\n\n';
+        });
+    } catch (error) {
+        console.error('Error processing connectors:', error);
+        throw new Error('Failed to process connectors: ' + error.message);
+    }
+
+    // Base Component Class
+    jsCode += '// Base Component Class\n';
     jsCode += `class SysADLComponent {
-    constructor(name, isBoundary = false) {
+    constructor(name, isBoundary = false, modelPorts = [], modelTypes = []) {
+        console.log('Initializing component ' + name + ', isBoundary: ' + isBoundary);
         this.name = name;
         this.isBoundary = isBoundary;
         this.ports = [];
         this.state = {};
+        this.activities = [];
+        this.modelPorts = modelPorts;
+        this.modelTypes = modelTypes;
     }
 
     async addPort(port) {
         this.ports.push(port);
-        console.log(\`Port \${port.name} added to component \${this.name}\`);
+        console.log('Port ' + port.name + ' added to component ' + this.name + ', flowType: ' + port.flowType);
     }
 
     async onDataReceived(portName, data) {
+        console.log('Component ' + this.name + ' received ' + data + ' on port ' + portName);
         this.state[portName] = data;
-        console.log(\`Component \${this.name} received \${data} on \${portName}\`);
-    }
-
-    async start() {
-        console.log(\`Component \${this.name} started\`);
-    }
-}\n\n`;
-
-    // Classe base para componentes de fronteira
-    jsCode += `// Base Boundary Component Class\n`;
-    jsCode += `class SysADLBoundaryComponent extends SysADLComponent {
-    constructor(name) {
-        super(name, true);
-    }
-
-    async start() {
-        console.log(\`Boundary component \${this.name} started\`);
-        for (const port of this.ports) {
-            const portDef = ${JSON.stringify(model.ports)}.find(p => p.name === port.type);
-            const typeDef = portDef?.flows?.[0]?.type;
-            if (typeDef && (typeDef.includes('emperature') || typeDef === 'Real' || typeDef === 'Int')) {
-                await new Promise(resolve => {
-                    readline.question(\`Enter value for \${this.name}.\${port.name} (number): \`, async (input) => {
-                        const value = parseFloat(input);
-                        if (!isNaN(value)) {
-                            await this.onDataReceived(port.name, value);
-                        } else {
-                            console.error(\`Invalid number input for \${this.name}.\${port.name}\`);
-                        }
-                        resolve();
-                        await this.promptForInput();
-                    });
-                });
-            } else if (typeDef === 'Boolean') {
-                await new Promise(resolve => {
-                    readline.question(\`Enter value for \${this.name}.\${port.name} (true/false): \`, async (input) => {
-                        const value = input.toLowerCase() === 'true';
-                        await this.onDataReceived(port.name, value);
-                        resolve();
-                        await this.promptForInput();
-                    });
-                });
-            } else if (${JSON.stringify(model.types)}.find(t => t.name === typeDef && t.kind === 'enum')) {
-                const enumValues = ${JSON.stringify(model.types)}.find(t => t.name === typeDef)?.content.match(/(\\w+)/g) || [];
-                await new Promise(resolve => {
-                    readline.question(\`Enter value for \${this.name}.\${port.name} (\${enumValues.join('/')}): \`, async (input) => {
-                        const value = ${typeDef}[input] || ${typeDef}.Off;
-                        await this.onDataReceived(port.name, value);
-                        resolve();
-                        await this.promptForInput();
-                    });
-                });
-            } else if (${JSON.stringify(model.types)}.find(t => t.name === typeDef && t.kind === 'datatype')) {
-                await new Promise(resolve => {
-                    readline.question(\`Enter JSON for \${this.name}.\${port.name} (\${typeDef}): \`, async (input) => {
-                        try {
-                            const value = JSON.parse(input);
-                            await this.onDataReceived(port.name, new ${typeDef}(value));
-                        } catch (e) {
-                            console.error(\`Invalid JSON input for \${this.name}.\${port.name}: \${e.message}\`);
-                        }
-                        resolve();
-                        await this.promptForInput();
-                    });
-                });
-            }
+        for (const activity of this.activities) {
+            console.log('Triggering activity ' + activity.methodName + ' in component ' + this.name);
+            await this[activity.methodName]();
         }
     }
 
-    async promptForInput() {
+    async start() {
+        console.log('Starting component ' + this.name);
+        if (this.isBoundary) {
+            await this.simulateInput();
+        }
+    }
+
+    async simulateInput() {
+        console.log('Simulating input for component ' + this.name);
         for (const port of this.ports) {
-            const portDef = ${JSON.stringify(model.ports)}.find(p => p.name === port.type);
-            const typeDef = portDef?.flows?.[0]?.type;
-            if (typeDef && (typeDef.includes('emperature') || typeDef === 'Real' || typeDef === 'Int')) {
-                await new Promise(resolve => {
-                    readline.question(\`Enter value for \${this.name}.\${port.name} (number): \`, async (input) => {
-                        const value = parseFloat(input);
-                        if (!isNaN(value)) {
-                            await this.onDataReceived(port.name, value);
-                        } else {
-                            console.error(\`Invalid number input for \${this.name}.\${port.name}\`);
-                        }
-                        resolve();
-                        await this.promptForInput();
-                    });
-                });
-            } else if (typeDef === 'Boolean') {
-                await new Promise(resolve => {
-                    readline.question(\`Enter value for \${this.name}.\${port.name} (true/false): \`, async (input) => {
-                        const value = input.toLowerCase() === 'true';
-                        await this.onDataReceived(port.name, value);
-                        resolve();
-                        await this.promptForInput();
-                    });
-                });
-            } else if (${JSON.stringify(model.types)}.find(t => t.name === typeDef && t.kind === 'enum')) {
-                const enumValues = ${JSON.stringify(model.types)}.find(t => t.name === typeDef)?.content.match(/(\\w+)/g) || [];
-                await new Promise(resolve => {
-                    readline.question(\`Enter value for \${this.name}.\${port.name} (\${enumValues.join('/')}): \`, async (input) => {
-                        const value = ${typeDef}[input] || ${typeDef}.Off;
-                        await this.onDataReceived(port.name, value);
-                        resolve();
-                        await this.promptForInput();
-                    });
-                });
-            } else if (${JSON.stringify(model.types)}.find(t => t.name === typeDef && t.kind === 'datatype')) {
-                await new Promise(resolve => {
-                    readline.question(\`Enter JSON for \${this.name}.\${port.name} (\${typeDef}): \`, async (input) => {
-                        try {
-                            const value = JSON.parse(input);
-                            await this.onDataReceived(port.name, new ${typeDef}(value));
-                        } catch (e) {
-                            console.error(\`Invalid JSON input for \${this.name}.\${port.name}: \${e.message}\`);
-                        }
-                        resolve();
-                        await this.promptForInput();
-                    });
-                });
+            console.log('Processing port ' + port.name + ' with type ' + port.type + ', flowType: ' + port.flowType);
+            if (!port.flowType || typeof port.flowType !== 'string') {
+                console.warn('Skipping port ' + port.name + ' due to invalid flowType: ' + port.flowType);
+                continue;
             }
+            let simulatedValue;
+            if (port.flowType.includes('emperature') || port.flowType === 'Real' || port.flowType === 'Int') {
+                simulatedValue = 42.0;
+                console.log('Simulating number input ' + simulatedValue + ' for ' + this.name + '.' + port.name);
+            } else if (port.flowType === 'Boolean') {
+                simulatedValue = true;
+                console.log('Simulating boolean input ' + simulatedValue + ' for ' + this.name + '.' + port.name);
+            } else if (this.modelTypes.find(t => t.name === port.flowType && t.kind === 'enum')) {
+                const enumValues = this.modelTypes.find(t => t.name === port.flowType)?.content.match(/(\\w+)/g) || ['Off'];
+                simulatedValue = eval(port.flowType + '.' + enumValues[0]);
+                console.log('Simulating enum input ' + simulatedValue + ' for ' + this.name + '.' + port.name);
+            } else if (this.modelTypes.find(t => t.name === port.flowType && t.kind === 'datatype')) {
+                simulatedValue = eval('new ' + port.flowType + '({})');
+                console.log('Simulating datatype input for ' + this.name + '.' + port.name);
+            } else {
+                console.warn('Unsupported flow type ' + port.flowType + ' for port ' + this.name + '.' + port.name);
+                continue;
+            }
+            await this.onDataReceived(port.name, simulatedValue);
+            await new Promise(resolve => setTimeout(resolve, 1000));
         }
     }
 }\n\n`;
 
-    // Gerar classes para componentes
+    // Generate component classes
     jsCode += '// Component Classes\n';
-    model.components.forEach(comp => {
-        const isBoundary = comp.configuration?.includes('boundary') || false;
-        const activityMethods = model.allocations
-            .filter(a => a.target === comp.name && a.type === 'activity')
-            .map(alloc => {
-                const activity = model.activities.find(act => act.name === alloc.source);
-                if (!activity) return '';
+    try {
+        model.components.forEach(comp => {
+            console.log('Processing component:', comp.name, 'Ports:', JSON.stringify(comp.ports, null, 2));
+            if (!comp.ports || !Array.isArray(comp.ports)) {
+                console.warn('Component ' + comp.name + ' has no valid ports array:', comp.ports);
+                comp.ports = [];
+            }
+            const isBoundary = comp.configuration?.includes('boundary') || false;
+            const allocatedActivities = model.allocations
+                .filter(a => a.target === comp.name && a.type === 'activity')
+                .map(a => model.activities.find(act => act.name === a.source))
+                .filter(act => act);
 
+            const activityMethods = allocatedActivities.map(activity => {
                 const paramsInit = activity.inputs.split(',').map(p => {
                     const [name, type] = p.trim().split(':').map(s => s.trim());
-                    return `${name}: this.state['${name}'] ?? null`;
-                }).filter(p => p).join(',\n                    ');
+                    return name ? (name + ': this.state[\'' + name + '\'] ?? null') : '';
+                }).filter(p => p).join(', ');
+                let actionExecCode = '';
+                const dataStores = activity.dataStores || [];
+                const flows = activity.flows || [];
+                const delegates = activity.delegates || [];
 
-                const actionsCode = activity.actions?.map(action => {
+                dataStores.forEach(ds => {
+                    const flowType = model.types.find(t => t.name === ds.type);
+                    let defaultValue = 'null';
+                    if (flowType?.kind === 'enum') defaultValue = ds.type + '.Off';
+                    else if (flowType?.kind === 'datatype') defaultValue = 'new ' + ds.type + '()';
+                    else if (ds.type === 'Boolean') defaultValue = 'false';
+                    actionExecCode += '        let ' + ds.name + ' = this.state[\'' + ds.name + '\'] ?? ' + defaultValue + ';\n';
+                });
+
+                activity.actions.forEach(action => {
                     const execAlloc = model.allocations.find(a => a.type === 'executable' && a.target === action.name);
-                    if (!execAlloc) return '';
+                    if (!execAlloc) return;
                     const executable = model.executables.find(e => e.name === execAlloc.source);
-                    if (!executable) return '';
-                    const constraint = model.constraints.find(c => c.name && activity.body?.includes(c.name));
-                    const actionId = action.id || `action_${Math.random().toString(36).substr(2, 9)}`;
-                    let code = `const ${actionId}_result = await ${executable.name}(params);\n`;
+                    if (!executable) return;
+
+                    const constraint = model.constraints.find(c => action.body?.includes(c.name));
+                    let actionCode = '            console.log(\'Executing action ' + action.id + ' with executable ' + executable.name + '\');\n';
+                    actionCode += '            const ' + action.id + '_result = await ' + executable.name + '(params);\n';
                     if (constraint) {
-                        code = `try {
-                            await validate${constraint.name}(params);
-                        } catch (e) {
-                            console.error(\`Constraint ${constraint.name} violated: \${e.message}\`);
-                            return null;
-                        }\n                    ${code}`;
+                        actionCode = '            console.log(\'Validating constraint ' + constraint.name + '\');\n' +
+                                     '            try {\n' +
+                                     '                await validate' + constraint.name + '(params);\n' +
+                                     '            } catch (e) {\n' +
+                                     '                console.error(\'Constraint ' + constraint.name + ' violated: \' + e.message);\n' +
+                                     '                return null;\n' +
+                                     '            }\n' + actionCode;
                     }
-                    return code;
-                }).filter(c => c).join('\n                ') || '';
+
+                    flows.forEach(flow => {
+                        if (flow.source === action.id) {
+                            actionCode += '            console.log(\'Storing result \' + ' + action.id + '_result + \' to state ' + flow.target + '\');\n';
+                            actionCode += '            this.state[\'' + flow.target + '\'] = ' + action.id + '_result;\n';
+                        }
+                    });
+
+                    actionExecCode += actionCode;
+                });
+
+                delegates.forEach(delegate => {
+                    const targetPort = comp.ports.find(p => p.name === delegate.target || p.type === delegate.target);
+                    if (targetPort) {
+                        actionExecCode += '            console.log(\'Delegating data from ' + comp.name + ' to port ' + targetPort.name + '\');\n';
+                        actionExecCode += '            const ' + delegate.source + '_port = this.ports.find(p => p.name === \'' + targetPort.name + '\');\n';
+                        actionExecCode += '            if (' + delegate.source + '_port) await ' + delegate.source + '_port.send(this.state[\'' + delegate.source + '\']);\n';
+                    }
+                });
 
                 const returnVal = activity.outputs && activity.outputs.trim() ?
                     activity.outputs.split(',').map(o => {
                         const [name] = o.trim().split(':').map(s => s.trim());
-                        return name ? `${name}_result` : null;
+                        return name ? 'this.state[\'' + name + '\']' : null;
                     }).filter(name => name).join(' || ') || 'null' : 'null';
 
-                return `
-    async execute${activity.name}() {
-        console.log(\`Executing activity ${activity.name} in \${this.name}\`);
-        const params = {
-                    ${paramsInit}
-        };
-        ${actionsCode}
-        return ${returnVal};
-    }`;
-            }).join('\n');
+                return {
+                    methodName: 'execute' + activity.name,
+                    code: '\n    async execute' + activity.name + '() {\n' +
+                          '        console.log(\'Executing activity ' + activity.name + ' in \' + this.name);\n' +
+                          '        const params = { ' + paramsInit + ' };\n' +
+                          actionExecCode +
+                          '        console.log(\'Activity ' + activity.name + ' returning: \' + ' + returnVal + ');\n' +
+                          '        return ' + returnVal + ';\n' +
+                          '    }'
+                };
+            });
 
-        const additionalPorts = [];
-        if (comp.name === 'SensorsMonitorCP') {
-            additionalPorts.push({ name: 's2', type: 'CTemperatureIPT' }, { name: 'average', type: 'CTemperatureOPT' });
-        } else if (comp.name === 'PresenceCheckerCP') {
-            additionalPorts.push({ name: 'userTemp', type: 'CTemperatureIPT' }, { name: 'target', type: 'CTemperatureOPT' });
-        } else if (comp.name === 'CommanderCP') {
-            additionalPorts.push({ name: 'average2', type: 'CTemperatureIPT' }, { name: 'heating', type: 'CommandOPT' }, { name: 'cooling', type: 'CommandOPT' });
-        }
+            jsCode += 'class ' + comp.name + ' extends SysADLComponent {\n';
+            jsCode += '    constructor() {\n';
+            jsCode += '        super(\'' + comp.name + '\', ' + isBoundary + ', modelPorts, modelTypes);\n';
+            jsCode += '        // Initialize ports\n';
+            comp.ports.forEach(port => {
+                if (!port || !port.name || !port.type) {
+                    console.warn('Invalid port in component ' + comp.name + ':', port);
+                    return;
+                }
+                const portDef = model.ports.find(p => p.name === port.type);
+                const direction = portDef?.flows?.[0]?.direction || 'inout';
+                const flowType = portDef?.flows?.[0]?.type || 'any';
+                const subPorts = portDef?.subPorts?.map(sp => {
+                    const spDef = model.ports.find(p => p.name === sp.type);
+                    return {
+                        name: sp.name,
+                        type: sp.type,
+                        direction: spDef?.flows?.[0]?.direction || 'inout',
+                        flowType: spDef?.flows?.[0]?.type || 'any'
+                    };
+                }) || [];
+                jsCode += '        this.addPort(new SysADLPort(\'' + port.name + '\', \'' + port.type + '\', \'' + direction + '\', [' + 
+                          subPorts.map(sp => '{ name: \'' + sp.name + '\', type: \'' + sp.type + '\', direction: \'' + sp.direction + '\', flowType: \'' + sp.flowType + '\' }').join(', ') + 
+                          '], \'' + flowType + '\'));\n';
+            });
 
-        jsCode += `class ${comp.name} extends ${isBoundary ? 'SysADLBoundaryComponent' : 'SysADLComponent'} {
-    constructor() {
-        super('${comp.name}');
-        // Initialize ports
-        ${comp.ports.map(port => {
-            return `this.addPort(new ${port.type}('${port.name}'));`;
-        }).join('\n        ')}
-        ${additionalPorts.map(port => {
-            return `this.addPort(new ${port.type}('${port.name}'));`;
-        }).join('\n        ')}
+            jsCode += '\n        // Initialize state\n';
+            comp.ports.forEach(port => {
+                if (!port || !port.name || !port.type) {
+                    console.warn('Invalid port in state initialization for component ' + comp.name + ':', port);
+                    return;
+                }
+                const portDef = model.ports.find(p => p.name === port.type);
+                const flowType = portDef?.flows?.[0]?.type || 'any';
+                let defaultValue = 'null';
+                if (flowType === 'Boolean') defaultValue = 'false';
+                else if (model.types.find(t => t.name === flowType && t.kind === 'enum')) {
+                    const enumValues = model.types.find(t => t.name === flowType)?.content.match(/(\\w+)/g) || [];
+                    defaultValue = flowType + '.' + (enumValues[0] || 'Off');
+                } else if (model.types.find(t => t.name === flowType && t.kind === 'datatype')) {
+                    defaultValue = 'new ' + flowType + '({})';
+                }
+                jsCode += '        this.state[\'' + port.name + '\'] = ' + defaultValue + ';\n';
+            });
 
-        // Initialize state
-        ${comp.ports.map(port => {
-            const portDef = model.ports.find(p => p.name === port.type);
-            const type = portDef?.flows[0]?.type || 'any';
-            let defaultValue = 'null';
-            if (type === 'Boolean') defaultValue = 'false';
-            else if (model.types.find(t => t.name === type && t.kind === 'enum')) {
-                const enumValues = model.types.find(t => t.name === type)?.content.match(/(\\w+)/g) || [];
-                defaultValue = `${type}.${enumValues[0] || 'Off'}`;
-            } else if (model.types.find(t => t.name === type && t.kind === 'datatype')) {
-                defaultValue = `new ${type}()`;
-            }
-            return `this.state['${port.name}'] = ${defaultValue};`;
-        }).join('\n        ')}
-        ${additionalPorts.map(port => {
-            const portDef = model.ports.find(p => p.name === port.type);
-            const type = portDef?.flows[0]?.type || 'any';
-            let defaultValue = 'null';
-            if (type === 'Boolean') defaultValue = 'false';
-            else if (model.types.find(t => t.name === type && t.kind === 'enum')) {
-                const enumValues = model.types.find(t => t.name === type)?.content.match(/(\\w+)/g) || [];
-                defaultValue = `${type}.${enumValues[0] || 'Off'}`;
-            } else if (model.types.find(t => t.name === type && t.kind === 'datatype')) {
-                defaultValue = `new ${type}()`;
-            }
-            return `this.state['${port.name}'] = ${defaultValue};`;
-        }).join('\n        ')}
+            jsCode += '\n        // Register activities\n';
+            activityMethods.forEach(a => {
+                jsCode += '        this.activities.push({ methodName: \'' + a.methodName + '\' });\n';
+            });
+            jsCode += '    }\n';
+            activityMethods.forEach(a => {
+                jsCode += a.code + '\n';
+            });
+            jsCode += '}\n\n';
+        });
+    } catch (error) {
+        console.error('Error processing components:', error);
+        throw new Error('Failed to process components: ' + error.message);
     }
 
-    async onDataReceived(portName, data) {
-        this.state[portName] = data;
-        console.log(\`Component \${this.name} received \${data} on \${portName}\`);
-        ${comp.name === 'SensorsMonitorCP' ? `
-        if (this.state['s1'] !== null && this.state['s2'] !== null) {
-            const result = await this.executeCalculateAverageTemperatureAC();
-            const outputPort = this.ports.find(p => p.name === 'average');
-            if (outputPort) await outputPort.send(result);
-        }` :
-        comp.name === 'PresenceCheckerCP' ? `
-        if (this.state['detected'] !== null && this.state['userTemp'] !== null) {
-            const result = await this.executeCheckPresenceToSetTemperatureAC();
-            const outputPort = this.ports.find(p => p.name === 'target');
-            if (outputPort) await outputPort.send(result);
-        }` :
-        comp.name === 'CommanderCP' ? `
-        if (this.state['average2'] !== null && this.state['target2'] !== null) {
-            const result = await this.executeDecideCommandAC();
-            const heatingPort = this.ports.find(p => p.name === 'heating');
-            const coolingPort = this.ports.find(p => p.name === 'cooling');
-            if (heatingPort) await heatingPort.send(result.heater);
-            if (coolingPort) await coolingPort.send(result.cooler);
-        }` : ''}
-    }
-
-    ${activityMethods}
-}\n\n`;
-    });
-
-    // Gerar funções para executáveis
+    // Generate executable functions
     jsCode += '// Executables\n';
-    model.executables.forEach(exec => {
-        jsCode += `async function ${exec.name}(params = {}) {\n`;
-        let body = exec.body ? exec.body.trim() : '';
-        body = body.replace(/(\w+)::(\w+)/g, (match, type, value) => {
-            if (model.types.find(t => t.name === type && t.kind === 'enum')) {
-                return `${type}.${value}`;
-            }
-            return `params["${type}"]?.${value} ?? null`;
-        });
-        body = body.replace(/(\w+)->(\w+)/g, 'params["$1"].$2');
-        body = body.replace(/;;+/g, ';');
-        const paramsList = new Set();
-        const protectedVars = new Set(['types', 'Command', 'On', 'Off', 'params']);
-        body.replace(/\b(\w+)\b/g, match => {
-            if (!['let', 'if', 'else', 'return', 'true', 'false', 'null'].includes(match) &&
-                !match.match(/^\d+$/) &&
-                !body.match(new RegExp(`\\b${match}\\b\\s*=\\s*new\\s+\\w+`)) &&
-                !model.types.find(t => t.name === match) &&
-                !protectedVars.has(match)) {
-                paramsList.add(match);
-            }
-        });
-        paramsList.forEach(param => {
-            if (!body.match(new RegExp(`let\\s+${param}\\b`))) {
-                const type = model.types.find(t => t.name === param && t.kind === 'datatype') ? `new ${param}()` :
-                    model.types.find(t => t.name === param && t.kind === 'enum') ? `${param}.Off` : 'null';
-                body = `    let ${param} = params["${param}"] ?? ${type};\n${body}`;
-            }
-        });
-        body = body.replace(/let\s+(\w+)\s*:\s*(\w+)(?:\s*=\s*([\w:.]+))?/g, (match, varName, typeName, initValue) => {
-            const type = model.types.find(t => t.name === typeName);
-            let init = initValue || (type?.kind === 'datatype' ? `new ${typeName}()` :
-                type?.kind === 'enum' ? `${typeName}.Off` : 'null');
-            if (init && init.includes('::')) {
-                const [type, value] = init.split('::');
+    try {
+        model.executables.forEach(exec => {
+            jsCode += 'async function ' + exec.name + '(params = {}) {\n';
+            let body = exec.body?.trim() || '';
+            body = body.replace(/(\w+)::(\w+)/g, (match, type, value) => {
                 if (model.types.find(t => t.name === type && t.kind === 'enum')) {
-                    init = `${type}.${value}`;
+                    return type + '.' + value;
                 }
-            }
-            return `    let ${varName} = ${init};`;
+                return 'params["' + type + '"]?.' + value + ' ?? null';
+            });
+            body = body.replace(/(\w+)->(\w+)/g, 'params["$1"].$2');
+            body = body.replace(/;;+/g, ';');
+            const paramsList = new Set();
+            const protectedVars = new Set(['types', 'Command', 'On', 'Off', 'params']);
+            body.replace(/\b(\w+)\b/g, match => {
+                if (!['let', 'if', 'else', 'return', 'true', 'false', 'null'].includes(match) &&
+                    !match.match(/^\d+$/) &&
+                    !body.match(new RegExp(`\\b${match}\\b\\s*=\\s*new\\s+\\w+`)) &&
+                    !model.types.find(t => t.name === match) &&
+                    !protectedVars.has(match)) {
+                    paramsList.add(match);
+                }
+            });
+            paramsList.forEach(param => {
+                if (!body.match(new RegExp(`let\\s+${param}\\b`))) {
+                    const flowType = model.types.find(t => t.name === param && t.kind === 'datatype') ? 'new ' + param + '()' :
+                        model.types.find(t => t.name === param && t.kind === 'enum') ? param + '.Off' : 'null';
+                    body = '    let ' + param + ' = params["' + param + '"] ?? ' + flowType + ';\n' + body;
+                }
+            });
+            body = body.replace(/let\s+(\w+)\s*:\s*(\w+)(?:\s*=\s*([\w:.]+))?/g, (match, varName, typeName, initValue) => {
+                const type = model.types.find(t => t.name === typeName);
+                let init = initValue || (type?.kind === 'datatype' ? 'new ' + typeName + '()' :
+                    type?.kind === 'enum' ? typeName + '.Off' : 'null');
+                if (init && init.includes('::')) {
+                    const [type, value] = init.split('::');
+                    if (model.types.find(t => t.name === type && t.kind === 'enum')) {
+                        init = type + '.' + value;
+                    }
+                }
+                return '    let ' + varName + ' = ' + init + ';';
+            });
+            jsCode += '    console.log(\'Executing executable ' + exec.name + ' with params: \' + JSON.stringify(params));\n';
+            jsCode += body + '\n';
+            jsCode += '}\n\n';
         });
-        body = body.replace(/(\w+)\s*==\s*(\w+)/g, '$1 === $2');
-        let newBody = '';
-        let braceLevel = 0;
-        let lines = body.split('\n').map(line => line.trim()).filter(line => line);
-        let returnStatement = null;
-        for (let line of lines) {
-            if (line.includes('{')) {
-                braceLevel++;
-                newBody += `    ${line}\n`;
-            } else if (line.includes('}')) {
-                braceLevel--;
-                newBody += `    ${line}\n`;
-            } else if (line.startsWith('return')) {
-                returnStatement = line;
-            } else {
-                newBody += `    ${line}\n`;
-            }
-        }
-        while (braceLevel > 0) {
-            newBody += '    }\n';
-            braceLevel--;
-        }
-        if (returnStatement) {
-            newBody += `    ${returnStatement}\n`;
-        } else {
-            newBody += '    return params.result ?? null;\n';
-        }
-        jsCode += `${newBody}\n`;
-        jsCode += `}\n\n`;
-    });
+    } catch (error) {
+        console.error('Error processing executables:', error);
+        throw new Error('Failed to process executables: ' + error.message);
+    }
 
-    // Gerar funções para constraints
+    // Generate constraint functions
     jsCode += '// Constraints\n';
-    model.constraints.forEach(constraint => {
-        jsCode += `async function validate${constraint.name}(params = {}) {\n`;
-        let equation = constraint.equation || 'true';
-        console.log(`Generating constraint ${constraint.name} with equation: ${equation}`);
-        equation = equation.replace(/(\w+)::(\w+)/g, (match, type, value) => {
-            if (model.types.find(t => t.name === type && t.kind === 'enum')) {
-                return `${type}.${value}`;
-            }
-            return `params["${type}"]?.${value} ?? null`;
-        });
-        equation = equation.replace(/(\w+)->(\w+)/g, 'params["$1"].$2');
-        const definedVars = new Set();
-        equation.replace(/params\["(\w+)"\]/g, (_, varName) => {
-            definedVars.add(varName);
-        });
-        const protectedIdentifiers = new Set([
-            'true', 'false', 'null', 'params',
-            ...model.types.map(t => t.name),
-            ...model.types.filter(t => t.kind === 'enum' && t.content && typeof t.content === 'string')
-                .flatMap(t => (t.content.match(/(\w+)/g) || []).map(v => `${t.name}.${v}`))
-        ]);
-        equation = equation.replace(/\b(\w+)\b/g, (match) => {
-            if (protectedIdentifiers.has(match) ||
-                match.includes('.') ||
-                match.match(/^\d+$/) ||
-                definedVars.has(match)) {
-                return match;
-            }
-            definedVars.add(match);
-            return `params["${match}"]`;
-        });
-        equation = equation.replace(/==/g, '===');
-        equation = equation.replace(/(\w+\s*[><=]+\s*[^?]+)\s*\?\s*([^:]+)\s*:\s*([^;]+)/g, '($1) ? ($2) : ($3)');
-        equation = equation.replace(/types\.Commands\.(\w+)/g, 'Command.$1');
-        equation = equation.replace(/params\["cmds"\]\.heater\s*===?\s*types\.Commands\.(\w+)/g, 'params["cmds"].heater === Command.$1');
-        equation = equation.replace(/params\["cmds"\]\.cooler\s*===?\s*types\.Commands\.(\w+)/g, 'params["cmds"].cooler === Command.$1');
-        constraint.inputs.split(',').forEach(input => {
-            const [name, type] = input.trim().split(':').map(s => s.trim());
-            if (name && type) {
-                const typeDef = model.types.find(t => t.name === type);
-                let defaultValue = 'null';
-                if (typeDef?.kind === 'datatype') defaultValue = `new ${type}()`;
-                if (typeDef?.kind === 'enum') {
-                    const enumValues = typeDef.content && typeof typeDef.content === 'string' ? typeDef.content.match(/(\w+)/g) || ['Off'] : ['Off'];
-                    defaultValue = `${type}.${enumValues[0]}`;
+    try {
+        model.constraints.forEach(constraint => {
+            jsCode += 'async function validate' + constraint.name + '(params = {}) {\n';
+            let equation = constraint.equation || 'true';
+            equation = equation.replace(/(\w+)::(\w+)/g, (match, type, value) => {
+                if (model.types.find(t => t.name === type && t.kind === 'enum')) {
+                    return type + '.' + value;
                 }
-                if (type === 'Boolean') defaultValue = 'false';
-                jsCode += `    let ${name} = params["${name}"] ?? ${defaultValue};\n`;
-            }
-        });
-        constraint.outputs.split(',').forEach(output => {
-            const [name, type] = output.trim().split(':').map(s => s.trim());
-            if (name && type) {
-                const typeDef = model.types.find(t => t.name === type);
-                let defaultValue = 'null';
-                if (typeDef?.kind === 'datatype') defaultValue = `new ${type}()`;
-                if (typeDef?.kind === 'enum') {
-                    const enumValues = typeDef.content && typeof typeDef.content === 'string' ? typeDef.content.match(/(\w+)/g) || ['Off'] : ['Off'];
-                    defaultValue = `${type}.${enumValues[0]}`;
+                return 'params["' + type + '"]?.' + value + ' ?? null';
+            });
+            equation = equation.replace(/(\w+)->(\w+)/g, 'params["$1"].$2');
+            const definedVars = new Set();
+            equation.replace(/params\["(\w+)"\]/g, (_, varName) => {
+                definedVars.add(varName);
+            });
+            const protectedIdentifiers = new Set([
+                'true', 'false', 'null', 'params',
+                ...model.types.map(t => t.name),
+                ...model.types.filter(t => t.kind === 'enum' && t.content && typeof t.content === 'string')
+                    .flatMap(t => (t.content.match(/(\w+)/g) || []).map(v => t.name + '.' + v))
+            ]);
+            equation = equation.replace(/\b(\w+)\b/g, (match) => {
+                if (protectedIdentifiers.has(match) ||
+                    match.includes('.') ||
+                    match.match(/^\d+$/) ||
+                    definedVars.has(match)) {
+                    return match;
                 }
-                if (type === 'Boolean') defaultValue = 'false';
-                jsCode += `    let ${name} = params["${name}"] ?? ${defaultValue};\n`;
+                definedVars.add(match);
+                return 'params["' + match + '"]';
+            });
+            equation = equation.replace(/==/g, '===');
+            equation = equation.replace(/(\w+\s*[><=]+\s*[^?]+)\s*\?\s*([^:]+)\s*:\s*([^;]+)/g, '($1) ? ($2) : ($3)');
+            constraint.inputs.split(',').forEach(input => {
+                const [name, type] = input.trim().split(':').map(s => s.trim());
+                if (name && type) {
+                    const flowType = model.types.find(t => t.name === type);
+                    let defaultValue = 'null';
+                    if (flowType?.kind === 'datatype') defaultValue = 'new ' + type + '()';
+                    if (flowType?.kind === 'enum') {
+                        const enumValues = flowType.content?.match(/(\w+)/g) || ['Off'];
+                        defaultValue = type + '.' + enumValues[0];
+                    }
+                    if (type === 'Boolean') defaultValue = 'false';
+                    jsCode += '    let ' + name + ' = params["' + name + '"] ?? ' + defaultValue + ';\n';
+                }
+            });
+            constraint.outputs.split(',').forEach(output => {
+                const [name, type] = output.trim().split(':').map(s => s.trim());
+                if (name && type) {
+                    const flowType = model.types.find(t => t.name === type);
+                    let defaultValue = 'null';
+                    if (flowType?.kind === 'datatype') defaultValue = 'new ' + type + '()';
+                    if (flowType?.kind === 'enum') {
+                        const enumValues = flowType.content?.match(/(\w+)/g) || ['Off'];
+                        defaultValue = type + '.' + enumValues[0];
+                    }
+                    if (type === 'Boolean') defaultValue = 'false';
+                    jsCode += '    let ' + name + ' = params["' + name + '"] ?? ' + defaultValue + ';\n';
+                }
+            });
+            try {
+                new Function('params', 'return ' + equation);
+            } catch (e) {
+                console.error('Invalid equation in constraint ' + constraint.name + ': ' + equation);
+                equation = 'true';
             }
+            jsCode += '    console.log(\'Evaluating constraint ' + constraint.name + ': \' + \'' + equation + '\');\n';
+            jsCode += '    const result = ' + equation + ';\n';
+            jsCode += '    if (!result) {\n';
+            jsCode += '        throw new Error(\'Constraint ' + constraint.name + ' violated\');\n';
+            jsCode += '    }\n';
+            jsCode += '    console.log(\'Constraint ' + constraint.name + ' passed\');\n';
+            jsCode += '    return result;\n';
+            jsCode += '}\n\n';
         });
-        try {
-            new Function('params', `return ${equation}`);
-        } catch (e) {
-            console.error(`Invalid equation in constraint ${constraint.name}: ${equation}`);
-            equation = 'true';
-        }
-        jsCode += `    const result = ${equation};\n`;
-        jsCode += `    if (!result) {\n`;
-        jsCode += `        throw new Error('Constraint ${constraint.name} violated');\n`;
-        jsCode += `    }\n`;
-        jsCode += `    return result;\n`;
-        jsCode += `}\n\n`;
-    });
+    } catch (error) {
+        console.error('Error processing constraints:', error);
+        throw new Error('Failed to process constraints: ' + error.message);
+    }
 
-    // Definir a classe do sistema
-    jsCode += `class ${model.name} {
-        constructor() {
-            this.ports = [];
-        }
-        async addPort(...ports) {
-            this.ports.push(...ports);
-            console.log('Ports added to system:', ports.map(p => p.name));
-        }
-    }\n\n`;
+    // System class
+    jsCode += 'class ' + model.name + ' {\n';
+    jsCode += '    constructor() {\n';
+    jsCode += '        console.log(\'Initializing system ' + model.name + '\');\n';
+    jsCode += '        this.components = new Map();\n';
+    jsCode += '        this.connectors = new Map();\n';
+    jsCode += '        this.bindings = [];\n';
+    jsCode += '        this.ports = [];\n';
+    jsCode += '    }\n\n';
+    jsCode += '    async addComponent(name, component) {\n';
+    jsCode += '        this.components.set(name, component);\n';
+    jsCode += '        this.ports.push(...component.ports);\n';
+    jsCode += '        console.log(\'Component \' + name + \' added to system\');\n';
+    jsCode += '    }\n\n';
+    jsCode += '    async addConnector(name, connector) {\n';
+    jsCode += '        this.connectors.set(name, connector);\n';
+    jsCode += '        console.log(\'Connector \' + name + \' added to system\');\n';
+    jsCode += '    }\n\n';
+    jsCode += '    async addBinding(binding) {\n';
+    jsCode += '        this.bindings.push(binding);\n';
+    jsCode += '        console.log(\'Binding added: \' + binding.sourceComponent.name + \'.\' + binding.sourcePort.name + \' -> \' + binding.targetComponent.name + \'.\' + binding.targetPort.name);\n';
+    jsCode += '    }\n\n';
+    jsCode += '    async start() {\n';
+    jsCode += '        console.log(\'System ' + model.name + ' starting\');\n';
+    jsCode += '        await Promise.all(Array.from(this.components.values()).map(c => c.start()));\n';
+    jsCode += '        console.log(\'System ' + model.name + ' simulation completed\');\n';
+    jsCode += '    }\n';
+    jsCode += '}\n\n';
 
-    // Função principal
+    // Main function
     jsCode += '// Main Function\n';
-    jsCode += `async function main() {\n`;
-    jsCode += `    const system = new ${model.name}();\n`;
-    const topLevelComps = model.components.filter(comp => {
-        return !model.components.some(c => c.configuration?.includes(comp.name));
-    });
-    topLevelComps.forEach(comp => {
-        jsCode += `    const ${comp.name.toLowerCase()} = new ${comp.name}();\n`;
-        jsCode += `    await system.addPort(...${comp.name.toLowerCase()}.ports);\n`;
-    });
-    model.connectors.forEach(conn => {
-        jsCode += `    const ${conn.name.toLowerCase()} = new ${conn.name}(null, null);\n`;
-        conn.participants.forEach(p => {
-            const comp = model.components.find(c => c.ports.some(port => port.name === p.name || port.type === p.type));
-            if (comp) {
-                jsCode += `    ${conn.name.toLowerCase()}.setParticipant('${p.name}', ${comp.name.toLowerCase()});\n`;
+    jsCode += 'async function main() {\n';
+    jsCode += '    console.log(\'Starting simulation of ' + model.name + '\');\n';
+    jsCode += '    const system = new ' + model.name + '();\n';
+
+    try {
+        const topLevelComps = model.components.filter(comp => {
+            return !model.components.some(c => c.configuration?.includes(comp.name));
+        });
+        topLevelComps.forEach(comp => {
+            const instanceName = comp.name.toLowerCase();
+            jsCode += '    const ' + instanceName + ' = new ' + comp.name + '();\n';
+            jsCode += '    await system.addComponent(\'' + comp.name + '\', ' + instanceName + ');\n';
+        });
+
+        model.connectors.forEach(conn => {
+            const instanceName = conn.name.toLowerCase();
+            jsCode += '    const ' + instanceName + ' = new ' + conn.name + '();\n';
+            jsCode += '    await system.addConnector(\'' + conn.name + '\', ' + instanceName + ');\n';
+        });
+
+        model.connectors.forEach(conn => {
+            const connectorName = conn.name.toLowerCase();
+            if (conn.bindings) {
+                conn.bindings.forEach(b => {
+                    const sourceComp = model.components.find(c => c.ports && c.ports.some(p => p && (p.name === b.source || p.type === b.source)));
+                    const targetComp = model.components.find(c => c.ports && c.ports.some(p => p && (p.name === b.target || p.type === b.target)));
+                    if (sourceComp && targetComp) {
+                        jsCode += '    {\n';
+                        jsCode += '        const sourceComp = system.components.get(\'' + sourceComp.name + '\');\n';
+                        jsCode += '        const targetComp = system.components.get(\'' + targetComp.name + '\');\n';
+                        jsCode += '        const sourcePort = sourceComp.ports.find(p => p && (p.name === \'' + b.source + '\' || p.type === \'' + b.source + '\'));\n';
+                        jsCode += '        const targetPort = targetComp.ports.find(p => p && (p.name === \'' + b.target + '\' || p.type === \'' + b.target + '\'));\n';
+                        jsCode += '        if (sourcePort && targetPort) {\n';
+                        jsCode += '            const binding = new Binding(sourceComp, sourcePort, targetComp, targetPort, ' + connectorName + ');\n';
+                        jsCode += '            system.addBinding(binding);\n';
+                        jsCode += '        } else {\n';
+                        jsCode += '            console.warn(\'Cannot create binding: sourcePort \' + (sourcePort ? sourcePort.name : \'not found\') + \' or targetPort \' + (targetPort ? targetPort.name : \'not found\') + \' undefined\');\n';
+                        jsCode += '        }\n';
+                        jsCode += '    }\n';
+                    }
+                });
             }
         });
-    });
-    jsCode += `    await Promise.all([\n`;
-    topLevelComps.forEach(comp => {
-        jsCode += `        ${comp.name.toLowerCase()}.start(),\n`;
-    });
-    jsCode += `    ]);\n`;
-    jsCode += `    console.log('System running. Press Ctrl+C to exit.');\n`;
-    jsCode += `    await new Promise(resolve => {});\n`;
-    jsCode += `}\n\n`;
 
-    // Executar a arquitetura
-    jsCode += `main().catch(err => console.error(\`Error in execution: \${err.message}\`));\n`;
+        model.components.forEach(comp => {
+            if (comp.delegations) {
+                comp.delegations.forEach(d => {
+                    const sourcePort = comp.ports.find(p => p && (p.name === d.source || p.type === d.source));
+                    const targetPort = comp.ports.find(p => p && (p.name === d.target || p.type === d.target));
+                    if (sourcePort && targetPort) {
+                        jsCode += '    {\n';
+                        jsCode += '        const comp = system.components.get(\'' + comp.name + '\');\n';
+                        jsCode += '        const sourcePort = comp.ports.find(p => p && (p.name === \'' + d.source + '\' || p.type === \'' + d.source + '\'));\n';
+                        jsCode += '        const targetPort = comp.ports.find(p => p && (p.name === \'' + d.target + '\' || p.type === \'' + d.target + '\'));\n';
+                        jsCode += '        if (sourcePort && targetPort) {\n';
+                        jsCode += '            sourcePort.receive = async (data, subPortName) => {\n';
+                        jsCode += '                console.log(\'Delegating data \' + data + \' from ' + comp.name + '.\' + sourcePort.name + \' to ' + comp.name + '.\' + targetPort.name);\n';
+                        jsCode += '                await targetPort.receive(data, subPortName);\n';
+                        jsCode += '            };\n';
+                        jsCode += '        }\n';
+                        jsCode += '    }\n';
+                    }
+                });
+            }
+        });
 
+        jsCode += '    await system.start();\n';
+        jsCode += '    console.log(\'System simulation completed\');\n';
+        jsCode += '}\n\n';
+
+        jsCode += 'main().catch(err => console.error(\'Error in execution: \' + err.message));\n';
+    } catch (error) {
+        console.error('Error generating main function:', error);
+        throw new Error('Failed to generate main function: ' + error.message);
+    }
+
+    if (typeof jsCode !== 'string') {
+        console.error('generateJsCode produced non-string output:', jsCode);
+        throw new Error('generateJsCode did not produce a string, got ' + typeof jsCode);
+    }
+    console.log('Final jsCode length:', jsCode.length);
     return jsCode;
 }
 
@@ -674,7 +699,7 @@ function downloadJavaScript() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `generated-${sysadlEditor.getValue().match(/Model\s+(\w+)/)?.[1] || 'sysadl'}.js`;
+    a.download = 'generated-' + (sysadlEditor.getValue().match(/Model\s+(\w+)/)?.[1] || 'sysadl') + '.js';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

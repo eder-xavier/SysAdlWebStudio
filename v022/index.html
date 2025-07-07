@@ -1,5 +1,6 @@
+<!-- index.html -->
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,13 +11,12 @@
 </head>
 <body>
     <h1>SysADL Editor and Log Viewer</h1>
-    
     <div id="input-section">
         <input type="file" id="sysadlFile" multiple accept=".sysadl">
         <button onclick="loadFilesToEditor()">Load Files to Editor</button>
         <button onclick="processSysADL()">Process SysADL Code</button>
-        <button onclick="window.transformToJavaScript()">Transform to Execute</button>
-        <button onclick="window.downloadJavaScript()">Download JavaScript</button>
+        <button onclick="handleTransform()">Transform to Execute</button>
+        <button onclick="downloadJavaScript()">Download JavaScript</button>
     </div>
 
     <h2>SysADL Editor</h2>
@@ -30,9 +30,20 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.7/codemirror.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.7/mode/javascript/javascript.min.js"></script>
+    <script src="codemirror-config.js"></script>
     <script src="parser.js"></script>
     <script src="syntaxFixer.js"></script>
     <script src="transformer.js"></script>
-    <script src="codemirror-config.js"></script>
+    <script>
+        // Manipulador assíncrono para o botão Transform to Execute
+        async function handleTransform() {
+            try {
+                await transformToJavaScript();
+            } catch (error) {
+                console.error('Error in handleTransform:', error);
+                alert('Error transforming code: ' + error.message);
+            }
+        }
+    </script>
 </body>
 </html>
