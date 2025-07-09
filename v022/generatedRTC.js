@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Generated JavaScript code for SysADL Model: SysADLModel
 
 // Model Metadata
@@ -406,7 +407,11 @@ async function CompareTemperatureEx(params = {}) {
     console.log('Executing executable CompareTemperatureEx with params: ' + JSON.stringify(params));
     let target = params["target"] ?? null;
     let average = params["average"] ?? null;
-    let heater = types.Command.Off;     let cooler = types.Command.Off; if(average > target) {heater = types.Command.Off; cooler = types.Command.On ;
+    let types = params["types"] ?? null;
+    let heater = types.Command.Off;
+;     let cooler = types.Command.Off;
+; if(average > target) {heater = types.Command.Off; cooler = types.Command.On ;}    return null;
+
 }
 
 // Constraints
@@ -414,8 +419,7 @@ async function validateCalculateAverageTemperatureEQ(params = {}) {
     let t1 = params["t1"] ?? null;
     let t2 = params["t2"] ?? null;
     let av = params["av"] ?? null;
-    console.log('Evaluating constraint CalculateAverageTemperatureEQ: ' + 'params["av"] === (params["t1"] + params["t2"])/2
-	');
+    console.log('Evaluating constraint CalculateAverageTemperatureEQ: ' + 'params[\"av\"] === (params[\"t1\"] + params[\"t2\"])/2');
     const result = params["av"] === (params["t1"] + params["t2"])/2
 	;
     if (!result) {
@@ -429,7 +433,7 @@ async function validateCompareTemperatureEQ(params = {}) {
     let target = params["target"] ?? null;
     let average = params["average"] ?? null;
     let cmds = params["cmds"] ?? new Commands();
-    console.log('Evaluating constraint CompareTemperatureEQ: ' + 'params["average"] > params["target"] ? params["cmds"] === params["types"].Commands.params["heater"].params["Off"] && types.Commands.params["cooler"].params["On"] : types.Commands.params["heater"].On && params["cmds"] === types.Commands.params["cooler"].Off ');
+    console.log('Evaluating constraint CompareTemperatureEQ: ' + 'params[\"average\"] > params[\"target\"] ? params[\"cmds\"] === params[\"types\"].Commands.params[\"heater\"].params[\"Off\"] && types.Commands.params[\"cooler\"].params[\"On\"] : types.Commands.params[\"heater\"].On && params["cmds"] === types.Commands.params[\"cooler\"].Off ');
     const result = params["average"] > params["target"] ? params["cmds"] === params["types"].Commands.params["heater"].params["Off"] && types.Commands.params["cooler"].params["On"] : types.Commands.params["heater"].On && params["cmds"] === types.Commands.params["cooler"].Off ;
     if (!result) {
         throw new Error('Constraint CompareTemperatureEQ violated');
@@ -441,7 +445,7 @@ async function validateCompareTemperatureEQ(params = {}) {
 async function validateFahrenheitToCelsiusEQ(params = {}) {
     let f = params["f"] ?? null;
     let c = params["c"] ?? null;
-    console.log('Evaluating constraint FahrenheitToCelsiusEQ: ' + 'params["c"] === (5*(params["f"] - 32)/9)');
+    console.log('Evaluating constraint FahrenheitToCelsiusEQ: ' + 'params[\"c\"] === (5*(params[\"f\"] - 32)/9)');
     const result = params["c"] === (5*(params["f"] - 32)/9);
     if (!result) {
         throw new Error('Constraint FahrenheitToCelsiusEQ violated');
@@ -453,7 +457,7 @@ async function validateFahrenheitToCelsiusEQ(params = {}) {
 async function validateCommandHeaterEQ(params = {}) {
     let cmds = params["cmds"] ?? new Commands();
     let c = params["c"] ?? Command.On;
-    console.log('Evaluating constraint CommandHeaterEQ: ' + 'params["c"] === params["cmds"].params["heater"] ');
+    console.log('Evaluating constraint CommandHeaterEQ: ' + 'params[\"c\"] === params[\"cmds\"].params[\"heater\"] ');
     const result = params["c"] === params["cmds"].params["heater"] ;
     if (!result) {
         throw new Error('Constraint CommandHeaterEQ violated');
@@ -465,7 +469,7 @@ async function validateCommandHeaterEQ(params = {}) {
 async function validateCommandCoolerEQ(params = {}) {
     let cmds = params["cmds"] ?? new Commands();
     let c = params["c"] ?? Command.On;
-    console.log('Evaluating constraint CommandCoolerEQ: ' + 'params["c"] === params["cmds"].params["cooler"] ');
+    console.log('Evaluating constraint CommandCoolerEQ: ' + 'params[\"c\"] === params[\"cmds\"].params[\"cooler\"] ');
     const result = params["c"] === params["cmds"].params["cooler"] ;
     if (!result) {
         throw new Error('Constraint CommandCoolerEQ violated');
@@ -478,7 +482,7 @@ async function validateCheckPresenceToSetTemperatureEQ(params = {}) {
     let detected = params["detected"] ?? false;
     let userTemp = params["userTemp"] ?? null;
     let target = params["target"] ?? null;
-    console.log('Evaluating constraint CheckPresenceToSetTemperatureEQ: ' + 'params["detected"] === true ? params["target"] === params["userTemp"] : params["target"] === 2 ');
+    console.log('Evaluating constraint CheckPresenceToSetTemperatureEQ: ' + 'params[\"detected\"] === true ? params[\"target\"] === params[\"userTemp\"] : params["target"] === 2 ');
     const result = params["detected"] === true ? params["target"] === params["userTemp"] : params["target"] === 2 ;
     if (!result) {
         throw new Error('Constraint CheckPresenceToSetTemperatureEQ violated');

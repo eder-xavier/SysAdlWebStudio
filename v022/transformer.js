@@ -30,7 +30,8 @@ async function transformToJavaScript() {
 }
 
 async function generateJsCode(model) {
-    let jsCode = '// Generated JavaScript code for SysADL Model: ' + model.name + '\n\n';
+    let jsCode = '// @ts-nocheck\n';
+    jsCode += '// Generated JavaScript code for SysADL Model: ' + model.name + '\n\n';
 
     // Validate model.ports and model.types
     if (!model.ports || !Array.isArray(model.ports)) {
@@ -351,7 +352,7 @@ async function generateJsCode(model) {
                 });
 
                 delegates.forEach(delegate => {
-                    const targetPort = comp.ports.find(p => p.name === delegate.target || p.type === delegate.target);
+                    const targetPort = comp.ports.find(p => p && (p.name === delegate.target || p.type === delegate.target));
                     if (targetPort) {
                         actionExecCode += '            console.log(\'Delegating data from ' + comp.name + ' to port ' + targetPort.name + '\');\n';
                         actionExecCode += '            const ' + delegate.source + '_port = this.ports.find(p => p.name === \'' + targetPort.name + '\');\n';
@@ -442,19 +443,38 @@ async function generateJsCode(model) {
     try {
         model.executables.forEach(exec => {
             jsCode += 'async function ' + exec.name + '(params = {}) {\n';
+            jsCode += '    console.log(\'Executing executable ' + exec.name + ' with params: \' + JSON.stringify(params));\n';
             let body = exec.body?.trim() || '';
+            // Validate and fix incomplete if statements
+            let openBraces = 0;
+            let inString = false;
+            let inSingleQuote = false;
+            for (let i = 0; i < body.length; i++) {
+                if (body[i] === '"' && body[i - 1] !== '\\') inString = !inString;
+                if (body[i] === '\'' && body[i - 1] !== '\\') inSingleQuote = !inSingleQuote;
+                if (!inString && !inSingleQuote) {
+                    if (body[i] === '{') openBraces++;
+                    if (body[i] === '}') openBraces--;
+                }
+            }
+            while (openBraces > 0) {
+                body += '}';
+                openBraces--;
+            }
+            // Replace type::value and type->value
             body = body.replace(/(\w+)::(\w+)/g, (match, type, value) => {
                 if (model.types.find(t => t.name === type && t.kind === 'enum')) {
                     return type + '.' + value;
                 }
-                return 'params["' + type + '"]?.' + value + ' ?? null';
+                return 'params["' + type + '"].' + value;
             });
             body = body.replace(/(\w+)->(\w+)/g, 'params["$1"].$2');
             body = body.replace(/;;+/g, ';');
+            // Extract parameters
             const paramsList = new Set();
-            const protectedVars = new Set(['types', 'Command', 'On', 'Off', 'params']);
+            const protectedVars = new Set(['Command', 'On', 'Off', 'params', 'true', 'false', 'null']);
             body.replace(/\b(\w+)\b/g, match => {
-                if (!['let', 'if', 'else', 'return', 'true', 'false', 'null'].includes(match) &&
+                if (!['let', 'if', 'else', 'return'].includes(match) &&
                     !match.match(/^\d+$/) &&
                     !body.match(new RegExp(`\\b${match}\\b\\s*=\\s*new\\s+\\w+`)) &&
                     !model.types.find(t => t.name === match) &&
@@ -469,6 +489,7 @@ async function generateJsCode(model) {
                     body = '    let ' + param + ' = params["' + param + '"] ?? ' + flowType + ';\n' + body;
                 }
             });
+            // Handle variable declarations with types
             body = body.replace(/let\s+(\w+)\s*:\s*(\w+)(?:\s*=\s*([\w:.]+))?/g, (match, varName, typeName, initValue) => {
                 const type = model.types.find(t => t.name === typeName);
                 let init = initValue || (type?.kind === 'datatype' ? 'new ' + typeName + '()' :
@@ -479,9 +500,17 @@ async function generateJsCode(model) {
                         init = type + '.' + value;
                     }
                 }
-                return '    let ' + varName + ' = ' + init + ';';
+                return '    let ' + varName + ' = ' + init + ';\n';
             });
-            jsCode += '    console.log(\'Executing executable ' + exec.name + ' with params: \' + JSON.stringify(params));\n';
+            // Ensure executable returns a value
+            const returnType = model.types.find(t => exec.outputs?.includes(t.name))?.name || 'null';
+            if (!body.match(/return\s+[^;]+;/)) {
+                if (returnType === 'Commands') {
+                    body += '    return new Commands({ heater: heater || Command.Off, cooler: cooler || Command.Off });\n';
+                } else {
+                    body += '    return null;\n';
+                }
+            }
             jsCode += body + '\n';
             jsCode += '}\n\n';
         });
@@ -496,11 +525,12 @@ async function generateJsCode(model) {
         model.constraints.forEach(constraint => {
             jsCode += 'async function validate' + constraint.name + '(params = {}) {\n';
             let equation = constraint.equation || 'true';
+            // Transform equation
             equation = equation.replace(/(\w+)::(\w+)/g, (match, type, value) => {
                 if (model.types.find(t => t.name === type && t.kind === 'enum')) {
                     return type + '.' + value;
                 }
-                return 'params["' + type + '"]?.' + value + ' ?? null';
+                return 'params["' + type + '"].' + value;
             });
             equation = equation.replace(/(\w+)->(\w+)/g, 'params["$1"].$2');
             const definedVars = new Set();
@@ -525,6 +555,7 @@ async function generateJsCode(model) {
             });
             equation = equation.replace(/==/g, '===');
             equation = equation.replace(/(\w+\s*[><=]+\s*[^?]+)\s*\?\s*([^:]+)\s*:\s*([^;]+)/g, '($1) ? ($2) : ($3)');
+            // Initialize input/output parameters
             constraint.inputs.split(',').forEach(input => {
                 const [name, type] = input.trim().split(':').map(s => s.trim());
                 if (name && type) {
@@ -553,13 +584,15 @@ async function generateJsCode(model) {
                     jsCode += '    let ' + name + ' = params["' + name + '"] ?? ' + defaultValue + ';\n';
                 }
             });
+            // Escape both single and double quotes in equation for logging
+            const escapedEquation = equation.replace(/'/g, '\\\'').replace(/"/g, '\\"');
             try {
                 new Function('params', 'return ' + equation);
             } catch (e) {
                 console.error('Invalid equation in constraint ' + constraint.name + ': ' + equation);
                 equation = 'true';
             }
-            jsCode += '    console.log(\'Evaluating constraint ' + constraint.name + ': \' + \'' + equation + '\');\n';
+            jsCode += '    console.log(\'Evaluating constraint ' + constraint.name + ': \' + \'' + escapedEquation + '\');\n';
             jsCode += '    const result = ' + equation + ';\n';
             jsCode += '    if (!result) {\n';
             jsCode += '        throw new Error(\'Constraint ' + constraint.name + ' violated\');\n';
