@@ -1,5 +1,3 @@
-const readline = require('readline');
-
 // Classe base para portas, garantindo consistência na interface
 class Port {
   constructor(name) {
@@ -17,7 +15,7 @@ class Port {
 
 // Classe para portas de saída
 class OutputPort extends Port {
-  constructor(name, connector) {
+  constructor(name, connector = null) {
     super(name);
     this.connector = connector; // Conector associado à porta
   }
@@ -27,9 +25,10 @@ class OutputPort extends Port {
     console.log(`Porta de saída ${this.name} enviando dados: ${data}`);
     if (!this.connector) {
       console.error(`Erro: Nenhum conector associado à porta ${this.name}`);
-      return;
+      return false;
     }
     await this.connector.transmit(data); // Chama o conector de forma assíncrona
+    return true;
   }
 }
 
@@ -52,15 +51,14 @@ class InputPort extends Port {
 
 // Classe para conectores que transmitem dados entre portas
 class Connector {
-  constructor(name, sourcePort, targetPort) {
+  constructor(name, flows = []) {
     this.name = name; // Nome do conector
-    this.sourcePort = sourcePort; // Porta de origem
-    this.targetPort = targetPort; // Porta de destino
+    this.flows = flows; // Lista de fluxos { source, target, type, targetPort }
     this.messageQueue = []; // Fila para armazenar mensagens
     this.isProcessing = false; // Flag para controle de processamento
   }
 
-  // Transmite dados para a porta de destino, gerenciando a fila
+  // Transmite dados para as portas de destino, gerenciando a fila
   async transmit(data) {
     this.messageQueue.push(data); // Adiciona dados à fila
     if (this.isProcessing) return; // Evita processamento concorrente
@@ -69,14 +67,44 @@ class Connector {
     while (this.messageQueue.length > 0) {
       const currentData = this.messageQueue.shift(); // Remove o primeiro item da fila
       console.log(`Conector ${this.name} transmitindo dados: ${currentData}`);
-      if (!this.targetPort) {
-        console.error(`Erro: Nenhuma porta de destino associada ao conector ${this.name}`);
-        continue;
+      for (const flow of this.flows) {
+        console.log(`Conector ${this.name} processando fluxo de ${flow.source} para ${flow.target}`);
+        if (flow.targetPort) {
+          await flow.targetPort.receive(currentData); // Envia para a porta de destino
+        } else {
+          console.error(`Erro: Nenhuma porta de destino associada ao fluxo ${flow.target} no conector ${this.name}`);
+        }
       }
-      await this.targetPort.receive(currentData); // Envia para a porta de destino
     }
 
     this.isProcessing = false; // Libera para processar próximas mensagens
+  }
+}
+
+// Classe Binding para vincular portas de origem e destino
+class Binding {
+  constructor(sourceComponent, sourcePort, targetComponent, targetPort, connector) {
+    console.log(`Criando binding de ${sourceComponent.name}.${sourcePort.name} para ${targetComponent.name}.${targetPort.name} via conector ${connector.name}`);
+    this.sourceComponent = sourceComponent;
+    this.sourcePort = sourcePort;
+    this.targetComponent = targetComponent;
+    this.targetPort = targetPort;
+    this.connector = connector;
+    // Associa o conector à porta de origem
+    this.sourcePort.connector = connector;
+    // Adiciona o fluxo ao conector
+    this.connector.flows.push({
+      source: sourcePort.name,
+      target: targetPort.name,
+      type: 'any', // Tipo genérico, pode ser especificado em modelos SysADL
+      targetPort: this.targetPort
+    });
+  }
+
+  // Transmite dados pelo binding
+  async transmit(data) {
+    console.log(`Binding transmitindo dados ${data} de ${this.sourceComponent.name}.${this.sourcePort.name} para ${this.targetComponent.name}.${this.targetPort.name}`);
+    await this.connector.transmit(data);
   }
 }
 
@@ -97,73 +125,58 @@ class Component {
   // Inicia o componente
   async start() {
     console.log(`Componente ${this.name} iniciado`);
+    if (this.isBoundary) {
+      await this.simulateInput();
+    }
+  }
+
+  // Simula entrada de dados para componentes de fronteira
+  async simulateInput() {
+    console.log(`Simulando entrada para componente ${this.name}`);
+    const outputPort = this.ports.find(port => port instanceof OutputPort);
+    if (!outputPort) {
+      console.error(`Erro: Nenhuma porta de saída encontrada em ${this.name}`);
+      return;
+    }
+    // Simula envio de dados
+    const simulatedData = "DadosSimulados"; // Pode ser ajustado conforme o modelo
+    console.log(`Simulando envio de ${simulatedData} pela porta ${outputPort.name}`);
+    await outputPort.send(simulatedData);
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Atraso para simulação
   }
 }
 
-// Componente de fronteira que aceita entrada do usuário
+// Componente de fronteira
 class BoundaryComponent extends Component {
   constructor(name) {
     super(name, true);
   }
-
-  // Inicia o componente e captura entrada do usuário
-  async start() {
-    console.log(`Componente de fronteira ${this.name} iniciado`);
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout
-    });
-
-    // Loop assíncrono para capturar entrada do usuário
-    while (true) {
-      const data = await new Promise(resolve => {
-        rl.question(`Digite dados para enviar de ${this.name} (ou 'sair' para encerrar): `, resolve);
-      });
-
-      if (data.toLowerCase() === 'sair') {
-        console.log(`Encerrando componente ${this.name}`);
-        rl.close();
-        break;
-      }
-
-      // Envia dados pela porta de saída
-      const outputPort = this.ports.find(port => port instanceof OutputPort);
-      if (outputPort) {
-        await outputPort.send(data); // Envio assíncrono
-      } else {
-        console.error(`Erro: Nenhuma porta de saída encontrada em ${this.name}`);
-      }
-    }
-  }
 }
 
-// Componente receptor que aguarda dados
+// Componente receptor
 class ReceiverComponent extends Component {
   constructor(name) {
     super(name, false);
-  }
-
-  // Inicia o componente receptor
-  async start() {
-    console.log(`Componente receptor ${this.name} iniciado, aguardando dados...`);
   }
 }
 
 // Função principal para configurar e executar a arquitetura
 async function main() {
+  console.log("Iniciando simulação da arquitetura");
+
   // Cria os componentes
   const boundaryComp = new BoundaryComponent("ComponenteFronteira");
   const receiverComp = new ReceiverComponent("ComponenteReceptor");
 
   // Cria as portas
-  const outputPort = new OutputPort("PortaSaida", null);
+  const outputPort = new OutputPort("PortaSaida");
   const inputPort = new InputPort("PortaEntrada");
 
   // Cria o conector
-  const connector = new Connector("ConectorDados", outputPort, inputPort);
+  const connector = new Connector("ConectorDados", []);
 
-  // Associa o conector à porta de saída
-  outputPort.connector = connector;
+  // Cria o binding
+  const binding = new Binding(boundaryComp, outputPort, receiverComp, inputPort, connector);
 
   // Adiciona portas aos componentes
   boundaryComp.addPort(outputPort);
@@ -174,6 +187,8 @@ async function main() {
     boundaryComp.start(),
     receiverComp.start()
   ]);
+
+  console.log("Simulação da arquitetura concluída");
 }
 
 // Executa a função principal e trata erros

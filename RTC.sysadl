@@ -35,7 +35,7 @@ package types {
 	  a1 : HeaterCP {	 using ports : controllerH : CommandIPT ; }
 	  rtc : RoomTemperatureControllerCP {	 using ports : detected : PresenceIPT ; localtemp1 : CTemperatureIPT ; localTemp2 : CTemperatureIPT ; userTemp : CTemperatureIPT ; heating : CommandOPT ; cooling : CommandOPT ; }
 	  connectors : c1 : FahrenheitToCelsiusCN bindings current1 = localtemp1 ; uc : CTemperatureCN bindings desired = userTemp ; cc2 : CommandCN bindings cooling = controllerC ; pc : PresenceCN bindings detectedS = detected ; c2 : FahrenheitToCelsiusCN bindings current2 = localTemp2 ; cc1 : CommandCN bindings heating = controllerH ; }
-	  }
+	}
 
 	component def RoomTemperatureControllerCP {	 ports : detectedRTC : PresenceIPT ; localtemp1 : CTemperatureIPT ; localTemp2 : CTemperatureIPT ; userTempRTC : CTemperatureIPT ; heatingRTC : CommandOPT ; coolingRTC : CommandOPT ; configuration {	 components : sm : SensorsMonitorCP {	 using ports : s1 : CTemperatureIPT ; s2 : CTemperatureIPT ; average : CTemperatureOPT ; }
 	  cm : CommanderCP {	 using ports : target2 : CTemperatureIPT ; average2 : CTemperatureIPT ; heating : CommandOPT ; cooling : CommandOPT ; }
