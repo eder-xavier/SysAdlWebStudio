@@ -175,12 +175,12 @@ async function main() {
   // Cria o conector
   const connector = new Connector("ConectorDados", []);
 
-  // Cria o binding
-  const binding = new Binding(boundaryComp, outputPort, receiverComp, inputPort, connector);
-
   // Adiciona portas aos componentes
   boundaryComp.addPort(outputPort);
   receiverComp.addPort(inputPort);
+
+  // Cria o binding
+  const binding = new Binding(boundaryComp, outputPort, receiverComp, inputPort, connector);
 
   // Inicia os componentes em paralelo
   await Promise.all([
