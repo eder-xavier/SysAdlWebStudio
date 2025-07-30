@@ -14,7 +14,7 @@ const Real = 'any'; // Value type
 const Command = Object.freeze({ On: 'On', Off: 'Off' });
 class Commands {
     constructor(params = {}) {
-        this.heater = params["heater"] ?? Command.Off;
+        this.heater = params["heater"] ?? Command.On;
     }
 }
 const temperature = 'any'; // Value type
@@ -23,13 +23,14 @@ const CelsiusTemperature = 'any'; // Value type
 
 // Base Port Class
 class SysADLPort {
-    constructor(name, type, direction = 'inout', subPorts = [], flowType = 'any') {
+    constructor(name, type, direction = 'inout', subPorts = [], flowType = 'any', component = null) {
         console.log('Initializing port ' + name + ' with type ' + type + ', direction ' + direction + ', flowType ' + flowType);
         this.name = name;
         this.type = type;
         this.direction = direction;
         this.flowType = flowType || 'any';
         this.value = null;
+        this.component = component;
         this.subPorts = new Map(subPorts.map(sp => {
             console.log('Initializing subPort ' + sp.name + ' with type ' + sp.type + ', flowType ' + (sp.flowType || 'any'));
             return [sp.name, sp];
@@ -38,7 +39,7 @@ class SysADLPort {
     }
 
     async send(data, subPortName = null) {
-        console.log('Port ' + this.name + ' sending data: ' + data + (subPortName ? ' via subPort ' + subPortName : ''));
+        console.log('Port ' + this.name + ' sending data: ' + JSON.stringify(data) + (subPortName ? ' via subPort ' + subPortName : ''));
         if (this.subPorts.size > 0 && subPortName) {
             const subPort = this.subPorts.get(subPortName);
             if (!subPort || (subPort.direction !== 'out' && subPort.direction !== 'inout')) {
@@ -63,7 +64,7 @@ class SysADLPort {
     }
 
     async receive(data, subPortName = null) {
-        console.log('Port ' + this.name + ' receiving data: ' + data + (subPortName ? ' via subPort ' + subPortName : ''));
+        console.log('Port ' + this.name + ' receiving data: ' + JSON.stringify(data) + (subPortName ? ' via subPort ' + subPortName : ''));
         if (this.subPorts.size > 0 && subPortName) {
             const subPort = this.subPorts.get(subPortName);
             if (!subPort || (subPort.direction !== 'in' && subPort.direction !== 'inout')) {
@@ -71,6 +72,9 @@ class SysADLPort {
                 return false;
             }
             subPort.value = data;
+            if (this.component) {
+                await this.component.onDataReceived(subPort.name, data);
+            }
             return true;
         }
         if (this.direction !== 'in' && this.direction !== 'inout') {
@@ -78,6 +82,9 @@ class SysADLPort {
             return false;
         }
         this.value = data;
+        if (this.component) {
+            await this.component.onDataReceived(this.name, data);
+        }
         return true;
     }
 
@@ -97,7 +104,7 @@ class SysADLConnector {
     }
 
     async transmit(data) {
-        console.log('Connector ' + this.name + ' transmitting data: ' + data);
+        console.log('Connector ' + this.name + ' transmitting data: ' + JSON.stringify(data));
         this.messageQueue.push(data);
         if (this.isProcessing) return;
         this.isProcessing = true;
@@ -131,7 +138,7 @@ class Binding {
     }
 
     async transmit(data) {
-        console.log('Binding transmitting data ' + data + ' from ' + this.sourceComponent.name + '.' + this.sourcePort.name + ' to ' + this.targetComponent.name + '.' + this.targetPort.name);
+        console.log('Binding transmitting data ' + JSON.stringify(data) + ' from ' + this.sourceComponent.name + '.' + this.sourcePort.name + ' to ' + this.targetComponent.name + '.' + this.targetPort.name);
         await this.connector.transmit(data);
     }
 }
@@ -180,19 +187,33 @@ class SysADLComponent {
         this.activities = [];
         this.modelPorts = modelPorts;
         this.modelTypes = modelTypes;
+        this.subComponents = new Map();
     }
 
     async addPort(port) {
+        port.component = this;
         this.ports.push(port);
         console.log('Port ' + port.name + ' added to component ' + this.name + ', flowType: ' + port.flowType);
     }
 
+    async addSubComponent(name, component) {
+        this.subComponents.set(name, component);
+        console.log('SubComponent ' + name + ' added to ' + this.name);
+    }
+
     async onDataReceived(portName, data) {
-        console.log('Component ' + this.name + ' received ' + data + ' on port ' + portName);
+        console.log('Component ' + this.name + ' received data on port ' + portName + ': ' + JSON.stringify(data));
         this.state[portName] = data;
+        console.log('Processing activities for component ' + this.name + ' due to data on ' + portName);
         for (const activity of this.activities) {
             console.log('Triggering activity ' + activity.methodName + ' in component ' + this.name);
             await this[activity.methodName]();
+        }
+        for (const [subCompName, subComp] of this.subComponents) {
+            for (const activity of subComp.activities) {
+                console.log('Triggering subcomponent activity ' + subCompName + '.' + activity.methodName);
+                await this[subCompName + '_execute'](activity.methodName);
+            }
         }
     }
 
@@ -200,6 +221,9 @@ class SysADLComponent {
         console.log('Starting component ' + this.name);
         if (this.isBoundary) {
             await this.simulateInput();
+        }
+        for (const subComp of this.subComponents.values()) {
+            await subComp.start();
         }
     }
 
@@ -219,7 +243,7 @@ class SysADLComponent {
                 simulatedValue = true;
                 console.log('Simulating boolean input ' + simulatedValue + ' for ' + this.name + '.' + port.name);
             } else if (this.modelTypes.find(t => t.params["name"] === port.flowType && t.params["kind"] === 'enum')) {
-                const enumValues = this.modelTypes.find(t => t.params["name"] === port.flowType)?.content.match(/(\w+)/g) || ['Off'];
+                const enumValues = this.modelTypes.find(t => t.params["name"] === port.flowType)?.content.match(/(w+)/g) || ['Off'];
                 simulatedValue = eval(port.flowType + '.' + enumValues[0]);
                 console.log('Simulating enum input ' + simulatedValue + ' for ' + this.name + '.' + port.name);
             } else if (this.modelTypes.find(t => t.params["name"] === port.flowType && t.params["kind"] === 'datatype')) {
@@ -242,9 +266,12 @@ class RTCSystemCFD extends SysADLComponent {
         // Initialize ports
         this.addPort(new SysADLPort('current1', 'FTemperatureOPT', 'out', [], 'FahrenheitTemperature'));
 
+        // Initialize subcomponents
+
         // Initialize state
         this.state['current1'] = null;
 
+        // Register activities
     }
 }
 
@@ -254,6 +281,8 @@ class RoomTemperatureControllerCP extends SysADLComponent {
         // Initialize ports
         this.addPort(new SysADLPort('detectedRTC', 'PresenceIPT', 'in', [], 'Boolean'));
         this.addPort(new SysADLPort('s1', 'CTemperatureIPT', 'in', [], 'CelsiusTemperature'));
+
+        // Initialize subcomponents
 
         // Initialize state
         this.state['detectedRTC'] = false;
@@ -269,6 +298,8 @@ class TemperatureSensorCP extends SysADLComponent {
         // Initialize ports
         this.addPort(new SysADLPort('current', 'FTemperatureOPT', 'out', [], 'FahrenheitTemperature'));
 
+        // Initialize subcomponents
+
         // Initialize state
         this.state['current'] = null;
 
@@ -281,6 +312,8 @@ class PresenceSensorCP extends SysADLComponent {
         super('PresenceSensorCP', false, modelPorts, modelTypes);
         // Initialize ports
         this.addPort(new SysADLPort('detected', 'PresenceOPT', 'out', [], 'Boolean'));
+
+        // Initialize subcomponents
 
         // Initialize state
         this.state['detected'] = false;
@@ -295,6 +328,8 @@ class UserInterfaceCP extends SysADLComponent {
         // Initialize ports
         this.addPort(new SysADLPort('desired', 'CTemperatureOPT', 'out', [], 'CelsiusTemperature'));
 
+        // Initialize subcomponents
+
         // Initialize state
         this.state['desired'] = null;
 
@@ -308,8 +343,10 @@ class HeaterCP extends SysADLComponent {
         // Initialize ports
         this.addPort(new SysADLPort('controllerH', 'CommandIPT', 'in', [], 'Command'));
 
+        // Initialize subcomponents
+
         // Initialize state
-        this.state['controllerH'] = Command.Off;
+        this.state['controllerH'] = Command.On;
 
         // Register activities
     }
@@ -321,8 +358,10 @@ class CoolerCP extends SysADLComponent {
         // Initialize ports
         this.addPort(new SysADLPort('controllerC', 'CommandIPT', 'in', [], 'Command'));
 
+        // Initialize subcomponents
+
         // Initialize state
-        this.state['controllerC'] = Command.Off;
+        this.state['controllerC'] = Command.On;
 
         // Register activities
     }
@@ -333,6 +372,8 @@ class PresenceCheckerCP extends SysADLComponent {
         super('PresenceCheckerCP', false, modelPorts, modelTypes);
         // Initialize ports
         this.addPort(new SysADLPort('detected', 'PresenceIPT', 'in', [], 'Boolean'));
+
+        // Initialize subcomponents
 
         // Initialize state
         this.state['detected'] = false;
@@ -347,6 +388,8 @@ class CommanderCP extends SysADLComponent {
         // Initialize ports
         this.addPort(new SysADLPort('target2', 'CTemperatureIPT', 'in', [], 'CelsiusTemperature'));
 
+        // Initialize subcomponents
+
         // Initialize state
         this.state['target2'] = null;
 
@@ -359,6 +402,8 @@ class SensorsMonitorCP extends SysADLComponent {
         super('SensorsMonitorCP', false, modelPorts, modelTypes);
         // Initialize ports
         this.addPort(new SysADLPort('s1', 'CTemperatureIPT', 'in', [], 'CelsiusTemperature'));
+
+        // Initialize subcomponents
 
         // Initialize state
         this.state['s1'] = null;
@@ -409,7 +454,7 @@ async function CompareTemperatureEx(params = {}) {
     let types = params["types"] ?? null;
     let heater = types.Command.Off;
 ;     let cooler = types.Command.Off;
-; if(average > target) {heater = types.Command.Off; cooler = types.Command.On ;}    return null;
+; if(average > target) {heater = types.Command.Off; cooler = types.Command.On ;    return null;
 
 }
 
@@ -431,7 +476,7 @@ async function validateCalculateAverageTemperatureEQ(params = {}) {
 async function validateCompareTemperatureEQ(params = {}) {
     let target = params["target"] ?? null;
     let average = params["average"] ?? null;
-    let cmds = params["cmds"] ?? new Commands();
+    let cmds = params["cmds"] ?? new Commands({});
     console.log('Evaluating constraint CompareTemperatureEQ: ' + 'params[\"average\"] > params[\"target\"] ? params[\"cmds\"] === params[\"types\"].Commands.params[\"heater\"].params[\"Off\"] && types.Commands.params[\"cooler\"].params[\"On\"] : types.Commands.params[\"heater\"].On && params["cmds"] === types.Commands.params[\"cooler\"].Off ');
     const result = params["average"] > params["target"] ? params["cmds"] === params["types"].Commands.params["heater"].params["Off"] && types.Commands.params["cooler"].params["On"] : types.Commands.params["heater"].On && params["cmds"] === types.Commands.params["cooler"].Off ;
     if (!result) {
@@ -454,7 +499,7 @@ async function validateFahrenheitToCelsiusEQ(params = {}) {
 }
 
 async function validateCommandHeaterEQ(params = {}) {
-    let cmds = params["cmds"] ?? new Commands();
+    let cmds = params["cmds"] ?? new Commands({});
     let c = params["c"] ?? Command.On;
     console.log('Evaluating constraint CommandHeaterEQ: ' + 'params[\"c\"] === params[\"cmds\"].params[\"heater\"] ');
     const result = params["c"] === params["cmds"].params["heater"] ;
@@ -466,7 +511,7 @@ async function validateCommandHeaterEQ(params = {}) {
 }
 
 async function validateCommandCoolerEQ(params = {}) {
-    let cmds = params["cmds"] ?? new Commands();
+    let cmds = params["cmds"] ?? new Commands({});
     let c = params["c"] ?? Command.On;
     console.log('Evaluating constraint CommandCoolerEQ: ' + 'params[\"c\"] === params[\"cmds\"].params[\"cooler\"] ');
     const result = params["c"] === params["cmds"].params["cooler"] ;
@@ -512,7 +557,7 @@ class SysADLModel {
 
     async addBinding(binding) {
         this.bindings.push(binding);
-        console.log('Binding added: ' + binding.sourceComponent.name + '.' + binding.sourcePort.name + ' -> ' + binding.targetComponent.name + '.' + binding.targetPort.name);
+        console.log('Binding added: ' + binding.sourceComponent.name + '.' + binding.sourcePort.name + ' -> ' + binding.targetComponent.name + '.' + binding.targetPort.name + ' via ' + binding.connector.name);
     }
 
     async start() {
@@ -526,36 +571,43 @@ class SysADLModel {
 async function main() {
     console.log('Starting simulation of SysADLModel');
     const system = new SysADLModel();
-    const rtcsystemcfd = new RTCSystemCFD();
-    await system.addComponent('RTCSystemCFD', rtcsystemcfd);
-    const roomtemperaturecontrollercp = new RoomTemperatureControllerCP();
-    await system.addComponent('RoomTemperatureControllerCP', roomtemperaturecontrollercp);
-    const temperaturesensorcp = new TemperatureSensorCP();
-    await system.addComponent('TemperatureSensorCP', temperaturesensorcp);
-    const presencesensorcp = new PresenceSensorCP();
-    await system.addComponent('PresenceSensorCP', presencesensorcp);
-    const userinterfacecp = new UserInterfaceCP();
-    await system.addComponent('UserInterfaceCP', userinterfacecp);
-    const heatercp = new HeaterCP();
-    await system.addComponent('HeaterCP', heatercp);
-    const coolercp = new CoolerCP();
-    await system.addComponent('CoolerCP', coolercp);
-    const presencecheckercp = new PresenceCheckerCP();
-    await system.addComponent('PresenceCheckerCP', presencecheckercp);
-    const commandercp = new CommanderCP();
-    await system.addComponent('CommanderCP', commandercp);
-    const sensorsmonitorcp = new SensorsMonitorCP();
-    await system.addComponent('SensorsMonitorCP', sensorsmonitorcp);
-    const fahrenheittocelsiuscn = new FahrenheitToCelsiusCN();
-    await system.addConnector('FahrenheitToCelsiusCN', fahrenheittocelsiuscn);
-    const presencecn = new PresenceCN();
-    await system.addConnector('PresenceCN', presencecn);
-    const commandcn = new CommandCN();
-    await system.addConnector('CommandCN', commandcn);
-    const ctemperaturecn = new CTemperatureCN();
-    await system.addConnector('CTemperatureCN', ctemperaturecn);
+    const rTCSystemCFD = new RTCSystemCFD();
+    await system.addComponent('RTCSystemCFD', rTCSystemCFD);
+    const roomTemperatureControllerCP = new RoomTemperatureControllerCP();
+    await system.addComponent('RoomTemperatureControllerCP', roomTemperatureControllerCP);
+    const temperatureSensorCP = new TemperatureSensorCP();
+    await system.addComponent('TemperatureSensorCP', temperatureSensorCP);
+    const presenceSensorCP = new PresenceSensorCP();
+    await system.addComponent('PresenceSensorCP', presenceSensorCP);
+    const userInterfaceCP = new UserInterfaceCP();
+    await system.addComponent('UserInterfaceCP', userInterfaceCP);
+    const heaterCP = new HeaterCP();
+    await system.addComponent('HeaterCP', heaterCP);
+    const coolerCP = new CoolerCP();
+    await system.addComponent('CoolerCP', coolerCP);
+    const presenceCheckerCP = new PresenceCheckerCP();
+    await system.addComponent('PresenceCheckerCP', presenceCheckerCP);
+    const commanderCP = new CommanderCP();
+    await system.addComponent('CommanderCP', commanderCP);
+    const sensorsMonitorCP = new SensorsMonitorCP();
+    await system.addComponent('SensorsMonitorCP', sensorsMonitorCP);
+
+    // Initialize connectors
+    const fahrenheitToCelsiusCN = new FahrenheitToCelsiusCN();
+    await system.addConnector('FahrenheitToCelsiusCN', fahrenheitToCelsiusCN);
+    const presenceCN = new PresenceCN();
+    await system.addConnector('PresenceCN', presenceCN);
+    const commandCN = new CommandCN();
+    await system.addConnector('CommandCN', commandCN);
+    const cTemperatureCN = new CTemperatureCN();
+    await system.addConnector('CTemperatureCN', cTemperatureCN);
+
+    // Configure bindings
+
+    // Configure delegations
+
     await system.start();
     console.log('System simulation completed');
 }
 
-main().catch(err => console.error('Error in execution: ' + err.message));
+main().catch(err => console.error('Error in execution: ' + err.message))};

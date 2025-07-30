@@ -1,22 +1,23 @@
 // Classe base para portas, garantindo consistência na interface
 class Port {
-  constructor(name) {
+  constructor(name, component = null) {
     this.name = name; // Nome da porta
+    this.component = component; // Componente associado à porta
   }
 
-  send(data) {
+  send(data) { // comportamental
     throw new Error("Método send deve ser implementado"); // Método abstrato para envio
   }
 
-  receive(data) {
+  receive(data) { // comportamental
     throw new Error("Método receive deve ser implementado"); // Método abstrato para recebimento
   }
 }
 
 // Classe para portas de saída
 class OutputPort extends Port {
-  constructor(name, connector = null) {
-    super(name);
+  constructor(name, component = null, connector = null) {
+    super(name, component);
     this.connector = connector; // Conector associado à porta
   }
 
@@ -34,17 +35,20 @@ class OutputPort extends Port {
 
 // Classe para portas de entrada
 class InputPort extends Port {
-  constructor(name) {
-    super(name);
+  constructor(name, component = null) {
+    super(name, component);
   }
 
-  // Recebe dados com um pequeno atraso para simular processamento assíncrono
+  // Recebe dados com um pequeno atraso e notifica o componente
   async receive(data) {
     return new Promise(resolve => {
       setTimeout(() => {
         console.log(`Porta de entrada ${this.name} recebeu dados: ${data}`);
+        if (this.component) {
+          this.component.onDataReceived(this.name, data); // Notifica o componente
+        }
         resolve();
-      }, 500); // Atraso de 500ms para simular processamento
+      }, 1000); 
     });
   }
 }
@@ -61,7 +65,7 @@ class Connector {
   // Transmite dados para as portas de destino, gerenciando a fila
   async transmit(data) {
     this.messageQueue.push(data); // Adiciona dados à fila
-    if (this.isProcessing) return; // Evita processamento concorrente
+    if (this.isProcessing) return; 
     this.isProcessing = true;
 
     while (this.messageQueue.length > 0) {
@@ -114,12 +118,20 @@ class Component {
     this.name = name; // Nome do componente
     this.isBoundary = isBoundary; // Indica se é um componente de fronteira
     this.ports = []; // Lista de portas associadas
+    this.state = {}; // Estado para armazenar dados recebidos
   }
 
   // Adiciona uma porta ao componente
   addPort(port) {
+    port.component = this; // Associa o componente à porta
     this.ports.push(port);
     console.log(`Porta ${port.name} adicionada ao componente ${this.name}`);
+  }
+
+  // Processa dados recebidos por uma porta
+  async onDataReceived(portName, data) {
+    console.log(`Componente ${this.name} recebeu dados ${data} na porta ${portName}`);
+    this.state[portName] = data; // Armazena os dados no estado
   }
 
   // Inicia o componente
@@ -142,10 +154,8 @@ class Component {
     const simulatedData = "DadosSimulados"; // Pode ser ajustado conforme o modelo
     console.log(`Simulando envio de ${simulatedData} pela porta ${outputPort.name}`);
     await outputPort.send(simulatedData);
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Atraso para simulação
+    await new Promise(resolve => setTimeout(resolve, 1000)); 
   }
-
-  // VERIFICAR A CHEGADA DO DADO NO TARGET COMPONENT
 }
 
 // Componente de fronteira
@@ -155,10 +165,31 @@ class BoundaryComponent extends Component {
   }
 }
 
-// Componente receptor
+// Primeiro componente receptor
 class ReceiverComponent extends Component {
   constructor(name) {
     super(name, false);
+  }
+
+  // Sobrescreve onDataReceived para processamento específico
+  async onDataReceived(portName, data) {
+    console.log(`Componente receptor ${this.name} processando dados ${data} recebidos na porta ${portName}`);
+    this.state[portName] = data; // Armazena no estado
+    console.log(`Estado de ${this.name} atualizado: ${JSON.stringify(this.state)}`);
+  }
+}
+
+// Segundo componente receptor
+class SecondReceiverComponent extends Component {
+  constructor(name) {
+    super(name, false);
+  }
+
+  // Sobrescreve onDataReceived para processamento específico
+  async onDataReceived(portName, data) {
+    console.log(`Componente receptor ${this.name} processando dados ${data} recebidos na porta ${portName}`);
+    this.state[portName] = data; // Armazena no estado
+    console.log(`Estado de ${this.name} atualizado: ${JSON.stringify(this.state)}`);
   }
 }
 
@@ -168,26 +199,59 @@ async function main() {
 
   // Cria os componentes
   const boundaryComp = new BoundaryComponent("ComponenteFronteira");
-  const receiverComp = new ReceiverComponent("ComponenteReceptor");
+  const receiverComp = new ReceiverComponent("ComponenteReceptor1");
+  const secondReceiverComp = new SecondReceiverComponent("ComponenteReceptor2");
 
   // Cria as portas
   const outputPort = new OutputPort("PortaSaida");
-  const inputPort = new InputPort("PortaEntrada");
+  const inputPort1 = new InputPort("PortaEntrada1");
+  const inputPort2 = new InputPort("PortaEntrada2");
 
   // Cria o conector
   const connector = new Connector("ConectorDados", []);
 
   // Adiciona portas aos componentes
   boundaryComp.addPort(outputPort);
-  receiverComp.addPort(inputPort);
+  receiverComp.addPort(inputPort1);
+  secondReceiverComp.addPort(inputPort2);
 
-  // Cria o binding
-  const binding = new Binding(boundaryComp, outputPort, receiverComp, inputPort, connector);
+  // Configurações de bindings
+  const bindingConfigs = [
+    {
+      sourceComponent: boundaryComp,
+      sourcePort: outputPort,
+      targetComponent: receiverComp,
+      targetPort: inputPort1,
+      connector: connector
+    },
+    {
+      sourceComponent: boundaryComp,
+      sourcePort: outputPort,
+      targetComponent: secondReceiverComp,
+      targetPort: inputPort2,
+      connector: connector
+    }
+  ];
+
+  // Cria os bindings
+  console.log("Configurando bindings...");
+  const bindings = bindingConfigs.map(config => {
+    console.log(`Criando binding entre ${config.sourceComponent.name}.${config.sourcePort.name} e ${config.targetComponent.name}.${config.targetPort.name}`);
+    return new Binding(
+      config.sourceComponent,
+      config.sourcePort,
+      config.targetComponent,
+      config.targetPort,
+      config.connector
+    );
+  });
 
   // Inicia os componentes em paralelo
+  console.log("Iniciando componentes...");
   await Promise.all([
     boundaryComp.start(),
-    receiverComp.start()
+    receiverComp.start(),
+    secondReceiverComp.start()
   ]);
 
   console.log("Simulação da arquitetura concluída");
