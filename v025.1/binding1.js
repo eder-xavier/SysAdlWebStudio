@@ -18,7 +18,7 @@ class Port {
 class OutputPort extends Port {
   constructor(name, component = null, connector = null) {
     super(name, component);
-    this.connector = connector; // Conector associado à porta
+    this.connector = connector; // Não pode. é o binding que faz essa associação
   }
 
   // Envia dados para o conector de forma assíncrona
@@ -28,7 +28,7 @@ class OutputPort extends Port {
       console.error(`Erro: Nenhum conector associado à porta ${this.name}`);
       return false;
     }
-    await this.connector.transmit(data); 
+    await this.connector.transmit(data); // esse comando deveria ir para o binding
     return true;
   }
 }
@@ -62,6 +62,7 @@ class Connector {
     this.messageQueue = []; // Fila para armazenar mensagens
     this.isProcessing = false; // Flag para controle de processamento
   }
+  // Definição para conector para conectar em mais de um componente
 
   // Transmite dados para as portas de destino, gerenciando a fila
   async transmit(data) {
@@ -231,6 +232,7 @@ async function main() {
 
   // Cria o conector com a função de transformação
   const connector = new Connector("ConectorDados", [], transformFn);
+  // Adicionar outro conector 
 
   // Adiciona portas aos componentes
   boundaryComp.addPort(outputPort);
@@ -240,9 +242,9 @@ async function main() {
   // Configurações de bindings com condições de roteamento
   const bindingConfigs = [
     {
-      sourceComponent: boundaryComp,
+      sourceComponent: boundaryComp, // não precisa
       sourcePort: outputPort,
-      targetComponent: receiverComp,
+      targetComponent: receiverComp, // não precisa
       targetPort: inputPort1,
       connector: connector,
       condition: (data) => data.type === 'temperature' // Apenas temperaturas para Receptor1
@@ -260,7 +262,7 @@ async function main() {
   // Cria os bindings
   console.log("Configurando bindings...");
   const bindings = bindingConfigs.map(config => {
-    console.log(`Criando binding entre ${config.sourceComponent.name}.${config.sourcePort.name} e ${config.targetComponent.name}.${config.targetPort.name}`);
+    //console.log(`Criando binding entre ${config.sourceComponent.name}.${config.sourcePort.name} e ${config.targetComponent.name}.${config.targetPort.name}`);
     return new Binding(
       config.sourceComponent,
       config.sourcePort,
