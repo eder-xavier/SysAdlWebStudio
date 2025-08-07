@@ -40,7 +40,7 @@ class OutputPort extends Port {
     console.log(`Porta de saída ${this.name} enviando dados: ${JSON.stringify(data)}`);
     if (this.bindings.length === 0) {
       console.error(`Erro: Nenhum binding associado à porta ${this.name}`);
-      return false;
+      return false; 
     }
     // Usa o conector associado ao primeiro binding para transmitir os dados
     await this.bindings[0].connector.transmit(data);
@@ -277,7 +277,7 @@ async function main() {
   ]);
 
   console.log("Simulação da arquitetura concluída");
-}
+}  
 
 // Executa a função principal
 main().catch(err => console.error(`Erro na execução: ${err.message}`));
