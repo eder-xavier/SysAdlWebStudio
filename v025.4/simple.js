@@ -19,7 +19,7 @@ class SysADLPort {
     // Associa um binding à porta
     addBinding(binding) {
         this.bindings.push(binding);
-        console.log(`Binding adicionado à porta ${this.name}: ${binding.sourceComponent.name}.${binding.sourcePort.name} -> ${binding.targetComponent.name}.${binding.targetPort.name}`);
+        console.log(`Binding adicionado à porta ${this.name}: ${binding.sourceComponent?.name || 'undefined'}.${binding.sourcePort?.name || 'undefined'} -> ${binding.targetComponent?.name || 'undefined'}.${binding.targetPort?.name || 'undefined'}`);
     }
 
     async send(data) {
@@ -73,7 +73,7 @@ class SysADLConnector {
     setPorts(sourcePort, targetPort) {
         this.sourcePort = sourcePort;
         this.targetPort = targetPort;
-        console.log(`Conector ${this.name} configurado com sourcePort ${sourcePort.name} e targetPort ${targetPort.name}`);
+        console.log(`Conector ${this.name} configurado com sourcePort ${sourcePort?.name || 'undefined'} e targetPort ${targetPort?.name || 'undefined'}`);
     }
 
     async transmit(data) {
@@ -82,7 +82,7 @@ class SysADLConnector {
             console.error(`Erro: Conector ${this.name} não tem sourcePort ou targetPort configurados`);
             return;
         }
-        let transformedData = this.transformFn ? await this.transformFn(data) : data;
+        let transformedData = this.transformFn ? await this.transformFn({ f: data }) : data;
         this.messageQueue.push(transformedData);
         if (this.isProcessing) return;
         this.isProcessing = true;
@@ -109,6 +109,16 @@ class SysADLConnector {
 // Binding Class
 class Binding {
     constructor(sourceComponent, sourcePort, targetComponent, targetPort, connector) {
+        if (!sourceComponent || !sourcePort || !targetComponent || !targetPort || !connector) {
+            console.error('Erro ao criar binding: parâmetros inválidos', {
+                sourceComponent: sourceComponent?.name,
+                sourcePort: sourcePort?.name,
+                targetComponent: targetComponent?.name,
+                targetPort: targetPort?.name,
+                connector: connector?.name
+            });
+            throw new Error('Parâmetros de binding inválidos');
+        }
         console.log(`Criando binding de ${sourceComponent.name}.${sourcePort.name} para ${targetComponent.name}.${targetPort.name} via conector ${connector.name}`);
         this.sourceComponent = sourceComponent;
         this.sourcePort = sourcePort;
@@ -190,9 +200,9 @@ class SystemCP extends SysADLComponent {
         this.bindings = [];
 
         // Inicializa subcomponentes
-        this.s1 = new SensorCP();
+        this.s1 = new SensorCP('s1', 'temp1');
         this.addSubComponent('s1', this.s1);
-        this.s2 = new SensorCP();
+        this.s2 = new SensorCP('s2', 'temp2');
         this.addSubComponent('s2', this.s2);
         this.tempMon = new TempMonitorCP();
         this.addSubComponent('tempMon', this.tempMon);
@@ -225,25 +235,42 @@ class SystemCP extends SysADLComponent {
 
     configureBindings() {
         console.log('Configurando bindings para SystemCP');
+        const s1Port = this.subComponents.get('s1').ports.find(p => p.name === 'temp1');
+        const s2Port = this.subComponents.get('s2').ports.find(p => p.name === 'temp2');
+        const tempMonS1Port = this.subComponents.get('tempMon').ports.find(p => p.name === 's1');
+        const tempMonAvgPort = this.subComponents.get('tempMon').ports.find(p => p.name === 'average');
+        const stdOutAvgPort = this.subComponents.get('stdOut').ports.find(p => p.name === 'avg');
+
+        if (!s1Port || !s2Port || !tempMonS1Port || !tempMonAvgPort || !stdOutAvgPort) {
+            console.error('Erro: Uma ou mais portas não encontradas para configurar bindings', {
+                s1Port: s1Port?.name,
+                s2Port: s2Port?.name,
+                tempMonS1Port: tempMonS1Port?.name,
+                tempMonAvgPort: tempMonAvgPort?.name,
+                stdOutAvgPort: stdOutAvgPort?.name
+            });
+            return;
+        }
+
         this.addBinding(new Binding(
             this.subComponents.get('s1'),
-            this.subComponents.get('s1').ports.find(p => p.name === 'temp1'),
+            s1Port,
             this.subComponents.get('tempMon'),
-            this.subComponents.get('tempMon').ports.find(p => p.name === 's1'),
+            tempMonS1Port,
             this.connectors.get('c1')
         ));
         this.addBinding(new Binding(
             this.subComponents.get('s2'),
-            this.subComponents.get('s2').ports.find(p => p.name === 'temp2'),
+            s2Port,
             this.subComponents.get('tempMon'),
             this.subComponents.get('tempMon').ports.find(p => p.name === 's2'),
             this.connectors.get('c2')
         ));
         this.addBinding(new Binding(
             this.subComponents.get('tempMon'),
-            this.subComponents.get('tempMon').ports.find(p => p.name === 'average'),
+            tempMonAvgPort,
             this.subComponents.get('stdOut'),
-            this.subComponents.get('stdOut').ports.find(p => p.name === 'avg'),
+            stdOutAvgPort,
             this.connectors.get('c3')
         ));
     }
@@ -255,10 +282,10 @@ class SystemCP extends SysADLComponent {
 }
 
 class SensorCP extends SysADLComponent {
-    constructor() {
-        super('SensorCP', true);
-        this.addPort(new SysADLPort('temp1', 'Real', 'out')); // FTempOPT
-        this.state['temp1'] = null;
+    constructor(name, portName) {
+        super(name, true);
+        this.addPort(new SysADLPort(portName, 'Real', 'out')); // FTempOPT
+        this.state[portName] = null;
     }
 }
 
