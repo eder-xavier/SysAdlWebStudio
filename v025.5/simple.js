@@ -4,22 +4,27 @@
 // Types
 const Real = 'any'; // Value type from SysADL.types
 
-// Base Port Class
+// Classe base para portas
 class SysADLPort {
-    constructor(name, flowType, direction = 'inout', component = null) {
+    constructor(name, flowType, direction = 'inout') {
         console.log(`Inicializando porta ${name} com flowType ${flowType}, direção ${direction}`);
         this.name = name;
         this.flowType = flowType || 'any';
         this.direction = direction;
-        this.component = component; // não deveria ter 
         this.value = null;
         this.bindings = []; // Lista de bindings associados à porta
+        this.onDataReceivedCallback = null; // Callback para notificar recebimento de dados
     }
 
     // Associa um binding à porta
     addBinding(binding) {
         this.bindings.push(binding);
         console.log(`Binding adicionado à porta ${this.name}: ${binding.sourceComponent?.name || 'undefined'}.${binding.sourcePort?.name || 'undefined'} -> ${binding.targetComponent?.name || 'undefined'}.${binding.targetPort?.name || 'undefined'}`);
+    }
+
+    // Define o callback para onDataReceived
+    setOnDataReceivedCallback(callback) {
+        this.onDataReceivedCallback = callback;
     }
 
     async send(data) {
@@ -33,8 +38,11 @@ class SysADLPort {
             return false;
         }
         this.value = data;
-        // Usa o conector associado ao primeiro binding
-        await this.bindings[0].connector.transmit(data);
+        // Propaga dados para todos os bindings
+        for (const binding of this.bindings) {
+            console.log(`Propagando dados ${data} via binding para ${binding.targetPort?.name}`);
+            await binding.connector.transmit(data);
+        }
         return true;
     }
 
@@ -45,8 +53,10 @@ class SysADLPort {
             return false;
         }
         this.value = data;
-        if (this.component) {
-            await this.component.onDataReceived(this.name, data);
+        if (this.onDataReceivedCallback) {
+            await this.onDataReceivedCallback(this.name, data);
+        } else {
+            console.warn(`Nenhum callback de onDataReceived definido para porta ${this.name}`);
         }
         return true;
     }
@@ -157,8 +167,9 @@ class SysADLComponent {
     }
 
     async addPort(port) {
-        port.component = this; // rever  
         this.ports.push(port);
+        // Define o callback para onDataReceived
+        port.setOnDataReceivedCallback((portName, data) => this.onDataReceived(portName, data));
         console.log(`Porta ${port.name} adicionada ao componente ${this.name}, flowType: ${port.flowType}`);
     }
 
@@ -177,18 +188,6 @@ class SysADLComponent {
             await this.simulateInput();
         }
     }
-
-    async simulateInput() {
-        console.log(`Simulando entrada para componente ${this.name}`);
-        for (const port of this.ports) {
-            if (port.direction === 'out' || port.direction === 'inout') {
-                let simulatedValue = port.flowType === 'Real' ? 77.0 : null; // Valor representativo (77°F ~ 25°C)
-                console.log(`Simulando envio de ${simulatedValue} pela porta ${this.name}.${port.name}`);
-                await port.send(simulatedValue);
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-        }
-    }
 }
 
 // Component Classes
@@ -199,7 +198,7 @@ class SystemCP extends SysADLComponent {
         this.connectors = new Map();
         this.bindings = [];
 
-        // Inicializa components
+        // Inicializa subcomponentes
         this.s1 = new SensorCP('s1', 'temp1');
         this.addSubComponent('s1', this.s1);
         this.s2 = new SensorCP('s2', 'temp2');
@@ -238,14 +237,16 @@ class SystemCP extends SysADLComponent {
         const s1Port = this.subComponents.get('s1').ports.find(p => p.name === 'temp1');
         const s2Port = this.subComponents.get('s2').ports.find(p => p.name === 'temp2');
         const tempMonS1Port = this.subComponents.get('tempMon').ports.find(p => p.name === 's1');
+        const tempMonS2Port = this.subComponents.get('tempMon').ports.find(p => p.name === 's2');
         const tempMonAvgPort = this.subComponents.get('tempMon').ports.find(p => p.name === 'average');
         const stdOutAvgPort = this.subComponents.get('stdOut').ports.find(p => p.name === 'avg');
 
-        if (!s1Port || !s2Port || !tempMonS1Port || !tempMonAvgPort || !stdOutAvgPort) {
+        if (!s1Port || !s2Port || !tempMonS1Port || !tempMonS2Port || !tempMonAvgPort || !stdOutAvgPort) {
             console.error('Erro: Uma ou mais portas não encontradas para configurar bindings', {
                 s1Port: s1Port?.name,
                 s2Port: s2Port?.name,
                 tempMonS1Port: tempMonS1Port?.name,
+                tempMonS2Port: tempMonS2Port?.name,
                 tempMonAvgPort: tempMonAvgPort?.name,
                 stdOutAvgPort: stdOutAvgPort?.name
             });
@@ -263,7 +264,7 @@ class SystemCP extends SysADLComponent {
             this.subComponents.get('s2'),
             s2Port,
             this.subComponents.get('tempMon'),
-            this.subComponents.get('tempMon').ports.find(p => p.name === 's2'),
+            tempMonS2Port,
             this.connectors.get('c2')
         ));
         this.addBinding(new Binding(
@@ -284,17 +285,30 @@ class SystemCP extends SysADLComponent {
 class SensorCP extends SysADLComponent {
     constructor(name, portName) {
         super(name, true);
-        this.addPort(new SysADLPort(portName, 'Real', 'out')); // FTempOPT
+        const port = new SysADLPort(portName, 'Real', 'out');
+        this.addPort(port);
         this.state[portName] = null;
+    }
+
+    async simulateInput(value = 77.0) {
+        console.log(`Simulando entrada para componente ${this.name} com valor ${value}`);
+        const port = this.ports[0]; // Usa a primeira (e única) porta
+        if (port) {
+            console.log(`Enviando ${value} pela porta ${port.name}`);
+            await port.send(value);
+        } else {
+            console.error(`Erro: Porta não encontrada em ${this.name}`);
+        }
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Simula delay
     }
 }
 
 class TempMonitorCP extends SysADLComponent {
     constructor() {
         super('TempMonitorCP', false);
-        this.addPort(new SysADLPort('s1', 'Real', 'in')); // CTempIPT
-        this.addPort(new SysADLPort('s2', 'Real', 'in')); // CTempIPT
-        this.addPort(new SysADLPort('average', 'Real', 'out')); // CTempOPT
+        this.addPort(new SysADLPort('s1', 'Real', 'in'));
+        this.addPort(new SysADLPort('s2', 'Real', 'in'));
+        this.addPort(new SysADLPort('average', 'Real', 'out'));
         this.state['s1'] = null;
         this.state['s2'] = null;
         this.state['average'] = null;
@@ -304,6 +318,11 @@ class TempMonitorCP extends SysADLComponent {
     async executeTempMonitorAC() {
         console.log('Executando atividade TempMonitorAC no componente TempMonitorCP');
         const params = { s1: this.state['s1'], s2: this.state['s2'] };
+        console.log(`Parâmetros recebidos: s1=${params.s1}, s2=${params.s2}`);
+        if (params.s1 === null || params.s2 === null) {
+            console.warn('Valores de entrada nulos, atividade abortada');
+            return null;
+        }
         const result = await CalcAverageEX(params);
         try {
             await validateCalcAverageEQ({ t1: params.s1, t2: params.s2, av: result });
@@ -314,6 +333,7 @@ class TempMonitorCP extends SysADLComponent {
         this.state['average'] = result;
         const averagePort = this.ports.find(p => p.name === 'average');
         if (averagePort) {
+            console.log(`Enviando média ${result} pela porta average`);
             await averagePort.send(result);
         }
         console.log(`Atividade TempMonitorAC retornando: ${result}`);
@@ -324,7 +344,7 @@ class TempMonitorCP extends SysADLComponent {
 class StdOutCP extends SysADLComponent {
     constructor() {
         super('StdOutCP', false);
-        this.addPort(new SysADLPort('avg', 'Real', 'in')); // CTempIPT
+        this.addPort(new SysADLPort('avg', 'Real', 'in'));
         this.state['avg'] = null;
     }
 
