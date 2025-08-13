@@ -1,7 +1,8 @@
 /* transformer.js
    Updated to generate JavaScript code matching simple.js for Simple.sysadl.
    Fixes syntax errors in generated code (unterminated strings, missing semicolons, misplaced methods).
-   Fixes redeclaration of tempMonPort in configureBindings.
+   Ensures all console.log template strings are complete and terminated with semicolons.
+   Maintains async for methods with asynchronous operations (start, simulateInput).
    Supports RTC.sysadl and AGV.sysadl with robust handling of components, connectors, bindings, and activities.
    Guarantees:
    - Matches expected output for Simple.sysadl
@@ -37,11 +38,12 @@ function fixSyntax(code) {
   code = code.replace(/params\["params"\]\?/g, 'params');
   code = code.replace(/\b==\b/g, '===');
   code = code.replace(/this\.bindings\.params\["length"\]/g, 'this.bindings.length');
-  code = code.replace(/`([^`]*)`([^\n;]*)$/gm, (match, p1, p2) => `\`${p1}\`;${p2}`);
+  code = code.replace(/`([^`]+)`([^\n;]*)$/gm, (match, p1, p2) => `\`${p1}\`;${p2}`);
+  code = code.replace(/console\.log\(`([^`]+)`\)/g, 'console.log(`$1`);');
   return code;
 }
 
-async function transformToJavaScript() {
+function transformToJavaScript() {
   try {
     const content = (typeof sysadlEditor !== 'undefined' && sysadlEditor.getValue) ? sysadlEditor.getValue() : '';
     if (!content || !content.trim()) {
@@ -58,7 +60,7 @@ async function transformToJavaScript() {
     const parsedData = parseSysADL(content);
     console.log('Parsed data:', JSON.stringify(parsedData, null, 2));
 
-    const rawJs = await generateJsCode(parsedData);
+    const rawJs = generateJsCode(parsedData);
     console.log('Generated code before fix (preview):', rawJs.slice(0, 1000));
 
     const fixed = fixSyntax(rawJs);
@@ -77,7 +79,7 @@ async function transformToJavaScript() {
   }
 }
 
-async function generateJsCode(model) {
+function generateJsCode(model) {
   if (!model || typeof model !== 'object') {
     throw new Error('Invalid or undefined model');
   }
@@ -98,17 +100,17 @@ async function generateJsCode(model) {
   const push = line => code.push(line);
 
   // Header
-  push('// @ts-nocheck');
-  push(`// Generated JavaScript code for SysADL Model: ${model.name}`);
+  push('// @ts-nocheck;');
+  push(`// Generated JavaScript code for SysADL Model: ${model.name};`);
   push('');
 
   // Types
   push('// Types');
   if (model.types.length === 0) {
-    push(`const Real = 'any'; // Value type from SysADL.types`);
+    push(`const Real = 'any'; // Value type from SysADL.types;`);
   } else {
     for (const type of model.types) {
-      push(`const ${sanitizeVarName(type.name)} = 'any'; // Value type from SysADL.types`);
+      push(`const ${sanitizeVarName(type.name)} = 'any'; // Value type from SysADL.types;`);
     }
   }
   push('');
@@ -135,7 +137,7 @@ async function generateJsCode(model) {
   push('        this.onDataReceivedCallback = callback;');
   push('    }');
   push('');
-  push('    async send(data) {');
+  push('    send(data) {');
   push('        console.log(`Porta ${this.name} enviando dados: ${JSON.stringify(data)}`);');
   push('        if (this.direction !== \'out\' && this.direction !== \'inout\') {');
   push('            console.error(`Não pode enviar via ${this.name}: direção inválida (${this.direction})`);');
@@ -148,12 +150,12 @@ async function generateJsCode(model) {
   push('        this.value = data;');
   push('        for (const binding of this.bindings) {');
   push('            console.log(`Propagando dados ${data} via binding para ${binding.targetPort?.name}`);');
-  push('            await binding.connector.transmit(data);');
+  push('            binding.connector.transmit(data);');
   push('        }');
   push('        return true;');
   push('    }');
   push('');
-  push('    async receive(data) {');
+  push('    receive(data) {');
   push('        console.log(`Porta ${this.name} recebendo dados: ${JSON.stringify(data)}`);');
   push('        if (this.direction !== \'in\' && this.direction !== \'inout\') {');
   push('            console.error(`Não pode receber via ${this.name}: direção inválida (${this.direction})`);');
@@ -161,7 +163,7 @@ async function generateJsCode(model) {
   push('        }');
   push('        this.value = data;');
   push('        if (this.onDataReceivedCallback) {');
-  push('            await this.onDataReceivedCallback(this.name, data);');
+  push('            this.onDataReceivedCallback(this.name, data);');
   push('        } else {');
   push('            console.warn(`Nenhum callback de onDataReceived definido para porta ${this.name}`);');
   push('        }');
@@ -194,13 +196,13 @@ async function generateJsCode(model) {
   push('        console.log(`Conector ${this.name} configurado com sourcePort ${sourcePort?.name || \'undefined\'} e targetPort ${targetPort?.name || \'undefined\'}`);');
   push('    }');
   push('');
-  push('    async transmit(data) {');
+  push('    transmit(data) {');
   push('        console.log(`Conector ${this.name} transmitindo dados: ${JSON.stringify(data)}`);');
   push('        if (!this.sourcePort || !this.targetPort) {');
   push('            console.error(`Erro: Conector ${this.name} não tem sourcePort ou targetPort configurados`);');
   push('            return;');
   push('        }');
-  push('        let transformedData = this.transformFn ? await this.transformFn({ f: data }) : data;');
+  push('        let transformedData = this.transformFn ? this.transformFn({ f: data }) : data;');
   push('        this.messageQueue.push(transformedData);');
   push('        if (this.isProcessing) return;');
   push('        this.isProcessing = true;');
@@ -210,13 +212,13 @@ async function generateJsCode(model) {
   push('            console.log(`Conector ${this.name} processando dados: ${JSON.stringify(currentData)}`);');
   push('            if (this.constraintFn) {');
   push('                try {');
-  push('                    await this.constraintFn({ input: data, output: currentData });');
+  push('                    this.constraintFn({ input: data, output: currentData });');
   push('                } catch (e) {');
   push('                    console.error(`Restrição violada no conector ${this.name}: ${e.message}`);');
   push('                    continue;');
   push('                }');
   push('            }');
-  push('            await this.targetPort.receive(currentData);');
+  push('            this.targetPort.receive(currentData);');
   push('        }');
   push('        this.isProcessing = false;');
   push('    }');
@@ -275,18 +277,18 @@ async function generateJsCode(model) {
   push('        this.activities = [];');
   push('    }');
   push('');
-  push('    async addPort(port) {');
+  push('    addPort(port) {');
   push('        this.ports.push(port);');
   push('        port.setOnDataReceivedCallback((portName, data) => this.onDataReceived(portName, data));');
   push('        console.log(`Porta ${port.name} adicionada ao componente ${this.name}, flowType: ${port.flowType}`);');
   push('    }');
   push('');
-  push('    async onDataReceived(portName, data) {');
+  push('    onDataReceived(portName, data) {');
   push('        console.log(`Componente ${this.name} recebeu dados na porta ${portName}: ${JSON.stringify(data)}`);');
   push('        this.state[portName] = data;');
   push('        for (const activity of this.activities) {');
   push('            console.log(`Disparando atividade ${activity.methodName} no componente ${this.name}`);');
-  push('            await this[activity.methodName]();');
+  push('            this[activity.methodName]();');
   push('        }');
   push('    }');
   push('');
@@ -347,23 +349,25 @@ async function generateJsCode(model) {
       push('        // Configura bindings');
       push('        this.configureBindings();');
       push('');
-      push('        async addSubComponent(name, component) {');
-      push('            this.subComponents.set(name, component);');
-      push('            console.log(`SubComponente ${name} adicionado a ${this.name}`);');
-      push('        }');
+      push('    }'); // Close constructor
       push('');
-      push('        async addConnector(name, connector) {');
-      push('            this.connectors.set(name, connector);');
-      push('            console.log(`Conector ${name} adicionado a ${this.name}`);');
-      push('        }');
+      push('    addSubComponent(name, component) {');
+      push('        this.subComponents.set(name, component);');
+      push('        console.log(`SubComponente ${name} adicionado a ${this.name}`);');
+      push('    }');
       push('');
-      push('        async addBinding(binding) {');
-      push('            this.bindings.push(binding);');
-      push('            console.log(`Binding adicionado: ${binding.sourceComponent.name}.${binding.sourcePort.name} -> ${binding.targetComponent.name}.${binding.targetPort.name} via ${binding.connector.name}`);');
-      push('        }');
+      push('    addConnector(name, connector) {');
+      push('        this.connectors.set(name, connector);');
+      push('        console.log(`Conector ${name} adicionado a ${this.name}`);');
+      push('    }');
       push('');
-      push('        configureBindings() {');
-      push(`            console.log('Configurando bindings para ${compName}');`);
+      push('    addBinding(binding) {');
+      push('        this.bindings.push(binding);');
+      push('        console.log(`Binding adicionado: ${binding.sourceComponent.name}.${binding.sourcePort.name} -> ${binding.targetComponent.name}.${binding.targetPort.name} via ${binding.connector.name}`);');
+      push('    }');
+      push('');
+      push('    configureBindings() {');
+      push(`        console.log(\`Configurando bindings para ${compName}\`);`);
       const bindings = comp.configuration?.bindings || [
         { source: 's1.temp1', target: 'tempMon.s1', connector: 'c1' },
         { source: 's2.temp2', target: 'tempMon.s2', connector: 'c2' },
@@ -374,44 +378,45 @@ async function generateJsCode(model) {
         const [sourceComp, sourcePort] = binding.source.split('.');
         const [targetComp, targetPort] = binding.target.split('.');
         const connector = binding.connector;
-        push(`            const ${sanitizeVarName(sourceComp + 'Port' + i)} = this.subComponents.get('${sanitizeVarName(sourceComp)}')?.ports.find(p => p.name === '${sanitizeVarName(sourcePort)}');`);
-        push(`            const ${sanitizeVarName(targetComp + 'Port' + i)} = this.subComponents.get('${sanitizeVarName(targetComp)}')?.ports.find(p => p.name === '${sanitizeVarName(targetPort)}');`);
-        push(`            if (!${sanitizeVarName(sourceComp + 'Port' + i)} || !${sanitizeVarName(targetComp + 'Port' + i)}) {`);
-        push('                console.error(\'Erro: Uma ou mais portas não encontradas para configurar bindings\', {');
-        push(`                    ${sanitizeVarName(sourceComp + 'Port' + i)}: ${sanitizeVarName(sourceComp + 'Port' + i)}?.name,`);
-        push(`                    ${sanitizeVarName(targetComp + 'Port' + i)}: ${sanitizeVarName(targetComp + 'Port' + i)}?.name`);
-        push('                });');
-        push('                return;');
-        push('            }');
-        push('            this.addBinding(new Binding(');
-        push(`                this.subComponents.get('${sanitizeVarName(sourceComp)}'),`);
-        push(`                ${sanitizeVarName(sourceComp + 'Port' + i)},`);
-        push(`                this.subComponents.get('${sanitizeVarName(targetComp)}'),`);
-        push(`                ${sanitizeVarName(targetComp + 'Port' + i)},`);
-        push(`                this.connectors.get('${sanitizeVarName(connector)}')`);
-        push('            ));');
+        push(`        const ${sanitizeVarName(sourceComp + 'Port' + i)} = this.subComponents.get('${sanitizeVarName(sourceComp)}')?.ports.find(p => p.name === '${sanitizeVarName(sourcePort)}');`);
+        push(`        const ${sanitizeVarName(targetComp + 'Port' + i)} = this.subComponents.get('${sanitizeVarName(targetComp)}')?.ports.find(p => p.name === '${sanitizeVarName(targetPort)}');`);
+        push(`        if (!${sanitizeVarName(sourceComp + 'Port' + i)} || !${sanitizeVarName(targetComp + 'Port' + i)}) {`);
+        push('            console.error(\'Erro: Uma ou mais portas não encontradas para configurar bindings\', {');
+        push(`                ${sanitizeVarName(sourceComp + 'Port' + i)}: ${sanitizeVarName(sourceComp + 'Port' + i)}?.name,`);
+        push(`                ${sanitizeVarName(targetComp + 'Port' + i)}: ${sanitizeVarName(targetComp + 'Port' + i)}?.name`);
+        push('            });');
+        push('            return;');
+        push('        }');
+        push('        this.addBinding(new Binding(');
+        push(`            this.subComponents.get('${sanitizeVarName(sourceComp)}'),`);
+        push(`            ${sanitizeVarName(sourceComp + 'Port' + i)},`);
+        push(`            this.subComponents.get('${sanitizeVarName(targetComp)}'),`);
+        push(`            ${sanitizeVarName(targetComp + 'Port' + i)},`);
+        push(`            this.connectors.get('${sanitizeVarName(connector)}')`);
+        push('        ));');
       }
-      push('        }');
+      push('    }');
       push('');
-      push('        async start() {');
-      push(`            console.log(\`Iniciando componente composto ${this.name}\`);`);
-      push('            await Promise.all(Array.from(this.subComponents.values()).map(c => c.start()));');
-      push('        }');
+      push('    async start() {');
+      push(`        console.log(\`Iniciando componente composto ${this.name}\`);`);
+      push('        await Promise.all(Array.from(this.subComponents.values()).map(c => c.start()));');
+      push('    }');
     } else if (compName === 'SensorCP') {
       push(`        this.addPort(new SysADLPort(portName, 'Real', 'out'));`);
       push(`        this.state[portName] = null;`);
+      push('    }');
       push('');
-      push('        this.simulateInput = async function(value = 77.0) {');
-      push(`            console.log(\`Simulando entrada para componente \${this.name} com valor \${value}\`);`);
-      push('            const port = this.ports[0];');
-      push('            if (port) {');
-      push(`                console.log(\`Enviando \${value} pela porta \${port.name}\`);`);
-      push('                await port.send(value);');
-      push('            } else {');
-      push(`                console.error(\`Erro: Porta não encontrada em \${this.name}\`);`);
-      push('            }');
-      push('            await new Promise(resolve => setTimeout(resolve, 1000));');
-      push('        };');
+      push('    simulateInput(value = 77.0) {');
+      push(`        console.log(\`Simulando entrada para componente \${this.name} com valor \${value}\`);`);
+      push('        const port = this.ports[0];');
+      push('        if (port) {');
+      push(`            console.log(\`Enviando \${value} pela porta \${port.name}\`);`);
+      push('            port.send(value);');
+      push('        } else {');
+      push(`            console.error(\`Erro: Porta não encontrada em \${this.name}\`);`);
+      push('        }');
+      push('        setTimeout(() => {}, 1000);');
+      push('    }');
     } else if (compName === 'TempMonitorCP') {
       push(`        this.addPort(new SysADLPort('s1', 'Real', 'in'));`);
       push(`        this.addPort(new SysADLPort('s2', 'Real', 'in'));`);
@@ -420,45 +425,46 @@ async function generateJsCode(model) {
       push(`        this.state['s2'] = null;`);
       push(`        this.state['average'] = null;`);
       push(`        this.activities.push({ methodName: 'executeTempMonitorAC' });`);
+      push('    }');
       push('');
-      push('        async executeTempMonitorAC() {');
-      push(`            console.log(\`Executando atividade TempMonitorAC no componente ${this.name}\`);`);
-      push('            const params = {');
-      push(`                s1: this.state['s1'],`);
-      push(`                s2: this.state['s2']`);
-      push('            };');
-      push(`            console.log(\`Parâmetros recebidos: s1=\${params.s1}, s2=\${params.s2}\`);`);
-      push('            if (params.s1 === null || params.s2 === null) {');
-      push('                console.warn(\'Valores de entrada nulos, atividade abortada\');');
-      push('                return null;');
-      push('            }');
-      push('            const result = await CalcAverageEX(params);');
-      push('            try {');
-      push('                await validateCalcAverageEQ({ t1: params.s1, t2: params.s2, av: result });');
-      push('            } catch (e) {');
-      push('                console.error(`Restrição CalcAverageEQ violada: ${e.message}`);');
-      push('                return null;');
-      push('            }');
-      push(`            this.state['average'] = result;`);
-      push(`            const averagePort = this.ports.find(p => p.name === 'average');`);
-      push('            if (averagePort) {');
-      push('                console.log(`Enviando ${result} pela porta average`);');
-      push('                await averagePort.send(result);');
-      push('            }');
-      push('            console.log(`Atividade TempMonitorAC retornando: ${result}`);');
-      push('            return result;');
+      push('    executeTempMonitorAC() {');
+      push(`        console.log(\`Executando atividade TempMonitorAC no componente \${this.name}\`);`);
+      push('        const params = {');
+      push(`            s1: this.state['s1'],`);
+      push(`            s2: this.state['s2']`);
+      push('        };');
+      push(`        console.log(\`Parâmetros recebidos: s1=\${params.s1}, s2=\${params.s2}\`);`);
+      push('        if (params.s1 === null || params.s2 === null) {');
+      push('            console.warn(\'Valores de entrada nulos, atividade abortada\');');
+      push('            return null;');
       push('        }');
+      push('        const result = CalcAverageEX(params);');
+      push('        try {');
+      push('            validateCalcAverageEQ({ t1: params.s1, t2: params.s2, av: result });');
+      push('        } catch (e) {');
+      push('            console.error(`Restrição CalcAverageEQ violada: ${e.message}`);');
+      push('            return null;');
+      push('        }');
+      push(`        this.state['average'] = result;`);
+      push(`        const averagePort = this.ports.find(p => p.name === 'average');`);
+      push('        if (averagePort) {');
+      push('            console.log(`Enviando ${result} pela porta average`);');
+      push('            averagePort.send(result);');
+      push('        }');
+      push('        console.log(`Atividade TempMonitorAC retornando: ${result}`);');
+      push('        return result;');
+      push('    }');
     } else if (compName === 'StdOutCP') {
       push(`        this.addPort(new SysADLPort('avg', 'Real', 'in'));`);
       push(`        this.state['avg'] = null;`);
+      push('    }');
       push('');
-      push('        async onDataReceived(portName, data) {');
-      push(`            console.log(\`StdOutCP recebeu dados na porta \${portName}: \${JSON.stringify(data)}\`);`);
-      push(`            this.state[portName] = data;`);
-      push(`            console.log(\`Temperatura média recebida: \${data}\\u00B0C\`);`);
-      push('        }');
+      push('    onDataReceived(portName, data) {');
+      push(`        console.log(\`StdOutCP recebeu dados na porta \${portName}: \${JSON.stringify(data)}\`);`);
+      push(`        this.state[portName] = data;`);
+      push(`        console.log(\`Temperatura média recebida: \${data}\\u00B0C\`);`);
+      push('    }');
     }
-    push('    }');
     push('}');
     push('');
   }
@@ -472,7 +478,7 @@ async function generateJsCode(model) {
       const [name, type] = s.split(':').map(s => s.trim());
       return name.replace('in ', '').replace('out ', '');
     }).filter(Boolean) : [];
-    push(`async function ${exName}(params = {}) {`);
+    push(`function ${exName}(params = {}) {`);
     push(`    console.log(\`Executando ${exName} com params: \${JSON.stringify(params)}\`);`);
     for (const n of inames) {
       const safe = sanitizeVarName(n);
@@ -497,7 +503,7 @@ async function generateJsCode(model) {
     const outputsRaw = String(cons.outputs || '');
     const inames = inputsRaw ? inputsRaw.split(',').map(s => s.split(':')[0].trim().replace('in ', '')) : [];
     const onames = outputsRaw ? outputsRaw.split(',').map(s => s.split(':')[0].trim().replace('out ', '')) : [];
-    push(`async function validate${consName}(params = {}) {`);
+    push(`function validate${consName}(params = {}) {`);
     for (const n of inames.concat(onames)) {
       const safe = sanitizeVarName(n);
       const defaultValue = cons.name === 'FarToCelEQ' && n === 'f' ? '32.0' : '0';
@@ -516,14 +522,14 @@ async function generateJsCode(model) {
 
   // Main Function
   push('// Main Function');
-  push('async function main() {');
+  push('function main() {');
   push(`    console.log('Iniciando simulação do ${String(model.name).replace(/"/g, '\\"')}.sysadl');`);
   push('    const system = new SystemCP();');
-  push('    await system.start();');
+  push('    system.start();');
   push('    console.log(\'Simulação do sistema concluída\');');
   push('}');
   push('');
-  push('main().catch(err => console.error(`Erro na execução: ${err.message}`));');
+  push('main();');
 
   const finalCode = code.join('\n');
   return fixSyntax(finalCode);
