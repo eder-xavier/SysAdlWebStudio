@@ -290,7 +290,7 @@ class SensorCP extends SysADLComponent {
         this.state[portName] = null;
     }
 
-    async simulateInput(value = 77.0) {
+    async simulateInput(value = 86) { // mudar
         console.log(`Simulando entrada para componente ${this.name} com valor ${value}`);
         const port = this.ports[0]; // Usa a primeira (e única) porta
         if (port) {
