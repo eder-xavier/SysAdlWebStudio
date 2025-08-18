@@ -1,0 +1,11 @@
+Seguinte, estou fazendo uma ferramenta de simulação da linguagem de arquitetura sysADL, e em meio a essa ferramenta, inicialmente faço a transformação da linguagem sysADL para JavaScript, mas com uma dinâmica operacional, e depois pretendo representar isso graficamente. Mas por enquanto estou na parte da transformação. Vou te mandar como está ficando meu programa, anexei as partes aqui... E na próxima mensagem vou te dizer o problema que estou tendo atualmente...
+
+Seguinte, vou te mandar 3 exemplos de codigos sysADL, o meu transformador deve ser genérico ao ponto de realizar uma transformação precisa neles, além disso, anexei um arquivo chamado simple.js, que seria a versão ideal para o codigo gerado a partir de simple.sysadl, tenha isso como um "gabarito". E os codigos sysADL devem seguir esse mesmo modelo do simple.js. Além disso tenha em vista que essa parte operacional, que está nesse exemplo, no sentido de atribuir valores de simulação aos componentes fronteira com portas de saida, essa parte deve ser feita de forma sem erros no transformador, lá devem ser definidos valores padrões para os diferentes tipos, como: 0.0, null, "null", false.  
+
+Atualmente, meu transformador, não realizando essa transformação corretamente, poderia resolver isso ?
+
+Transformation error: ReferenceError: params is not defined
+transformer.js:103
+arg1 =
+ReferenceError: params is not defined
+Failed variablesRequest: the requested object reference can't be found
