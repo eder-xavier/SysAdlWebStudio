@@ -1,49 +1,178 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SysADL Editor and Log Viewer</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.7/codemirror.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.7/theme/dracula.min.css">
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SysADL Web Studio</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>SysADL Editor and Log Viewer</h1>
-    <div id="input-section">
-        <input type="file" id="sysadlFile" multiple accept=".sysadl">
-        <button onclick="loadFilesToEditor()">Load Files to Editor</button>
-        <button onclick="processSysADL()">Process SysADL Code</button>
-        <button onclick="handleTransform()">Transform to Execute</button>
-        <button onclick="downloadJavaScript()">Download JavaScript</button>
+  <nav class="navbar">
+    <h1>SysADL Web Studio</h1>
+    <div class="nav-buttons">
+      <input type="file" id="fileInput" accept=".sysadl" style="display: none;">
+      <button onclick="document.getElementById('fileInput').click()">Load File</button>
+      <button onclick="transformAndPatch()">Transform</button>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="editor-section">
+      <h2>SysADL Editor</h2>
+      <textarea id="sysadlEditor"></textarea>
     </div>
 
-    <h2>SysADL Editor</h2>
-    <textarea id="sysadl-editor"></textarea>
+    <div class="output-section">
+      <div class="editor-section">
+        <h2>Architecture Code</h2>
+        <textarea id="archEditor"></textarea>
+        <div class="button-group">
+          <button id="downloadArchBtn" disabled>Download Architecture</button>
+        </div>
+      </div>
 
-    <h2>Parser Log</h2>
-    <textarea id="log-output"></textarea>
+      <div class="editor-section">
+        <h2>Simulation Code</h2>
+        <textarea id="simEditor"></textarea>
+        <div class="button-group">
+          <button id="downloadSimBtn" disabled>Download Simulation</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
-    <h2>Operational Semantics</h2>
-    <textarea id="js-output"></textarea>
+  <script src="codemirror-config.js"></script>
+  <script src="parser.js"></script>
+  <script src="syntaxFixer.js"></script>
+  <script src="transformer.js"></script>
+  <script src="patch_sysadl.js"></script>
+  <script>
+    // Inicializar editores CodeMirror
+    const sysadlEditor = CodeMirror.fromTextArea(document.getElementById('sysadlEditor'), {
+      mode: 'sysadl',
+      theme: 'monokai',
+      lineNumbers: true,
+      autoCloseBrackets: true,
+      lineWrapping: true,
+      styleActiveLine: true,
+      matchBrackets: true
+    });
+    const archEditor = CodeMirror.fromTextArea(document.getElementById('archEditor'), {
+      mode: 'javascript',
+      theme: 'monokai',
+      lineNumbers: true,
+      lineWrapping: true,
+      readOnly: true
+    });
+    const simEditor = CodeMirror.fromTextArea(document.getElementById('simEditor'), {
+      mode: 'javascript',
+      theme: 'monokai',
+      lineNumbers: true,
+      lineWrapping: true,
+      readOnly: true
+    });
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.7/codemirror.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.7/mode/javascript/javascript.min.js"></script>
-    <script src="codemirror-config.js"></script>
-    <script src="parser.js"></script>
-    <script src="syntaxFixer.js"></script>
-    <script src="transformer.js"></script>
-    <script>
-        // Manipulador assíncrono para o botão Transform to Execute
-        async function handleTransform() {
-            try {
-                await transformToJavaScript();
-            } catch (error) {
-                console.error('Error in handleTransform:', error);
-                alert('Error transforming code: ' + error.message);
-            }
+    // Função para validar sintaxe básica do SysADL
+    function validateSysADL() {
+      const code = sysadlEditor.getValue();
+      const lines = code.split('\n');
+      const errors = [];
+      const keywords = ["Model", "package", "component", "connector", "port", "activity", "action", "constraint", "executable", "allocations", "flow", "in", "out", "inout", "def", "configuration", "participants", "flows", "ports", "using", "bindings", "delegations", "body", "datastore", "value", "type", "enum", "datatype", "dimension", "unit", "extends", "equation", "pre-condition", "post-condition", "invariant"];
+      let inBlock = false;
+
+      lines.forEach((line, index) => {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('//')) return;
+
+        if (trimmed.match(/^\w+\s*{/)) {
+          inBlock = true;
+        } else if (trimmed === '}') {
+          inBlock = false;
+        } else if (!inBlock && !keywords.some(kw => trimmed.startsWith(kw)) && !trimmed.match(/^(type|enum|datatype)\s+\w+/)) {
+          errors.push({
+            message: `Invalid syntax: line must start with a SysADL keyword or be a block`,
+            from: CodeMirror.Pos(index, 0),
+            to: CodeMirror.Pos(index, line.length),
+            severity: 'error'
+          });
         }
-    </script>
+      });
+
+      sysadlEditor.setOption('lint', {
+        getAnnotations: () => errors,
+        async: true
+      });
+    }
+
+    // Wrapper para transformação e patching
+    function transformAndPatch() {
+        const sysadlCode = sysadlEditor.getValue();
+        if (!sysadlCode.trim()) {
+            logEditor.setValue('No SysADL code to transform.');
+            return;
+        }
+        try {
+            const parsedData = parseSysADL(sysadlCode);
+            let archCode = transformToJavaScript(parsedData);
+            archCode = patchSysADL(archCode, parsedData);
+            archCode = fixSyntax(archCode);
+            architectureEditor.setValue(archCode);
+            const simCode = generateSimulationCode(parsedData);
+            simulationEditor.setValue(simCode);
+            logEditor.setValue('Transformation and patching completed successfully.');
+        } catch (error) {
+            logEditor.setValue(`Error during transformation: ${error.message}`);
+        }
+    }
+
+    // Validar ao alterar ou colar o código
+    sysadlEditor.on('change', () => {
+      validateSysADL();
+    });
+
+    // Carregar arquivo .sysadl
+    document.getElementById('fileInput').addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (file && file.name.endsWith('.sysadl')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          sysadlEditor.setValue(e.target.result);
+          validateSysADL();
+        };
+        reader.readAsText(file);
+      } else {
+        alert('Please select a .sysadl file');
+      }
+    });
+
+    // Função de download
+    function downloadCode({ code, filename }) {
+      const blob = new Blob([code], { type: 'text/javascript' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // Eventos dos botões de download
+    document.getElementById('downloadArchBtn').addEventListener('click', () => {
+      if (window.currentArchitectureCode) {
+        downloadCode(window.currentArchitectureCode);
+      }
+    });
+    document.getElementById('downloadSimBtn').addEventListener('click', () => {
+      if (window.currentSimulationCode) {
+        downloadCode(window.currentSimulationCode);
+      }
+    });
+  </script>
 </body>
 </html>

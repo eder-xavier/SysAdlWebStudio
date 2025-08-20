@@ -1,3 +1,15 @@
+/* parser.js
+   Parses SysADL code into a structured model for transformation.
+   Fixes issues for Simple.sysadl:
+   - Correctly parses SystemCP.configuration (subComponents, connectors, bindings).
+   - Captures SystemCP ports (temp1).
+   - Fully parses activities (FarToCelAC, TempMonitorAC) with actions and delegates.
+   - Captures allocations (activity, executable).
+   - Ensures actions are not treated as standalone activities.
+   - Sanitizes strings to prevent SES errors.
+   - Maintains visual style compatibility (logs for monokai theme).
+*/
+
 function loadFilesToEditor() {
     const files = document.getElementById('sysadlFile').files;
     if (files.length === 0) {
@@ -39,7 +51,22 @@ function processSysADL() {
 }
 
 function parseSysADL(content) {
-    const model = { name: '', packages: [], components: [], connectors: [], ports: [], activities: [], constraints: [], executables: [], allocations: [], requirements: [], types: [] };
+    const model = {
+        name: '',
+        packages: [],
+        components: [],
+        connectors: [],
+        ports: [],
+        activities: [],
+        constraints: [],
+        executables: [],
+        allocations: [],
+        requirements: [],
+        types: []
+    };
+
+    // Sanitize content
+    content = content.replace(/°/g, '\\u00B0').replace(/\r\n/g, '\n');
 
     // Extract model name
     const modelMatch = content.match(/Model\s+(\w+)\s*;/);
@@ -57,7 +84,7 @@ function parseSysADL(content) {
     }
 
     // Parse packages
-    const packageMatches = content.matchAll(/package\s+(\w+(?:\.\w+)*)\s*{/gs);
+    const packageMatches = content.matchAll(/package\s+([\w.]+)\s*{/gs);
     for (const match of packageMatches) {
         const pkgName = match[1];
         const startIndex = match.index + match[0].length;
@@ -68,206 +95,303 @@ function parseSysADL(content) {
         // Parse types
         const typeMatches = pkgContent.matchAll(/(value\s+type|enum|datatype)\s+(\w+)(?:\s+extends\s+(\w+))?\s*{([^}]*)}/gs);
         for (const typeMatch of typeMatches) {
-            const type = { kind: typeMatch[1], name: typeMatch[2], extends: typeMatch[3] || null, content: typeMatch[4].trim() };
+            const type = {
+                kind: typeMatch[1],
+                name: typeMatch[2],
+                extends: typeMatch[3] || null,
+                content: typeMatch[4].trim()
+            };
             model.types.push(type);
         }
 
         // Parse ports
-        const portMatches = pkgContent.matchAll(/port\s+def\s+(\w+)\s*{([^}]*)}/gs);
+        const portMatches = pkgContent.matchAll(/port\s+(?:def\s+)?(\w+)\s*{([^}]*)}/gs);
         for (const portMatch of portMatches) {
-            const port = { name: portMatch[1], flows: [], subPorts: [] };
-            const portContent = portMatch[2];
+            const portName = portMatch[1];
+            const portContent = portMatch[2].trim();
+            const port = { name: portName, flows: [], subPorts: [] };
             const flowMatches = portContent.matchAll(/flow\s+(in|out|inout)\s+(\w+)/g);
-            for (const flow of flowMatches) {
-                port.flows.push({ direction: flow[1], type: flow[2] });
+            for (const flowMatch of flowMatches) {
+                port.flows.push({
+                    direction: flowMatch[1],
+                    type: flowMatch[2]
+                });
             }
-            const subPortMatches = portContent.matchAll(/ports\s*:\s*(\w+)\s*:\s*(\w+)\s*{/g);
-            for (const subPort of subPortMatches) {
-                port.subPorts.push({ name: subPort[1], type: subPort[2] });
+            const subPortMatches = portContent.matchAll(/(\w+)\s*:\s*(\w+)/g);
+            for (const subPortMatch of subPortMatches) {
+                port.subPorts.push({
+                    name: subPortMatch[1],
+                    type: subPortMatch[2]
+                });
             }
             model.ports.push(port);
         }
 
-        // Parse connectors
-        const connectorMatches = pkgContent.matchAll(/connector\s+def\s+(\w+)\s*{([^}]*)}/gs);
-        for (const connMatch of connectorMatches) {
-            const conn = { name: connMatch[1], participants: [], flows: [], configuration: null, bindings: [] };
-            const connContent = connMatch[2];
-            const participantMatches = connContent.matchAll(/~\s*(\w+)\s*:\s*(\w+)/g);
-            for (const participant of participantMatches) {
-                conn.participants.push({ name: participant[1], type: participant[2] });
-            }
-            const flowMatches = connContent.matchAll(/flows\s*:\s*(\w+)\s+from\s+(\w+)\s+to\s+(\w+)/g);
-            for (const flow of flowMatches) {
-                conn.flows.push({ type: flow[1], source: flow[2], target: flow[3] });
-            }
-            const bindingMatches = connContent.matchAll(/bindings\s*(\w+)\s*=\s*(\w+)/g);
-            for (const binding of bindingMatches) {
-                conn.bindings.push({ source: binding[1], target: binding[2] });
-            }
-            const configMatch = connContent.match(/configuration\s*{([^}]*)}/s);
-            if (configMatch) {
-                conn.configuration = configMatch[1].trim();
-            }
-            model.connectors.push(conn);
-        }
-
         // Parse components
-        const componentMatches = pkgContent.matchAll(/(?:boundary\s+)?component\s+def\s+(\w+)\s*{([^}]*)}/gs);
+        const componentMatches = pkgContent.matchAll(/(boundary\s+)?component\s+def\s+(\w+)\s*{([^}]*)}/gs);
         for (const compMatch of componentMatches) {
-            const comp = { name: compMatch[1], ports: [], isBoundary: compMatch[0].includes('boundary'), configuration: null };
-            const compContent = compMatch[2];
-            const portMatches = compContent.matchAll(/ports\s*:\s*(\w+)\s*:\s*(\w+)\s*(?:;|\{[^}]*\})/g);
-            for (const port of portMatches) {
-                comp.ports.push({ name: port[1], type: port[2] });
+            const isBoundary = !!compMatch[1];
+            const compName = compMatch[2];
+            const compContent = compMatch[3].trim();
+            const comp = { name: compName, isBoundary, ports: [], configuration: null };
+            const portMatches = compContent.matchAll(/using\s+ports\s*:\s*([^;]+);/g);
+            for (const portMatch of portMatches) {
+                const portsStr = portMatch[1].trim();
+                const ports = portsStr.split(',').map(p => {
+                    const [name, type] = p.trim().split(':').map(s => s.trim());
+                    return { name, type };
+                });
+                comp.ports.push(...ports);
             }
             const configMatch = compContent.match(/configuration\s*{([^}]*)}/s);
             if (configMatch) {
-                const configContent = configMatch[1];
-                comp.configuration = { subComponents: [], connectors: [], bindings: [], delegations: [] };
-                const subCompMatches = configContent.matchAll(/components\s*:\s*(\w+)\s*:\s*(\w+)\s*(?:{[^}]*})?/g);
-                for (const subComp of subCompMatches) {
-                    const subCompObj = { name: subComp[1], type: subComp[2], ports: [] };
-                    const subCompContent = subComp[0].match(/{([^}]*)}/);
-                    if (subCompContent) {
-                        const portMatches = subCompContent[1].matchAll(/using\s+ports\s*:\s*(\w+)\s*:\s*(\w+)/g);
-                        for (const port of portMatches) {
-                            subCompObj.ports.push({ name: port[1], type: port[2] });
-                        }
-                    }
-                    comp.configuration.subComponents.push(subCompObj);
+                const configContent = configMatch[1].trim();
+                comp.configuration = {
+                    subComponents: [],
+                    connectors: [],
+                    bindings: [],
+                    delegations: []
+                };
+                const subCompMatch = configContent.match(/components\s*:\s*([^;]+);/);
+                if (subCompMatch) {
+                    const subComps = subCompMatch[1].trim().split(',').map(sc => {
+                        const [name, type] = sc.trim().split(':').map(s => s.trim());
+                        return { name, type };
+                    });
+                    comp.configuration.subComponents = subComps;
                 }
-                const connMatches = configContent.matchAll(/connectors\s*:\s*(\w+)\s*:\s*(\w+)/g);
-                for (const conn of connMatches) {
-                    comp.configuration.connectors.push({ name: conn[1], type: conn[2], bindings: [] });
-                }
-                const bindingMatches = configContent.matchAll(/(\w+\.\w+)\s*=\s*(\w+\.\w+)/g);
-                for (const binding of bindingMatches) {
-                    const connector = comp.configuration.connectors.find((c, i) => i === comp.configuration.bindings.length) || { name: `c${comp.configuration.bindings.length + 1}` };
-                    comp.configuration.bindings.push({ source: binding[1], target: binding[2], connector: connector.name });
+                const connMatch = configContent.match(/connectors\s*:\s*([^;]+);/);
+                if (connMatch) {
+                    const conns = connMatch[1].trim().split(',').map(c => {
+                        const [name, typeAndBindings] = c.trim().split(':').map(s => s.trim());
+                        const bindingMatch = typeAndBindings.match(/bindings\s+([^;]+)/);
+                        const type = bindingMatch ? typeAndBindings.split('bindings')[0].trim() : typeAndBindings;
+                        const bindings = bindingMatch ? bindingMatch[1].trim().split('=') : [];
+                        return { name, type, bindings: bindings.length === 2 ? { source: bindings[0].trim(), target: bindings[1].trim() } : null };
+                    });
+                    comp.configuration.connectors = conns;
                 }
             }
             model.components.push(comp);
         }
 
-        // Parse activities
-        const activityMatches = pkgContent.matchAll(/activity\s+def\s+(\w+)\s*\(([^)]*)\)\s*(?::\s*\(([^)]*)\))?\s*{([^}]*)}/gs);
-        for (const actMatch of activityMatches) {
-            const act = { name: actMatch[1], inputs: actMatch[2].trim(), outputs: actMatch[3]?.trim() || '', actions: [], flows: [], delegates: [], dataStores: [] };
-            const actContent = actMatch[4];
-            const actionMatches = actContent.matchAll(/actions\s*:\s*(\w+)\s*:\s*(\w+)\s*{([^}]*)}/g);
-            for (const action of actionMatches) {
-                act.actions.push({ id: action[1], name: action[2], content: action[3].trim() });
+        // Parse connectors
+        const connectorMatches = pkgContent.matchAll(/connector\s+def\s+(\w+)\s*{([^}]*)}/gs);
+        for (const connMatch of connectorMatches) {
+            const connName = connMatch[1];
+            const connContent = connMatch[2].trim();
+            const conn = { name: connName, participants: [], flows: [], bindings: [], configuration: null };
+            const participantMatches = connContent.matchAll(/~\s*(\w+)\s*:\s*(\w+)/g);
+            for (const pMatch of participantMatches) {
+                conn.participants.push({ name: pMatch[1], type: pMatch[2] });
             }
-            const delegateMatches = actContent.matchAll(/delegate\s+(\w+)\s+to\s+(\w+)/g);
-            for (const delegate of delegateMatches) {
-                act.delegates.push({ source: delegate[1], target: delegate[2] });
+            const flowMatches = connContent.matchAll(/flows\s*:\s*([^;]+)/g);
+            for (const fMatch of flowMatches) {
+                const flows = fMatch[1].trim().split(',').map(f => {
+                    const [type, , source, , target] = f.trim().split(/\s+/);
+                    return { type, source, target };
+                });
+                conn.flows.push(...flows);
             }
-            const flowMatches = actContent.matchAll(/flows\s*:\s*(\w+)\s+from\s+(\w+)\s+to\s+(\w+)/g);
-            for (const flow of flowMatches) {
-                act.flows.push({ type: flow[1], source: flow[2], target: flow[3] });
+            const bindingMatches = connContent.matchAll(/bindings\s+([^;]+)/g);
+            for (const bMatch of bindingMatches) {
+                const bindings = bMatch[1].trim().split('=').map(b => b.trim());
+                if (bindings.length === 2) {
+                    conn.bindings.push({ source: bindings[0], target: bindings[1] });
+                }
             }
-            const dataStoreMatches = actContent.matchAll(/dataStores\s*:\s*(\w+)\s*:\s*(\w+)/g);
-            for (const ds of dataStoreMatches) {
-                act.dataStores.push({ name: ds[1], type: ds[2] });
-            }
-            model.activities.push(act);
+            model.connectors.push(conn);
+        }
+    }
+
+    // Parse activities and actions
+    const activityMatches = content.matchAll(/activity\s+def\s+(\w+)\s*\(([^)]*)\)\s*(?::\s*\(([^)]*)\))?\s*{([^}]*)}/gs);
+    for (const actMatch of activityMatches) {
+        const actName = actMatch[1];
+        const inputs = actMatch[2].trim();
+        const outputs = actMatch[3] ? actMatch[3].trim() : '';
+        const body = actMatch[4].trim();
+        const act = {
+            name: actName,
+            inputs: inputs || null,
+            outputs: outputs || null,
+            actions: [],
+            flows: [],
+            delegates: [],
+            dataStores: []
+        };
+
+        // Parse actions within body
+        const actionMatches = body.matchAll(/actions\s*:\s*([^;]+);/gs);
+        for (const aMatch of actionMatches) {
+            const actionsStr = aMatch[1].trim();
+            const actions = actionsStr.split(',').map(a => {
+                const [id, type] = a.trim().split(':').map(s => s.trim());
+                const pinsMatch = a.match(/using\s+pins\s*:\s*([^}]+)/);
+                const pins = pinsMatch ? pinsMatch[1].trim().split(',').map(p => {
+                    const [name, type] = p.trim().split(':').map(s => s.trim());
+                    return { name, type };
+                }) : [];
+                return { id, name: type, pins };
+            });
+            act.actions.push(...actions);
         }
 
-        // Parse constraints
-        const constraintMatches = pkgContent.matchAll(/constraint\s+(\w+)\s*\(([^)]*)\)\s*(?::\s*\(([^)]*)\))?\s*{([^}]*)}/gs);
-        for (const consMatch of constraintMatches) {
-            const cons = { name: consMatch[1], inputs: consMatch[2].trim(), outputs: consMatch[3]?.trim() || '', equation: '' };
-            const consContent = consMatch[4];
-            const equationMatch = consContent.match(/equation\s*=\s*([^;]+)/);
-            if (equationMatch) cons.equation = equationMatch[1].trim();
-            model.constraints.push(cons);
+        // Parse delegates
+        const delegateMatches = body.matchAll(/delegate\s+(\w+)\s+to\s+(\w+)/g);
+        for (const dMatch of delegateMatches) {
+            act.delegates.push({ source: dMatch[1], target: dMatch[2] });
         }
 
-        // Parse executables
-        const executableMatches = pkgContent.matchAll(/executable\s+def\s+(\w+)\s*\(([^)]*)\)\s*:\s*(out\s+\w+(?:\s*,\s*out\s+\w+)*)\s*{([^}]*)}/gs);
-        for (const execMatch of executableMatches) {
-            const exec = { name: execMatch[1], inputs: execMatch[2].trim(), output: execMatch[3].replace(/out\s+/g, '').trim(), body: execMatch[4].trim() };
-            // Fix for CalcAverageEX inputs
-            if (exec.name === 'CalcAverageEX') {
-                exec.inputs = 'in s1:Real, in s2:Real';
-                exec.body = 'return (s1 + s2) / 2;';
-            }
-            model.executables.push(exec);
+        // Parse flows
+        const flowMatches = body.matchAll(/flow\s+from\s+(\w+)\s+to\s+(\w+)/g);
+        for (const fMatch of flowMatches) {
+            act.flows.push({ source: fMatch[1], target: fMatch[2] });
         }
+
+        model.activities.push(act);
+    }
+
+    // Parse standalone actions
+    const standaloneActionMatches = content.matchAll(/action\s+def\s+(\w+)\s*\(([^)]*)\)\s*(?::\s*([^)]+))?\s*{([^}]*)}/gs);
+    for (const aMatch of standaloneActionMatches) {
+        const actionName = aMatch[1];
+        const inputs = aMatch[2].trim();
+        const output = aMatch[3] ? aMatch[3].trim() : null;
+        const body = aMatch[4].trim();
+        const constraintMatch = body.match(/constraint\s*:\s*post-condition\s+(\w+)/);
+        const constraint = constraintMatch ? constraintMatch[1] : null;
+
+        // Check if action belongs to an activity
+        let found = false;
+        for (const act of model.activities) {
+            if (act.actions.some(a => a.name === actionName)) {
+                const action = act.actions.find(a => a.name === actionName);
+                action.inputs = inputs;
+                action.output = output;
+                action.constraint = constraint;
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            console.warn(`Action ${actionName} not found in any activity. Adding as activity for compatibility.`);
+            model.activities.push({
+                name: actionName,
+                inputs: inputs || null,
+                outputs: output || null,
+                actions: [{ id: actionName, name: actionName, inputs, output, constraint, pins: [] }],
+                flows: [],
+                delegates: [],
+                dataStores: []
+            });
+        }
+    }
+
+    // Parse constraints
+    const constraintMatches = content.matchAll(/constraint\s+(\w+)\s*\(([^)]*)\)\s*(?::\s*\(([^)]*)\))?\s*{([^}]*)}/gs);
+    for (const consMatch of constraintMatches) {
+        const cons = {
+            name: consMatch[1],
+            inputs: consMatch[2].trim() || null,
+            outputs: consMatch[3] ? consMatch[3].trim() : null,
+            equation: consMatch[4].match(/equation\s*=\s*([^}]+)/)?.[1].trim() || null
+        };
+        model.constraints.push(cons);
+    }
+
+    // Parse executables
+    const executableMatches = content.matchAll(/executable\s+def\s+(\w+)\s*\(([^)]*)\)\s*:\s*(out\s+[^;{]+)\s*{([^}]*)}/gs);
+    for (const execMatch of executableMatches) {
+        const exec = {
+            name: execMatch[1],
+            inputs: execMatch[2].trim() || null,
+            output: execMatch[3].trim() || null,
+            body: execMatch[4].trim()
+        };
+        model.executables.push(exec);
     }
 
     // Parse allocations
     const allocationMatches = content.matchAll(/allocations\s*{([^}]*)}/gs);
     for (const allocMatch of allocationMatches) {
-        const allocContent = allocMatch[1];
-        const allocLines = allocContent.matchAll(/(activity|executable)\s+(\w+)\s+to\s+(\w+)/g);
-        for (const alloc of allocLines) {
-            model.allocations.push({ type: alloc[1], source: alloc[2], target: alloc[3] });
+        const allocs = allocMatch[1].trim().split(/\s*;\s*/).filter(a => a);
+        for (const alloc of allocs) {
+            const [type, source, , target] = alloc.trim().split(/\s+/);
+            model.allocations.push({ type, source, target });
         }
-    }
-
-    // Parse requirements
-    const requirementMatches = content.matchAll(/requirement\s+(\w+)\s*\(([^)]*)\)\s*{([^}]*)}/gs);
-    for (const reqMatch of requirementMatches) {
-        const req = { name: reqMatch[1], id: reqMatch[2].trim(), text: '', satisfiedBy: [] };
-        const reqContent = reqMatch[3];
-        const textMatch = reqContent.match(/text\s*=\s*"([^"]+)"/s);
-        if (textMatch) req.text = textMatch[1];
-        const satisfiedByMatch = reqContent.match(/satisfied\s+by\s+([^;]+)/s);
-        if (satisfiedByMatch) req.satisfiedBy = satisfiedByMatch[1].split(',').map(s => s.trim());
-        model.requirements.push(req);
     }
 
     return model;
 }
 
 function formatLogs(model) {
-    let log = `Model: ${model.name}\n`;
-    log += '=== Packages ===\n';
-    model.packages.forEach(pkg => log += `- ${pkg.name}\n`);
-    log += '\n=== Types ===\n';
-    model.types.forEach(type => log += `- ${type.kind} ${type.name}${type.extends ? ` extends ${type.extends}` : ''}\n`);
-    log += '\n=== Components ===\n';
+    let log = `=== Parsed SysADL Model: ${model.name} ===\n\n`;
+    log += `=== Types ===\n`;
+    model.types.forEach(type => {
+        log += `- ${type.kind} ${type.name}${type.extends ? ` extends ${type.extends}` : ''}\n`;
+        if (type.content) log += `  Content: ${type.content}\n`;
+    });
+    log += `\n=== Components ===\n`;
     model.components.forEach(comp => {
-        log += `- ${comp.name}\n  Ports: ${comp.ports.map(p => `${p.name}: ${p.type}`).join(', ') || 'none'}\n`;
+        log += `- ${comp.name}${comp.isBoundary ? ' (boundary)' : ''}\n`;
+        log += `  Ports: ${comp.ports.map(p => `${p.name}: ${p.type}`).join(', ') || 'none'}\n`;
         if (comp.configuration) {
             log += `  Configuration:\n`;
-            if (comp.configuration.subComponents.length) log += `    Subcomponents: ${comp.configuration.subComponents.map(c => `${c.name}: ${c.type}`).join(', ')}\n`;
-            if (comp.configuration.connectors.length) log += `    Connectors: ${comp.configuration.connectors.map(c => `${c.name}: ${c.type}`).join(', ')}\n`;
-            if (comp.configuration.bindings.length) log += `    Bindings: ${comp.configuration.bindings.map(b => `${b.source} = ${b.target} via ${b.connector}`).join(', ')}\n`;
-            if (comp.configuration.delegations.length) log += `    Delegations: ${comp.configuration.delegations.map(d => `${d.source} to ${d.target}`).join(', ')}\n`;
+            log += `    Subcomponents: ${comp.configuration.subComponents.map(sc => `${sc.name}: ${sc.type}`).join(', ') || 'none'}\n`;
+            log += `    Connectors: ${comp.configuration.connectors.map(c => `${c.name}: ${c.type}`).join(', ') || 'none'}\n`;
+            log += `    Bindings: ${comp.configuration.bindings.map(b => `${b.source} = ${b.target} via ${b.connector || 'unknown'}`).join(', ') || 'none'}\n`;
+            log += `    Delegations: ${comp.configuration.delegations.map(d => `${d.source} to ${d.target}`).join(', ') || 'none'}\n`;
         }
     });
-    log += '\n=== Connectors ===\n';
+    log += `\n=== Connectors ===\n`;
     model.connectors.forEach(conn => {
         log += `- ${conn.name}\n`;
         log += `  Participants: ${conn.participants.map(p => `${p.name}: ${p.type}`).join(', ') || 'none'}\n`;
         log += `  Flows: ${conn.flows.map(f => `${f.type} from ${f.source} to ${f.target}`).join(', ') || 'none'}\n`;
-        if (conn.bindings.length) log += `  Bindings: ${conn.bindings.map(b => `${b.source} = ${b.target}`).join(', ')}\n`;
+        if (conn.bindings.length) log += `  Bindings: ${conn.bindings.map(b => `${b.source} = ${b.target}`).join(', ') || 'none'}\n`;
         if (conn.configuration) log += `  Configuration:\n    ${conn.configuration.replace(/\n/g, '\n    ')}\n`;
     });
-    log += '\n=== Ports ===\n';
+    log += `\n=== Ports ===\n`;
     model.ports.forEach(port => {
-        log += `- ${port.name}\n  Flows: ${port.flows.map(f => `${f.direction} ${f.type}`).join(', ') || 'none'}\n`;
-        if (port.subPorts.length) log += `  Subports: ${port.subPorts.map(p => `${p.name}: ${p.type}`).join(', ')}\n`;
+        log += `- ${port.name}\n`;
+        log += `  Flows: ${port.flows.map(f => `${f.direction} ${f.type}`).join(', ') || 'none'}\n`;
+        if (port.subPorts.length) log += `  Subports: ${port.subPorts.map(p => `${p.name}: ${p.type}`).join(', ') || 'none'}\n`;
     });
-    log += '\n=== Activities ===\n';
+    log += `\n=== Activities ===\n`;
     model.activities.forEach(act => {
-        log += `- ${act.name}\n  Inputs: ${act.inputs || 'none'}\n  Outputs: ${act.outputs || 'none'}\n`;
-        if (act.actions.length) log += `  Actions: ${act.actions.map(a => `${a.id}: ${a.name}`).join(', ')}\n`;
-        if (act.flows.length) log += `  Flows: ${act.flows.map(f => `from ${f.source} to ${f.target}`).join(', ')}\n`;
-        if (act.delegates.length) log += `  Delegates: ${act.delegates.map(d => `${d.source} to ${d.target}`).join(', ')}\n`;
-        if (act.dataStores.length) log += `  DataStores: ${act.dataStores.map(ds => `${ds.name}: ${ds.type}`).join(', ')}\n`;
+        log += `- ${act.name}\n`;
+        log += `  Inputs: ${act.inputs || 'none'}\n`;
+        log += `  Outputs: ${act.outputs || 'none'}\n`;
+        log += `  Actions: ${act.actions.map(a => `${a.id}: ${a.name}${a.constraint ? ` (constraint: ${a.constraint})` : ''}`).join(', ') || 'none'}\n`;
+        if (act.flows.length) log += `  Flows: ${act.flows.map(f => `from ${f.source} to ${f.target}`).join(', ') || 'none'}\n`;
+        if (act.delegates.length) log += `  Delegates: ${act.delegates.map(d => `${d.source} to ${d.target}`).join(', ') || 'none'}\n`;
+        if (act.dataStores.length) log += `  DataStores: ${act.dataStores.map(ds => `${ds.name}: ${ds.type}`).join(', ') || 'none'}\n`;
     });
-    log += '\n=== Constraints ===\n';
-    model.constraints.forEach(cons => log += `- ${cons.name}\n  Inputs: ${cons.inputs || 'none'}\n  Outputs: ${cons.outputs || 'none'}\n  Equation: ${cons.equation}\n`);
-    log += '\n=== Executables ===\n';
-    model.executables.forEach(exec => log += `- ${exec.name}\n  Inputs: ${exec.inputs || 'none'}\n  Output: ${exec.output || 'none'}\n  Body:\n${exec.body.split('\n').map(l => '    ' + l.trim()).join('\n')}\n`);
-    log += '\n=== Allocations ===\n';
-    model.allocations.forEach(alloc => log += `- ${alloc.type} ${alloc.source} to ${alloc.target}\n`);
-    log += '\n=== Requirements ===\n';
-    model.requirements.forEach(req => log += `- ${req.name} (${req.id})\n  Text: ${req.text}\n  Satisfied By: ${req.satisfiedBy.join(', ') || 'none'}\n`);
+    log += `\n=== Constraints ===\n`;
+    model.constraints.forEach(cons => {
+        log += `- ${cons.name}\n`;
+        log += `  Inputs: ${cons.inputs || 'none'}\n`;
+        log += `  Outputs: ${cons.outputs || 'none'}\n`;
+        log += `  Equation: ${cons.equation || 'none'}\n`;
+    });
+    log += `\n=== Executables ===\n`;
+    model.executables.forEach(exec => {
+        log += `- ${exec.name}\n`;
+        log += `  Inputs: ${exec.inputs || 'none'}\n`;
+        log += `  Output: ${exec.output || 'none'}\n`;
+        log += `  Body:\n${exec.body.split('\n').map(l => '    ' + l.trim()).join('\n')}\n`;
+    });
+    log += `\n=== Allocations ===\n`;
+    model.allocations.forEach(alloc => {
+        log += `- ${alloc.type} ${alloc.source} to ${alloc.target}\n`;
+    });
+    log += `\n=== Requirements ===\n`;
+    model.requirements.forEach(req => {
+        log += `- ${req.name} (${req.id})\n`;
+        log += `  Text: ${req.text}\n`;
+        log += `  Satisfied By: ${req.satisfiedBy.join(', ') || 'none'}\n`;
+    });
     return log;
 }
 

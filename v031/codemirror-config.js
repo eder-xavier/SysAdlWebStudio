@@ -37,27 +37,30 @@ CodeMirror.defineMode("sysadl", function() {
     };
 });
 
-// Inicializar editores CodeMirror
-const sysadlTextarea = document.getElementById('sysadl-editor');
-const sysadlEditor = CodeMirror.fromTextArea(sysadlTextarea, {
-    mode: 'sysadl',
-    theme: 'dracula',
-    lineNumbers: true,
-    autoCloseBrackets: true
-});
+// Configurar lint para validação de sintaxe
+CodeMirror.registerHelper("lint", "sysadl", function(text) {
+    const errors = [];
+    const lines = text.split('\n');
+    const keywords = ["Model", "package", "component", "connector", "port", "activity", "action", "constraint", "executable", "allocations", "flow", "in", "out", "inout", "def", "configuration", "participants", "flows", "ports", "using", "bindings", "delegations", "body", "datastore", "value", "type", "enum", "datatype", "dimension", "unit", "extends", "equation", "pre-condition", "post-condition", "invariant"];
+    let inBlock = false;
 
-const logTextarea = document.getElementById('log-output');
-const logEditor = CodeMirror.fromTextArea(logTextarea, {
-    mode: 'javascript',
-    theme: 'dracula',
-    lineNumbers: true,
-    readOnly: true
-});
+    lines.forEach((line, index) => {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('//')) return;
 
-const jsTextarea = document.getElementById('js-output');
-const jsEditor = CodeMirror.fromTextArea(jsTextarea, {
-    mode: 'javascript',
-    theme: 'dracula',
-    lineNumbers: true,
-    readOnly: true
+        if (trimmed.match(/^\w+\s*{/)) {
+            inBlock = true;
+        } else if (trimmed === '}') {
+            inBlock = false;
+        } else if (!inBlock && !keywords.some(kw => trimmed.startsWith(kw)) && !trimmed.match(/^(type|enum|datatype)\s+\w+/)) {
+            errors.push({
+                message: `Invalid syntax: line must start with a SysADL keyword or be a block`,
+                from: CodeMirror.Pos(index, 0),
+                to: CodeMirror.Pos(index, line.length),
+                severity: 'error'
+            });
+        }
+    });
+
+    return errors;
 });
