@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "monaco-editor": "^0.50.0",
     "pegjs": "^0.10.0"
   },
   "name": "sysadls",

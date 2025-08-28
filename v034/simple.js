@@ -1,15 +1,16 @@
-Seguinte, vamos reduzir o campo, para testar inicialmente a primeira parte, resolvi fazer em javascript puro, mas não está dando certo, o transformador transforma, mas não gera o código ideal, acho que o parser deixa passar muitas partes importantes, tome como base o simple.js como modelo ideal e que deve ser gerado a partir do simple.sysadl... quanto ao codemirror que usei, pode substituir pelo monaco, que é mais completo e suporta erros e autocompletar... desde que mantenha o que configurei como cores para alguns parâmetros sysadl...
-anexei os arquivos que fiz até agora aqui, acho que para resolver o atual problema de ineficiencia, os arquivos principais a serem mudados são o parser.js e o transfomer.js, não use o parser da resposta anterior que estva dando erro.. mas sim ajuste esse atual, lçembre que ele deve suportar exemplos mais complexos como os do RTC e AGV...  e atualmente é esse o codigo da arquitetura que está sendo gerado a partir de simple.sysadl:
-
-
- // @ts-nocheck
-// Generated JavaScript code for SysADL Model: SysADLModel
+// @ts-nocheck
+// Generated JavaScript code for SysADL Model: Simple
 
 let system = null;
 
 // Types
+const Real = 'any';
+const Int = 'any';
+const Boolean = 'any'; 
+const String = 'any'; 
+const Void = 'any'; 
 
-
+// Base Port Class
 class SysADLPort {
     constructor(name, flowType, direction = 'inout') {
         console.log(`Initializing port ${name} with flowType ${flowType}, direction ${direction}`);
@@ -20,13 +21,16 @@ class SysADLPort {
         this.bindings = [];
         this.onDataReceivedCallback = null;
     }
+
     addBinding(binding) {
         this.bindings.push(binding);
         console.log(`Binding added to port ${this.name}: ${binding.sourceComponent?.name || 'undefined'}.${binding.sourcePort?.name || 'undefined'} -> ${binding.targetComponent?.name || 'undefined'}.${binding.targetPort?.name || 'undefined'}`);
     }
+
     setOnDataReceivedCallback(callback) {
         this.onDataReceivedCallback = callback;
     }
+
     async send(data) {
         console.log(`Port ${this.name} sending data: ${JSON.stringify(data)}`);
         if (this.direction !== 'out' && this.direction !== 'inout') {
@@ -44,6 +48,7 @@ class SysADLPort {
         }
         return true;
     }
+
     async receive(data) {
         console.log(`Port ${this.name} receiving data: ${JSON.stringify(data)}`);
         if (this.direction !== 'in' && this.direction !== 'inout') {
@@ -58,11 +63,13 @@ class SysADLPort {
         }
         return true;
     }
+
     getValue() {
         return this.value;
     }
 }
 
+// Base Connector Class
 class SysADLConnector {
     constructor(name, sourcePort = null, targetPort = null, transformFn = null, constraintFn = null) {
         console.log(`Initializing connector ${name}`);
@@ -74,11 +81,13 @@ class SysADLConnector {
         this.messageQueue = [];
         this.isProcessing = false;
     }
+
     setPorts(sourcePort, targetPort) {
         this.sourcePort = sourcePort;
         this.targetPort = targetPort;
         console.log(`Connector ${this.name} configured with sourcePort ${sourcePort?.name || 'undefined'} and targetPort ${targetPort?.name || 'undefined'}`);
     }
+
     async transmit(data) {
         console.log(`Connector ${this.name} transmitting data: ${JSON.stringify(data)}`);
         if (!this.sourcePort || !this.targetPort) {
@@ -106,6 +115,7 @@ class SysADLConnector {
     }
 }
 
+// Binding Class
 class Binding {
     constructor(sourceComponent, sourcePort, targetComponent, targetPort, connector) {
         if (!sourceComponent || !sourcePort || !targetComponent || !targetPort || !connector) {
@@ -129,6 +139,7 @@ class Binding {
     }
 }
 
+// Base Component Class
 class SysADLComponent {
     constructor(name, isBoundary = false) {
         console.log(`Initializing component ${name}, isBoundary: ${isBoundary}`);
@@ -138,11 +149,13 @@ class SysADLComponent {
         this.state = {};
         this.activities = [];
     }
+
     async addPort(port) {
         this.ports.push(port);
         port.setOnDataReceivedCallback((portName, data) => this.onDataReceived(portName, data));
         console.log(`Port ${port.name} added to component ${this.name}, flowType: ${port.flowType}`);
     }
+
     async onDataReceived(portName, data) {
         console.log(`Component ${this.name} received data on port ${portName}: ${JSON.stringify(data)}`);
         this.state[portName] = data;
@@ -151,74 +164,227 @@ class SysADLComponent {
             await this[activity.methodName]();
         }
     }
+
     async start() {
         console.log(`Starting component ${this.name}`);
-        if (this.subComponents) {
-            await Promise.all(Array.from(this.subComponents.values()).map(sub => sub.start()));
-        }
     }
 }
 
 // Component Classes
-class SystemCP extends SysADLComponent {
-    constructor() {
-        super('SystemCP', false);
-        this.subComponents = new Map();
-        this.connectors = new Map();
-        this.bindings = [];
-        this.addSubComponent('s1', new SensorCP('s1', temp1));
-        this.addSubComponent('s2', new SensorCP('s2', temp2));
-        this.addSubComponent('tempMon', new TempMonitorCP('tempMon', s1));
-        this.addSubComponent('stdOut', new StdOutCP('stdOut', avg));
-        this.addConnector('c1', new FarToCelCN());
-        this.addConnector('c2', new FarToCelCN());
-        this.addConnector('c3', new CelToCelCN());
-        this.configureBindings();
-    async addSubComponent(name, component) {
-        this.subComponents.set(name, component);
-        console.log(`Subcomponent ${name} added to ${this.name}`);
-    }
-    async addConnector(name, connector) {
-        this.connectors.set(name, connector);
-        console.log(`Connector ${name} added to ${this.name}`);
-    }
-    async addBinding(binding) {
-        this.bindings.push(binding);
-        console.log(`Binding added: ${binding.sourceComponent.name}.${binding.sourcePort.name} -> ${binding.targetComponent.name}.${binding.targetPort.name} via ${binding.connector.name}`);
-    }
-    configureBindings() {
-        console.log('Configuring bindings for SystemCP');
-    }
-}
-class TempMonitorCP extends SysADLComponent {
-    constructor() {
-        super('TempMonitorCP', true);
-        this.addPort(new SysADLPort('s1', 'CTempIPT', 'in'));
-        this.state['s1'] = null;
-        this.addPort(new SysADLPort('s2', 'CTempIPT', 'in'));
-        this.state['s2'] = null;
-        this.addPort(new SysADLPort('average', 'CTempOPT', 'out'));
-        this.state['average'] = null;
-}
 class SensorCP extends SysADLComponent {
     constructor(name, portName) {
-        super('' + name + '', false);
-        this.addPort(new SysADLPort(portName, 'FTempOPT', 'in'));
+        super(name, true);
+        this.addPort(new SysADLPort(portName, 'Real', 'out'));
         this.state[portName] = null;
+    }
+
+    async start() {
+        console.log(`Starting component ${this.name}`);
+    }
 }
+
+class TempMonitorCP extends SysADLComponent {
+    constructor() {
+        super('TempMonitorCP', false);
+        this.addPort(new SysADLPort('s1', 'Real', 'in'));
+        this.addPort(new SysADLPort('s2', 'Real', 'in'));
+        this.addPort(new SysADLPort('average', 'Real', 'out'));
+        this.state['s1'] = null;
+        this.state['s2'] = null;
+        this.state['average'] = null;
+        this.activities.push({ methodName: 'executeFarToCelAC' });
+        this.activities.push({ methodName: 'executeTempMonitorAC' });
+    }
+
+    async executeFarToCelAC() {
+        console.log('Executing activity FarToCelAC in component TempMonitorCP');
+        const params = { far: this.state['s1'] || this.state['s2'] };
+        console.log(`Parameters received: far=${params.far}`);
+        if (params.far === null) {
+            console.warn('Input values are null, activity FarToCelAC aborted');
+            return null;
+        }
+        const result = await FarToCelEX(params);
+        try {
+            await validateFarToCelEQ({ f: params.far, c: result });
+        } catch (e) {
+            console.error(`Constraint FarToCelEQ violated: ${e.message}`);
+            return null;
+        }
+        this.state['s1'] = result;
+        console.log(`Activity FarToCelAC returning: ${result}`);
+        return result;
+    }
+
+    async executeTempMonitorAC() {
+        console.log('Executing activity TempMonitorAC in component TempMonitorCP');
+        const params = { s1: this.state['s1'], s2: this.state['s2'] };
+        console.log(`Parameters received: s1=${params.s1}, s2=${params.s2}`);
+        if (params.s1 === null || params.s2 === null) {
+            console.warn('Input values are null, activity TempMonitorAC aborted');
+            return null;
+        }
+        const result = await CalcAverageEX(params);
+        try {
+            await validateCalcAverageEQ({ t1: params.s1, t2: params.s2, av: result });
+        } catch (e) {
+            console.error(`Constraint CalcAverageEQ violated: ${e.message}`);
+            return null;
+        }
+        this.state['average'] = result;
+        const averagePort = this.ports.find(p => p.name === 'average');
+        if (averagePort) {
+            console.log(`Sending average ${result} via port average`);
+            await averagePort.send(result);
+        }
+        console.log(`Activity TempMonitorAC returning: ${result}`);
+        return result;
+    }
+}
+
 class StdOutCP extends SysADLComponent {
     constructor() {
         super('StdOutCP', true);
-        this.addPort(new SysADLPort('c3', 'CTempIPT', 'in'));
-        this.state['c3'] = null;
+        this.addPort(new SysADLPort('avg', 'Real', 'in'));
+        this.state['avg'] = null;
+    }
+
     async onDataReceived(portName, data) {
         console.log(`StdOutCP received data on port ${portName}: ${JSON.stringify(data)}`);
         this.state[portName] = data;
         console.log(`Average temperature displayed: ${data}\u00B0C`);
     }
 }
+
+class SystemCP extends SysADLComponent {
+    constructor() {
+        super('SystemCP', false);
+        this.subComponents = new Map();
+        this.connectors = new Map();
+        this.bindings = [];
+        this.addSubComponent('s1', new SensorCP('s1', 'temp1'));
+        this.addSubComponent('s2', new SensorCP('s2', 'temp2'));
+        this.addSubComponent('tempMon', new TempMonitorCP());
+        this.addSubComponent('stdOut', new StdOutCP());
+        this.addConnector('c1', new FarToCelCN());
+        this.addConnector('c2', new FarToCelCN());
+        this.addConnector('c3', new CelToCelCN());
+        this.configureBindings();
+    }
+
+    async addSubComponent(name, component) {
+        this.subComponents.set(name, component);
+        console.log(`Subcomponent ${name} added to ${this.name}`);
+    }
+
+    async addConnector(name, connector) {
+        this.connectors.set(name, connector);
+        console.log(`Connector ${name} added to ${this.name}`);
+    }
+
+    async addBinding(binding) {
+        this.bindings.push(binding);
+        console.log(`Binding added: ${binding.sourceComponent.name}.${binding.sourcePort.name} -> ${binding.targetComponent.name}.${binding.targetPort.name} via ${binding.connector.name}`);
+    }
+
+    configureBindings() {
+        console.log('Configuring bindings for SystemCP');
+        const s1Port = this.subComponents.get('s1').ports.find(p => p.name === 'temp1');
+        const tempMonS1Port = this.subComponents.get('tempMon').ports.find(p => p.name === 's1');
+        const s2Port = this.subComponents.get('s2').ports.find(p => p.name === 'temp2');
+        const tempMonS2Port = this.subComponents.get('tempMon').ports.find(p => p.name === 's2');
+        const tempMonAvgPort = this.subComponents.get('tempMon').ports.find(p => p.name === 'average');
+        const stdOutAvgPort = this.subComponents.get('stdOut').ports.find(p => p.name === 'avg');
+        if (!s1Port || !tempMonS1Port || !s2Port || !tempMonS2Port || !tempMonAvgPort || !stdOutAvgPort) {
+            console.error('Error: One or more ports not found for configuring bindings', {
+                s1Port: s1Port?.name,
+                tempMonS1Port: tempMonS1Port?.name,
+                s2Port: s2Port?.name,
+                tempMonS2Port: tempMonS2Port?.name,
+                tempMonAvgPort: tempMonAvgPort?.name,
+                stdOutAvgPort: stdOutAvgPort?.name
+            });
+            return;
+        }
+        this.addBinding(new Binding(
+            this.subComponents.get('s1'),
+            s1Port,
+            this.subComponents.get('tempMon'),
+            tempMonS1Port,
+            this.connectors.get('c1')
+        ));
+        this.addBinding(new Binding(
+            this.subComponents.get('s2'),
+            s2Port,
+            this.subComponents.get('tempMon'),
+            tempMonS2Port,
+            this.connectors.get('c2')
+        ));
+        this.addBinding(new Binding(
+            this.subComponents.get('tempMon'),
+            tempMonAvgPort,
+            this.subComponents.get('stdOut'),
+            stdOutAvgPort,
+            this.connectors.get('c3')
+        ));
+    }
+
+    async start() {
+        console.log(`Starting composite component ${this.name}`);
+        await Promise.all(Array.from(this.subComponents.values()).map(c => c.start()));
+    }
+}
+
 // Connector Classes
-class FarToCelCN extends SysADLConnector { constructor() { super('FarToCelCN', null, null, null, null); } }
-class CelToCelCN extends SysADLConnector { constructor() { super('CelToCelCN', null, null, null, null); } }
+class FarToCelCN extends SysADLConnector {
+    constructor() {
+        super('FarToCelCN', null, null, FarToCelEX, validateFarToCelEQ);
+    }
+}
+
+class CelToCelCN extends SysADLConnector {
+    constructor() {
+        super('CelToCelCN', null, null, null, null);
+    }
+}
+
 // Executables
+async function FarToCelEX(params = {}) {
+    console.log(`Executing FarToCelEX with params: ${JSON.stringify(params)}`);
+    const f = params.f || 0.0;
+    return (5 * (f - 32) / 9);
+}
+
+async function CalcAverageEX(params = {}) {
+    console.log(`Executing CalcAverageEX with params: ${JSON.stringify(params)}`);
+    const s1 = params.s1 || 0.0;
+    const s2 = params.s2 || 0.0;
+    return (s1 + s2) / 2;
+}
+
 // Constraints
+async function validateFarToCelEQ(params = {}) {
+    console.log(`Evaluating constraint FarToCelEQ: c === (5 * (f - 32) / 9)`);
+    const f = params.f || params.input || 32.0;
+    const c = params.c || params.output || 0.0;
+    const result = c === (5 * (f - 32) / 9);
+    if (!result) {
+        throw new Error('Constraint FarToCelEQ violated');
+    }
+    console.log('Constraint FarToCelEQ passed');
+    return result;
+}
+
+async function validateCalcAverageEQ(params = {}) {
+    console.log(`Evaluating constraint CalcAverageEQ: av === (t1 + t2) / 2`);
+    const t1 = params.t1 || 0.0;
+    const t2 = params.t2 || 0.0;
+    const av = params.av || 0.0;
+    const result = av === (t1 + t2) / 2;
+    if (!result) {
+        throw new Error('Constraint CalcAverageEQ violated');
+    }
+    console.log('Constraint CalcAverageEQ passed');
+    return result;
+}
+

@@ -29,7 +29,7 @@ async function main() {
         await port.send(value);
     }
 
-    // Example simulation scenario (modify as needed)
+    // Example simulation scenario
     // Boundary components with output ports:
     // - s1.temp1
     // - s2.temp2

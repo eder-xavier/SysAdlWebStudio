@@ -1,9 +1,10 @@
 function fixSyntax(code) {
     let fixedCode = code;
 
+ 
     fixedCode = fixedCode.replace(/;;/g, ';').replace(/;(\s*})/g, '$1');
     fixedCode = fixedCode.replace(/params\.([^.]+)\.([^.]+)->([^;]+)/g, '$1.$2.$3');
-    
+
     // Remover duplos pontos-e-vírgulas
     fixedCode = fixedCode.replace(/;+/g, ';');
 

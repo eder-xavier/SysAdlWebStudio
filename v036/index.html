@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SysADL Web Simulator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="codemirror-config.js"></script>
+    <script src="parser.js"></script>
+    <script src="transformer.js"></script>
+    <script src="visualizer.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <h1>SysADL Web Simulator</h1>
+        <div class="nav-buttons">
+            <input type="file" id="fileInput" accept=".sysadl" style="display: none;">
+            <button onclick="document.getElementById('fileInput').click()">Carregar Arquivo</button>
+            <button id="transformBtn" onclick="transformAndPatch()">Transformar</button>
+            <button id="visualizeBtn" onclick="visualizeDiagram(window.currentParsedModel)">Visualizar Arquitetura</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="editor-section">
+            <h2>Editor SysADL</h2>
+            <textarea id="sysadlEditor"></textarea>
+        </div>
+
+        <div class="output-section">
+            <div class="editor-section">
+                <h2>Código de Arquitetura</h2>
+                <textarea id="archEditor"></textarea>
+                <div class="button-group">
+                    <button id="downloadArchBtn" disabled>Baixar Arquitetura</button>
+                </div>
+            </div>
+
+            <div class="editor-section">
+                <h2>Código de Simulação</h2>
+                <textarea id="simEditor"></textarea>
+                <div class="button-group">
+                    <button id="downloadSimBtn" disabled>Baixar Simulação</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="simulation-section">
+            <h2>Simulação</h2>
+            <div id="simulationInputs"></div>
+            <button id="startSimBtn" onclick="startSimulation()">Iniciar Simulação</button>
+            <div id="simulationStatus" style="color: #f8f8f2; margin-top: 10px;"></div>
+        </div>
+
+        <div class="diagram-section">
+            <h2>Diagrama</h2>
+            <div id="diagram" style="min-height: 600px;"></div>
+        </div>
+    </div>
+
+    <script>
+        // Inicializar editores CodeMirror
+        const sysadlEditor = CodeMirror.fromTextArea(document.getElementById('sysadlEditor'), {
+            mode: 'sysadl',
+            theme: 'monokai',
+            lineNumbers: true,
+            autoCloseBrackets: true,
+            lineWrapping: true,
+            styleActiveLine: true,
+            matchBrackets: true
+        });
+        const archEditor = CodeMirror.fromTextArea(document.getElementById('archEditor'), {
+            mode: 'javascript',
+            theme: 'monokai',
+            lineNumbers: true,
+            lineWrapping: true,
+            readOnly: true
+        });
+        const simEditor = CodeMirror.fromTextArea(document.getElementById('simEditor'), {
+            mode: 'javascript',
+            theme: 'monokai',
+            lineNumbers: true,
+            lineWrapping: true,
+            readOnly: false
+        });
+
+        // Validar sintaxe SysADL
+        function validateSysADL() {
+            const code = sysadlEditor.getValue();
+            const lines = code.split('\n');
+            const errors = [];
+            const keywords = ["Model", "package", "value type", "port def", "component def", "connector def", "activity def", "executable def", "constraint", "allocations"];
+            let inBlock = false;
+
+            lines.forEach((line, index) => {
+                const trimmed = line.trim();
+                if (!trimmed || trimmed.startsWith('//')) return;
+
+                if (trimmed.match(/^\w+\s*{/)) {
+                    inBlock = true;
+                } else if (trimmed === '}') {
+                    inBlock = false;
+                } else if (!inBlock && !keywords.some(kw => trimmed.startsWith(kw))) {
+                    errors.push({
+                        message: `Sintaxe inválida: a linha deve começar com uma palavra-chave SysADL ou ser um bloco`,
+                        from: CodeMirror.Pos(index, 0),
+                        to: CodeMirror.Pos(index, line.length),
+                        severity: 'error'
+                    });
+                }
+            });
+
+            sysadlEditor.setOption('lint', {
+                getAnnotations: () => errors,
+                async: true
+            });
+        }
+
+        // Transformar e atualizar UI
+        function transformAndPatch() {
+            try {
+                const modelContent = sysadlEditor.getValue();
+                if (!modelContent || !modelContent.trim()) {
+                    archEditor.setValue('// Nenhum código SysADL para transformar.');
+                    simEditor.setValue('// Nenhum código SysADL para transformar.');
+                    document.getElementById('diagram').innerHTML = '<p>Nenhum modelo para visualizar.</p>';
+                    document.getElementById('simulationInputs').innerHTML = '<p>Nenhum componente para simular.</p>';
+                    document.getElementById('simulationStatus').innerHTML = 'Nenhum modelo carregado.';
+                    return;
+                }
+
+                document.getElementById('simulationStatus').innerHTML = 'Transformando modelo...';
+                const parsedModel = parseSysADL(modelContent);
+                console.log('Modelo parseado:', JSON.stringify(parsedModel, null, 2));
+                window.currentParsedModel = parsedModel;
+
+                transformToJavaScript();
+                const generatedCode = archEditor.getValue();
+                if (!generatedCode || !generatedCode.trim()) {
+                    throw new Error('Nenhum código gerado por transformToJavaScript');
+                }
+
+                visualizeDiagram(parsedModel);
+                generateSimulationInputs(parsedModel);
+                document.getElementById('simulationStatus').innerHTML = 'Modelo transformado com sucesso.';
+            } catch (err) {
+                console.error('Erro de transformação:', err);
+                const errorMessage = `// Erro ao transformar: ${err.message}`;
+                archEditor.setValue(errorMessage);
+                simEditor.setValue(errorMessage);
+                document.getElementById('diagram').innerHTML = `<p>Erro ao renderizar diagrama: ${err.message}</p>`;
+                document.getElementById('simulationInputs').innerHTML = '<p>Erro ao gerar inputs de simulação.</p>';
+                document.getElementById('simulationStatus').innerHTML = `Erro: ${err.message}`;
+            }
+        }
+
+        // Gerar inputs de simulação
+        function generateSimulationInputs(model) {
+            if (!model || !model.components || !model.components.length) {
+                document.getElementById('simulationInputs').innerHTML = '<p>Nenhum componente para simular.</p>';
+                return;
+            }
+
+            const boundaryPorts = [];
+            const compositeComp = model.components.find(c => c.configuration);
+            if (compositeComp?.configuration?.components) {
+                compositeComp.configuration.components.forEach(comp => {
+                    const compDef = model.components.find(c => c.name === comp.type);
+                    if (compDef?.isBoundary) {
+                        comp.portAliases.forEach(p => {
+                            const portDef = model.ports.find(mp => mp.name === p.type);
+                            if (portDef?.flows.some(f => f.direction === 'in' || f.direction === 'inout')) {
+                                boundaryPorts.push({ component: comp.name, port: p.alias });
+                            }
+                        });
+                    }
+                });
+            }
+
+            let inputsHtml = '';
+            boundaryPorts.forEach(bp => {
+                inputsHtml += `<label for="${bp.component}_${bp.port}">Valor para ${bp.component}.${bp.port}:</label>
+                               <input type="number" id="${bp.component}_${bp.port}" step="any" value="${bp.component === 's1' ? '77.0' : '86.0'}"><br>`;
+            });
+            document.getElementById('simulationInputs').innerHTML = inputsHtml;
+        }
+
+        // Iniciar simulação
+        async function startSimulation() {
+            const archCode = archEditor.getValue();
+            const simCode = simEditor.getValue();
+            if (!archCode || !archCode.trim()) {
+                document.getElementById('simulationStatus').innerHTML = 'Nenhum código de arquitetura para simular.';
+                alert('Nenhum código de arquitetura para simular.');
+                return;
+            }
+
+            document.getElementById('simulationStatus').innerHTML = 'Iniciando simulação...';
+            try {
+                const ArchitectureScope = new Function(`return (function() { ${archCode}; return { ${model.components.find(c => c.configuration)?.name || 'SystemCP'}, SysADLPort, SysADLConnector, Binding }; })();`);
+                const architecture = ArchitectureScope();
+                const system = new architecture[model.components.find(c => c.configuration)?.name || 'SystemCP']();
+                await system.start();
+
+                const inputs = document.querySelectorAll('#simulationInputs input');
+                for (const input of inputs) {
+                    const [compName, portName] = input.id.split('_');
+                    const value = parseFloat(input.value) || 0.0;
+                    console.log(`Enviando valor ${value} para ${compName}.${portName}`);
+                    document.getElementById('simulationStatus').innerHTML = `Simulando: Enviando ${value} para ${compName}.${portName}`;
+                    const comp = system.subComponents.get(compName);
+                    if (comp) {
+                        const port = comp.ports.find(p => p.name === portName);
+                        if (port) {
+                            await port.send(value);
+                            window.updateDiagramForSimulation(window.currentParsedModel, { component: compName, port: portName });
+                        }
+                    }
+                }
+
+                try {
+                    const SimulationScope = new Function('architecture', 'system', simCode);
+                    SimulationScope(architecture, system);
+                } catch (simErr) {
+                    console.error('Erro na execução do código de simulação:', simErr);
+                    document.getElementById('simulationStatus').innerHTML = `Erro na simulação: ${simErr.message}`;
+                    alert(`Erro na simulação: ${simErr.message}`);
+                }
+
+                document.getElementById('simulationStatus').innerHTML = 'Simulação concluída.';
+            } catch (err) {
+                console.error('Erro de simulação:', err);
+                document.getElementById('simulationStatus').innerHTML = `Erro de simulação: ${err.message}`;
+                alert(`Erro de simulação: ${err.message}`);
+            }
+        }
+
+        // Baixar código
+        function downloadCode({ code, filename }) {
+            const blob = new Blob([code], { type: 'text/javascript' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Eventos dos botões de download
+        document.getElementById('downloadArchBtn').addEventListener('click', () => {
+            if (window.currentArchitectureCode) {
+                downloadCode(window.currentArchitectureCode);
+            }
+        });
+        document.getElementById('downloadSimBtn').addEventListener('click', () => {
+            if (window.currentSimulationCode) {
+                downloadCode(window.currentSimulationCode);
+            }
+        });
+
+        // Evento de carregamento de arquivo
+        document.getElementById('fileInput').addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    sysadlEditor.setValue(e.target.result);
+                    validateSysADL();
+                    transformAndPatch();
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        // Evento de mudança no editor
+        sysadlEditor.on('change', () => {
+            validateSysADL();
+            generateSimulationInputs(parseSysADL(sysadlEditor.getValue()));
+        });
+    </script>
+</body>
+</html>
