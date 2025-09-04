@@ -7,7 +7,7 @@ package SysADL.types {
 	value type Real { }
 } 
 package Elements { 
-	import SysADL.types ; 
+	import SysADL.types ;     
 	component def SystemCP { ports :  
 		configuration { 
 			components : 

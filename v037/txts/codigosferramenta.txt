@@ -1,0 +1,1606 @@
+///// index.html
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SysADL Web Studio</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <nav class="navbar">
+    <h1>SysADL Web Simulator</h1>
+    <div class="nav-buttons">
+      <input type="file" id="fileInput" accept=".sysadl" style="display: none;">
+      <button onclick="document.getElementById('fileInput').click()">Load File</button>
+      <button onclick="transformAndPatch()">Transform</button>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="editor-section">
+      <h2>SysADL Editor</h2>
+      <textarea id="sysadlEditor"></textarea>
+    </div>
+
+    <div class="output-section">
+      <div class="editor-section">
+        <h2>Architecture Code</h2>
+        <textarea id="archEditor"></textarea>
+        <div class="button-group">
+          <button id="downloadArchBtn" disabled>Download Architecture</button>
+        </div>
+      </div>
+
+      <div class="editor-section">
+        <h2>Simulation Code</h2>
+        <textarea id="simEditor"></textarea>
+        <div class="button-group">
+          <button id="downloadSimBtn" disabled>Download Simulation</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="codemirror-config.js"></script>
+  <script src="parser.js"></script>
+  <script src="syntaxFixer.js"></script>
+  <script src="transformer.js"></script>
+  <script src="patch_sysadl.js"></script>
+  <script>
+    // Inicializar editores CodeMirror
+    const sysadlEditor = CodeMirror.fromTextArea(document.getElementById('sysadlEditor'), {
+      mode: 'sysadl',
+      theme: 'monokai',
+      lineNumbers: true,
+      autoCloseBrackets: true,
+      lineWrapping: true,
+      styleActiveLine: true,
+      matchBrackets: true
+    });
+    const archEditor = CodeMirror.fromTextArea(document.getElementById('archEditor'), {
+      mode: 'javascript',
+      theme: 'monokai',
+      lineNumbers: true,
+      lineWrapping: true,
+      readOnly: true
+    });
+    const simEditor = CodeMirror.fromTextArea(document.getElementById('simEditor'), {
+      mode: 'javascript',
+      theme: 'monokai',
+      lineNumbers: true,
+      lineWrapping: true,
+      readOnly: true
+    });
+
+    // Função para validar sintaxe básica do SysADL
+    function validateSysADL() {
+      const code = sysadlEditor.getValue();
+      const lines = code.split('\n');
+      const errors = [];
+      const keywords = ["Model", "package", "component", "connector", "port", "activity", "action", "constraint", "executable", "allocations", "flow", "in", "out", "inout", "def", "configuration", "participants", "flows", "ports", "using", "bindings", "delegations", "body", "datastore", "value", "type", "enum", "datatype", "dimension", "unit", "extends", "equation", "pre-condition", "post-condition", "invariant"];
+      let inBlock = false;
+
+      lines.forEach((line, index) => {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('//')) return;
+
+        if (trimmed.match(/^\w+\s*{/)) {
+          inBlock = true;
+        } else if (trimmed === '}') {
+          inBlock = false;
+        } else if (!inBlock && !keywords.some(kw => trimmed.startsWith(kw)) && !trimmed.match(/^(type|enum|datatype)\s+\w+/)) {
+          errors.push({
+            message: `Invalid syntax: line must start with a SysADL keyword or be a block`,
+            from: CodeMirror.Pos(index, 0),
+            to: CodeMirror.Pos(index, line.length),
+            severity: 'error'
+          });
+        }
+      });
+
+      sysadlEditor.setOption('lint', {
+        getAnnotations: () => errors,
+        async: true
+      });
+    }
+
+    // Wrapper para transformação e patching
+    function transformAndPatch() {
+        const sysadlCode = sysadlEditor.getValue();
+        if (!sysadlCode.trim()) {
+            logEditor.setValue('No SysADL code to transform.');
+            return;
+        }
+        try {
+            const parsedData = parseSysADL(sysadlCode);
+            let archCode = transformToJavaScript(parsedData);
+            archCode = patchSysADL(archCode, parsedData);
+            archCode = fixSyntax(archCode);
+            architectureEditor.setValue(archCode);
+            const simCode = generateSimulationCode(parsedData);
+            simulationEditor.setValue(simCode);
+            logEditor.setValue('Transformation and patching completed successfully.');
+        } catch (error) {
+            logEditor.setValue(`Error during transformation: ${error.message}`);
+        }
+    }
+
+    // Validar ao alterar ou colar o código
+    sysadlEditor.on('change', () => {
+      validateSysADL();
+    });
+
+    // Carregar arquivo .sysadl
+    document.getElementById('fileInput').addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (file && file.name.endsWith('.sysadl')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          sysadlEditor.setValue(e.target.result);
+          validateSysADL();
+        };
+        reader.readAsText(file);
+      } else {
+        alert('Please select a .sysadl file');
+      }
+    });
+
+    // Função de download
+    function downloadCode({ code, filename }) {
+      const blob = new Blob([code], { type: 'text/javascript' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // Eventos dos botões de download
+    document.getElementById('downloadArchBtn').addEventListener('click', () => {
+      if (window.currentArchitectureCode) {
+        downloadCode(window.currentArchitectureCode);
+      }
+    });
+    document.getElementById('downloadSimBtn').addEventListener('click', () => {
+      if (window.currentSimulationCode) {
+        downloadCode(window.currentSimulationCode);
+      }
+    });
+  </script>
+</body>
+</html>
+
+
+/////// styles.css
+
+body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #1e1e1e;
+    color: #f8f8f2;
+}
+
+.navbar {
+    background-color: #2a3b5e;
+    color: #f8f8f2;
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+}
+
+.navbar h1 {
+    color: #f8f8f2;
+    font-size: 20px;
+    font-weight: 500;
+    margin: 0;
+}
+
+.nav-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 70px auto 20px auto;
+    padding: 20px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+}
+
+.output-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+h2 {
+    color: #f8f8f2;
+    font-size: 16px;
+    font-weight: 400;
+    margin-bottom: 10px;
+}
+
+.editor-section {
+    display: flex;
+    flex-direction: column;
+}
+
+.CodeMirror {
+    height: 500px;
+    border: 1px solid #3c3c3c;
+    border-radius: 4px;
+    background-color: #252526;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #f8f8f2 !important;
+}
+
+.CodeMirror-scroll {
+    border-radius: 4px;
+}
+
+.CodeMirror pre {
+    color: #f8f8f2 !important;
+}
+
+button {
+    background-color: transparent;
+    color: #f8f8f2;
+    border: 1px solid #f8f8f2;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+button:hover {
+    background-color: #212f4a;
+    
+}
+
+button:disabled {
+    background-color: #3c3c3c;
+    color: #6b6b6b;
+    cursor: not-allowed;
+}
+
+.button-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+@media (max-width: 1000px) {
+    .output-section {
+        grid-template-columns: 1fr;
+    }
+}
+
+///// codemirror-config.js
+
+// Definir modo personalizado para SysADL no CodeMirror
+CodeMirror.defineMode("sysadl", function() {
+    return {
+        token: function(stream) {
+            // Palavras-chave
+            const keywords = ["Model", "package", "component", "connector", "port", "activity", "action", "constraint", "executable", "allocations", "flow", "in", "out", "inout", "def", "configuration", "participants", "flows", "ports", "using", "bindings", "delegations", "body", "datastore", "value", "type", "enum", "datatype", "dimension", "unit", "extends", "equation", "pre-condition", "post-condition", "invariant"];
+            // Tipos básicos
+            const types = ["Int", "Boolean", "String", "Void", "Real", "Location", "Status", "VehicleData", "Command", "NotificationToSupervisory", "NotificationFromArm", "CommandToArm", "NotificationFromMotor", "CommandToMotor", "Temperature", "FahrenheitTemperature", "CelsiusTemperature"];
+            
+            if (stream.match(/\/\/.*/)) {
+                return "comment"; // Comentários de linha
+            }
+            if (stream.match(/\/\*[\s\S]*?\*\//)) {
+                return "comment"; // Comentários de bloco
+            }
+            if (stream.match(/"[^"]*"/)) {
+                return "string"; // Strings
+            }
+            if (stream.match(/\b(true|false)\b/)) {
+                return "atom"; // Booleanos
+            }
+            if (stream.match(/\b\d+\b/)) {
+                return "number"; // Números
+            }
+            if (stream.match(new RegExp("\\b(" + keywords.join("|") + ")\\b"))) {
+                return "keyword"; // Palavras-chave
+            }
+            if (stream.match(new RegExp("\\b(" + types.join("|") + ")\\b"))) {
+                return "type"; // Tipos
+            }
+            if (stream.match(/[a-zA-Z_]\w*/)) {
+                return "variable"; // Identificadores
+            }
+            stream.next();
+            return null;
+        }
+    };
+});
+
+// Configurar lint para validação de sintaxe
+CodeMirror.registerHelper("lint", "sysadl", function(text) {
+    const errors = [];
+    const lines = text.split('\n');
+    const keywords = ["Model", "package", "component", "connector", "port", "activity", "action", "constraint", "executable", "allocations", "flow", "in", "out", "inout", "def", "configuration", "participants", "flows", "ports", "using", "bindings", "delegations", "body", "datastore", "value", "type", "enum", "datatype", "dimension", "unit", "extends", "equation", "pre-condition", "post-condition", "invariant"];
+    let inBlock = false;
+
+    lines.forEach((line, index) => {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('//')) return;
+
+        if (trimmed.match(/^\w+\s*{/)) {
+            inBlock = true;
+        } else if (trimmed === '}') {
+            inBlock = false;
+        } else if (!inBlock && !keywords.some(kw => trimmed.startsWith(kw)) && !trimmed.match(/^(type|enum|datatype)\s+\w+/)) {
+            errors.push({
+                message: `Invalid syntax: line must start with a SysADL keyword or be a block`,
+                from: CodeMirror.Pos(index, 0),
+                to: CodeMirror.Pos(index, line.length),
+                severity: 'error'
+            });
+        }
+    });
+
+    return errors;
+});
+
+//// parser.js
+
+/* parser.js (VERSÃO REVISADA)
+   - Alinhado com sysadl.peg para parsear Simple.sysadl
+   - Captura types, ports, components, connectors, activities, executables, constraints, allocations
+*/
+
+// @ts-nocheck
+
+function parseSysADL(content) {
+    const model = {
+        type: 'Model',
+        name: 'SysADLModel',
+        involvedElements: [],
+        types: [],
+        ports: [],
+        components: [],
+        connectors: [],
+        activities: [],
+        executables: [],
+        constraints: [],
+        allocations: []
+    };
+
+    // Normalizar conteúdo: remover comentários e quebras de linha extras
+    content = content
+        .replace(/\/\/[^\n\r]*/g, '')
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/\r\n/g, '\n')
+        .replace(/\n\s*\n/g, '\n')
+        .trim();
+
+    // Extrair nome do modelo
+    const modelMatch = content.match(/Model\s+([\w\.]+)\s*;/);
+    if (modelMatch) {
+        model.name = modelMatch[1];
+    }
+
+    // Função auxiliar para extrair conteúdo de blocos {}
+    function extractBlockContent(str, startIndex) {
+        if (startIndex === -1 || str[startIndex] !== '{') return '';
+        let openBraces = 1;
+        let i = startIndex + 1;
+        while (i < str.length && openBraces > 0) {
+            if (str[i] === '{') openBraces++;
+            if (str[i] === '}') openBraces--;
+            i++;
+        }
+        return str.substring(startIndex + 1, i - 1).trim();
+    }
+
+    // Parse de involvedElements
+    const involvedRegex = /using\s+([\w\.]+)\s*;/g;
+    let involvedMatch;
+    while ((involvedMatch = involvedRegex.exec(content)) !== null) {
+        model.involvedElements.push(involvedMatch[1]);
+    }
+
+    // Parse de definições (value type, port, component, connector, activity, executable, constraint)
+    const defRegex = /((?:boundary\s+)?component|port|connector|activity|action|executable|constraint|value\s+type)\s+def\s+([\w\.]+)(?:\s*\(([^)]*)\))?(?:\s*\(([^)]*)\))?\s*{/gs;
+    let defMatch;
+    while ((defMatch = defRegex.exec(content)) !== null) {
+        const type = defMatch[1].replace('boundary ', '').trim();
+        const name = defMatch[2];
+        const inParams = defMatch[3] ? defMatch[3].trim() : '';
+        const outParams = defMatch[4] ? defMatch[4].trim() : '';
+        const blockStartIndex = content.indexOf('{', defMatch.index);
+        const blockContent = extractBlockContent(content, blockStartIndex);
+
+        switch (type) {
+            case 'value type':
+                const valueType = { type: 'ValueTypeDef', name, dimension: null, unit: null, extends: null };
+                const dimensionMatch = blockContent.match(/dimension\s*=\s*(\w+)/);
+                if (dimensionMatch) valueType.dimension = dimensionMatch[1];
+                const unitMatch = blockContent.match(/unit\s*=\s*(\w+)/);
+                if (unitMatch) valueType.unit = unitMatch[1];
+                const extendsMatch = blockContent.match(/extends\s+(\w+)/);
+                if (extendsMatch) valueType.extends = extendsMatch[1];
+                model.types.push(valueType);
+                break;
+
+            case 'port':
+                const port = { type: 'PortDef', name, flows: [] };
+                const flowMatches = blockContent.match(/flow\s+(in|out|inout)\s+([\w\.]+)/g) || [];
+                flowMatches.forEach(fm => {
+                    const [, direction, flowType] = fm.match(/flow\s+(in|out|inout)\s+([\w\.]+)/);
+                    port.flows.push({ direction, type: flowType });
+                });
+                model.ports.push(port);
+                break;
+
+            case 'component':
+                const comp = { 
+                    type: 'ComponentDef', 
+                    name, 
+                    isBoundary: defMatch[1].startsWith('boundary'), 
+                    ports: [], 
+                    configuration: null 
+                };
+                const portsMatch = blockContent.match(/ports\s*:\s*([\s\S]*?)(?=(?:configuration|$))/);
+                if (portsMatch) {
+                    comp.ports = portsMatch[1].split(';').map(p => {
+                        const parts = p.trim().split(':').map(s => s.trim());
+                        if (parts.length < 2) return null;
+                        return { name: parts[0], type: parts[1] };
+                    }).filter(p => p);
+                }
+                const configMatch = blockContent.match(/configuration\s*{([\s\S]*)}/);
+                if (configMatch) {
+                    comp.configuration = parseConfiguration(configMatch[1]);
+                }
+                model.components.push(comp);
+                break;
+
+            case 'connector':
+                const connector = { type: 'ConnectorDef', name, participants: [], flows: [], configuration: null };
+                const participantMatch = blockContent.match(/participants\s*:\s*([\s\S]*?)(?=(?:flows|configuration|$))/);
+                if (participantMatch) {
+                    connector.participants = participantMatch[1].split(';').map(p => {
+                        const parts = p.trim().split(':').map(s => s.trim());
+                        if (parts.length < 2) return null;
+                        return { name: parts[0].replace('~', ''), type: parts[1] };
+                    }).filter(p => p);
+                }
+                const flowMatch = blockContent.match(/flows\s*:\s*([\s\S]*?)(?=(?:configuration|$))/);
+                if (flowMatch) {
+                    connector.flows = flowMatch[1].split(';').map(f => {
+                        const parts = f.trim().split(/\s+from\s+|\s+to\s+/).map(s => s.trim());
+                        if (parts.length < 3) return null;
+                        return { type: parts[0], from: parts[1], to: parts[2] };
+                    }).filter(f => f);
+                }
+                const connConfigMatch = blockContent.match(/configuration\s*{([\s\S]*)}/);
+                if (connConfigMatch) {
+                    connector.configuration = parseConfiguration(connConfigMatch[1]);
+                }
+                model.connectors.push(connector);
+                break;
+
+            case 'activity':
+                const activity = { type: 'ActivityDef', name, inParameters: [], outParameters: [], actions: [], delegates: [] };
+                if (inParams) {
+                    activity.inParameters = inParams.split(',').map(p => {
+                        const [name, type] = p.trim().split(':').map(s => s.trim());
+                        return name && type ? { name, type } : null;
+                    }).filter(p => p);
+                }
+                if (outParams) {
+                    activity.outParameters = outParams.split(',').map(p => {
+                        const [name, type] = p.trim().split(':').map(s => s.trim());
+                        return name && type ? { name, type } : null;
+                    }).filter(p => p);
+                }
+                const actionsMatch = blockContent.match(/actions\s*:\s*([\s\S]*?)(?=(?:delegate|$))/);
+                if (actionsMatch) {
+                    activity.actions = actionsMatch[1].split(',').map(a => {
+                        const parts = a.trim().split(':').map(s => s.trim());
+                        if (parts.length < 2) return null;
+                        const action = { id: parts[0], name: parts[1], pins: [], constraint: null };
+                        const pinsMatch = a.match(/using\s+pins\s*:\s*([\s\S]*?)(?=(?:constraint|$))/);
+                        if (pinsMatch) {
+                            action.pins = pinsMatch[1].split(';').map(p => {
+                                const pinParts = p.trim().split(':').map(s => s.trim());
+                                return pinParts.length >= 2 ? { name: pinParts[0], type: pinParts[1] } : null;
+                            }).filter(p => p);
+                        }
+                        const constraintMatch = a.match(/constraint\s*:\s*post-condition\s+([\w\.]+)/);
+                        if (constraintMatch) action.constraint = constraintMatch[1];
+                        return action;
+                    }).filter(a => a);
+                }
+                const delegateMatch = blockContent.match(/delegate\s+(\w+)\s+to\s+(\w+)/g);
+                if (delegateMatch) {
+                    activity.delegates = delegateMatch.map(d => {
+                        const [, source, target] = d.match(/delegate\s+(\w+)\s+to\s+(\w+)/);
+                        return { source, target };
+                    });
+                }
+                model.activities.push(activity);
+                break;
+
+            case 'executable':
+                const executable = { type: 'ExecutableDef', name, inParameters: [], outParameters: [], body: blockContent.trim() };
+                if (inParams) {
+                    executable.inParameters = inParams.split(',').map(p => {
+                        const [name, type] = p.trim().split(':').map(s => s.trim());
+                        return name && type ? { name, type } : null;
+                    }).filter(p => p);
+                }
+                if (outParams) {
+                    executable.outParameters = outParams.split(',').map(p => {
+                        const [name, type] = p.trim().split(':').map(s => s.trim());
+                        return name && type ? { name, type } : null;
+                    }).filter(p => p);
+                }
+                model.executables.push(executable);
+                break;
+
+            case 'constraint':
+                const constraint = { type: 'ConstraintDef', name, inParameters: [], outParameters: [], equation: null };
+                if (inParams) {
+                    constraint.inParameters = inParams.split(',').map(p => {
+                        const [name, type] = p.trim().split(':').map(s => s.trim());
+                        return name && type ? { name, type } : null;
+                    }).filter(p => p);
+                }
+                if (outParams) {
+                    constraint.outParameters = outParams.split(',').map(p => {
+                        const [name, type] = p.trim().split(':').map(s => s.trim());
+                        return name && type ? { name, type } : null;
+                    }).filter(p => p);
+                }
+                const equationMatch = blockContent.match(/equation\s*=\s*([\s\S]+)/);
+                if (equationMatch) constraint.equation = equationMatch[1].trim().replace(/;/g, '');
+                model.constraints.push(constraint);
+                break;
+        }
+    }
+
+    // Parse de allocations
+    const allocsMatch = content.match(/allocations\s*{([\s\S]*?)}/);
+    if (allocsMatch) {
+        const allocsContent = allocsMatch[1].trim();
+        model.allocations = allocsContent.split('\n').map(l => {
+            const parts = l.trim().split(/\s+/);
+            if (parts.length >= 4 && parts[2].toLowerCase() === 'to') {
+                return { type: parts[0], source: parts[1], target: parts[3] };
+            }
+            return null;
+        }).filter(Boolean);
+    }
+
+    return model;
+}
+
+function parseConfiguration(configContent) {
+    const config = { subComponents: [], connectors: [], bindings: [], delegations: [] };
+
+    // Parse sub-components
+    const subCompMatch = configContent.match(/components\s*:\s*([\s\S]*?)(?=(?:connectors|delegations|$))/);
+    if (subCompMatch) {
+        const subCompRegex = /([\w\s\[\],\-\d]+)\s*:\s*([\w\.]+)(?:\s*{([\s\S]*?)})?/g;
+        let scMatch;
+        while ((scMatch = subCompRegex.exec(subCompMatch[1])) !== null) {
+            const name = scMatch[1].trim().split(' ')[0];
+            const type = scMatch[2].trim();
+            const portsBlock = scMatch[3] || '';
+            const sub = { name, type, portAliases: [] };
+            const portMatch = portsBlock.match(/using\s+ports\s*:\s*([\s\S]*?)(?=\s*(?:}|$))/);
+            if (portMatch) {
+                sub.portAliases = portMatch[1].split(';').map(p => {
+                    const [alias, portType] = p.trim().split(':').map(s => s.trim());
+                    return alias && portType ? { alias, type: portType } : null;
+                }).filter(Boolean);
+            }
+            config.subComponents.push(sub);
+        }
+    }
+
+    // Parse connectors
+    const connMatch = configContent.match(/connectors\s*:\s*([\s\S]*?)(?=(?:components|delegations|$))/);
+    if (connMatch) {
+        const connPairs = connMatch[1].split(';').map(c => c.trim()).filter(Boolean);
+        connPairs.forEach(pair => {
+            const [namePart, rest] = pair.split(':', 2);
+            if (!namePart || !rest) return;
+            const name = namePart.trim();
+            const typeMatch = rest.match(/^\s*([\w\.]+)/);
+            if (!typeMatch) return;
+            const type = typeMatch[1];
+            config.connectors.push({ name, type });
+        });
+    }
+
+    // Parse bindings
+    const bindingMatch = configContent.match(/bindings\s*:\s*([\s\S]*?)(?=(?:components|connectors|delegations|$))/);
+    if (bindingMatch) {
+        config.bindings = bindingMatch[1].split(';').map(b => {
+            const parts = b.trim().split(/\s*=\s*/);
+            if (parts.length < 2) return null;
+            const [source, rest] = parts;
+            const [target, connector] = rest.split(/\s*via\s*/).map(s => s.trim());
+            return { source, target, connector };
+        }).filter(Boolean);
+    }
+
+    // Parse delegations
+    const delegationsMatch = configContent.match(/delegations\s*:\s*([\s\S]*?)(?=(?:components|connectors|$))/);
+    if (delegationsMatch) {
+        config.delegations = delegationsMatch[1].split(';').map(d => {
+            const [source, target] = d.trim().split(/\s+to\s+/).map(s => s.trim());
+            return source && target ? { source, target } : null;
+        }).filter(Boolean);
+    }
+
+    return config;
+}
+
+if (typeof window !== 'undefined') {
+    window.parseSysADL = parseSysADL;
+}
+
+
+//// patch_sysadl.js
+
+function patchSysADL(generatedCode, model) {
+    try {
+        model.name = model.name || 'Simple';
+        model.components = Array.isArray(model.components) ? model.components : [];
+        model.connectors = Array.isArray(model.connectors) ? model.connectors : [];
+        model.activities = Array.isArray(model.activities) ? model.activities.map(act => ({
+            ...act,
+            actions: Array.isArray(act.actions) ? act.actions : []
+        })) : [];
+        model.allocations = Array.isArray(model.allocations) ? model.allocations : [];
+        model.ports = Array.isArray(model.ports) ? model.ports : [];
+
+        const codeLines = generatedCode.split('\n');
+        const newCode = [...codeLines];
+
+        const connectorSectionIndex = newCode.findIndex(line => line.trim().startsWith('// Connector Classes'));
+        if (connectorSectionIndex !== -1) {
+            newCode.splice(connectorSectionIndex + 1, 0, '// Patched Connector Classes');
+            model.connectors.forEach(conn => {
+                const connName = sanitizeVarName(conn.name);
+                const activityAlloc = model.allocations.find(a => a.type === 'activity' && a.target === conn.name);
+                let transformFn = 'null', constraintFn = 'null';
+                if (activityAlloc) {
+                    const activity = model.activities.find(a => a.name === activityAlloc.source);
+                    if (activity && activity.actions.length > 0) {
+                        const action = activity.actions[0];
+                        const execAlloc = model.allocations.find(a => a.type === 'executable' && a.target === action.name);
+                        if (execAlloc) transformFn = execAlloc.source;
+                        if (action.constraint) constraintFn = `validate${action.constraint}`;
+                    }
+                }
+                newCode.push(`export class ${connName} extends SysADLConnector {`);
+                newCode.push(`${indent(1)}constructor() {`);
+                newCode.push(`${indent(2)}super('${connName}', null, null, ${transformFn}, ${constraintFn});`);
+                newCode.push(`${indent(1)}}`);
+                newCode.push('}');
+                newCode.push('');
+            });
+        }
+
+        return newCode.join('\n');
+    } catch (err) {
+        console.error(`Error patching SysADL code: ${err.message}`);
+        return generatedCode + `\n// Error patching code: ${err.message}`;
+    }
+}
+
+
+
+//////// simple.js
+
+// @ts-nocheck
+// Generated JavaScript code for SysADL Model: Simple
+
+let system = null;
+
+// Types
+const Real = 'any';
+const Int = 'any';
+const Boolean = 'any'; 
+const String = 'any'; 
+const Void = 'any'; 
+
+// Base Port Class
+class SysADLPort {
+    constructor(name, flowType, direction = 'inout') {
+        console.log(`Initializing port ${name} with flowType ${flowType}, direction ${direction}`);
+        this.name = name;
+        this.flowType = flowType || 'any';
+        this.direction = direction;
+        this.value = null;
+        this.bindings = [];
+        this.onDataReceivedCallback = null;
+    }
+
+    addBinding(binding) {
+        this.bindings.push(binding);
+        console.log(`Binding added to port ${this.name}: ${binding.sourceComponent?.name || 'undefined'}.${binding.sourcePort?.name || 'undefined'} -> ${binding.targetComponent?.name || 'undefined'}.${binding.targetPort?.name || 'undefined'}`);
+    }
+
+    setOnDataReceivedCallback(callback) {
+        this.onDataReceivedCallback = callback;
+    }
+
+    async send(data) {
+        console.log(`Port ${this.name} sending data: ${JSON.stringify(data)}`);
+        if (this.direction !== 'out' && this.direction !== 'inout') {
+            console.error(`Cannot send via ${this.name}: invalid direction (${this.direction})`);
+            return false;
+        }
+        if (this.bindings.length === 0) {
+            console.warn(`No bindings associated with ${this.name}; data not sent`);
+            return false;
+        }
+        this.value = data;
+        for (const binding of this.bindings) {
+            console.log(`Propagating data ${data} via binding to ${binding.targetPort?.name}`);
+            await binding.connector.transmit(data);
+        }
+        return true;
+    }
+
+    async receive(data) {
+        console.log(`Port ${this.name} receiving data: ${JSON.stringify(data)}`);
+        if (this.direction !== 'in' && this.direction !== 'inout') {
+            console.error(`Cannot receive via ${this.name}: invalid direction (${this.direction})`);
+            return false;
+        }
+        this.value = data;
+        if (this.onDataReceivedCallback) {
+            await this.onDataReceivedCallback(this.name, data);
+        } else {
+            console.warn(`No onDataReceived callback defined for port ${this.name}`);
+        }
+        return true;
+    }
+
+    getValue() {
+        return this.value;
+    }
+}
+
+// Base Connector Class
+class SysADLConnector {
+    constructor(name, sourcePort = null, targetPort = null, transformFn = null, constraintFn = null) {
+        console.log(`Initializing connector ${name}`);
+        this.name = name;
+        this.sourcePort = sourcePort;
+        this.targetPort = targetPort;
+        this.transformFn = transformFn;
+        this.constraintFn = constraintFn;
+        this.messageQueue = [];
+        this.isProcessing = false;
+    }
+
+    setPorts(sourcePort, targetPort) {
+        this.sourcePort = sourcePort;
+        this.targetPort = targetPort;
+        console.log(`Connector ${this.name} configured with sourcePort ${sourcePort?.name || 'undefined'} and targetPort ${targetPort?.name || 'undefined'}`);
+    }
+
+    async transmit(data) {
+        console.log(`Connector ${this.name} transmitting data: ${JSON.stringify(data)}`);
+        if (!this.sourcePort || !this.targetPort) {
+            console.error(`Error: Connector ${this.name} does not have sourcePort or targetPort configured`);
+            return;
+        }
+        let transformedData = this.transformFn ? await this.transformFn({ f: data }) : data;
+        this.messageQueue.push(transformedData);
+        if (this.isProcessing) return;
+        this.isProcessing = true;
+        while (this.messageQueue.length > 0) {
+            const currentData = this.messageQueue.shift();
+            console.log(`Connector ${this.name} processing data: ${JSON.stringify(currentData)}`);
+            if (this.constraintFn) {
+                try {
+                    await this.constraintFn({ input: data, output: currentData });
+                } catch (e) {
+                    console.error(`Constraint violated in connector ${this.name}: ${e.message}`);
+                    continue;
+                }
+            }
+            await this.targetPort.receive(currentData);
+        }
+        this.isProcessing = false;
+    }
+}
+
+// Binding Class
+class Binding {
+    constructor(sourceComponent, sourcePort, targetComponent, targetPort, connector) {
+        if (!sourceComponent || !sourcePort || !targetComponent || !targetPort || !connector) {
+            console.error('Error creating binding: invalid parameters', {
+                sourceComponent: sourceComponent?.name,
+                sourcePort: sourcePort?.name,
+                targetComponent: targetComponent?.name,
+                targetPort: targetPort?.name,
+                connector: connector?.name
+            });
+            throw new Error('Invalid binding parameters');
+        }
+        console.log(`Creating binding from ${sourceComponent.name}.${sourcePort.name} to ${targetComponent.name}.${targetPort.name} via ${connector.name}`);
+        this.sourceComponent = sourceComponent;
+        this.sourcePort = sourcePort;
+        this.targetComponent = targetComponent;
+        this.targetPort = targetPort;
+        this.connector = connector;
+        this.sourcePort.addBinding(this);
+        this.connector.setPorts(this.sourcePort, this.targetPort);
+    }
+}
+
+// Base Component Class
+class SysADLComponent {
+    constructor(name, isBoundary = false) {
+        console.log(`Initializing component ${name}, isBoundary: ${isBoundary}`);
+        this.name = name;
+        this.isBoundary = isBoundary;
+        this.ports = [];
+        this.state = {};
+        this.activities = [];
+    }
+
+    async addPort(port) {
+        this.ports.push(port);
+        port.setOnDataReceivedCallback((portName, data) => this.onDataReceived(portName, data));
+        console.log(`Port ${port.name} added to component ${this.name}, flowType: ${port.flowType}`);
+    }
+
+    async onDataReceived(portName, data) {
+        console.log(`Component ${this.name} received data on port ${portName}: ${JSON.stringify(data)}`);
+        this.state[portName] = data;
+        for (const activity of this.activities) {
+            console.log(`Triggering activity ${activity.methodName} in component ${this.name}`);
+            await this[activity.methodName]();
+        }
+    }
+
+    async start() {
+        console.log(`Starting component ${this.name}`);
+    }
+}
+
+// Component Classes
+class SensorCP extends SysADLComponent {
+    constructor(name, portName) {
+        super(name, true);
+        this.addPort(new SysADLPort(portName, 'Real', 'out'));
+        this.state[portName] = null;
+    }
+
+    async start() {
+        console.log(`Starting component ${this.name}`);
+    }
+}
+
+class TempMonitorCP extends SysADLComponent {
+    constructor() {
+        super('TempMonitorCP', false);
+        this.addPort(new SysADLPort('s1', 'Real', 'in'));
+        this.addPort(new SysADLPort('s2', 'Real', 'in'));
+        this.addPort(new SysADLPort('average', 'Real', 'out'));
+        this.state['s1'] = null;
+        this.state['s2'] = null;
+        this.state['average'] = null;
+        this.activities.push({ methodName: 'executeFarToCelAC' });
+        this.activities.push({ methodName: 'executeTempMonitorAC' });
+    }
+
+    async executeFarToCelAC() {
+        console.log('Executing activity FarToCelAC in component TempMonitorCP');
+        const params = { far: this.state['s1'] || this.state['s2'] };
+        console.log(`Parameters received: far=${params.far}`);
+        if (params.far === null) {
+            console.warn('Input values are null, activity FarToCelAC aborted');
+            return null;
+        }
+        const result = await FarToCelEX(params);
+        try {
+            await validateFarToCelEQ({ f: params.far, c: result });
+        } catch (e) {
+            console.error(`Constraint FarToCelEQ violated: ${e.message}`);
+            return null;
+        }
+        this.state['s1'] = result;
+        console.log(`Activity FarToCelAC returning: ${result}`);
+        return result;
+    }
+
+    async executeTempMonitorAC() {
+        console.log('Executing activity TempMonitorAC in component TempMonitorCP');
+        const params = { s1: this.state['s1'], s2: this.state['s2'] };
+        console.log(`Parameters received: s1=${params.s1}, s2=${params.s2}`);
+        if (params.s1 === null || params.s2 === null) {
+            console.warn('Input values are null, activity TempMonitorAC aborted');
+            return null;
+        }
+        const result = await CalcAverageEX(params);
+        try {
+            await validateCalcAverageEQ({ t1: params.s1, t2: params.s2, av: result });
+        } catch (e) {
+            console.error(`Constraint CalcAverageEQ violated: ${e.message}`);
+            return null;
+        }
+        this.state['average'] = result;
+        const averagePort = this.ports.find(p => p.name === 'average');
+        if (averagePort) {
+            console.log(`Sending average ${result} via port average`);
+            await averagePort.send(result);
+        }
+        console.log(`Activity TempMonitorAC returning: ${result}`);
+        return result;
+    }
+}
+
+class StdOutCP extends SysADLComponent {
+    constructor() {
+        super('StdOutCP', true);
+        this.addPort(new SysADLPort('avg', 'Real', 'in'));
+        this.state['avg'] = null;
+    }
+
+    async onDataReceived(portName, data) {
+        console.log(`StdOutCP received data on port ${portName}: ${JSON.stringify(data)}`);
+        this.state[portName] = data;
+        console.log(`Average temperature displayed: ${data}\u00B0C`);
+    }
+}
+
+class SystemCP extends SysADLComponent {
+    constructor() {
+        super('SystemCP', false);
+        this.subComponents = new Map();
+        this.connectors = new Map();
+        this.bindings = [];
+        this.addSubComponent('s1', new SensorCP('s1', 'temp1'));
+        this.addSubComponent('s2', new SensorCP('s2', 'temp2'));
+        this.addSubComponent('tempMon', new TempMonitorCP());
+        this.addSubComponent('stdOut', new StdOutCP());
+        this.addConnector('c1', new FarToCelCN());
+        this.addConnector('c2', new FarToCelCN());
+        this.addConnector('c3', new CelToCelCN());
+        this.configureBindings();
+    }
+
+    async addSubComponent(name, component) {
+        this.subComponents.set(name, component);
+        console.log(`Subcomponent ${name} added to ${this.name}`);
+    }
+
+    async addConnector(name, connector) {
+        this.connectors.set(name, connector);
+        console.log(`Connector ${name} added to ${this.name}`);
+    }
+
+    async addBinding(binding) {
+        this.bindings.push(binding);
+        console.log(`Binding added: ${binding.sourceComponent.name}.${binding.sourcePort.name} -> ${binding.targetComponent.name}.${binding.targetPort.name} via ${binding.connector.name}`);
+    }
+
+    configureBindings() {
+        console.log('Configuring bindings for SystemCP');
+        const s1Port = this.subComponents.get('s1').ports.find(p => p.name === 'temp1');
+        const tempMonS1Port = this.subComponents.get('tempMon').ports.find(p => p.name === 's1');
+        const s2Port = this.subComponents.get('s2').ports.find(p => p.name === 'temp2');
+        const tempMonS2Port = this.subComponents.get('tempMon').ports.find(p => p.name === 's2');
+        const tempMonAvgPort = this.subComponents.get('tempMon').ports.find(p => p.name === 'average');
+        const stdOutAvgPort = this.subComponents.get('stdOut').ports.find(p => p.name === 'avg');
+        if (!s1Port || !tempMonS1Port || !s2Port || !tempMonS2Port || !tempMonAvgPort || !stdOutAvgPort) {
+            console.error('Error: One or more ports not found for configuring bindings', {
+                s1Port: s1Port?.name,
+                tempMonS1Port: tempMonS1Port?.name,
+                s2Port: s2Port?.name,
+                tempMonS2Port: tempMonS2Port?.name,
+                tempMonAvgPort: tempMonAvgPort?.name,
+                stdOutAvgPort: stdOutAvgPort?.name
+            });
+            return;
+        }
+        this.addBinding(new Binding(
+            this.subComponents.get('s1'),
+            s1Port,
+            this.subComponents.get('tempMon'),
+            tempMonS1Port,
+            this.connectors.get('c1')
+        ));
+        this.addBinding(new Binding(
+            this.subComponents.get('s2'),
+            s2Port,
+            this.subComponents.get('tempMon'),
+            tempMonS2Port,
+            this.connectors.get('c2')
+        ));
+        this.addBinding(new Binding(
+            this.subComponents.get('tempMon'),
+            tempMonAvgPort,
+            this.subComponents.get('stdOut'),
+            stdOutAvgPort,
+            this.connectors.get('c3')
+        ));
+    }
+
+    async start() {
+        console.log(`Starting composite component ${this.name}`);
+        await Promise.all(Array.from(this.subComponents.values()).map(c => c.start()));
+    }
+}
+
+// Connector Classes
+class FarToCelCN extends SysADLConnector {
+    constructor() {
+        super('FarToCelCN', null, null, FarToCelEX, validateFarToCelEQ);
+    }
+}
+
+class CelToCelCN extends SysADLConnector {
+    constructor() {
+        super('CelToCelCN', null, null, null, null);
+    }
+}
+
+// Executables
+async function FarToCelEX(params = {}) {
+    console.log(`Executing FarToCelEX with params: ${JSON.stringify(params)}`);
+    const f = params.f || 0.0;
+    return (5 * (f - 32) / 9);
+}
+
+async function CalcAverageEX(params = {}) {
+    console.log(`Executing CalcAverageEX with params: ${JSON.stringify(params)}`);
+    const s1 = params.s1 || 0.0;
+    const s2 = params.s2 || 0.0;
+    return (s1 + s2) / 2;
+}
+
+// Constraints
+async function validateFarToCelEQ(params = {}) {
+    console.log(`Evaluating constraint FarToCelEQ: c === (5 * (f - 32) / 9)`);
+    const f = params.f || params.input || 32.0;
+    const c = params.c || params.output || 0.0;
+    const result = c === (5 * (f - 32) / 9);
+    if (!result) {
+        throw new Error('Constraint FarToCelEQ violated');
+    }
+    console.log('Constraint FarToCelEQ passed');
+    return result;
+}
+
+async function validateCalcAverageEQ(params = {}) {
+    console.log(`Evaluating constraint CalcAverageEQ: av === (t1 + t2) / 2`);
+    const t1 = params.t1 || 0.0;
+    const t2 = params.t2 || 0.0;
+    const av = params.av || 0.0;
+    const result = av === (t1 + t2) / 2;
+    if (!result) {
+        throw new Error('Constraint CalcAverageEQ violated');
+    }
+    console.log('Constraint CalcAverageEQ passed');
+    return result;
+}
+
+
+/// syntaxFixer.js
+
+function fixSyntax(code) {
+    let fixedCode = code;
+
+ 
+    fixedCode = fixedCode.replace(/;;/g, ';').replace(/;(\s*})/g, '$1');
+    fixedCode = fixedCode.replace(/params\.([^.]+)\.([^.]+)->([^;]+)/g, '$1.$2.$3');
+
+    // Remover duplos pontos-e-vírgulas
+    fixedCode = fixedCode.replace(/;+/g, ';');
+
+    // Corrigir acessos redundantes params["params"]
+    fixedCode = fixedCode.replace(/params\["params"\]\["([^"]+)"\]/g, 'params["$1"]');
+    fixedCode = fixedCode.replace(/params\["params"\]\?/g, 'params');
+
+    // Corrigir == por ===
+    fixedCode = fixedCode.replace(/\b==\b/g, '===');
+
+    // Corrigir variáveis soltas
+    fixedCode = fixedCode.replace(/\b(\w+)\s*===/g, (match, varName) => {
+        if (!['true', 'false', 'null', 'undefined', 'Command', 'On', 'Off'].includes(varName)) {
+            return `params["${varName}"] ===`;
+        }
+        return match;
+    });
+
+    return fixedCode;
+}
+
+
+/// transformer.js
+
+// @ts-nocheck
+
+function sanitizeVarName(name) {
+    if (!name) return '_';
+    return String(name).replace(/[^a-zA-Z0-9_$]/g, '_').replace(/^[0-9]/, m => '_' + m);
+}
+
+function indent(level) {
+    return '    '.repeat(level);
+}
+
+function transformToJavaScript() {
+    try {
+        const content = sysadlEditor.getValue();
+        const parsedData = parseSysADL(content);
+        const architectureCode = generateArchitectureCode(parsedData);
+        const simulationCode = getFixedSimulationCode(parsedData);
+
+        archEditor.setValue(architectureCode);
+        simEditor.setValue(simulationCode);
+
+        const modelName = parsedData.name.toLowerCase();
+        window.currentArchitectureCode = { code: architectureCode, filename: `${modelName}.js` };
+        window.currentSimulationCode = { code: simulationCode, filename: `simulate_${modelName}.js` };
+        document.getElementById('downloadArchBtn').disabled = false;
+        document.getElementById('downloadSimBtn').disabled = false;
+    } catch (err) {
+        console.error('Transformation error:', err);
+        const errorMessage = `// Error transforming to JavaScript: ${err.message}\n// Stack: ${err.stack}`;
+        archEditor.setValue(errorMessage);
+        simEditor.setValue(errorMessage);
+    }
+}
+
+function generateArchitectureCode(model) {
+    const code = [];
+    code.push('// @ts-nocheck');
+    code.push(`// Generated JavaScript code for SysADL Model: ${model.name}`);
+    code.push('');
+
+    // Declarar variável global 'system'
+    code.push('let system = null;');
+    code.push('');
+
+    // Declarar tipos
+    code.push('// Types');
+    model.types.forEach(t => {
+        code.push(`const ${t.name} = 'any';`);
+    });
+    code.push('');
+
+    // Adicionar classes base
+    code.push(getBaseClasses());
+
+    // Gerar classes de componentes
+    code.push('// Component Classes');
+    model.components.forEach(comp => {
+        code.push(generateComponentClass(comp, model));
+    });
+
+    // Gerar classes de conectores
+    code.push('// Connector Classes');
+    model.connectors.forEach(conn => {
+        code.push(generateConnectorClass(conn, model));
+    });
+
+    // Gerar funções executáveis
+    code.push('// Executables');
+    model.executables.forEach(exec => {
+        code.push(generateExecutableFunction(exec));
+    });
+
+    // Gerar funções de restrição
+    code.push('// Constraints');
+    model.constraints.forEach(cons => {
+        code.push(generateConstraintFunction(cons));
+    });
+
+    return code.join('\n');
+}
+
+function getBaseClasses() {
+    return `
+class SysADLPort {
+    constructor(name, flowType, direction = 'inout') {
+        console.log(\`Initializing port \${name} with flowType \${flowType}, direction \${direction}\`);
+        this.name = name;
+        this.flowType = flowType || 'any';
+        this.direction = direction;
+        this.value = null;
+        this.bindings = [];
+        this.onDataReceivedCallback = null;
+    }
+    addBinding(binding) {
+        this.bindings.push(binding);
+        console.log(\`Binding added to port \${this.name}: \${binding.sourceComponent?.name || 'undefined'}.\${binding.sourcePort?.name || 'undefined'} -> \${binding.targetComponent?.name || 'undefined'}.\${binding.targetPort?.name || 'undefined'}\`);
+    }
+    setOnDataReceivedCallback(callback) {
+        this.onDataReceivedCallback = callback;
+    }
+    async send(data) {
+        console.log(\`Port \${this.name} sending data: \${JSON.stringify(data)}\`);
+        if (this.direction !== 'out' && this.direction !== 'inout') {
+            console.error(\`Cannot send via \${this.name}: invalid direction (\${this.direction})\`);
+            return false;
+        }
+        if (this.bindings.length === 0) {
+            console.warn(\`No bindings associated with \${this.name}; data not sent\`);
+            return false;
+        }
+        this.value = data;
+        for (const binding of this.bindings) {
+            console.log(\`Propagating data \${data} via binding to \${binding.targetPort?.name}\`);
+            await binding.connector.transmit(data);
+        }
+        return true;
+    }
+    async receive(data) {
+        console.log(\`Port \${this.name} receiving data: \${JSON.stringify(data)}\`);
+        if (this.direction !== 'in' && this.direction !== 'inout') {
+            console.error(\`Cannot receive via \${this.name}: invalid direction (\${this.direction})\`);
+            return false;
+        }
+        this.value = data;
+        if (this.onDataReceivedCallback) {
+            await this.onDataReceivedCallback(this.name, data);
+        } else {
+            console.warn(\`No onDataReceived callback defined for port \${this.name}\`);
+        }
+        return true;
+    }
+    getValue() {
+        return this.value;
+    }
+}
+
+class SysADLConnector {
+    constructor(name, sourcePort = null, targetPort = null, transformFn = null, constraintFn = null) {
+        console.log(\`Initializing connector \${name}\`);
+        this.name = name;
+        this.sourcePort = sourcePort;
+        this.targetPort = targetPort;
+        this.transformFn = transformFn;
+        this.constraintFn = constraintFn;
+        this.messageQueue = [];
+        this.isProcessing = false;
+    }
+    setPorts(sourcePort, targetPort) {
+        this.sourcePort = sourcePort;
+        this.targetPort = targetPort;
+        console.log(\`Connector \${this.name} configured with sourcePort \${sourcePort?.name || 'undefined'} and targetPort \${targetPort?.name || 'undefined'}\`);
+    }
+    async transmit(data) {
+        console.log(\`Connector \${this.name} transmitting data: \${JSON.stringify(data)}\`);
+        if (!this.sourcePort || !this.targetPort) {
+            console.error(\`Error: Connector \${this.name} does not have sourcePort or targetPort configured\`);
+            return;
+        }
+        let transformedData = this.transformFn ? await this.transformFn({ f: data }) : data;
+        this.messageQueue.push(transformedData);
+        if (this.isProcessing) return;
+        this.isProcessing = true;
+        while (this.messageQueue.length > 0) {
+            const currentData = this.messageQueue.shift();
+            console.log(\`Connector \${this.name} processing data: \${JSON.stringify(currentData)}\`);
+            if (this.constraintFn) {
+                try {
+                    await this.constraintFn({ input: data, output: currentData });
+                } catch (e) {
+                    console.error(\`Constraint violated in connector \${this.name}: \${e.message}\`);
+                    continue;
+                }
+            }
+            await this.targetPort.receive(currentData);
+        }
+        this.isProcessing = false;
+    }
+}
+
+class Binding {
+    constructor(sourceComponent, sourcePort, targetComponent, targetPort, connector) {
+        if (!sourceComponent || !sourcePort || !targetComponent || !targetPort || !connector) {
+            console.error('Error creating binding: invalid parameters', {
+                sourceComponent: sourceComponent?.name,
+                sourcePort: sourcePort?.name,
+                targetComponent: targetComponent?.name,
+                targetPort: targetPort?.name,
+                connector: connector?.name
+            });
+            throw new Error('Invalid binding parameters');
+        }
+        console.log(\`Creating binding from \${sourceComponent.name}.\${sourcePort.name} to \${targetComponent.name}.\${targetPort.name} via \${connector.name}\`);
+        this.sourceComponent = sourceComponent;
+        this.sourcePort = sourcePort;
+        this.targetComponent = targetComponent;
+        this.targetPort = targetPort;
+        this.connector = connector;
+        this.sourcePort.addBinding(this);
+        this.connector.setPorts(this.sourcePort, this.targetPort);
+    }
+}
+
+class SysADLComponent {
+    constructor(name, isBoundary = false) {
+        console.log(\`Initializing component \${name}, isBoundary: \${isBoundary}\`);
+        this.name = name;
+        this.isBoundary = isBoundary;
+        this.ports = [];
+        this.state = {};
+        this.activities = [];
+    }
+    async addPort(port) {
+        this.ports.push(port);
+        port.setOnDataReceivedCallback((portName, data) => this.onDataReceived(portName, data));
+        console.log(\`Port \${port.name} added to component \${this.name}, flowType: \${port.flowType}\`);
+    }
+    async onDataReceived(portName, data) {
+        console.log(\`Component \${this.name} received data on port \${portName}: \${JSON.stringify(data)}\`);
+        this.state[portName] = data;
+        for (const activity of this.activities) {
+            console.log(\`Triggering activity \${activity.methodName} in component \${this.name}\`);
+            await this[activity.methodName]();
+        }
+    }
+    async start() {
+        console.log(\`Starting component \${this.name}\`);
+        if (this.subComponents) {
+            await Promise.all(Array.from(this.subComponents.values()).map(sub => sub.start()));
+        }
+    }
+}
+`;
+}
+
+function generateComponentClass(comp, model) {
+    const code = [];
+    const className = sanitizeVarName(comp.name);
+    const isBoundary = comp.isBoundary ? 'true' : 'false';
+    code.push(`class ${className} extends SysADLComponent {`);
+    code.push(`${indent(1)}constructor${comp.name === 'SensorCP' ? '(name, portName)' : '()'} {`);
+    code.push(`${indent(2)}super('${comp.name === 'SensorCP' ? "' + name + '" : className}', ${isBoundary});`);
+
+    if (comp.configuration) {
+        // Componente composto (SystemCP)
+        code.push(`${indent(2)}this.subComponents = new Map();`);
+        code.push(`${indent(2)}this.connectors = new Map();`);
+        code.push(`${indent(2)}this.bindings = [];`);
+        comp.configuration.subComponents.forEach(sub => {
+            const subClassName = sanitizeVarName(sub.type);
+            const portAlias = sub.portAliases[0]?.alias || (sub.type === 'SensorCP' ? `'${sub.name === 's1' ? 'temp1' : 'temp2'}'` : `'${sub.name}'`);
+            code.push(`${indent(2)}this.addSubComponent('${sub.name}', new ${subClassName}('${sub.name}', ${portAlias}));`);
+        });
+        comp.configuration.connectors.forEach(conn => {
+            const connClassName = sanitizeVarName(conn.type);
+            code.push(`${indent(2)}this.addConnector('${conn.name}', new ${connClassName}());`);
+        });
+        code.push(`${indent(2)}this.configureBindings();`);
+    } else {
+        // Componentes simples (SensorCP, TempMonitorCP, StdOutCP)
+        comp.ports.forEach(p => {
+            const port = model.ports.find(mp => mp.name === p.type);
+            const direction = port?.flows[0]?.direction || 'inout';
+            const portName = comp.name === 'SensorCP' ? 'portName' : `'${p.name}'`;
+            code.push(`${indent(2)}this.addPort(new SysADLPort(${portName}, '${p.type}', '${direction}'));`);
+            code.push(`${indent(2)}this.state[${portName}] = null;`);
+        });
+    }
+
+    // Adicionar atividades
+    const activities = model.activities.filter(a => model.allocations.some(al => al.type === 'activity' && al.target === comp.name));
+    activities.forEach(act => {
+        code.push(`${indent(2)}this.activities.push({ methodName: 'execute_${act.name}' });`);
+        code.push(`${indent(1)}async execute_${act.name}() {`);
+        code.push(`${indent(2)}console.log('Executing activity ${act.name} in component ${className}');`);
+        const params = act.inParameters.reduce((acc, p) => {
+            acc[p.name] = `this.state['${p.name}']`;
+            return acc;
+        }, {});
+        code.push(`${indent(2)}const params = { ${Object.entries(params).map(([k, v]) => `${k}: ${v}`).join(', ')} };`);
+        code.push(`${indent(2)}console.log(\`Parameters received: \${JSON.stringify(params)}\`);`);
+        code.push(`${indent(2)}if (${Object.keys(params).map(k => `params.${k} === null`).join(' || ')}) {`);
+        code.push(`${indent(3)}console.warn('Input values are null, activity ${act.name} aborted');`);
+        code.push(`${indent(3)}return null;`);
+        code.push(`${indent(2)}}`);
+
+        const action = act.actions[0];
+        if (action) {
+            const execAlloc = model.allocations.find(a => a.type === 'executable' && a.target === action.name);
+            if (execAlloc) {
+                code.push(`${indent(2)}const result = await ${execAlloc.source}(params);`);
+                if (action.constraint) {
+                    code.push(`${indent(2)}try {`);
+                    code.push(`${indent(3)}await validate${action.constraint}({ ${act.inParameters.map(p => `${p.name}: params.${p.name}`).join(', ')}, ${act.outParameters[0]?.name || 'output'}: result });`);
+                    code.push(`${indent(2)}} catch (e) {`);
+                    code.push(`${indent(3)}console.error(\`Constraint ${action.constraint} violated: \${e.message}\`);`);
+                    code.push(`${indent(3)}return null;`);
+                    code.push(`${indent(2)}}`);
+                }
+                if (act.outParameters.length > 0) {
+                    const outParam = act.outParameters[0].name;
+                    code.push(`${indent(2)}this.state['${outParam}'] = result;`);
+                    code.push(`${indent(2)}const ${outParam}Port = this.ports.find(p => p.name === '${outParam}');`);
+                    code.push(`${indent(2)}if (${outParam}Port) {`);
+                    code.push(`${indent(3)}console.log(\`Sending ${outParam} \${result} via port ${outParam}\`);`);
+                    code.push(`${indent(3)}await ${outParam}Port.send(result);`);
+                    code.push(`${indent(2)}}`);
+                }
+                code.push(`${indent(2)}console.log(\`Activity ${act.name} returning: \${result}\`);`);
+                code.push(`${indent(2)}return result;`);
+            }
+        }
+        code.push(`${indent(1)}}`);
+    });
+
+    // Sobrescrever onDataReceived para StdOutCP
+    if (comp.name === 'StdOutCP') {
+        code.push(`${indent(1)}async onDataReceived(portName, data) {`);
+        code.push(`${indent(2)}console.log(\`StdOutCP received data on port \${portName}: \${JSON.stringify(data)}\`);`);
+        code.push(`${indent(2)}this.state[portName] = data;`);
+        code.push(`${indent(2)}console.log(\`Average temperature displayed: \${data}\\u00B0C\`);`);
+        code.push(`${indent(1)}}`);
+    }
+
+    // Métodos para componentes compostos
+    if (comp.configuration) {
+        code.push(`${indent(1)}async addSubComponent(name, component) {`);
+        code.push(`${indent(2)}this.subComponents.set(name, component);`);
+        code.push(`${indent(2)}console.log(\`Subcomponent \${name} added to \${this.name}\`);`);
+        code.push(`${indent(1)}}`);
+        code.push(`${indent(1)}async addConnector(name, connector) {`);
+        code.push(`${indent(2)}this.connectors.set(name, connector);`);
+        code.push(`${indent(2)}console.log(\`Connector \${name} added to \${this.name}\`);`);
+        code.push(`${indent(1)}}`);
+        code.push(`${indent(1)}async addBinding(binding) {`);
+        code.push(`${indent(2)}this.bindings.push(binding);`);
+        code.push(`${indent(2)}console.log(\`Binding added: \${binding.sourceComponent.name}.\${binding.sourcePort.name} -> \${binding.targetComponent.name}.\${binding.targetPort.name} via \${binding.connector.name}\`);`);
+        code.push(`${indent(1)}}`);
+        code.push(`${indent(1)}configureBindings() {`);
+        code.push(`${indent(2)}console.log('Configuring bindings for ${className}');`);
+        comp.configuration.bindings.forEach(binding => {
+            const [sourceCompName, sourcePortName] = binding.source.split('.');
+            const [targetCompName, targetPortName] = binding.target.split('.');
+            code.push(`${indent(2)}const ${sanitizeVarName(sourceCompName)}Port = this.subComponents.get('${sourceCompName}').ports.find(p => p.name === '${sourcePortName}');`);
+            code.push(`${indent(2)}const ${sanitizeVarName(targetCompName)}Port = this.subComponents.get('${targetCompName}').ports.find(p => p.name === '${targetPortName}');`);
+            code.push(`${indent(2)}if (!${sanitizeVarName(sourceCompName)}Port || !${sanitizeVarName(targetCompName)}Port) {`);
+            code.push(`${indent(3)}console.error('Error: One or more ports not found for configuring bindings', {`);
+            code.push(`${indent(4)}source: '${binding.source}',`);
+            code.push(`${indent(4)}target: '${binding.target}'`);
+            code.push(`${indent(3)}});`);
+            code.push(`${indent(3)}return;`);
+            code.push(`${indent(2)}}`);
+            code.push(`${indent(2)}this.addBinding(new Binding(`);
+            code.push(`${indent(3)}this.subComponents.get('${sourceCompName}'),`);
+            code.push(`${indent(3)}${sanitizeVarName(sourceCompName)}Port,`);
+            code.push(`${indent(3)}this.subComponents.get('${targetCompName}'),`);
+            code.push(`${indent(3)}${sanitizeVarName(targetCompName)}Port,`);
+            code.push(`${indent(3)}this.connectors.get('${binding.connector}')`);
+            code.push(`${indent(2)}));`);
+        });
+        code.push(`${indent(1)}}`);
+    }
+
+    code.push('}');
+    return code.join('\n');
+}
+
+function generateConnectorClass(conn, model) {
+    let transformFn = 'null', constraintFn = 'null';
+    const activityAlloc = model.allocations.find(a => a.type === 'activity' && a.target === conn.name);
+    if (activityAlloc) {
+        const activity = model.activities.find(a => a.name === activityAlloc.source);
+        if (activity && activity.actions.length > 0) {
+            const action = activity.actions[0];
+            const execAlloc = model.allocations.find(a => a.type === 'executable' && a.target === action.name);
+            if (execAlloc) transformFn = execAlloc.source;
+            if (action.constraint) constraintFn = `validate${action.constraint}`;
+        }
+    }
+    return `class ${sanitizeVarName(conn.name)} extends SysADLConnector { constructor() { super('${conn.name}', null, null, ${transformFn}, ${constraintFn}); } }`;
+}
+
+function generateExecutableFunction(exec) {
+    const params = exec.inParameters.map(p => p.name);
+    let body = exec.body.trim();
+    if (!body.startsWith('return') && !body.includes('return ')) body = `return ${body}`;
+    const code = [];
+    code.push(`async function ${exec.name}(params = {}) {`);
+    code.push(`${indent(1)}console.log(\`Executing ${exec.name} with params: \${JSON.stringify(params)}\`);`);
+    params.forEach(p => code.push(`${indent(1)}const ${p} = params.${p} || 0.0;`));
+    code.push(`${indent(1)}${body.replace(/;/g, '')};`);
+    code.push(`}`);
+    return code.join('\n');
+}
+
+function generateConstraintFunction(cons) {
+    const inputs = cons.inParameters.map(p => p.name);
+    const output = cons.outParameters[0]?.name || 'output';
+    const code = [];
+    code.push(`async function validate${cons.name}(params = {}) {`);
+    code.push(`${indent(1)}console.log(\`Evaluating constraint ${cons.name}: ${cons.equation}\`);`);
+    inputs.forEach(p => code.push(`${indent(1)}const ${p} = params.${p} || params.input || 0.0;`));
+    code.push(`${indent(1)}const ${output} = params.${output} || params.output || 0.0;`);
+    code.push(`${indent(1)}const result = ${cons.equation.replace(/==/g, '===')};`);
+    code.push(`${indent(1)}if (!result) { throw new Error('Constraint ${cons.name} violated'); }`);
+    code.push(`${indent(1)}console.log('Constraint ${cons.name} passed');`);
+    code.push(`${indent(1)}return result;`);
+    code.push(`}`);
+    return code.join('\n');
+}
+
+function getFixedSimulationCode(model) {
+    const boundaryPorts = [];
+    model.components.forEach(comp => {
+        if (comp.isBoundary && comp.ports.length > 0) {
+            comp.ports.forEach(p => {
+                const port = model.ports.find(mp => mp.name === p.type);
+                if (port?.flows.some(f => f.direction === 'out')) {
+                    boundaryPorts.push({ component: comp.name, port: p.name });
+                }
+            });
+        }
+    });
+
+    let simulationCode = `// @ts-nocheck
+// Simulation file for ${model.name}
+import * as architecture from './${model.name.toLowerCase()}.js';
+
+async function main() {
+    console.log('--- Starting simulation of ${model.name}.sysadl ---');
+    const system = new architecture.SystemCP();
+    await system.start();
+    console.log('--- System Initialized ---');
+
+    // Helper to simulate data sending to a sub-component's port
+    async function simulate(componentName, portName, value) {
+        if (!system) { console.error("System not initialized"); return; }
+        const component = system.subComponents.get(componentName);
+        if (!component) { console.error(\`Component \${componentName} not found\`); return; }
+        const port = component.ports.find(p => p.name === portName);
+        if (!port) { console.error(\`Port \${portName} not found in component \${componentName}\`); return; }
+        console.log(\`\nSIMULATING: Sending \${value} to \${componentName}.\${portName}\`);
+        await port.send(value);
+    }
+    
+    console.log('\\n--- Running Simulation Scenario ---');
+`;
+
+    boundaryPorts.forEach((bp, index) => {
+        simulationCode += `    await simulate('${bp.component === 'SensorCP' ? (index === 0 ? 's1' : 's2') : bp.component}', '${bp.component === 'SensorCP' ? (index === 0 ? 'temp1' : 'temp2') : bp.port}', ${index === 0 ? '77.0' : '86.0'});\n`;
+    });
+
+    simulationCode += `
+    console.log('\\n--- Simulation Completed ---');
+}
+
+main().catch(err => console.error(\`EXECUTION ERROR: \${err.stack}\`));`;
+
+    return simulationCode;
+}
