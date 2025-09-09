@@ -1,0 +1,98 @@
+Starting simulation of Simple.sysadl
+Initializing component SystemCP, isBoundary: false
+Initializing component s1, isBoundary: true
+Initializing port temp1 with flowType Real, direction out
+Port temp1 added to component s1, flowType: Real
+Subcomponent s1 added to SystemCP
+Initializing component s2, isBoundary: true
+Initializing port temp2 with flowType Real, direction out
+Port temp2 added to component s2, flowType: Real
+Subcomponent s2 added to SystemCP
+Initializing component TempMonitorCP, isBoundary: false
+Initializing port s1 with flowType Real, direction in
+Port s1 added to component TempMonitorCP, flowType: Real
+Initializing port s2 with flowType Real, direction in
+Port s2 added to component TempMonitorCP, flowType: Real
+Initializing port average with flowType Real, direction out
+Port average added to component TempMonitorCP, flowType: Real
+Subcomponent tempMon added to SystemCP
+Initializing component StdOutCP, isBoundary: true
+Initializing port avg with flowType Real, direction in
+Port avg added to component StdOutCP, flowType: Real
+Subcomponent stdOut added to SystemCP
+Initializing connector FarToCelCN
+Connector c1 added to SystemCP
+Initializing connector FarToCelCN
+Connector c2 added to SystemCP
+Initializing connector CelToCelCN
+Connector c3 added to SystemCP
+Configuring bindings for SystemCP
+Creating binding from s1.temp1 to TempMonitorCP.s1 via FarToCelCN
+Binding added to port temp1: s1.temp1 -> TempMonitorCP.s1
+Connector FarToCelCN configured with sourcePort temp1 and targetPort s1
+Binding added: s1.temp1 -> TempMonitorCP.s1 via FarToCelCN
+Creating binding from s2.temp2 to TempMonitorCP.s2 via FarToCelCN
+Binding added to port temp2: s2.temp2 -> TempMonitorCP.s2
+Connector FarToCelCN configured with sourcePort temp2 and targetPort s2
+Binding added: s2.temp2 -> TempMonitorCP.s2 via FarToCelCN
+Creating binding from TempMonitorCP.average to StdOutCP.avg via CelToCelCN
+Binding added to port average: TempMonitorCP.average -> StdOutCP.avg
+Connector CelToCelCN configured with sourcePort average and targetPort avg
+Binding added: TempMonitorCP.average -> StdOutCP.avg via CelToCelCN
+Starting composite component SystemCP
+Starting component s1
+Starting component s2
+Starting component TempMonitorCP
+Starting component StdOutCP
+Simulating data send of 77 to s1.temp1
+Port temp1 sending data: 77
+Propagating data 77 via binding to s1
+Connector FarToCelCN transmitting data: 77
+Executing FarToCelEX with params: {"f":77}
+Connector FarToCelCN processing data: 25
+Evaluating constraint FarToCelEQ: c === (5 * (f - 32) / 9)
+Constraint FarToCelEQ passed
+Port s1 receiving data: 25
+Component TempMonitorCP received data on port s1: 25
+Triggering activity executeFarToCelAC in component TempMonitorCP
+Executing activity FarToCelAC in component TempMonitorCP
+Parameters received: far=25
+Executing FarToCelEX with params: {"far":25}
+Evaluating constraint FarToCelEQ: c === (5 * (f - 32) / 9)
+Constraint FarToCelEQ violated: Constraint FarToCelEQ violated
+Triggering activity executeTempMonitorAC in component TempMonitorCP
+Executing activity TempMonitorAC in component TempMonitorCP
+Parameters received: s1=25, s2=null
+Input values are null, activity TempMonitorAC aborted
+Simulating data send of 86 to s2.temp2
+Port temp2 sending data: 86
+Propagating data 86 via binding to s2
+Connector FarToCelCN transmitting data: 86
+Executing FarToCelEX with params: {"f":86}
+Connector FarToCelCN processing data: 30
+Evaluating constraint FarToCelEQ: c === (5 * (f - 32) / 9)
+Constraint FarToCelEQ passed
+Port s2 receiving data: 30
+Component TempMonitorCP received data on port s2: 30
+Triggering activity executeFarToCelAC in component TempMonitorCP
+Executing activity FarToCelAC in component TempMonitorCP
+Parameters received: far=25
+Executing FarToCelEX with params: {"far":25}
+Evaluating constraint FarToCelEQ: c === (5 * (f - 32) / 9)
+Constraint FarToCelEQ violated: Constraint FarToCelEQ violated
+Triggering activity executeTempMonitorAC in component TempMonitorCP
+Executing activity TempMonitorAC in component TempMonitorCP
+Parameters received: s1=25, s2=30
+Executing CalcAverageEX with params: {"s1":25,"s2":30}
+Evaluating constraint CalcAverageEQ: av === (t1 + t2) / 2
+Constraint CalcAverageEQ passed
+Sending average 27.5 via port average
+Port average sending data: 27.5
+Propagating data 27.5 via binding to avg
+Connector CelToCelCN transmitting data: 27.5
+Connector CelToCelCN processing data: 27.5
+Port avg receiving data: 27.5
+StdOutCP received data on port avg: 27.5
+Average temperature displayed: 27.5°C
+Activity TempMonitorAC returning: 27.5
+System simulation completed
