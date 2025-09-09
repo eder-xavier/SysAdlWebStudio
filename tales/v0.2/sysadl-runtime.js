@@ -55,6 +55,19 @@ class ModelBase extends ElementBase {
       const factory = new Function(...factoryArgs.concat([factoryCode]));
       const wrapped = factory(fn, model, name);
       this.executables[name] = wrapped;
+      // try to wire this executable into existing ActivityBase/ActionBase instances
+      try {
+        for (const [actName, actObj] of Object.entries(this._activities || {})) {
+          // actObj may be ActivityBase instance
+          if (actObj && typeof actObj.actions === 'object') {
+            for (const a of actObj.actions) {
+              if (a && a.executableName === name && !a.executableFn) {
+                a.executableFn = wrapped;
+              }
+            }
+          }
+        }
+      } catch (wireErr) { /* non-fatal */ }
     } catch (e) {
       const wrapped = function(...args) {
         const inputs = args;
@@ -69,41 +82,88 @@ class ModelBase extends ElementBase {
         return output;
       };
       this.executables[name] = wrapped;
+      try {
+        for (const [actName, actObj] of Object.entries(this._activities || {})) {
+          if (actObj && typeof actObj.actions === 'object') {
+            for (const a of actObj.actions) {
+              if (a && a.executableName === name && !a.executableFn) {
+                a.executableFn = wrapped;
+              }
+            }
+          }
+        }
+      } catch (wireErr) { /* ignore */ }
     }
   }
 
+  // Register an activity. Supports registration per-instance by creating an
+  // internal composite key: `${activityName}::${component}` when descriptor
+  // contains a `component` field (or ActivityBase instance with .component).
   registerActivity(activityName, descriptor) {
     if (!activityName) return;
-    this._activities[activityName] = descriptor;
-    this._pendingInputs[activityName] = {};
+    // detect ActivityBase instance
+    const isInstance = descriptor && typeof descriptor.invoke === 'function';
+    // determine component if provided
+    const comp = (isInstance ? (descriptor.component || null) : (descriptor && descriptor.component ? descriptor.component : null));
+    const internalKey = comp ? (activityName + '::' + comp) : activityName;
+
+    // store descriptor or instance under internalKey; allow multiple registrations with unique internal keys
+    this._activities[internalKey] = descriptor || {};
+    // ensure pending input container for this internalKey
+    this._pendingInputs[internalKey] = {};
   }
 
   handlePortReceive(componentName, portName, value) {
-    for (const [actName, desc] of Object.entries(this._activities || {})) {
-      if (desc.component !== componentName) continue;
-      const inputPorts = desc.inputPorts || [];
-      if (!inputPorts.includes(portName)) continue;
-      const pending = this._pendingInputs[actName] || {};
+    // iterate registered activities (internal keys), match by component or key suffix
+    for (const [internalKey, desc] of Object.entries(this._activities || {})) {
+      // derive activityName and component from internalKey when possible
+      let actComponent = null;
+      let actName = internalKey;
+      if (String(internalKey).indexOf('::') !== -1) {
+        const parts = String(internalKey).split('::');
+        actName = parts[0]; actComponent = parts[1];
+      } else if (desc && typeof desc === 'object' && desc.component) {
+        actComponent = desc.component;
+      }
+      if (actComponent !== componentName) continue;
+      const inputPorts = (desc && desc.inputPorts) ? desc.inputPorts : [];
+      if (!inputPorts || !inputPorts.includes(portName)) continue;
+      const pending = this._pendingInputs[internalKey] || {};
       pending[portName] = value;
-      this._pendingInputs[actName] = pending;
+      this._pendingInputs[internalKey] = pending;
       const ready = inputPorts.every(p => Object.prototype.hasOwnProperty.call(pending, p));
       if (ready) {
         const inputs = inputPorts.map(p => pending[p]);
         try {
           this.logEvent({ elementType: 'activity_start', name: actName, component: componentName, inputs, when: Date.now() });
-          this.executeActivity(actName, inputs);
+          this.executeActivity(internalKey, inputs);
           this.logEvent({ elementType: 'activity_end', name: actName, component: componentName, when: Date.now() });
         } catch (e) {
           this.logEvent({ elementType: 'activity_error', name: actName, component: componentName, error: e.message, when: Date.now() });
         }
-        this._pendingInputs[actName] = {};
+        this._pendingInputs[internalKey] = {};
       }
     }
   }
 
   executeActivity(activityName, inputs) {
-    const desc = (this._activities || {})[activityName];
-    if (!desc) throw new Error('Unknown activity: ' + activityName);
+    const actOrDesc = (this._activities || {})[activityName];
+    if (!actOrDesc) throw new Error('Unknown activity: ' + activityName);
+    // if it's an ActivityBase instance, delegate to its invoke method
+    if (actOrDesc && typeof actOrDesc.invoke === 'function') {
+      this.logEvent({ elementType: 'activity_invoke', name: activityName, when: Date.now() });
+      try {
+        const out = actOrDesc.invoke(inputs, this);
+        this.logEvent({ elementType: 'activity_end', name: activityName, when: Date.now() });
+        return out;
+      } catch (e) {
+        this.logEvent({ elementType: 'activity_error', name: activityName, error: e.message, when: Date.now() });
+        throw e;
+      }
+    }
+
+    // otherwise, fallback to legacy descriptor behavior
+    const desc = actOrDesc || {};
     let lastResult = null;
     for (const action of (desc.actions || [])) {
       const actInputs = (action.params && action.params.length) ? action.params.map((p, i) => inputs[i] || undefined) : inputs;
@@ -146,6 +206,61 @@ class ModelBase extends ElementBase {
 
   getLog() { return this._log.slice(); }
   dumpLog() { for (const e of this._log) console.log(JSON.stringify(e)); }
+}
+
+class ActionBase {
+  constructor(name, params = [], executableFn = null, rawBody = null) {
+    this.name = name || null;
+    this.params = Array.isArray(params) ? params.slice() : [];
+    // executableFn may be a function or null; rawBody is the SysADL body;
+    // if name looks like an executable reference, we record it as executableName
+    this.executableFn = typeof executableFn === 'function' ? executableFn : null;
+    this.rawBody = rawBody;
+    this.executableName = (typeof executableFn === 'string' && executableFn) ? executableFn : null;
+  }
+
+  invoke(inputs, model) {
+    try {
+      // lazy resolution: if executableFn not present but executableName is, try to resolve in model.executables
+      if (!this.executableFn && this.executableName && model && model.executables && typeof model.executables[this.executableName] === 'function') {
+        this.executableFn = model.executables[this.executableName];
+      }
+      if (typeof this.executableFn === 'function') return this.executableFn.apply(null, inputs);
+      if (this.rawBody) {
+        const fn = createExecutableFromExpression(this.rawBody, this.params || []);
+        this.executableFn = fn; // cache
+        return fn.apply(null, inputs);
+      }
+      return undefined;
+    } catch (e) {
+      if (model && typeof model.logEvent === 'function') model.logEvent({ elementType: 'action_error', action: this.name || this.executableName, error: e.message, when: Date.now() });
+      throw e;
+    }
+  }
+}
+
+class ActivityBase {
+  constructor(name, opts = {}) {
+    this.name = name || null;
+    this.component = opts.component || null;
+    this.inputPorts = Array.isArray(opts.inputPorts) ? opts.inputPorts.slice() : [];
+    this.actions = Array.isArray(opts.actions) ? opts.actions.map(a => {
+      if (a instanceof ActionBase) return a;
+      return new ActionBase(a.name || a.executable || null, a.params || [], a.executable && (typeof a.executable === 'function' ? a.executable : null), a.body || a.rawBody || null);
+    }) : [];
+  }
+
+  addAction(action) { this.actions.push(action instanceof ActionBase ? action : new ActionBase(action.name, action.params, action.executable, action.body)); }
+
+  invoke(inputs, model) {
+    let last = undefined;
+    for (const a of this.actions) {
+      model && typeof model.logEvent === 'function' && model.logEvent({ elementType: 'action_invoke', activity: this.name, action: a.name || '<anon>', inputs, when: Date.now() });
+      last = a.invoke(inputs, model);
+      model && typeof model.logEvent === 'function' && model.logEvent({ elementType: 'action_result', activity: this.name, action: a.name || '<anon>', output: last, when: Date.now() });
+    }
+    return last;
+  }
 }
 
 class ComponentBase extends ElementBase {
@@ -195,80 +310,147 @@ function createExecutableFromExpression(exprText, paramNames = []) {
   const raw = String(exprText || '').trim();
 
   // quick guard: empty body -> noop
-  if (!raw) {
-    return function() { return undefined; };
+  if (!raw) return function() { return undefined; };
+
+  // translate SysADL surface syntax into JS-ish source
+  function translateSysadlExpression(src) {
+    // normalize and drop noisy DSL lines
+    let s = String(src || '').replace(/\r\n?/g, '\n')
+      .split('\n').filter(line => {
+        const t = line.trim();
+        return t && !/^delegate\b/i.test(t) && !/^using\b/i.test(t) &&
+               !/^constraint\b/i.test(t) && !/^body\b/i.test(t) &&
+               !/^actions\b/i.test(t);
+      }).join('\n');
+
+    // basic syntactic translations
+    s = s.replace(/->/g, '.');
+    s = s.replace(/\band\b/gi, '&&');
+    s = s.replace(/\bor\b/gi, '||');
+    s = s.replace(/\bnot\b/gi, '!');
+    s = s.replace(/\belsif\b/gi, 'else if');
+
+    // prefer ternary for single-expression if-then-else
+    s = s.replace(/if\s*\(([^)]+)\)\s*then\s*([^\n;\{]+)\s*else\s*([^\n;\{]+)/gi, (m, cond, a, b) => `(${cond})?(${a}):(${b})`);
+
+    // remove type annotations in declarations: let x:Type -> let x
+    s = s.replace(/\b(let|var|const)\s+([A-Za-z_]\w*)\s*:\s*[A-Za-z_][\w<>:]*(\s*=)?/g, (m, kw, id, eq) => kw + ' ' + id + (eq ? eq : ''));
+
+    // remove typed params in parentheses: (a:Type,b:Type) -> (a,b)
+    s = s.replace(/\(([^)]*)\)/g, (m, inside) => {
+      const parts = inside.split(',').map(p => p.trim()).filter(Boolean).map(p => p.split(':')[0].trim());
+      return '(' + parts.join(',') + ')';
+    });
+
+    // ':=' handling: process lines and only introduce 'let' on the first declaration of a name
+    const lines = s.split('\n');
+    const declared = new Set();
+    for (let i = 0; i < lines.length; i++) {
+      const L = lines[i];
+      const m = L.match(/^\s*(?:let\s+)?([A-Za-z_$][A-Za-z0-9_$]*)\s*:=/);
+      if (m) {
+        const nm = m[1];
+        if (declared.has(nm) || /\blet\b|\bvar\b|\bconst\b/.test(L)) {
+          lines[i] = L.replace(/:=/g, '=');
+        } else {
+          lines[i] = L.replace(/(^\s*)(?:let\s*)?([A-Za-z_$][A-Za-z0-9_$]*)\s*:=/, (mm, pre, name) => `${pre}let ${name} =`);
+          declared.add(nm);
+        }
+      } else {
+        const m2 = L.match(/^\s*(?:let|var|const)\s+([A-Za-z_$][A-Za-z0-9_$]*)\b/);
+        if (m2) declared.add(m2[1]);
+      }
+    }
+    s = lines.join('\n');
+
+    // boolean literals
+    s = s.replace(/\b(True|False)\b/g, (m) => m.toLowerCase());
+
+    // convert NS::LIT tokens to string literal
+    s = s.replace(/([A-Za-z_][A-Za-z0-9_.]*::[A-Za-z0-9_]+)/g, (m) => JSON.stringify(m));
+
+    s = s.replace(/post-condition\b/gi, '');
+    s = s.replace(/;\s*;+/g, ';');
+
+    return s.trim();
   }
 
-  function translateSysadlExpression(src) {
-      // normalize and drop noisy DSL lines
-      let s = String(src || '').replace(/\r\n?/g, '\n')
-        .split('\n').filter(line => {
-          const t = line.trim();
-          return t && !/^delegate\b/i.test(t) && !/^using\b/i.test(t) &&
-                 !/^constraint\b/i.test(t) && !/^body\b/i.test(t) &&
-                 !/^actions\b/i.test(t);
-        }).join('\n');
+  // split top-level statements by semicolon/newline but respect quotes, template strings and depth
+  function splitTopLevelStatements(src) {
+    const parts = [];
+    let cur = '';
+    let inS = null;
+    let esc = false;
+    let depth = 0;
+    for (let i = 0; i < src.length; i++) {
+      const ch = src[i];
+      if (esc) { cur += ch; esc = false; continue; }
+      if (ch === '\\') { cur += ch; esc = true; continue; }
+      if (inS) {
+        cur += ch;
+        if (ch === inS) inS = null;
+        continue;
+      }
+      if (ch === '"' || ch === "'" || ch === '`') { inS = ch; cur += ch; continue; }
+      if (ch === '{' || ch === '(' || ch === '[') { depth++; cur += ch; continue; }
+      if (ch === '}' || ch === ')' || ch === ']') { depth = Math.max(0, depth-1); cur += ch; continue; }
+      if ((ch === ';' || ch === '\n') && depth === 0) {
+        const t = cur.trim(); if (t) parts.push(t);
+        cur = '';
+        continue;
+      }
+      cur += ch;
+    }
+    if (cur.trim()) parts.push(cur.trim());
+    return parts;
+  }
 
-      // basic syntactic translations
-      s = s.replace(/->/g, '.');
-      s = s.replace(/\band\b/gi, '&&');
-      s = s.replace(/\bor\b/gi, '||');
-      s = s.replace(/\bnot\b/gi, '!');
-      // normalize elsif / else if
-      s = s.replace(/\belsif\b/gi, 'else if');
-      // handle if ... then ... else ... -> block form when simple
-      s = s.replace(/if\s*\(([^)]+)\)\s*then\s*([^\n;\{]+)\s*else\s*([^\n;\{]+)/gi, (m, cond, a, b) => `if (${cond}) { ${a}; } else { ${b}; }`);
-
-      // remove type annotations in declarations: let x:Type -> let x
-      s = s.replace(/\b(let|var|const)\s+([A-Za-z_]\w*)\s*:\s*[A-Za-z_][\w<>:]*(\s*=)?/g, (m, kw, id, eq) => kw + ' ' + id + (eq ? eq : ''));
-      // remove typed params in parentheses: (a:Type,b:Type) -> (a,b)
-      s = s.replace(/\(([^)]*)\)/g, (m, inside) => {
-        const parts = inside.split(',').map(p => p.trim()).filter(Boolean).map(p => p.split(':')[0].trim());
-        return '(' + parts.join(',') + ')';
-      });
-
-      // ':=' -> prefer 'let name = ' when at start of line, otherwise '='
-      s = s.replace(/(^|\n)\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*:=/g, (m, nl, name) => `${nl}let ${name} =`);
-      s = s.replace(/:=/g, '=');
-
-      // convert NS::LIT tokens to string literal to avoid parse issues
-      s = s.replace(/([A-Za-z_][A-Za-z0-9_.]*::[A-Za-z0-9_]+)/g, (m) => JSON.stringify(m));
-
-      // remove stray words and repeated semicolons
-      s = s.replace(/post-condition\b/gi, '');
-      s = s.replace(/;\s*;+/g, ';');
-
-      s = s.trim();
-      return s;
+  function dedupeLetDeclarations(body) {
+    const lines = body.split('\n');
+    const declared = new Set();
+    for (let i = 0; i < lines.length; i++) {
+      const m = lines[i].match(/^\s*let\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*=/);
+      if (m) {
+        const name = m[1];
+        if (declared.has(name)) {
+          lines[i] = lines[i].replace(/^\s*let\s+/, '');
+        } else declared.add(name);
+      } else {
+        const m2 = lines[i].match(/^\s*(?:var|const)\s+([A-Za-z_$][A-Za-z0-9_$]*)\b/);
+        if (m2) declared.add(m2[1]);
+      }
+    }
+    return lines.join('\n');
   }
 
   const pre = translateSysadlExpression(raw);
+  if (process.env.SYSADL_DEBUG) console.log('[SYSADL-IR] pre:', JSON.stringify(pre));
+
   // try as expression first
+  try {
+    const exprFn = new Function(...paramNames, `'use strict'; return (${pre});`);
+    return function(...args) { try { return exprFn.apply(this, args); } catch (e) { return undefined; } };
+  } catch (exprErr) {
+    // try as body (multi-statement)
+    let body = pre;
+    if (process.env.SYSADL_DEBUG) console.log('[SYSADL-IR] initial body:', JSON.stringify(body));
     try {
-      // attempt expression wrapped with strict mode and params names
-      const inner = new Function(...paramNames, `'use strict'; return (${pre});`);
-      return function(...args) { try { return inner.apply(this, args); } catch (e) { return undefined; } };
-    } catch (e1) {
-      // try as body (multi-statement)
-      try {
-        let body = pre;
-        // if body contains explicit block braces, trust it and don't split semicolons at top-level
-        if (!/[{}]/.test(body)) {
-          // split only on newlines to preserve inline semicolons inside expressions
-          const lines = body.split(/\n/).map(l => l.trim()).filter(Boolean);
-          if (lines.length > 1) {
-            const lastIdx = lines.length - 1;
-            const last = lines[lastIdx];
-            // if last line looks like an expression, return it; avoid converting assignments/decls/returns
-            if (!/^\s*(return|let|var|const)\b/.test(last) && !/[;{}]$/.test(last)) {
-              lines[lastIdx] = 'return ' + last;
-            }
-            body = lines.join('\n');
+      if (!/^{[\s\S]*}$/.test(body.trim())) {
+        const stmts = splitTopLevelStatements(body);
+        if (stmts.length > 0) {
+          const lastIdx = stmts.length - 1;
+          const last = stmts[lastIdx];
+          if (!/^\s*(return|let|var|const|if|for|while|switch|function)\b/.test(last) && !/[{}]$/.test(last)) {
+            stmts[lastIdx] = 'return ' + last;
           }
+          body = stmts.join('\n');
         }
-        const inner2 = new Function(...paramNames, `'use strict';\n${body}`);
-        return function(...args) { try { return inner2.apply(this, args); } catch (e) { return undefined; } };
-      } catch (e2) {
+      }
+      body = dedupeLetDeclarations(body);
+      if (process.env.SYSADL_DEBUG) console.log('[SYSADL-IR] final body to compile:', JSON.stringify(body));
+      const bodyFn = new Function(...paramNames, `'use strict';\n${body}`);
+      return function(...args) { try { return bodyFn.apply(this, args); } catch (e) { return undefined; } };
+    } catch (bodyErr) {
       // fallback interpreter similar to previous behavior but safe
       const expr = pre;
       return function(...argsVals) {
@@ -292,7 +474,6 @@ function createExecutableFromExpression(exprText, paramNames = []) {
           const f = new Function(...Object.keys(env), fnBody);
           return f(...Object.values(env));
         } catch (err) {
-          // do not throw; return undefined for safety
           return undefined;
         }
       };
@@ -300,4 +481,4 @@ function createExecutableFromExpression(exprText, paramNames = []) {
   }
 }
 
-module.exports = { ElementBase, ModelBase, ComponentBase, ConnectorBase, PortBase, createExecutableFromExpression };
+module.exports = { ElementBase, ModelBase, ComponentBase, ConnectorBase, PortBase, createExecutableFromExpression, ActivityBase, ActionBase };

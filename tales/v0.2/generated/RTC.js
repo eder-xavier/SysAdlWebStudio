@@ -1,4 +1,4 @@
-const { ModelBase, ComponentBase, PortBase, ConnectorBase, createExecutableFromExpression } = require('../sysadl-runtime.js');
+const { ModelBase, ComponentBase, PortBase, ConnectorBase, createExecutableFromExpression, ActivityBase, ActionBase } = require('../sysadl-runtime.js');
 function createModel() {
   const m = new ModelBase("SysADLModel");
   // instantiate component uses
@@ -106,37 +106,14 @@ function createModel() {
   } catch (e) { /* ignore executable creation error */ }
   // activities registered for component instances
   try {
-    m.registerActivity("FahrenheitToCelsiusAC",     {
-      "component": "s1",
-      "inputPorts": [
-        "current1"
-      ],
-      "actions": [
-        {
-          "name": "FahrenheitToCelsiusAN",
-          "executable": "FahrenheitToCelsiusEx",
-          "params": [],
-          "body": "constraint : post-condition FahrenheitToCelsiusEQ"
-        }
-      ]
-    });
+    const __act_FahrenheitToCelsiusAC = new ActivityBase("FahrenheitToCelsiusAC", { component: "s1", inputPorts: ["current1"] });
+    __act_FahrenheitToCelsiusAC.addAction(new ActionBase("FahrenheitToCelsiusAN", [], "FahrenheitToCelsiusEx", "constraint : post-condition FahrenheitToCelsiusEQ"));
+    m.registerActivity("FahrenheitToCelsiusAC", __act_FahrenheitToCelsiusAC);
   } catch (e) { /* ignore */ }
   try {
-    m.registerActivity("CheckPresenceToSetTemperatureAC",     {
-      "component": "rtc",
-      "inputPorts": [
-        "detected",
-        "userTemp"
-      ],
-      "actions": [
-        {
-          "name": "CheckPeresenceToSetTemperatureAN",
-          "executable": "CheckPresenceToSetTemperature",
-          "params": [],
-          "body": "constraint : post-condition CheckPresenceToSetTemperatureEQ"
-        }
-      ]
-    });
+    const __act_CheckPresenceToSetTemperatureAC = new ActivityBase("CheckPresenceToSetTemperatureAC", { component: "rtc", inputPorts: ["detected","userTemp"] });
+    __act_CheckPresenceToSetTemperatureAC.addAction(new ActionBase("CheckPeresenceToSetTemperatureAN", [], "CheckPresenceToSetTemperature", "constraint : post-condition CheckPresenceToSetTemperatureEQ"));
+    m.registerActivity("CheckPresenceToSetTemperatureAC", __act_CheckPresenceToSetTemperatureAC);
   } catch (e) { /* ignore */ }
   return m;
 }

@@ -1,4 +1,4 @@
-const { ModelBase, ComponentBase, PortBase, ConnectorBase, createExecutableFromExpression } = require('../sysadl-runtime.js');
+const { ModelBase, ComponentBase, PortBase, ConnectorBase, createExecutableFromExpression, ActivityBase, ActionBase } = require('../sysadl-runtime.js');
 function createModel() {
   const m = new ModelBase("SysADLModel");
   // instantiate component uses
@@ -49,21 +49,10 @@ function createModel() {
   } catch (e) { /* ignore executable creation error */ }
   // activities registered for component instances
   try {
-    m.registerActivity("TempMonitorAC",     {
-      "component": "tempMon",
-      "inputPorts": [
-        "s1",
-        "s2"
-      ],
-      "actions": [
-        {
-          "name": "TempMonitorAN",
-          "executable": "CalcAverageEX",
-          "params": [],
-          "body": "constraint : post-condition CalcAverageEQ\n\t\tdelegate t1 to t1 \n\t\tdelegate t2 to t2 delegate \n\t\tTempMonitorAN to av"
-        }
-      ]
-    });
+    const __act_TempMonitorAC = new ActivityBase("TempMonitorAC", { component: "tempMon", inputPorts: ["s1","s2"] });
+    __act_TempMonitorAC.addAction(new ActionBase("TempMonitorAN", [], "SysADLModel.CalcAverageEX", "constraint : post-condition CalcAverageEQ\n\t\tdelegate t1 to t1 \n\t\tdelegate t2 to t2 delegate \n\t\tTempMonitorAN to av"));
+    __act_TempMonitorAC.addAction(new ActionBase("TempMonitorAN", [], "SysADLModel.CalcAverageEX", "constraint : post-condition CalcAverageEQ\n\t\tdelegate t1 to t1 \n\t\tdelegate t2 to t2 delegate \n\t\tTempMonitorAN to av"));
+    m.registerActivity("TempMonitorAC", __act_TempMonitorAC);
   } catch (e) { /* ignore */ }
   return m;
 }
