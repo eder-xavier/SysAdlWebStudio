@@ -119,7 +119,7 @@ function collectConnectorBindings(configNode) {
   return binds;
 }
 
-function generateModuleCode(modelName, componentUses, portUses, connectorBindings, executables, activitiesToRegister) {
+function generateModuleCode(modelName, componentUses, portUses, connectorBindings, executables, activitiesToRegister, connParticipants) {
   const lines = [];
   lines.push("const { ModelBase, ComponentBase, PortBase, ConnectorBase, createExecutableFromExpression, ActivityBase, ActionBase } = require('../sysadl-runtime.js');");
   lines.push('function createModel() {');
@@ -181,56 +181,130 @@ function generateModuleCode(modelName, componentUses, portUses, connectorBinding
   }
 
   // emit ports for each component (only when we have a var mapping)
+  // helper map to reference generated port variables at runtime for connector wiring
+  lines.push('  const __portVars = {};');
+  // ensure ports required by activities exist (create entries so code emits them)
+  try {
+    if (Array.isArray(activitiesToRegister)) {
+      for (const a of activitiesToRegister) {
+        const comp = a && a.descriptor && a.descriptor.component;
+        const inputPorts = (a && a.descriptor && Array.isArray(a.descriptor.inputPorts)) ? a.descriptor.inputPorts : [];
+        if (!comp) continue;
+        compPortsMap[comp] = compPortsMap[comp] || new Set();
+        for (const ip of inputPorts) {
+          if (!ip) continue;
+          compPortsMap[comp].add(String(ip));
+        }
+        // also add to short mapping if exists (e.g., 'agvs.vc.cs' -> 'cs')
+        const short = String(comp).split('.').pop();
+        if (short && compPortsMap[short]) {
+          for (const ip of inputPorts) compPortsMap[short].add(String(ip));
+        }
+      }
+    }
+  } catch (e) { /* ignore */ }
   for (const cname of Object.keys(compPortsMap)) {
     // find var by sysName
     const infoEntry = Object.values(compNameToVar).find(v => v.sysName === cname) || compNameToVar[cname] || null;
     const compVar = infoEntry ? infoEntry.varName : ('cmp_' + sanitizeId(cname));
     const ports = Array.from(compPortsMap[cname] || []);
     for (const p of ports) {
-      const pVar = sanitizeId(p);
-      lines.push(`  const ${compVar}_${pVar} = new PortBase(${JSON.stringify(p)}, 'in');`);
-      lines.push(`  ${compVar}_${pVar}.ownerComponent = ${JSON.stringify(cname)};`);
-      lines.push(`  ${compVar}.addPort(${compVar}_${pVar});`);
+  const pVarBase = compVar + '_' + sanitizeId(p);
+  const pVar = makeUniqueVar(pVarBase);
+  lines.push(`  const ${pVar} = new PortBase(${JSON.stringify(p)}, 'in');`);
+  lines.push(`  ${pVar}.ownerComponent = ${JSON.stringify(cname)};`);
+  lines.push(`  ${compVar}.addPort(${pVar});`);
+    // register port var for later connector wiring
+    lines.push(`  __portVars[${JSON.stringify(cname)}] = __portVars[${JSON.stringify(cname)}] || {};`);
+    lines.push(`  __portVars[${JSON.stringify(cname)}][${JSON.stringify(p)}] = ${pVar};`);
     }
   }
 
-  // connectors
-  const seenConns = new Set();
-  for (const cb of connectorBindings) {
-    const cname = (cb.name || (cb.id && cb.id.name) || cb.id) || '_implicit';
-    if (seenConns.has(cname)) continue;
-    seenConns.add(cname);
-    const connVar = 'conn_' + sanitizeId(cname);
+  // connectors: group by owner (owner may be '' for top-level)
+  const connGroups = {};
+  for (const cbWrap of connectorBindings || []) {
+    const owner = cbWrap && cbWrap.owner !== undefined ? cbWrap.owner : '';
+    connGroups[owner] = connGroups[owner] || [];
+    const node = cbWrap && cbWrap.node ? cbWrap.node : cbWrap;
+    connGroups[owner].push(node);
+  }
+  // emit connectors grouped by owner as comments so consumer can place them near components
+  for (const owner of Object.keys(connGroups)) {
+    const nodes = connGroups[owner] || [];
+    // comment header for owner's connector block
+    lines.push(`  // connectors declared in ${owner || '<root>'}`);
+    for (const cb of nodes) {
+      const cname = (cb && (cb.name || (cb.id && cb.id.name) || cb.id)) || '_implicit';
+  const connVarBase = 'conn_' + sanitizeId(cname || '_implicit');
+  const connVar = makeUniqueVar(connVarBase);
   lines.push(`  const ${connVar} = new ConnectorBase(${JSON.stringify(cname)});`);
   lines.push(`  m.addConnector(${connVar});`);
-    // if cb has bindings list
-    const bl = cb.bindingList || cb.bindings || cb.connects || [];
-    if (Array.isArray(bl) && bl.length) {
-      for (const b of bl) {
-        const src = (b.source && (b.source.name || b.source.id || b.source)) || b.src || b.from || null;
-        const dst = (b.destination && (b.destination.name || b.destination.id || b.destination)) || b.dst || b.to || null;
-        if (src && dst) {
-          // produce forwarding binding: srcComp.srcPort -> dstComp.dstPort if dotted
-          const sParts = String(src).split('.');
-          const dParts = String(dst).split('.');
-          if (sParts.length === 2 && dParts.length === 2) {
-            const [sc, sp] = sParts;
-            const [dc, dp] = dParts;
-            const srcVar = 'cmp_' + sanitizeId(sc);
-            const dstVar = 'cmp_' + sanitizeId(dc);
-            lines.push(`  // binding ${src} -> ${dst}`);
-            lines.push(`  if (${srcVar} && ${srcVar}.ports && ${srcVar}.ports[${JSON.stringify(sp)}]) {`);
-            lines.push(`    ${srcVar}.ports[${JSON.stringify(sp)}].bindTo({ receive: function(v, model){`);
-            lines.push(`      if (${dstVar} && ${dstVar}.ports && ${dstVar}.ports[${JSON.stringify(dp)}]) {`);
-            lines.push(`        ${dstVar}.ports[${JSON.stringify(dp)}].receive(v, model);`);
-            lines.push('      }');
-            lines.push('    } });');
-            lines.push('  }');
-          }
+      // build participant list using __portVars and connParticipants if available
+      const bl = cb && (cb.bindingList || cb.bindings || cb.connects) || [];
+      const participants = connParticipants && connParticipants[cname] ? connParticipants[cname] : [];
+      // collect vars for explicit binding entries
+      lines.push(`  // connector participants for ${cname}`);
+      lines.push(`  const __parts_${connVar} = [];`);
+      // prefer explicit bindings in AST
+      if (Array.isArray(bl) && bl.length) {
+        for (const b of bl) {
+          const src = (b.source && (b.source.name || b.source.id || b.source)) || b.src || b.from || null;
+          const dst = (b.destination && (b.destination.name || b.destination.id || b.destination)) || b.dst || b.to || null;
+          [src, dst].forEach(s => {
+            if (!s) return;
+            const parts = String(s).split('.');
+            if (parts.length === 2) {
+              const sc = parts[0]; const sp = parts[1];
+              lines.push(`  if (__portVars[${JSON.stringify(sc)}] && __portVars[${JSON.stringify(sc)}][${JSON.stringify(sp)}]) __parts_${connVar}.push(__portVars[${JSON.stringify(sc)}][${JSON.stringify(sp)}]);`);
+            }
+          });
         }
       }
+      // also include participants inferred from connectorParticipants map
+      if (participants && participants.length) {
+        for (const p of participants) {
+          lines.push(`  if (__portVars[${JSON.stringify(p.component)}] && __portVars[${JSON.stringify(p.component)}][${JSON.stringify(p.port)}]) __parts_${connVar}.push(__portVars[${JSON.stringify(p.component)}][${JSON.stringify(p.port)}]);`);
+        }
+      }
+      // make unique and bind: when a part receives, forward to others
+      lines.push(`  (function(){`);
+      lines.push(`    const parts = __parts_${connVar}.filter(Boolean);`);
+      lines.push(`    for (let i=0;i<parts.length;i++){`);
+      lines.push(`      (function(p){`);
+      lines.push(`        p.bindTo({ receive: function(v, model){`);
+      lines.push(`          for (const q of parts){ if (q !== p) q.receive(v, model); }`);
+      lines.push(`        } });`);
+      lines.push(`      })(parts[i]);`);
+      lines.push(`    }`);
+      lines.push(`  })();`);
     }
   }
+
+  // parent -> child propagation: when an instance has dotted qname, attempt to wire parent's ports to child ports
+  // e.g. sending to 'agvs.sendStatus' should forward to 'agvs.vc.cs' ports that match by name or suffix
+  try {
+    for (const inst of Object.keys(compNameToVar)) {
+      if (!inst || !inst.includes('.')) continue;
+      const parts = String(inst).split('.');
+      const parent = parts[0];
+      const child = inst;
+      // for each parent port, try to find child port with same name or suffix
+      lines.push(`  // propagation binding parent->child ${parent} -> ${child}`);
+      lines.push(`  if (__portVars[${JSON.stringify(parent)}]) {`);
+      lines.push(`    Object.keys(__portVars[${JSON.stringify(parent)}] || {}).forEach(function(pp){`);
+      lines.push(`      const parentPort = __portVars[${JSON.stringify(parent)}][pp];`);
+      lines.push(`      // find matching child port by exact name, then by suffix`);
+      lines.push(`      const childCandidates = __portVars[${JSON.stringify(child)}] || {};`);
+      lines.push(`      let target = childCandidates[pp];`);
+      lines.push(`      if (!target) {`);
+      lines.push(`        const keys = Object.keys(childCandidates);`);
+      lines.push(`        for (const k of keys) { if (String(k).toLowerCase().endsWith(String(pp).toLowerCase())) { target = childCandidates[k]; break; } }`);
+      lines.push(`      }`);
+      lines.push(`      if (target) { parentPort.bindTo({ receive: function(v, model){ target.receive(v, model); } }); }`);
+      lines.push(`    });`);
+      lines.push(`  }`);
+    }
+  } catch (e) { /* ignore propagation errors */ }
 
   // register executables extracted from definitions
   if (Array.isArray(executables) && executables.length) {
@@ -356,7 +430,12 @@ async function main() {
   const parse = await loadParser(parserPath);
   const src = fs.readFileSync(input, 'utf8');
   const ast = parse(src, { grammarSource: { source: input, text: src } });
+  // map component definition name -> ComponentDef node (needed early for root selection)
+  const compDefMap = {};
+  traverse(ast, n => { if (n && (n.type === 'ComponentDef' || /ComponentDef/i.test(n.type))) { const nm = n.name || (n.id && n.id.name) || n.id || null; if (nm) compDefMap[nm] = n; } });
+
   const configs = extractConfigurations(ast);
+  try { console.debug('[DEBUG] configurations found =', configs.length); } catch(e){}
   if (configs.length === 0) console.warn('No configuration sections found in model');
   // pick the configuration that contains the most component uses (heuristic)
   let cfg = configs[0] || ast;
@@ -369,10 +448,145 @@ async function main() {
       } catch (e) { /* ignore */ }
     }
     cfg = best || cfg;
+  try { console.debug('[DEBUG] selected cfg name/id =', cfg && (cfg.name || (cfg.id && cfg.id.name) || '<anon>')); } catch(e){}
+    // prefer explicit top-level component container when present
+    try {
+      if (compDefMap && compDefMap['FactoryAutomationSystem']) {
+        const fdef = compDefMap['FactoryAutomationSystem'];
+        const fcfgs = extractConfigurations(fdef) || [];
+        if (fcfgs.length) {
+          cfg = fcfgs[0];
+          console.error('[DEBUG] using FactoryAutomationSystem inner configuration as root');
+        }
+      }
+    } catch(e) {}
   }
-  const compUses = collectComponentUses(cfg);
-  const portUses = collectPortUses(cfg);
-  const connBinds = collectConnectorBindings(cfg);
+  // compDefMap already declared above near config selection
+  // Recursive collection: resolve ComponentUse instances and their ComponentDef
+  // configurations, producing qualified instance names (e.g. agvs.vc.cs) and
+  // collecting ports with the qualified owner.
+  function collectRecursiveInstancesAndPorts(rootConfig) {
+    const instances = []; // will hold objects: { qname, name, def, node }
+    const ports = []; // will hold port objects with _ownerComponent set to qualified name
+  const connectors = []; // will hold { owner: qnameOrEmpty, node }
+
+    // helper map for quick lookup of child qnames within a parent scope
+    function processUse(cu, prefix) {
+      const localName = cu && (cu.name || (cu.id && cu.id.name) || cu.id) || null;
+      if (!localName) return null;
+      const defName = cu && (cu.definition || cu.def) || null;
+      const qname = prefix ? (prefix + '.' + localName) : localName;
+      // only record instance when this node is explicitly a ComponentUse or its definition refers to a ComponentDef
+      const defNodeEarly = defName ? (compDefMap[defName] || compDefMap[String(defName)]) : null;
+      if (!(cu.type === 'ComponentUse' || /ComponentUse/i.test(cu.type) || defNodeEarly)) {
+        // not a component instance (likely a port or typed member) -> skip
+      } else {
+        instances.push({ qname, name: localName, def: defName, node: cu });
+      }
+
+      // if the referenced definition has an internal configuration, process it
+      const defNode = compDefMap[defName] || compDefMap[String(defName)] || null;
+      if (defNode) {
+        const innerConfigs = extractConfigurations(defNode);
+        const innerCfg = innerConfigs && innerConfigs.length ? innerConfigs[0] : null;
+        if (innerCfg) {
+          // traverse innerCfg directly to find child component uses and ports (including composed ports)
+          traverseWithParents(innerCfg, (n, parents) => {
+            if (!n || typeof n !== 'object') return;
+            // collect connectors declared inside this inner configuration and attribute to current qname
+            if (n.type === 'ConnectorBinding' || /ConnectorBinding/i.test(n.type) || n.bindings || n.bindingList || n.connects) {
+              connectors.push({ owner: qname, node: n });
+              return;
+            }
+            // detect component use-like nodes
+            if (n.type === 'ComponentUse' || /ComponentUse/i.test(n.type) || (n.name && (n.definition || n.def))) {
+              // avoid processing the same node twice
+              if (instances.some(it => it.node === n)) return;
+              processUse(n, qname);
+              return;
+            }
+            // detect port container (composed) e.g. node has a 'ports' array or 'members'
+            if (Array.isArray(n.ports) && n.name) {
+              const parentPortName = n.name;
+              // register parent port
+              ports.push(Object.assign({}, n, { _ownerComponent: qname, name: parentPortName }));
+              for (const sub of n.ports) {
+                const subName = sub && (sub.name || (sub.id && sub.id.name) || sub.id) || null;
+                if (!subName) continue;
+                const copy = Object.assign({}, sub, { _ownerComponent: qname, name: subName });
+                ports.push(copy);
+              }
+              return;
+            }
+            // detect simple port nodes: type contains 'Port' or has 'flow' property or parent key suggests a port
+            const parent = parents && parents.length ? parents[parents.length-1] : null;
+            const parentKey = parent && Object.keys(parent).find(k => Array.isArray(parent[k]) && parent[k].includes(n));
+            const looksLikePort = n.type && /Port/i.test(n.type) || n.flow || /port/i.test(String(parentKey || '')) || (n.name && (n.flow || n.direction));
+            if (looksLikePort) {
+              // determine owner: nearest ancestor ComponentUse node in parents
+              let ownerLocal = null;
+              for (let i = parents.length - 1; i >= 0; i--) {
+                const anc = parents[i];
+                if (!anc) continue;
+                if (anc.type === 'ComponentUse' || /ComponentUse/i.test(anc.type)) {
+                  ownerLocal = anc.name || (anc.id && anc.id.name) || anc.id || null; break;
+                }
+                // or ancestor is a componentDef inner entry with name
+                if (anc.name && anc.definition) { ownerLocal = anc.name; break; }
+              }
+              let owner = qname;
+              if (ownerLocal) {
+                const childEntry = instances.find(it => it.name === ownerLocal && it.qname.indexOf(qname + '.') === 0);
+                if (childEntry) owner = childEntry.qname; else owner = qname;
+              }
+              const pname = n && (n.name || (n.id && n.id.name) || n.id) || null;
+              if (!pname) return;
+              const copy = Object.assign({}, n, { _ownerComponent: owner });
+              ports.push(copy);
+            }
+          });
+        }
+      }
+      return qname;
+    }
+
+  // start with top-level uses declared in the chosen configuration
+  const topUses = collectComponentUses(rootConfig) || [];
+  try { console.debug('[DEBUG] topUses count =', topUses.length); } catch(e){}
+    for (const u of topUses) processUse(u, '');
+
+    // also collect ports declared directly in the top-level configuration (owner should be top-level instance)
+    const topPorts = collectPortUses(rootConfig) || [];
+    for (const pu of topPorts) {
+      let owner = pu && pu._ownerComponent ? pu._ownerComponent : null;
+      // if owner is a top-level local name, map to qualified name (no prefix)
+      if (owner) {
+        const inst = instances.find(it => it.name === owner && it.qname.indexOf(owner) === 0);
+        if (inst) owner = inst.qname; // already same for top-level
+      } else {
+        // ambiguous port at top-level without explicit owner -> skip
+        continue;
+      }
+      const pname = pu && (pu.name || (pu.id && pu.id.name) || pu.id) || null;
+      if (!pname) continue;
+      const copy = Object.assign({}, pu, { _ownerComponent: owner });
+      ports.push(copy);
+    }
+
+    // collect connectors declared directly in the top-level configuration and mark owner as '' (root)
+    const rootConn = collectConnectorBindings(rootConfig) || [];
+    for (const rc of rootConn) connectors.push({ owner: '', node: rc });
+
+      return { instances, ports, connectors };
+  }
+
+  const _collected = collectRecursiveInstancesAndPorts(cfg);
+  try { console.debug('[DEBUG] collected instances count =', (_collected.instances||[]).length); } catch(e){}
+  // normalize into shapes expected by downstream generator helpers
+  const compUses = (_collected.instances || []).map(i => ({ type: 'ComponentUse', name: i.qname, definition: i.def, _orig: i.node }));
+  const portUses = _collected.ports || [];
+  // prefer connectors found by recursive collector (they carry owner information)
+  const connBinds = (_collected.connectors || []).map(c => c);
   // extract executables from AST (definitions)
   function extractExecutablesFromAst(astNode, sourceText) {
     const list = [];
@@ -432,9 +646,10 @@ async function main() {
     }
   });
   const modelName = (ast && ast.name) ? ast.name : path.basename(input, path.extname(input));
-  // build connector participants map from connectorBindings
+  // build connector participants map from connectorBindings (cb may be {owner,node} or raw node)
   const connParticipants = {};
-  for (const cb of connBinds) {
+  for (const cbWrap of connBinds) {
+    const cb = cbWrap && cbWrap.node ? cbWrap.node : cbWrap;
     const cname = (cb.name || (cb.id && cb.id.name) || cb.id) || '_implicit';
     connParticipants[cname] = connParticipants[cname] || [];
     const bl = cb.bindingList || cb.bindings || cb.connects || [];
@@ -454,9 +669,7 @@ async function main() {
     }
   }
 
-  // map component definition name -> ComponentDef node
-  const compDefMap = {};
-  traverse(ast, n => { if (n && (n.type === 'ComponentDef' || /ComponentDef/i.test(n.type))) { const nm = n.name || n.id || null; if (nm) compDefMap[nm] = n; } });
+  // compDefMap already declared above near config selection
 
   // map executables -> actions -> activities using allocations
   const activityActionsMap = {}; // activityName -> [{ executable, name }]
@@ -559,12 +772,37 @@ async function main() {
   const compNames = (Array.isArray(compUses) ? compUses.map(cu => cu && (cu.name || (cu.id && cu.id.name) || cu.id) ).filter(Boolean) : []);
   for (const key of compNames) {
     compPortsMap_main[key] = new Set();
+    // also expose short unqualified name for matching (last segment)
+    const parts = String(key).split('.');
+    const short = parts.length ? parts[parts.length-1] : key;
+    if (short && !compPortsMap_main[short]) compPortsMap_main[short] = compPortsMap_main[key];
   }
   for (const pu of (portUses || [])) {
     const owner = pu && pu._ownerComponent ? pu._ownerComponent : null;
     const pname = pu && (pu.name || (pu.id && pu.id.name) || pu.id) || null;
     if (owner && pname && Object.prototype.hasOwnProperty.call(compPortsMap_main, owner)) compPortsMap_main[owner].add(String(pname));
+    // also add to short name mapping when present
+    if (owner && pname) {
+      const parts = String(owner).split('.');
+      const short = parts.length ? parts[parts.length-1] : null;
+      if (short && Object.prototype.hasOwnProperty.call(compPortsMap_main, short)) compPortsMap_main[short].add(String(pname));
+    }
   }
+
+  // augment ports map using connector participants (they explicitly reference component.port)
+  try {
+    for (const cname of Object.keys(connParticipants || {})) {
+      const parts = connParticipants[cname] || [];
+      for (const p of parts) {
+        if (!p || !p.component || !p.port) continue;
+        const comp = p.component;
+        if (!compPortsMap_main[comp]) compPortsMap_main[comp] = new Set();
+        compPortsMap_main[comp].add(String(p.port));
+        const short = String(comp).split('.').pop();
+        if (short && compPortsMap_main[short]) compPortsMap_main[short].add(String(p.port));
+      }
+    }
+  } catch (e) { /* ignore augmentation errors */ }
 
   // create tolerant matching between activity param names and component ports
   function findMatchingPortsForParams(params, portsSet) {
@@ -589,6 +827,25 @@ async function main() {
     return matched;
   }
 
+  // attempt to collect ports for a qualified component name including descendant components
+  function collectPortsForQualifiedComponent(qname) {
+    const result = new Set();
+    if (!qname) return result;
+    // direct ports
+    if (compPortsMap_main[qname]) for (const p of compPortsMap_main[qname]) result.add(p);
+    // also collect ports from descendant qualified names that start with qname + '.'
+    for (const k of Object.keys(compPortsMap_main)) {
+      if (k === qname) continue;
+      if (String(k).indexOf(qname + '.') === 0) {
+        for (const p of compPortsMap_main[k]) result.add(p);
+      }
+    }
+    // also attempt short-name resolution
+    const short = String(qname).split('.').pop();
+    if (short && compPortsMap_main[short]) for (const p of compPortsMap_main[short]) result.add(p);
+    return result;
+  }
+
   // fuzzy token-overlap scoring: returns list of ports ordered by score
   function scorePortsByTokenOverlap(param, ports) {
     const tokens = String(param).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
@@ -609,81 +866,69 @@ async function main() {
     const ddef = cu && (cu.definition || cu.def || (cu.sysadlType && cu.sysadlType.name)) || null;
     if (iname) compInstanceDef[iname] = ddef;
   }
-  const registeredActivities = new Set();
+
+  // permissive registration: for each activityDef, register it to any instance whose
+  // definition or short name matches the activity root; choose input ports by best match
   for (const [an, def] of Object.entries(activityDefs)) {
     const params = def.params || [];
-    if (!params || params.length === 0) continue;
-    // try preferred component by matching activity name root to definition name
     const root = String(an).replace(/AC$/i, '').replace(/Activity$/i, '').trim();
-    const prefComp = Object.keys(compInstanceDef).find(k => {
-      const d = compInstanceDef[k];
-      if (!d) return false;
-      return normalizeForMatch(String(d)) === normalizeForMatch(root) || normalizeForMatch(String(k)) === normalizeForMatch(root);
-    }) || null;
-  if (prefComp) {
-      const portsSet = compPortsMap_main[prefComp] || new Set();
-      const matched = findMatchingPortsForParams(params, portsSet);
-      if (matched) {
-        const basicActions = activityActionsMap[an] || [];
-        const enriched = basicActions.map(a => { const ddef = actionDefMap[a.name] || {}; return { name: a.name, executable: a.executable, params: ddef.params || [], body: ddef.body || null }; });
-        activitiesToRegister.push({ activityName: an, descriptor: { component: prefComp, inputPorts: matched, actions: enriched } });
-        registeredActivities.add(an);
-        continue;
+
+    // find candidate instances: match by definition name or by short instance name
+    const candidates = [];
+    for (const instName of Object.keys(compInstanceDef)) {
+      const ddef = compInstanceDef[instName];
+      if (ddef && normalizeForMatch(String(ddef)) === normalizeForMatch(root)) { candidates.push(instName); continue; }
+      const short = String(instName).split('.').pop();
+      if (short && normalizeForMatch(short) === normalizeForMatch(root)) { candidates.push(instName); continue; }
+      if (normalizeForMatch(instName) === normalizeForMatch(root)) { candidates.push(instName); continue; }
+    }
+    // fallback: allow partial match on definition
+    if (candidates.length === 0) {
+      for (const instName of Object.keys(compInstanceDef)) {
+        const ddef = compInstanceDef[instName] || '';
+        if (normalizeForMatch(String(ddef)).indexOf(normalizeForMatch(root)) !== -1) { candidates.push(instName); }
       }
     }
-    // permissive fallback: score components by how many params can be matched
-    let best = null;
-    let bestScore = -1;
-    for (const cuName of Object.keys(compPortsMap_main)) {
-      const portsSet = compPortsMap_main[cuName] || new Set();
-      const matched = findMatchingPortsForParams(params, portsSet);
-      const score = matched ? matched.length : 0;
-      if (score > bestScore) { bestScore = score; best = { cuName, matched }; }
-    }
-    // register if best candidate matches at least half of params (or all)
-    const minNeeded = Math.max(1, Math.ceil(params.length / 2));
-    if (best && bestScore >= minNeeded && best.matched) {
+
+    // if still no candidates, try all components
+    if (candidates.length === 0) candidates.push(...Object.keys(compInstanceDef));
+
+    for (const cand of candidates) {
+      const portsSet = collectPortsForQualifiedComponent(cand) || new Set();
+      let matched = [];
+      if (params && params.length) matched = findMatchingPortsForParams(params, portsSet) || [];
+      // fallback: if no matched ports, pick the first available port
+      if ((!matched || matched.length === 0) && portsSet && portsSet.size) matched = [Array.from(portsSet)[0]];
+
       const basicActions = activityActionsMap[an] || [];
       const enriched = basicActions.map(a => { const ddef = actionDefMap[a.name] || {}; return { name: a.name, executable: a.executable, params: ddef.params || [], body: ddef.body || null }; });
-      activitiesToRegister.push({ activityName: an, descriptor: { component: best.cuName, inputPorts: best.matched, actions: enriched } });
-      registeredActivities.add(an);
-    }
-    // additionally, register per-component partial matches for any remaining params
-    for (const cuName of Object.keys(compPortsMap_main)) {
-      // skip if already registered for this activity+component
-      const regKey = an + '::' + cuName;
-      if (registeredActivities.has(regKey)) continue;
-      const portsSet = compPortsMap_main[cuName] || new Set();
-      // try to match individual params against this component's ports
-      const partial = [];
-      for (const p of params) {
-        const pn = String(p);
-        const exact = Array.from(portsSet).find(x => x === pn);
-        if (exact) { partial.push(exact); continue; }
-        const cand = tryFindBySuffix(pn, Array.from(portsSet));
-        if (cand) { partial.push(cand); continue; }
-        const sub = Array.from(portsSet).find(x => String(x).toLowerCase().indexOf(pn.toLowerCase()) !== -1);
-        if (sub) { partial.push(sub); continue; }
-        const scored = scorePortsByTokenOverlap(pn, Array.from(portsSet));
-        if (scored && scored.length) { partial.push(scored[0]); continue; }
-      }
-      if (partial.length > 0) {
-        const basicActions = activityActionsMap[an] || [];
-        const enriched = basicActions.map(a => { const ddef = actionDefMap[a.name] || {}; return { name: a.name, executable: a.executable, params: ddef.params || [], body: ddef.body || null }; });
-        activitiesToRegister.push({ activityName: an, descriptor: { component: cuName, inputPorts: partial, actions: enriched } });
-        registeredActivities.add(regKey);
-      }
+      activitiesToRegister.push({ activityName: an, descriptor: { component: cand, inputPorts: matched, actions: enriched } });
     }
   }
 
+  // debug summary suppressed in normal runs; enable by setting DEBUG=1 env var
   try {
-    console.error('[DEBUG] activitiesToRegister =', activitiesToRegister.map(a => ({ activity: a.activityName, component: a.descriptor && a.descriptor.component, inputPorts: a.descriptor && a.descriptor.inputPorts && (a.descriptor.inputPorts.length ? a.descriptor.inputPorts : a.descriptor.inputPorts) })));
-    console.error('[DEBUG] activityDefs detail =', Object.entries(activityDefs).map(([k,v]) => ({ name: k, params: v.params })));
-    console.error('[DEBUG] actionDefMap keys =', Object.keys(actionDefMap || {}));
-    // print sample of actionDefMap entries
-    try { console.error('[DEBUG] actionDefMap =', Object.fromEntries(Object.keys(actionDefMap).slice(0,50).map(k=> [k, { params: actionDefMap[k] && actionDefMap[k].params, body: (actionDefMap[k] && actionDefMap[k].body) ? String(actionDefMap[k].body).slice(0,120) : null }] ))); } catch(e) {}
-    console.error('[DEBUG] activityActionsMap =', Object.fromEntries(Object.keys(activityActionsMap).map(k=> [k, activityActionsMap[k]])));
+    if (process.env.DEBUG) {
+      console.error('[DEBUG] activitiesToRegister =', activitiesToRegister.map(a => ({ activity: a.activityName, component: a.descriptor && a.descriptor.component, inputPorts: a.descriptor && a.descriptor.inputPorts && (a.descriptor.inputPorts.length ? a.descriptor.inputPorts : a.descriptor.inputPorts) })));
+      console.error('[DEBUG] activityDefs detail =', Object.entries(activityDefs).map(([k,v]) => ({ name: k, params: v.params })));
+      console.error('[DEBUG] actionDefMap keys =', Object.keys(actionDefMap || {}));
+      try { console.error('[DEBUG] actionDefMap =', Object.fromEntries(Object.keys(actionDefMap).slice(0,50).map(k=> [k, { params: actionDefMap[k] && actionDefMap[k].params, body: (actionDefMap[k] && actionDefMap[k].body) ? String(actionDefMap[k].body).slice(0,120) : null }] ))); } catch(e) {}
+      console.error('[DEBUG] activityActionsMap =', Object.fromEntries(Object.keys(activityActionsMap).map(k=> [k, activityActionsMap[k]])));
+    }
   } catch (e) { /* ignore */ }
+  // Ensure that activitiesToRegister have inputPorts: when empty, fall back to params declared in activityDefs
+  try {
+    for (const at of activitiesToRegister) {
+      if (!at || !at.activityName || !at.descriptor) continue;
+      const desc = at.descriptor;
+      if ((!desc.inputPorts || desc.inputPorts.length === 0) && activityDefs && activityDefs[at.activityName] && Array.isArray(activityDefs[at.activityName].params)) {
+        const params = activityDefs[at.activityName].params || [];
+        desc.inputPorts = params.map(pn => sanitizeId(pn)).filter(Boolean);
+      }
+      // also sanitize any existing inputPorts
+      if (desc.inputPorts && desc.inputPorts.length) desc.inputPorts = desc.inputPorts.map(pn => sanitizeId(pn)).filter(Boolean);
+    }
+  } catch (e) { console.warn('[WARN] while filling activity inputPorts:', e && e.message); }
   const moduleCode = generateModuleCode(modelName, compUses, portUses, connBinds, executables, activitiesToRegister);
   // post-process generated code: split occurrences of "; " into ";\n" when safe
   function splitSemicolonsSafely(code) {

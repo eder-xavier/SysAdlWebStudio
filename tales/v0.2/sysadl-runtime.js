@@ -268,6 +268,8 @@ class ComponentBase extends ElementBase {
     super(name, opts);
     this.ports = {};
     this.subcomponents = {};
+  // convenience: expose the sysadl definition name if provided in opts
+  this.sysadlDefinition = opts && opts.sysadlDefinition ? opts.sysadlDefinition : null;
   }
   addPort(port) { this.ports[port.name] = port; }
   addSubcomponent(inst) { this.subcomponents[inst.name] = inst; }
