@@ -1,0 +1,341 @@
+const { Model, Component, Port, Connector, Activity, Action, createExecutableFromExpression } = require('../SysADLBase');
+
+class SupervisorySystem extends Component { constructor(name){ super(name); } }
+class AGVSystem extends Component { constructor(name){ super(name); } }
+class DisplaySystem extends Component { constructor(name){ super(name); } }
+class Motor extends Component { constructor(name){ super(name); } }
+class ArrivalSensor extends Component { constructor(name){ super(name); } }
+class RobotArm extends Component { constructor(name){ super(name); } }
+class VehicleControl extends Component { constructor(name){ super(name); } }
+class CheckStation extends Component { constructor(name){ super(name); } }
+class ControlArm extends Component { constructor(name){ super(name); } }
+class NotifierMotor extends Component { constructor(name){ super(name); } }
+class StartMoving extends Component { constructor(name){ super(name); } }
+class NotifierArm extends Component { constructor(name){ super(name); } }
+class VehicleTimer extends Component { constructor(name){ super(name); } }
+
+class SysADLArchitecture extends Model {
+  constructor(){
+    super("SysADLArchitecture");
+    // instantiate components and expose as properties for direct navigation
+    this.ss = new SupervisorySystem("ss");
+    this.addComponent(this.ss);
+    this.agvs = new AGVSystem("agvs");
+    this.addComponent(this.agvs);
+    this.ds = new DisplaySystem("ds");
+    this.addComponent(this.ds);
+    this.m = new Motor("m");
+    this.addComponent(this.m);
+    this.as = new ArrivalSensor("as");
+    this.addComponent(this.as);
+    this.ra = new RobotArm("ra");
+    this.addComponent(this.ra);
+    this.vc = new VehicleControl("vc");
+    this.addComponent(this.vc);
+    this.cs = new CheckStation("cs");
+    this.addComponent(this.cs);
+    this.ca = new ControlArm("ca");
+    this.addComponent(this.ca);
+    this.nm = new NotifierMotor("nm");
+    this.addComponent(this.nm);
+    this.sm = new StartMoving("sm");
+    this.addComponent(this.sm);
+    this.na = new NotifierArm("na");
+    this.addComponent(this.na);
+    this.vt = new VehicleTimer("vt");
+    this.addComponent(this.vt);
+
+    // helper to add executable safely
+    const __addExec = (ename, body, params) => { try { this.addExecutable(ename, createExecutableFromExpression(String(body||""), params||[])); } catch(e) { /* ignore */ } };
+    // helper to attach connector endpoint (model, componentExprOrName, portName)
+    const __attachEndpoint = (conn, compOrName, portName) => { try { let comp = compOrName; if (typeof compOrName === "string") { comp = this.components && this.components[compOrName] ? this.components[compOrName] : Object.values(this.components||{}).find(c=>c && (c.sysadlName === compOrName || c.name === compOrName)); } if (comp && comp.ports && comp.ports[portName]) conn.addEndpoint(this, comp.ports[portName]); } catch(e){} };
+    // port in_outData on ss
+    if (!this.ss .ports) this.ss .ports = {};
+    if (!this.ss .ports["in_outData"]) { const __p = new Port("in_outData", 'in', { owner: "ss" }); this.ss .addPort(__p); }
+    // port sendStatus on agvs
+    if (!this.agvs .ports) this.agvs .ports = {};
+    if (!this.agvs .ports["sendStatus"]) { const __p = new Port("sendStatus", 'in', { owner: "agvs" }); this.agvs .addPort(__p); }
+    // port in_outData on agvs
+    if (!this.agvs .ports) this.agvs .ports = {};
+    if (!this.agvs .ports["in_outData"]) { const __p = new Port("in_outData", 'in', { owner: "agvs" }); this.agvs .addPort(__p); }
+    // port start_stop_in on agvs
+    if (!this.agvs .ports) this.agvs .ports = {};
+    if (!this.agvs .ports["start_stop_in"]) { const __p = new Port("start_stop_in", 'in', { owner: "agvs" }); this.agvs .addPort(__p); }
+    // port started_stopped_out on agvs
+    if (!this.agvs .ports) this.agvs .ports = {};
+    if (!this.agvs .ports["started_stopped_out"]) { const __p = new Port("started_stopped_out", 'in', { owner: "agvs" }); this.agvs .addPort(__p); }
+    // port arrivalDetected_out on agvs
+    if (!this.agvs .ports) this.agvs .ports = {};
+    if (!this.agvs .ports["arrivalDetected_out"]) { const __p = new Port("arrivalDetected_out", 'in', { owner: "agvs" }); this.agvs .addPort(__p); }
+    // port start on agvs
+    if (!this.agvs .ports) this.agvs .ports = {};
+    if (!this.agvs .ports["start"]) { const __p = new Port("start", 'in', { owner: "agvs" }); this.agvs .addPort(__p); }
+    // port started on agvs
+    if (!this.agvs .ports) this.agvs .ports = {};
+    if (!this.agvs .ports["started"]) { const __p = new Port("started", 'in', { owner: "agvs" }); this.agvs .addPort(__p); }
+    // port sendStatus on agvs
+    if (!this.agvs .ports) this.agvs .ports = {};
+    if (!this.agvs .ports["sendStatus"]) { const __p = new Port("sendStatus", 'in', { owner: "agvs" }); this.agvs .addPort(__p); }
+    // port arrivalDetected_in on agvs
+    if (!this.agvs .ports) this.agvs .ports = {};
+    if (!this.agvs .ports["arrivalDetected_in"]) { const __p = new Port("arrivalDetected_in", 'in', { owner: "agvs" }); this.agvs .addPort(__p); }
+    // port startArm on agvs
+    if (!this.agvs .ports) this.agvs .ports = {};
+    if (!this.agvs .ports["startArm"]) { const __p = new Port("startArm", 'in', { owner: "agvs" }); this.agvs .addPort(__p); }
+    // port startedArm on agvs
+    if (!this.agvs .ports) this.agvs .ports = {};
+    if (!this.agvs .ports["startedArm"]) { const __p = new Port("startedArm", 'in', { owner: "agvs" }); this.agvs .addPort(__p); }
+    // port started_stopped_in on agvs
+    if (!this.agvs .ports) this.agvs .ports = {};
+    if (!this.agvs .ports["started_stopped_in"]) { const __p = new Port("started_stopped_in", 'in', { owner: "agvs" }); this.agvs .addPort(__p); }
+    // port start_stop_out on agvs
+    if (!this.agvs .ports) this.agvs .ports = {};
+    if (!this.agvs .ports["start_stop_out"]) { const __p = new Port("start_stop_out", 'in', { owner: "agvs" }); this.agvs .addPort(__p); }
+    // port in_outData on agvs
+    if (!this.agvs .ports) this.agvs .ports = {};
+    if (!this.agvs .ports["in_outData"]) { const __p = new Port("in_outData", 'in', { owner: "agvs" }); this.agvs .addPort(__p); }
+    // port receiveStatus on ds
+    if (!this.ds .ports) this.ds .ports = {};
+    if (!this.ds .ports["receiveStatus"]) { const __p = new Port("receiveStatus", 'in', { owner: "ds" }); this.ds .addPort(__p); }
+    // port start_stop on m
+    if (!this.m .ports) this.m .ports = {};
+    if (!this.m .ports["start_stop"]) { const __p = new Port("start_stop", 'in', { owner: "m" }); this.m .addPort(__p); }
+    // port started_stopped on m
+    if (!this.m .ports) this.m .ports = {};
+    if (!this.m .ports["started_stopped"]) { const __p = new Port("started_stopped", 'in', { owner: "m" }); this.m .addPort(__p); }
+    // port arrivalDetected on as
+    if (!this.as .ports) this.as .ports = {};
+    if (!this.as .ports["arrivalDetected"]) { const __p = new Port("arrivalDetected", 'in', { owner: "as" }); this.as .addPort(__p); }
+    // port start on ra
+    if (!this.ra .ports) this.ra .ports = {};
+    if (!this.ra .ports["start"]) { const __p = new Port("start", 'in', { owner: "ra" }); this.ra .addPort(__p); }
+    // port started on ra
+    if (!this.ra .ports) this.ra .ports = {};
+    if (!this.ra .ports["started"]) { const __p = new Port("started", 'in', { owner: "ra" }); this.ra .addPort(__p); }
+    // port sendStatus on vc
+    if (!this.vc .ports) this.vc .ports = {};
+    if (!this.vc .ports["sendStatus"]) { const __p = new Port("sendStatus", 'in', { owner: "vc" }); this.vc .addPort(__p); }
+    // port arrivalDetected on vc
+    if (!this.vc .ports) this.vc .ports = {};
+    if (!this.vc .ports["arrivalDetected"]) { const __p = new Port("arrivalDetected", 'in', { owner: "vc" }); this.vc .addPort(__p); }
+    // port startArm on vc
+    if (!this.vc .ports) this.vc .ports = {};
+    if (!this.vc .ports["startArm"]) { const __p = new Port("startArm", 'in', { owner: "vc" }); this.vc .addPort(__p); }
+    // port startedArm on vc
+    if (!this.vc .ports) this.vc .ports = {};
+    if (!this.vc .ports["startedArm"]) { const __p = new Port("startedArm", 'in', { owner: "vc" }); this.vc .addPort(__p); }
+    // port started_stopped on vc
+    if (!this.vc .ports) this.vc .ports = {};
+    if (!this.vc .ports["started_stopped"]) { const __p = new Port("started_stopped", 'in', { owner: "vc" }); this.vc .addPort(__p); }
+    // port start_stop on vc
+    if (!this.vc .ports) this.vc .ports = {};
+    if (!this.vc .ports["start_stop"]) { const __p = new Port("start_stop", 'in', { owner: "vc" }); this.vc .addPort(__p); }
+    // port in_outData on vc
+    if (!this.vc .ports) this.vc .ports = {};
+    if (!this.vc .ports["in_outData"]) { const __p = new Port("in_outData", 'in', { owner: "vc" }); this.vc .addPort(__p); }
+    // port ack_cs on vc
+    if (!this.vc .ports) this.vc .ports = {};
+    if (!this.vc .ports["ack_cs"]) { const __p = new Port("ack_cs", 'in', { owner: "vc" }); this.vc .addPort(__p); }
+    // port location_cs on vc
+    if (!this.vc .ports) this.vc .ports = {};
+    if (!this.vc .ports["location_cs"]) { const __p = new Port("location_cs", 'in', { owner: "vc" }); this.vc .addPort(__p); }
+    // port destination_cs on vc
+    if (!this.vc .ports) this.vc .ports = {};
+    if (!this.vc .ports["destination_cs"]) { const __p = new Port("destination_cs", 'in', { owner: "vc" }); this.vc .addPort(__p); }
+    // port stop on vc
+    if (!this.vc .ports) this.vc .ports = {};
+    if (!this.vc .ports["stop"]) { const __p = new Port("stop", 'in', { owner: "vc" }); this.vc .addPort(__p); }
+    // port arrivalDetected on vc
+    if (!this.vc .ports) this.vc .ports = {};
+    if (!this.vc .ports["arrivalDetected"]) { const __p = new Port("arrivalDetected", 'in', { owner: "vc" }); this.vc .addPort(__p); }
+    // port passed on vc
+    if (!this.vc .ports) this.vc .ports = {};
+    if (!this.vc .ports["passed"]) { const __p = new Port("passed", 'in', { owner: "vc" }); this.vc .addPort(__p); }
+    // port cmd_ca on vc
+    if (!this.vc .ports) this.vc .ports = {};
+    if (!this.vc .ports["cmd_ca"]) { const __p = new Port("cmd_ca", 'in', { owner: "vc" }); this.vc .addPort(__p); }
+    // port ack_ca on vc
+    if (!this.vc .ports) this.vc .ports = {};
+    if (!this.vc .ports["ack_ca"]) { const __p = new Port("ack_ca", 'in', { owner: "vc" }); this.vc .addPort(__p); }
+    // port startArm on vc
+    if (!this.vc .ports) this.vc .ports = {};
+    if (!this.vc .ports["startArm"]) { const __p = new Port("startArm", 'in', { owner: "vc" }); this.vc .addPort(__p); }
+    // port inAck on vc
+    if (!this.vc .ports) this.vc .ports = {};
+    if (!this.vc .ports["inAck"]) { const __p = new Port("inAck", 'in', { owner: "vc" }); this.vc .addPort(__p); }
+    // port ack on vc
+    if (!this.vc .ports) this.vc .ports = {};
+    if (!this.vc .ports["ack"]) { const __p = new Port("ack", 'in', { owner: "vc" }); this.vc .addPort(__p); }
+    // port outAck on vc
+    if (!this.vc .ports) this.vc .ports = {};
+    if (!this.vc .ports["outAck"]) { const __p = new Port("outAck", 'in', { owner: "vc" }); this.vc .addPort(__p); }
+    // port move on vc
+    if (!this.vc .ports) this.vc .ports = {};
+    if (!this.vc .ports["move"]) { const __p = new Port("move", 'in', { owner: "vc" }); this.vc .addPort(__p); }
+    // port cmd_sm on vc
+    if (!this.vc .ports) this.vc .ports = {};
+    if (!this.vc .ports["cmd_sm"]) { const __p = new Port("cmd_sm", 'in', { owner: "vc" }); this.vc .addPort(__p); }
+    // port destination on vc
+    if (!this.vc .ports) this.vc .ports = {};
+    if (!this.vc .ports["destination"]) { const __p = new Port("destination", 'in', { owner: "vc" }); this.vc .addPort(__p); }
+    // port start on vc
+    if (!this.vc .ports) this.vc .ports = {};
+    if (!this.vc .ports["start"]) { const __p = new Port("start", 'in', { owner: "vc" }); this.vc .addPort(__p); }
+    // port arrivedStatus on vc
+    if (!this.vc .ports) this.vc .ports = {};
+    if (!this.vc .ports["arrivedStatus"]) { const __p = new Port("arrivedStatus", 'in', { owner: "vc" }); this.vc .addPort(__p); }
+    // port loaded_unloaded on vc
+    if (!this.vc .ports) this.vc .ports = {};
+    if (!this.vc .ports["loaded_unloaded"]) { const __p = new Port("loaded_unloaded", 'in', { owner: "vc" }); this.vc .addPort(__p); }
+    // port AGVStatus on vc
+    if (!this.vc .ports) this.vc .ports = {};
+    if (!this.vc .ports["AGVStatus"]) { const __p = new Port("AGVStatus", 'in', { owner: "vc" }); this.vc .addPort(__p); }
+    // port location_vt on vc
+    if (!this.vc .ports) this.vc .ports = {};
+    if (!this.vc .ports["location_vt"]) { const __p = new Port("location_vt", 'in', { owner: "vc" }); this.vc .addPort(__p); }
+    // port destination_vt on vc
+    if (!this.vc .ports) this.vc .ports = {};
+    if (!this.vc .ports["destination_vt"]) { const __p = new Port("destination_vt", 'in', { owner: "vc" }); this.vc .addPort(__p); }
+    // port cmd on vc
+    if (!this.vc .ports) this.vc .ports = {};
+    if (!this.vc .ports["cmd"]) { const __p = new Port("cmd", 'in', { owner: "vc" }); this.vc .addPort(__p); }
+    // port ack on cs
+    if (!this.cs .ports) this.cs .ports = {};
+    if (!this.cs .ports["ack"]) { const __p = new Port("ack", 'in', { owner: "cs" }); this.cs .addPort(__p); }
+    // port location on cs
+    if (!this.cs .ports) this.cs .ports = {};
+    if (!this.cs .ports["location"]) { const __p = new Port("location", 'in', { owner: "cs" }); this.cs .addPort(__p); }
+    // port destination on cs
+    if (!this.cs .ports) this.cs .ports = {};
+    if (!this.cs .ports["destination"]) { const __p = new Port("destination", 'in', { owner: "cs" }); this.cs .addPort(__p); }
+    // port stop on cs
+    if (!this.cs .ports) this.cs .ports = {};
+    if (!this.cs .ports["stop"]) { const __p = new Port("stop", 'in', { owner: "cs" }); this.cs .addPort(__p); }
+    // port arrivalDetected on cs
+    if (!this.cs .ports) this.cs .ports = {};
+    if (!this.cs .ports["arrivalDetected"]) { const __p = new Port("arrivalDetected", 'in', { owner: "cs" }); this.cs .addPort(__p); }
+    // port passed on cs
+    if (!this.cs .ports) this.cs .ports = {};
+    if (!this.cs .ports["passed"]) { const __p = new Port("passed", 'in', { owner: "cs" }); this.cs .addPort(__p); }
+    // port cmd on ca
+    if (!this.ca .ports) this.ca .ports = {};
+    if (!this.ca .ports["cmd"]) { const __p = new Port("cmd", 'in', { owner: "ca" }); this.ca .addPort(__p); }
+    // port ack on ca
+    if (!this.ca .ports) this.ca .ports = {};
+    if (!this.ca .ports["ack"]) { const __p = new Port("ack", 'in', { owner: "ca" }); this.ca .addPort(__p); }
+    // port startArm on ca
+    if (!this.ca .ports) this.ca .ports = {};
+    if (!this.ca .ports["startArm"]) { const __p = new Port("startArm", 'in', { owner: "ca" }); this.ca .addPort(__p); }
+    // port inAck on nm
+    if (!this.nm .ports) this.nm .ports = {};
+    if (!this.nm .ports["inAck"]) { const __p = new Port("inAck", 'in', { owner: "nm" }); this.nm .addPort(__p); }
+    // port ack on nm
+    if (!this.nm .ports) this.nm .ports = {};
+    if (!this.nm .ports["ack"]) { const __p = new Port("ack", 'in', { owner: "nm" }); this.nm .addPort(__p); }
+    // port outAck on nm
+    if (!this.nm .ports) this.nm .ports = {};
+    if (!this.nm .ports["outAck"]) { const __p = new Port("outAck", 'in', { owner: "nm" }); this.nm .addPort(__p); }
+    // port move on sm
+    if (!this.sm .ports) this.sm .ports = {};
+    if (!this.sm .ports["move"]) { const __p = new Port("move", 'in', { owner: "sm" }); this.sm .addPort(__p); }
+    // port cmd on sm
+    if (!this.sm .ports) this.sm .ports = {};
+    if (!this.sm .ports["cmd"]) { const __p = new Port("cmd", 'in', { owner: "sm" }); this.sm .addPort(__p); }
+    // port destination on sm
+    if (!this.sm .ports) this.sm .ports = {};
+    if (!this.sm .ports["destination"]) { const __p = new Port("destination", 'in', { owner: "sm" }); this.sm .addPort(__p); }
+    // port start on sm
+    if (!this.sm .ports) this.sm .ports = {};
+    if (!this.sm .ports["start"]) { const __p = new Port("start", 'in', { owner: "sm" }); this.sm .addPort(__p); }
+    // port arrivedStatus on na
+    if (!this.na .ports) this.na .ports = {};
+    if (!this.na .ports["arrivedStatus"]) { const __p = new Port("arrivedStatus", 'in', { owner: "na" }); this.na .addPort(__p); }
+    // port loaded_unloaded on na
+    if (!this.na .ports) this.na .ports = {};
+    if (!this.na .ports["loaded_unloaded"]) { const __p = new Port("loaded_unloaded", 'in', { owner: "na" }); this.na .addPort(__p); }
+    // port AGVStatus on vt
+    if (!this.vt .ports) this.vt .ports = {};
+    if (!this.vt .ports["AGVStatus"]) { const __p = new Port("AGVStatus", 'in', { owner: "vt" }); this.vt .addPort(__p); }
+    // port location on vt
+    if (!this.vt .ports) this.vt .ports = {};
+    if (!this.vt .ports["location"]) { const __p = new Port("location", 'in', { owner: "vt" }); this.vt .addPort(__p); }
+    // port destination on vt
+    if (!this.vt .ports) this.vt .ports = {};
+    if (!this.vt .ports["destination"]) { const __p = new Port("destination", 'in', { owner: "vt" }); this.vt .addPort(__p); }
+    // port cmd on vt
+    if (!this.vt .ports) this.vt .ports = {};
+    if (!this.vt .ports["cmd"]) { const __p = new Port("cmd", 'in', { owner: "vt" }); this.vt .addPort(__p); }
+    // ensure activity ports for sm
+    if (!this.sm .ports) this.sm .ports = {};
+    if (!this.sm .ports["move"]) { const __p = new Port("move", 'in', { owner: "sm" }); this.sm .addPort(__p); }
+    // ensure activity ports for nm
+    if (!this.nm .ports) this.nm .ports = {};
+    if (!this.nm .ports["inAck"]) { const __p = new Port("inAck", 'in', { owner: "nm" }); this.nm .addPort(__p); }
+    // ensure activity ports for cs
+    if (!this.cs .ports) this.cs .ports = {};
+    if (!this.cs .ports["ack"]) { const __p = new Port("ack", 'in', { owner: "cs" }); this.cs .addPort(__p); }
+    // ensure activity ports for ca
+    if (!this.ca .ports) this.ca .ports = {};
+    if (!this.ca .ports["cmd"]) { const __p = new Port("cmd", 'in', { owner: "ca" }); this.ca .addPort(__p); }
+    // ensure activity ports for na
+    if (!this.na .ports) this.na .ports = {};
+    if (!this.na .ports["arrivedStatus"]) { const __p = new Port("arrivedStatus", 'in', { owner: "na" }); this.na .addPort(__p); }
+    // ensure activity ports for vt
+    if (!this.vt .ports) this.vt .ports = {};
+    if (!this.vt .ports["destination"]) { const __p = new Port("destination", 'in', { owner: "vt" }); this.vt .addPort(__p); }
+    __addExec("SysADLArchitecture.SendStartMotorEX", "executable def SendStartMotorEX ( in move : VehicleData) : out CommandToMotor {\n\t\treturn CommandToMotor::start;\n\t}", []);
+    __addExec("SysADLArchitecture.SendCommandEX", "executable def SendCommandEX ( in move : VehicleData) : out CommandToArm {\n\t\treturn move->command;\n\t}", []);
+    __addExec("SysADLArchitecture.SendDestinationEX", "executable def SendDestinationEX ( in move : VehicleData) : out Location {\n\t\treturn move->destination;\n\t}", []);
+    __addExec("SysADLArchitecture.NotifyAGVFromMotorEX", "executable def NotifyAGVFromMotorEX ( in statusMotor : NotificationFromMotor) : \n\tout NotificationFromMotor{\n\t\treturn statusMotor;\n\t}", []);
+    __addExec("SysADLArchitecture.NotifySupervisoryFromMotorEX", "executable def NotifySupervisoryFromMotorEX ( in statusMotor : NotificationFromMotor) : \n\t\tout\tNotificationToSupervisory {\n\t\tif (statusMotor == NotificationFromMotor::started) \n\t\t\treturn NotificationToSupervisory::departed;\n\t\telse\n\t\t\treturn NotificationToSupervisory::traveling;\n\t}", []);
+    __addExec("SysADLArchitecture.CompareStationsEX", "executable def CompareStationsEX ( in destination : Location, in location : Location, \n\t\tin statusMotor : NotificationFromMotor) : \tout Boolean {\n\t\tif(statusMotor == NotificationFromMotor::started && destination == location)\n\t\t\treturn true;\n\t\telse\n\t\t\treturn false;\n\t}", []);
+    __addExec("SysADLArchitecture.StopMotorEX", "executable def StopMotorEX ( in comparisonResult : Boolean) :\n\tout CommandToMotor {\n\t\tif(comparisonResult == true)\n\t\t\treturn CommandToMotor::stop;\n\t\telse\n\t\t\treturn null;\n\t}", []);
+    __addExec("SysADLArchitecture.PassedMotorEX", "executable def PassedMotorEX ( in comparisonResult : Boolean) :\n\tout NotificationToSupervisory {\n\t\tif(comparisonResult == false)\n\t\t\treturn NotificationToSupervisory::passed;\n\t\telse\n\t\t\treturn null;\n\t}", []);
+    __addExec("SysADLArchitecture.SendCurrentLocationEX", "executable def SendCurrentLocationEX ( in location : Location)\n\t: out Location {\n\t\treturn location;\n\t}", []);
+    __addExec("SysADLArchitecture.ControlArmEX", "executable def ControlArmEX ( in statusMotor : NotificationFromMotor, in cmd : CommandToArm) : out CommandToArm {\n\t\tif(statusMotor == NotificationFromMotor::stopped)\n\t\t\treturn cmd;\n\t\telse\n\t\t\treturn CommandToArm::idle;\n\t}", []);
+    __addExec("SysADLArchitecture.NotifierArmEX", "executable def NotifierArmEX ( in statusArm : NotificationFromArm) : \n\tout\tNotificationToSupervisory {\n\t\treturn NotificationToSupervisory::arrived;\n\t}", []);
+    __addExec("SysADLArchitecture.VehicleTimerEX", "executable def VehicleTimerEX ( in location : Location, in cmd : CommandToArm, \n\t\tin destination : Location) : out Status {\n\t\t\n\t\tlet s : Status;\n\t\ts->destination = destination;\n\t\ts->location = location;\n\t\ts->command = cmd;\n\t\t\n\t\treturn s;\n\t}", []);
+    __addExec("SysADLArchitecture.86of", "executable CompareStationsEX to CompareStationsAN", []);
+    __addExec("SysADLArchitecture.b526", "executable ControlArmEX to ControlArmAN", []);
+    __addExec("SysADLArchitecture.0fzg", "executable NotifierArmEX to NotifierArmAN", []);
+    __addExec("SysADLArchitecture.njou", "executable NotifyAGVFromMotorEX to NotifyAGVFromMotorAN", []);
+    __addExec("SysADLArchitecture.7lrb", "executable NotifySupervisoryFromMotorEX to NotifySupervisoryFromMotorAN", []);
+    __addExec("SysADLArchitecture.gicu", "executable PassedMotorEX to PassedMotorAN", []);
+    __addExec("SysADLArchitecture.b3vf", "executable SendCommandEX to SendCommandAN", []);
+    __addExec("SysADLArchitecture.4e5g", "executable SendCurrentLocationEX to SendCurrentLocationAN", []);
+    __addExec("SysADLArchitecture.nmoy", "executable SendDestinationEX to SendDestinationAN", []);
+    __addExec("SysADLArchitecture.3gc8", "executable SendStartMotorEX to SendStartMotorAN", []);
+    __addExec("SysADLArchitecture.4kl5", "executable StopMotorEX to StopMotorAN", []);
+    __addExec("SysADLArchitecture.rdez", "executable VehicleTimerEX to VehicleTimerAN", []);
+    const act_StartMovingAC_sm = new Activity("StartMovingAC", { component: "sm", inputPorts: ["move"] });
+    act_StartMovingAC_sm.addAction(new Action("SendStartMotorAN", [], "SendStartMotorEX"));
+    act_StartMovingAC_sm.addAction(new Action("SendCommandAN", [], "SendCommandEX"));
+    act_StartMovingAC_sm.addAction(new Action("SendDestinationAN", [], "SendDestinationEX"));
+    this.registerActivity("StartMovingAC::sm", act_StartMovingAC_sm);
+    const act_NotifierMotorAC_nm = new Activity("NotifierMotorAC", { component: "nm", inputPorts: ["inAck"] });
+    act_NotifierMotorAC_nm.addAction(new Action("NotifyAGVFromMotorAN", [], "NotifyAGVFromMotorEX"));
+    act_NotifierMotorAC_nm.addAction(new Action("NotifySupervisoryFromMotorAN", [], "NotifySupervisoryFromMotorEX"));
+    this.registerActivity("NotifierMotorAC::nm", act_NotifierMotorAC_nm);
+    const act_CheckStationAC_cs = new Activity("CheckStationAC", { component: "cs", inputPorts: ["ack"] });
+    act_CheckStationAC_cs.addAction(new Action("CompareStationsAN", [], "CompareStationsEX"));
+    act_CheckStationAC_cs.addAction(new Action("StopMotorAN", [], "StopMotorEX"));
+    act_CheckStationAC_cs.addAction(new Action("PassedMotorAN", [], "PassedMotorEX"));
+    act_CheckStationAC_cs.addAction(new Action("SendCurrentLocationAN", [], "SendCurrentLocationEX"));
+    this.registerActivity("CheckStationAC::cs", act_CheckStationAC_cs);
+    const act_ControlArmAC_ca = new Activity("ControlArmAC", { component: "ca", inputPorts: ["cmd"] });
+    act_ControlArmAC_ca.addAction(new Action("ControlArmAN", [], "ControlArmEX"));
+    this.registerActivity("ControlArmAC::ca", act_ControlArmAC_ca);
+    const act_NotifierArmAC_na = new Activity("NotifierArmAC", { component: "na", inputPorts: ["arrivedStatus"] });
+    act_NotifierArmAC_na.addAction(new Action("NotifierArmAN", [], "NotifierArmEX"));
+    this.registerActivity("NotifierArmAC::na", act_NotifierArmAC_na);
+    const act_VehicleTimerAC_vt = new Activity("VehicleTimerAC", { component: "vt", inputPorts: ["destination"] });
+    act_VehicleTimerAC_vt.addAction(new Action("VehicleTimerAN", [], "VehicleTimerEX"));
+    this.registerActivity("VehicleTimerAC::vt", act_VehicleTimerAC_vt);
+    // connector nS
+    const conn_nS = new Connector("nS");
+    this.addConnector(conn_nS);
+  }
+}
+
+function createModel(){ return new SysADLArchitecture(); }
+module.exports = { createModel, SysADLArchitecture };

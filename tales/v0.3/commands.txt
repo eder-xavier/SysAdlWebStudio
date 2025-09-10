@@ -1,0 +1,3 @@
+node tales/v0.3/transformer.js AGV.sysadl tales/v0.3/generated
+node tales/v0.3/tests/inspect_model.js
+node tales/v0.3/tests/simulate_agv.js
