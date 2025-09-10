@@ -13,6 +13,10 @@ async function loadParser(parserPath) {
   return mod.parse;
 }
 
+// debug logging controlled by env var SYSADL_DEBUG
+const DBG = !!process.env.SYSADL_DEBUG;
+function dbg(...args) { if (DBG) console.error(...args); }
+
 function traverse(node, cb) {
   if (!node || typeof node !== 'object') return;
   cb(node);
@@ -46,17 +50,17 @@ function collectPortUses(configNode) {
 function generateClassModule(modelName, compUses, portUses, connectorBindings, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef) {
   const lines = [];
   // runtime imports for generated module
-  lines.push("const { Model, Component, Port, Connector, Activity, Action, createExecutableFromExpression } = require('../SysADLBase');");
+  lines.push("const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression } = require('../SysADLBase');");
   // connectorDescriptors: normalized bindings may be provided in outer scope; if not, derive from parameter
   const connectorDescriptors = (typeof connectorBindings !== 'undefined' && connectorBindings) ? connectorBindings : [];
   const typeNames = new Set();
   try { if (typeof compDefMap !== 'undefined' && compDefMap) for (const k of Object.keys(compDefMap)) typeNames.add(k); } catch(e){}
   try {
     if (Array.isArray(compUses)) for (const cu of compUses) { if (cu && cu.definition) typeNames.add(String(cu.definition)); }
-  } catch(e){}
-  try { if (compInstanceDef && typeof compInstanceDef === 'object') for (const v of Object.values(compInstanceDef)) if (v) typeNames.add(String(v)); } catch(e){}
-  try { if (Array.isArray(rootDefs)) for (const r of rootDefs) if (r) typeNames.add(String(r)); } catch(e){}
-  try { console.error('[DBG] typeNames:', JSON.stringify(Array.from(typeNames).slice(0,50))); } catch(e){}
+  } catch(e) {}
+  // ensure any rootDefs types are emitted as classes as well
+  try { if (Array.isArray(rootDefs)) for (const rd of rootDefs) if (rd) typeNames.add(String(rd)); } catch(e){}
+  try { dbg('[DBG] typeNames:', JSON.stringify(Array.from(typeNames).slice(0,50))); } catch(e){}
   // create simple class per definition (if none, skip)
   for (const t of Array.from(typeNames)) {
     const cls = 'class ' + sanitizeId(String(t)) + ' extends Component { constructor(name){ super(name); } }';
@@ -129,13 +133,8 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   lines.push('');
   lines.push('    // helper to add executable safely');
   lines.push('    const __addExec = (ename, body, params) => { try { this.addExecutable(ename, createExecutableFromExpression(String(body||""), params||[])); } catch(e) { /* ignore */ } };');
-  lines.push('    // helper to attach connector endpoint (model, componentExprOrName, portName)');
-  lines.push('    const __attachEndpoint = (conn, compOrName, portName) => { try { let comp = compOrName; if (typeof compOrName === "string") { comp = this.components && this.components[compOrName] ? this.components[compOrName] : Object.values(this.components||{}).find(c=>c && (c.sysadlName === compOrName || c.name === compOrName)); } if (comp && comp.ports && comp.ports[portName]) conn.addEndpoint(this, comp.ports[portName]); } catch(e){} };');
-  // helper to find a component (including nested children) that exposes a given port
-  lines.push('    const __findPortComponent = (portName) => { try { const seen = new Set(); const rec = (c) => { if (!c || seen.has(c)) return null; seen.add(c); if (c.ports && c.ports[portName]) return c; if (c.components) { for (const k of Object.keys(c.components||{})) { const child = c.components[k]; const f = rec(child); if (f) return f; } } return null; }; for (const top of Object.values(this.components||{})) { const f = rec(top); if (f) return f; } return null; } catch(e){ return null; } };');
-  // normalized search: compare port names ignoring non-alnum chars
-  lines.push('    const _norm = (s) => { try { return String(s||"").toLowerCase().replace(/[^a-z0-9]+/g,""); } catch(e){ return String(s||""); } };');
-  lines.push('    const __findPortComponentByNormalized = (portName) => { try { const np = _norm(portName); const seen = new Set(); const rec = (c) => { if (!c || seen.has(c)) return null; seen.add(c); if (c.ports) { for (const pk of Object.keys(c.ports||{})) { if (_norm(pk) === np || _norm(pk).indexOf(np) !== -1 || np.indexOf(_norm(pk)) !== -1) return c; } } if (c.components) { for (const k of Object.keys(c.components||{})) { const child = c.components[k]; const f = rec(child); if (f) return f; } } return null; }; for (const top of Object.values(this.components||{})) { const f = rec(top); if (f) return f; } return null; } catch(e){ return null; } };');
+  lines.push('    // helper to attach connector endpoint: expects a concrete component object or expression (no runtime lookup)');
+  lines.push('    const __attachEndpoint = (conn, compObj, portName) => { try { if (!compObj || !portName) return; if (compObj && compObj.ports && compObj.ports[portName]) conn.addEndpoint(this, compObj.ports[portName]); } catch(e){} };');
 
   // build instance path map (instanceName -> expression to reference it in generated code)
   const instancePathMap = {};
@@ -155,9 +154,24 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     const owner = pu && pu._ownerComponent ? pu._ownerComponent : (pu.owner || null);
     if (!pname || !owner) continue;
   const ownerExpr = instancePathMap[owner] || `this.${owner}`;
-  lines.push(`    // port ${pname} on ${owner} (expr: ${ownerExpr})`);
-  lines.push(`    if (!${ownerExpr}.ports) ${ownerExpr}.ports = {};`);
-  lines.push(`    if (!${ownerExpr}.ports[${JSON.stringify(pname)}]) { const __p = new Port(${JSON.stringify(pname)}, 'in', { owner: ${JSON.stringify(owner)} }); ${ownerExpr}.addPort(__p); }`);
+  // detect composite port declarations: pu may have children in pu.ports or pu.members
+  const hasChildren = Array.isArray(pu.ports) && pu.ports.length || Array.isArray(pu.members) && pu.members.length;
+  if (!hasChildren) {
+    lines.push(`    // port ${pname} on ${owner} (expr: ${ownerExpr})`);
+    lines.push(`    if (!${ownerExpr}.ports) ${ownerExpr}.ports = {};`);
+    lines.push(`    if (!${ownerExpr}.ports[${JSON.stringify(pname)}]) { const __p = new Port(${JSON.stringify(pname)}, 'in', { owner: ${JSON.stringify(owner)} }); ${ownerExpr}.addPort(__p); }`);
+  } else {
+    // emit CompositePort and its sub-ports
+    const children = Array.isArray(pu.ports) ? pu.ports : pu.members;
+    lines.push(`    // composite port ${pname} on ${owner} (expr: ${ownerExpr})`);
+    lines.push(`    if (!${ownerExpr}.ports) ${ownerExpr}.ports = {};`);
+    lines.push(`    if (!${ownerExpr}.ports[${JSON.stringify(pname)}]) { const __cp = new CompositePort(${JSON.stringify(pname)}, 'in', { owner: ${JSON.stringify(owner)} }); ${ownerExpr}.addPort(__cp); }`);
+    for (const sub of (children || [])) {
+      const subName = sub && (sub.name || (sub.id && sub.id.name) || sub.id) || null;
+      if (!subName) continue;
+      lines.push(`    if (!${ownerExpr}.ports[${JSON.stringify(pname)}].getSubPort(${JSON.stringify(subName)})) { const __sp = new Port(${JSON.stringify(subName)}, 'in', { owner: ${JSON.stringify(owner + '.' + pname)} }); ${ownerExpr}.ports[${JSON.stringify(pname)}].addSubPort(${JSON.stringify(subName)}, __sp); }`);
+    }
+  }
   }
 
   // ensure ports for activity inputPorts exist on their components
@@ -209,6 +223,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
       lines.push(`    this.registerActivity(${JSON.stringify(a.activityName + '::' + comp)}, ${actVar});`);
     }
   }
+  const unresolvedBindings = [];
   // emit connectors (use normalized connectorDescriptors so we have participants/bindings resolved)
   if (Array.isArray(connectorDescriptors) && connectorDescriptors.length) {
     for (const cb of connectorDescriptors) {
@@ -220,20 +235,29 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
       // attach participants if present (resolved earlier)
       if (Array.isArray(cb.participants) && cb.participants.length) {
         for (const p of cb.participants) {
-          if (!p || !p.owner || !p.port) continue;
+          if (!p || !p.owner || !p.port) { unresolvedBindings.push({ connector: cname, reason: 'missing owner/port', entry: p }); continue; }
           // owner may be qualified like 'a.b' -> prefer instancePathMap lookup to get full expression
           const ownerExpr = (instancePathMap && instancePathMap[p.owner]) ? instancePathMap[p.owner] : `this.${p.owner}`;
-          lines.push(`    __attachEndpoint(${varName}, ${ownerExpr}, ${JSON.stringify(p.port)});`);
+          // if port contains dot, it's a sub-port reference: e.g. 'composite.sub'
+          if (String(p.port).indexOf('.') !== -1) {
+            const parts = String(p.port).split('.');
+            const sub = parts.slice(1).join('.');
+            const main = parts[0];
+            // expect ownerExpr.ports[main].getSubPort(sub) to exist
+            lines.push(`    { const __owner = ${ownerExpr}; const __compPort = (__owner && __owner.ports && __owner.ports[${JSON.stringify(main)}]) ? __owner.ports[${JSON.stringify(main)}] : null; if(!__compPort) throw new Error('Missing composite port '+${JSON.stringify(main)}+' on '+${JSON.stringify(p.owner)}); const __sp = __compPort.getSubPort(${JSON.stringify(sub)}); if(!__sp) throw new Error('Missing sub-port '+${JSON.stringify(sub)}+' on '+${JSON.stringify(p.owner)}+'.'+${JSON.stringify(main)}); __attachEndpoint(${varName}, __owner, __sp.name); }`);
+          } else {
+            lines.push(`    __attachEndpoint(${varName}, ${ownerExpr}, ${JSON.stringify(p.port)});`);
+          }
         }
       }
       // also handle bindings array (may contain strings or resolved objects)
-      if (Array.isArray(cb.bindings) && cb.bindings.length) {
+  if (Array.isArray(cb.bindings) && cb.bindings.length) {
         for (const b of cb.bindings) {
           const left = b && (b.left || b.from) ? b.left : null;
           const right = b && (b.right || b.to) ? b.right : null;
-          if (!left || !right) continue;
+          if (!left || !right) { unresolvedBindings.push({ connector: cname, reason: 'binding pair missing', entry: b }); continue; }
           // string form: attempt to attach using previous heuristics
-          if (typeof left === 'string' && typeof right === 'string') {
+      if (typeof left === 'string' && typeof right === 'string') {
             const lparts = String(left).split('.'); const rparts = String(right).split('.');
             const lowner = lparts.length>1? lparts[0] : null; const lport = lparts.length>1? lparts.slice(1).join('.') : lparts[0];
             const rowner = rparts.length>1? rparts[0] : null; const rport = rparts.length>1? rparts.slice(1).join('.') : rparts[0];
@@ -241,25 +265,119 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
               const ownerExpr = (instancePathMap && instancePathMap[lowner]) ? instancePathMap[lowner] : `this.${lowner}`;
               lines.push(`    __attachEndpoint(${varName}, ${ownerExpr}, ${JSON.stringify(lport)});`);
             } else {
-              lines.push(`    try { let __p = __findPortComponent(${JSON.stringify(lport)}); if(!__p) __p = __findPortComponentByNormalized(${JSON.stringify(lport)}); if(__p) __attachEndpoint(${varName}, __p, ${JSON.stringify(lport)}); } catch(e) {}`);
+        unresolvedBindings.push({ connector: cname, reason: 'unqualified port left', port: lport, binding: b });
             }
             if (rowner) {
               const ownerExpr = (instancePathMap && instancePathMap[rowner]) ? instancePathMap[rowner] : `this.${rowner}`;
               lines.push(`    __attachEndpoint(${varName}, ${ownerExpr}, ${JSON.stringify(rport)});`);
             } else {
-              lines.push(`    try { let __p = __findPortComponent(${JSON.stringify(rport)}); if(!__p) __p = __findPortComponentByNormalized(${JSON.stringify(rport)}); if(__p) __attachEndpoint(${varName}, __p, ${JSON.stringify(rport)}); } catch(e) {}`);
+        unresolvedBindings.push({ connector: cname, reason: 'unqualified port right', port: rport, binding: b });
             }
             continue;
           }
           // object form: { left: { owner, port }, right: { owner, port } }
           const lobj = (typeof left === 'object' && left) ? left : null;
           const robj = (typeof right === 'object' && right) ? right : null;
-          if (lobj && lobj.owner && lobj.port) lines.push(`    __attachEndpoint(${varName}, this.${lobj.owner}, ${JSON.stringify(lobj.port)});`);
-          if (robj && robj.owner && robj.port) lines.push(`    __attachEndpoint(${varName}, this.${robj.owner}, ${JSON.stringify(robj.port)});`);
+          if (lobj && lobj.owner && lobj.port) {
+            const ownerExpr = instancePathMap[lobj.owner] || `this.${lobj.owner}`;
+            lines.push(`    __attachEndpoint(${varName}, ${ownerExpr}, ${JSON.stringify(lobj.port)});`);
+          } else if (lobj && (!lobj.owner || !lobj.port)) unresolvedBindings.push({ connector: cname, reason: 'unresolved object left', entry: lobj });
+          if (robj && robj.owner && robj.port) {
+            const ownerExpr = instancePathMap[robj.owner] || `this.${robj.owner}`;
+            lines.push(`    __attachEndpoint(${varName}, ${ownerExpr}, ${JSON.stringify(robj.port)});`);
+          } else if (robj && (!robj.owner || !robj.port)) unresolvedBindings.push({ connector: cname, reason: 'unresolved object right', entry: robj });
         }
       }
       lines.push(`    this.addConnector(${varName});`);
     }
+  }
+
+  // if we collected unresolved bindings, fail with a consolidated report
+  if (unresolvedBindings.length) {
+    try {
+      // build candidate suggestions using compPortsMap_main
+      const suggest = (portName) => {
+        if (!portName) return [];
+        try {
+          if (typeof compPortsMap_main !== 'undefined' && compPortsMap_main) {
+            return Object.keys(compPortsMap_main).filter(cn => { try { return Array.from(compPortsMap_main[cn]||[]).some(p=>String(p) === String(portName)); } catch(e){ return false; } });
+          }
+        } catch(e){}
+
+      // Additionally, extract any ports declared locally inside this ConnectorUse (connection-level scope)
+      try {
+        const connLocal = {};
+        traverse(node, n => {
+          if (!n || typeof n !== 'object') return;
+          // port containers like 'ports' or 'members' with a parent name
+          if ((Array.isArray(n.ports) && n.name) || (Array.isArray(n.members) && n.name)) {
+            const pName = n.name || (n.id && n.id.name) || null;
+            if (!pName) return;
+            if (!connLocal[pName]) connLocal[pName] = new Set();
+            const children = Array.isArray(n.ports) ? n.ports : n.members;
+            for (const sub of children) { const subN = sub && (sub.name || (sub.id && sub.id.name) || sub.id) || null; if (subN) connLocal[pName].add(String(subN)); }
+          }
+          // inline participants that may declare inner ports
+          if (n.participants && Array.isArray(n.participants)) {
+            for (const p of n.participants) {
+              const pname = p && (p.name || (p.id && p.id.name) || p.id) ? (p.name || (p.id && p.id.name) || p.id) : null;
+              if (!pname) continue;
+              if (!connLocal[pname]) connLocal[pname] = new Set();
+              if (p.ports && Array.isArray(p.ports)) for (const pp of p.ports) { const pn2 = pp && (pp.name || (pp.id && pp.id.name) || pp.id) || null; if (pn2) connLocal[pname].add(String(pn2)); }
+            }
+          }
+        });
+        if (Object.keys(connLocal).length) {
+          localScopeMap = localScopeMap || {};
+          for (const k of Object.keys(connLocal)) localScopeMap[k] = Array.from(connLocal[k]);
+        }
+        // best-effort: parse textual bindings block and register tokens as local ports under '__local'
+        try {
+          if (node && node.location && node.location.start && typeof node.location.start.offset === 'number' && node.location.end && typeof node.location.end.offset === 'number') {
+            const snippet = src.slice(node.location.start.offset, node.location.end.offset);
+            const m = snippet.match(/bindings[^{]*\{([\s\S]*?)\}/i);
+            const block = m ? m[1] : snippet;
+            const tokens = (block.match(/[A-Za-z0-9_\.]+/g) || []).filter(Boolean);
+            if (tokens.length) {
+              localScopeMap = localScopeMap || {};
+              localScopeMap['__local'] = localScopeMap['__local'] || [];
+              for (const tok of tokens) if (localScopeMap['__local'].indexOf(tok) === -1) localScopeMap['__local'].push(tok);
+            }
+          }
+        } catch(e){}
+      } catch(e){}
+        // fallback: scan portUses for owners exposing this port
+        try {
+          const owners = new Set();
+          for (const pu of (portUses || [])) {
+            const pname = pu && (pu.name || pu.id || (pu.id && pu.id.name)) ? (pu.name || (pu.id && pu.id.name) || pu.id) : null;
+            const owner = pu && pu._ownerComponent ? pu._ownerComponent : (pu.owner || null);
+            if (!pname || !owner) continue;
+            if (String(pname) === String(portName)) owners.add(owner);
+          }
+          return Array.from(owners);
+        } catch(e) { return []; }
+      };
+      const linesReport = [];
+      for (let i=0;i<unresolvedBindings.length;i++){
+        const u = unresolvedBindings[i];
+        let entryDesc = JSON.stringify(u.entry||u.binding||u.port||{});
+        let suggestion = '';
+        if (u.port) {
+          const cands = suggest(u.port);
+          if (cands && cands.length) suggestion = ` candidates=${JSON.stringify(cands.slice(0,10))}`;
+        } else if (u.entry && u.entry.left && typeof u.entry.left === 'string') {
+          const cands = suggest(u.entry.left);
+          if (cands && cands.length) suggestion = ` candidatesForLeft=${JSON.stringify(cands.slice(0,10))}`;
+        } else if (u.entry && u.entry.right && typeof u.entry.right === 'string') {
+          const cands = suggest(u.entry.right);
+          if (cands && cands.length) suggestion = ` candidatesForRight=${JSON.stringify(cands.slice(0,10))}`;
+        }
+        linesReport.push(`${i+1}) connector=${u.connector} reason=${u.reason} entry=${entryDesc}${suggestion}`);
+      }
+      const report = linesReport.join('\n');
+  throw new Error('Generation failed: unresolved connector bindings found:\n' + report + '\n\nHint: este gerador exige resolução em tempo de geração. Qualifique portas nas ligações usando nomes de instância de componente (ex: "vc.sendStatus -> ss.receiveStatus") ou corrija o .sysadl no editor para desambiguar.');
+    } catch(e) { throw e; }
   }
 
   lines.push('  }');
@@ -281,8 +399,31 @@ async function main() {
   const src = fs.readFileSync(input, 'utf8');
   const ast = parse(src, { grammarSource: { source: input, text: src } });
 
+  // annotate AST nodes with __parent to allow finding enclosing configuration scopes
+  (function attachParents(root) {
+    function rec(node, parent) {
+      if (!node || typeof node !== 'object') return;
+      try { Object.defineProperty(node, '__parent', { value: parent, enumerable: false, writable: true }); } catch(e){}
+      for (const k of Object.keys(node)) {
+        if (k === '__parent') continue;
+        const v = node[k];
+        if (v === parent) continue; // avoid stepping back into parent
+        if (Array.isArray(v)) v.forEach(item => rec(item, node)); else if (v && typeof v === 'object') rec(v, node);
+      }
+    }
+    rec(root, null);
+  })(ast);
+
   const compDefMap = {};
   traverse(ast, n => { if (n && (n.type === 'ComponentDef' || /ComponentDef/i.test(n.type))) { const nm = n.name || (n.id && n.id.name) || n.id || null; if (nm) compDefMap[nm] = n; } });
+
+  // collect connector definitions (so we can use participants/flows to qualify bindings)
+  const connectorDefMap = {};
+  traverse(ast, n => { if (n && (n.type === 'ConnectorDef' || /ConnectorDef/i.test(n.type))) { const nm = n.name || (n.id && n.id.name) || n.id || null; if (nm) connectorDefMap[nm] = n; } });
+
+  // collect port definitions (port def nodes) so we can expand participant port sets for connector definitions
+  const portDefMap = {};
+  traverse(ast, n => { if (n && (n.type === 'PortDef' || /PortDef/i.test(n.type) || (n.type && /port\s+def/i.test(String(n.type))))) { const nm = n.name || (n.id && n.id.name) || n.id || null; if (nm) portDefMap[nm] = n; } });
 
   const configs = extractConfigurations(ast);
   let cfg = configs[0] || ast;
@@ -297,15 +438,34 @@ async function main() {
   // collect component uses and ports across the whole AST (to include nested configs)
   const allUses = collectComponentUses(ast) || [];
   const portUses = collectPortUses(ast) || [];
+  try { dbg('[DBG] portUses sample:', (portUses||[]).slice(0,50).map(p => ({ owner: p._ownerComponent || p.owner, name: p.name || p.id || (p.id && p.id.name) }))); } catch(e){}
   const compUses = allUses.map(u => ({ type: 'ComponentUse', name: u.name || (u.id && u.id.name) || u.id, definition: u.definition || u.def || null }));
 
+  // map instanceName -> AST node for scope analysis
+  const compUseNodeMap = {};
+  traverse(ast, n => { if (n && (n.type === 'ComponentUse' || /ComponentUse/i.test(n.type))) { const nm = n.name || (n.id && n.id.name) || n.id || null; if (nm) compUseNodeMap[nm] = n; } });
+
+  // quick map: instanceName -> definitionName (used when we need to inspect component def ports)
+  const compInstanceToDef = {};
+  for (const cu of compUses) { try { const iname = cu && (cu.name || (cu.id && cu.id.name) || cu.id) || null; if (iname) compInstanceToDef[iname] = cu.definition || null; } catch(e){} }
+
   // collect connector bindings declared anywhere in the AST
+  // but exclude bindings that are part of ConnectorDef nodes (these are definition internals)
   const connectorBindings = [];
-  traverse(ast, n => { if (n && (n.type === 'ConnectorBinding' || /ConnectorBinding/i.test(n.type) || n.bindings || n.bindingList || n.connects)) connectorBindings.push({ owner: '', node: n }); });
+  traverse(ast, n => {
+    if (!n || typeof n !== 'object') return;
+    if (!(n.type === 'ConnectorBinding' || /ConnectorBinding/i.test(n.type) || n.bindings || n.bindingList || n.connects)) return;
+    // skip when an ancestor is a ConnectorDef (these are definition internals)
+    let p = n.__parent;
+    let insideConnectorDef = false;
+    while (p) { if (p.type && /ConnectorDef/i.test(p.type)) { insideConnectorDef = true; break; } p = p.__parent; }
+    if (insideConnectorDef) return;
+    connectorBindings.push({ owner: '', node: n });
+  });
   try {
-    console.error('[DBG] raw connectorBindings sample keys:', connectorBindings.slice(0,6).map(b=>({type:b.node.type, name:b.node.name, keys:Object.keys(b.node).slice(0,8)})));
+    dbg('[DBG] raw connectorBindings sample keys:', connectorBindings.slice(0,6).map(b=>({type:b.node.type, name:b.node.name, keys:Object.keys(b.node).slice(0,8)})));
     for (let i=0;i<Math.min(3, connectorBindings.length); ++i) {
-      try { console.error('[DBG] connectorBindings['+i+']:', JSON.stringify(connectorBindings[i].node, null, 2).slice(0,2000)); } catch(e){}
+      try { dbg('[DBG] connectorBindings['+i+']:', JSON.stringify(connectorBindings[i].node, null, 2).slice(0,2000)); } catch(e){}
     }
   } catch(e){}
 
@@ -317,11 +477,15 @@ async function main() {
   try {
     // build a lightweight comp->set(port) map (local) from collected compUses and portUses
     const localCompPorts = {};
+  // map of componentUseName -> alias map (aliasPortName -> instanceName)
+  const usingAliasMap = {};
     try {
       for (const cu of compUses) {
         const cname = cu && cu.name ? String(cu.name) : null;
         if (!cname) continue;
         if (!localCompPorts[cname]) localCompPorts[cname] = new Set();
+    // initialize alias map for this component use
+    usingAliasMap[cname] = usingAliasMap[cname] || {};
       }
       for (const pu of portUses) {
         const owner = pu && (pu._ownerComponent || pu.owner) ? (pu._ownerComponent || pu.owner) : null;
@@ -331,7 +495,7 @@ async function main() {
         localCompPorts[owner].add(String(pname));
       }
     } catch(e) { /* ignore map build */ }
-  try { console.error('[DBG] localCompPorts keys:', Object.keys(localCompPorts).slice(0,20).map(k=>({k,ports:Array.from(localCompPorts[k]||[])}))); } catch(e){}
+  try { dbg('[DBG] localCompPorts keys:', Object.keys(localCompPorts).slice(0,20).map(k=>({k,ports:Array.from(localCompPorts[k]||[])}))); } catch(e){}
     function findComponentByNameOrSuffix(name) {
       if (!name) return null;
       if (localCompPorts[name]) return name;
@@ -344,10 +508,128 @@ async function main() {
       return null;
     }
 
-    function resolveSide(side) {
+  // Build alias maps by scanning component-use definitions text for 'using ports' clauses
+    try {
+      for (const cu of compUses) {
+        try {
+          const cuName = cu && (cu.name || (cu.id && cu.id.name) || cu.id) ? (cu.name || (cu.id && cu.id.name) || cu.id) : null;
+          if (!cuName) continue;
+          // attempt to find the component-use node in the AST to get its location
+          // fallback: scan whole source for pattern 'CUName\s*:\s*Type { ... using ports : ... }'
+          const re = new RegExp(cuName + '\\\s*:\\\s*[^\\{]+\\{([\\s\\S]*?)\\}', 'm');
+          // simpler: find occurrences like 'cuName : Type { ... using ports : (body) }'
+          const fullRe = new RegExp(cuName + '\\s*:\\s*\\w+[\\s\\S]*?using\\s+ports\\s*:\\s*\\{?\\s*([^;\}]+)', 'mi');
+          let m = fullRe.exec(src);
+          if (!m) {
+            // try alternate non-braced form: using ports : a : T ;
+            const alt = new RegExp(cuName + '\\s*:\\s*\\w+[\\s\\S]*?using\\s+ports\\s*:\\s*([^;\n]+)', 'mi');
+            m = alt.exec(src);
+          }
+          if (m && m[1]) {
+            const block = m[1];
+            // find alias: type pairs like 'alias : Type' possibly separated by commas or semicolons
+            const parts = block.split(/[,;\n]+/).map(x=>x.trim()).filter(Boolean);
+            // attempt to map alias -> actual port name on the component definition when unambiguous
+            const defName = cu.definition || cu.def || null;
+            const defNode = defName ? (compDefMap[defName] || compDefMap[String(defName)]) : null;
+            for (const p of parts) {
+              const mm = p.match(/([A-Za-z0-9_\.]+)\s*:\s*([A-Za-z0-9_\.]+)/);
+              if (mm) {
+                const alias = mm[1];
+                const typeName = mm[2];
+                usingAliasMap[cuName] = usingAliasMap[cuName] || {};
+                // default mapping: alias -> instance name (we'll store actual port name when found)
+                let mappedPort = null;
+                try {
+                  if (defNode) {
+                    // collect candidate ports from defNode (ports and members)
+                    const defPorts = [];
+                    if (Array.isArray(defNode.ports)) defPorts.push(...defNode.ports);
+                    if (Array.isArray(defNode.members)) defPorts.push(...defNode.members);
+                    // if none found, try traversing defNode for participant/port-like nodes
+                    if (!defPorts.length) {
+                      traverse(defNode, pn => { if (pn && (Array.isArray(pn.ports) || Array.isArray(pn.members) || pn.participants)) { if (Array.isArray(pn.ports)) defPorts.push(...pn.ports); if (Array.isArray(pn.members)) defPorts.push(...pn.members); if (Array.isArray(pn.participants)) defPorts.push(...pn.participants); } });
+                    }
+                    const candidates = [];
+                    for (const dp of defPorts) {
+                      try {
+                        const dpName = dp && (dp.name || (dp.id && dp.id.name) || dp.id) ? (dp.name || (dp.id && dp.id.name) || dp.id) : null;
+                        if (!dpName) continue;
+                        // find type descriptor in common fields
+                        const dpType = dp && (dp.type || dp.portType || (dp.definition && dp.definition.name) || dp.value || dp.valueType || dp.typeName) ? (dp.type || dp.portType || (dp.definition && dp.definition.name) || dp.value || dp.valueType || dp.typeName) : null;
+                        if (dpType) {
+                          const tstr = String(dpType).split('.').pop(); const q = String(typeName).split('.').pop();
+                          if (String(dpType) === String(typeName) || tstr === q || q === tstr) candidates.push(dpName);
+                        } else {
+                          // if no type info, still consider it as candidate
+                          candidates.push(dpName);
+                        }
+                      } catch(e){}
+                    }
+                    // if exactly one candidate, use it
+                    if (candidates.length === 1) mappedPort = candidates[0];
+                    else if (!candidates.length && defPorts.length === 1) {
+                      // fallback: single port defined -> map alias to that port
+                      const only = defPorts[0]; const onlyName = only && (only.name || (only.id && only.id.name) || only.id) ? (only.name || (only.id && only.id.name) || only.id) : null; if (onlyName) mappedPort = onlyName;
+                    }
+                  }
+                } catch(e){}
+                // set alias mapping: prefer actual port name if found, else store null to indicate alias exists
+                usingAliasMap[cuName][alias] = mappedPort || null;
+              }
+            }
+          }
+        } catch(e){}
+      }
+    } catch(e){}
+
+  try { dbg('[DBG] usingAliasMap:', JSON.stringify(usingAliasMap, null, 2)); } catch(e){}
+
+  function resolveSide(side, ownerHint, contextNode, localScopeMap) {
       // side can be string like "agvs.sendStatus" or just "sendStatus" or nested qualified
       if (!side) return null;
       if (typeof side !== 'string') return null;
+      // if contextNode provided, prefer aliases/ports declared in the same configuration
+      try {
+    if (contextNode) {
+          const findCfg = (n) => { while(n){ if (n.type && /Configuration/i.test(n.type)) return n; n = n.__parent; } return null; };
+          const cfgOfConnector = findCfg(contextNode);
+          if (cfgOfConnector) {
+            // prefer alias declared in same configuration
+            const aliasOwnersInCfg = Object.keys(usingAliasMap || {}).filter(k => {
+              try { return usingAliasMap[k] && Object.prototype.hasOwnProperty.call(usingAliasMap[k], side) && compUseNodeMap[k] && findCfg(compUseNodeMap[k]) === cfgOfConnector; } catch(e){ return false; }
+            });
+            if (aliasOwnersInCfg.length === 1) {
+              const ao = aliasOwnersInCfg[0]; const mapped = usingAliasMap[ao] && usingAliasMap[ao][side]; return { owner: ao, port: mapped || side };
+            }
+            if (aliasOwnersInCfg.length > 1) {
+              // prefer owner that declares a mapping to a concrete port name (non-null)
+              const mappedOwners = aliasOwnersInCfg.filter(k => usingAliasMap[k] && usingAliasMap[k][side]);
+              if (mappedOwners.length === 1) {
+                const ao = mappedOwners[0]; const mapped = usingAliasMap[ao] && usingAliasMap[ao][side]; return { owner: ao, port: mapped || side };
+              }
+              // deterministic fallback: pick first owner in sorted order
+              aliasOwnersInCfg.sort(); const ao = aliasOwnersInCfg[0]; const mapped = usingAliasMap[ao] && usingAliasMap[ao][side]; return { owner: ao, port: mapped || side };
+            }
+            // prefer components in same cfg that expose this port name
+            const ownersInCfg = Object.keys(compPortsMap_main || {}).filter(cn => {
+              try { return compPortsMap_main[cn] && compPortsMap_main[cn].has(side) && compUseNodeMap[cn] && findCfg(compUseNodeMap[cn]) === cfgOfConnector; } catch(e) { return false; }
+            });
+            if (ownersInCfg.length >= 1) {
+              // aggressive: prefer the first matching owner in this configuration (deterministic)
+              return { owner: ownersInCfg[0], port: side };
+            }
+            // if a localScopeMap is provided (e.g. connector-def participants), prefer those owners
+            try {
+              if (localScopeMap && typeof localScopeMap === 'object') {
+                const locOwners = Object.keys(localScopeMap).filter(k => { try { return (localScopeMap[k] && Array.from(localScopeMap[k]||[]).indexOf(side) !== -1); } catch(e){ return false; } });
+                if (locOwners.length === 1) return { owner: locOwners[0], port: side };
+                if (locOwners.length > 1) return { owner: locOwners[0], port: side };
+              }
+            } catch(e){}
+          }
+        }
+      } catch(e){}
       var parts = side.split('.');
       if (parts.length > 1) {
         // try progressively longer prefixes as component qnames
@@ -365,19 +647,42 @@ async function main() {
         if (f && localCompPorts[f].has(maybePort)) return { owner: f, port: maybePort };
       }
       // unqualified: find components exposing this port
-      var matches = Object.keys(localCompPorts).filter(function (c) {
-        return localCompPorts[c].has(side)
-      });
-      if (matches.length === 1) return { owner: matches[0], port: side };
+      var matches = Object.keys(localCompPorts).filter(function (c) { return localCompPorts[c].has(side); });
+      // check alias maps: if ownerHint has an alias mapping for this name, prefer it
+      try {
+        if (ownerHint && usingAliasMap && usingAliasMap[ownerHint] && Object.prototype.hasOwnProperty.call(usingAliasMap[ownerHint], side)) {
+          const mapped = usingAliasMap[ownerHint][side];
+          // if mapped is non-null, it's the actual port name; otherwise alias exists but maps to itself
+          const realPort = mapped || side;
+          return { owner: ownerHint, port: realPort };
+        }
+        // if any component use defines an alias with this name, prefer that instance only if unique
+        const aliasOwners = Object.keys(usingAliasMap || {}).filter(k => usingAliasMap[k] && Object.prototype.hasOwnProperty.call(usingAliasMap[k], side));
+        if (aliasOwners.length === 1) {
+          const ao = aliasOwners[0];
+          const mapped = usingAliasMap[ao] && usingAliasMap[ao][side];
+          return { owner: ao, port: mapped || side };
+        }
+      } catch(e){}
+  if (matches.length === 1) return { owner: matches[0], port: side };
       if (matches.length > 1) {
-        // disambiguate by component name matching suffix or exact sysadlName
-        var bySys = matches.filter(function (c) { return c.split('.').pop() === side });
-        if (bySys.length === 1) return { owner: bySys[0], port: side };
-        var bySuffix = matches.filter(function (c) { return c.endsWith('.' + side) });
-        if (bySuffix.length === 1) return { owner: bySuffix[0], port: side };
-        // fallback to shortest qname
-        var best = matches.reduce(function (a, b) { return a.length <= b.length ? a : b });
-        return { owner: best, port: side };
+        // try to disambiguate: prefer ownerHint, alias declarations, exact instance name, or component exposing the port
+        try {
+          if (ownerHint && matches.indexOf(ownerHint) !== -1) return { owner: ownerHint, port: side };
+          // alias owners: components that declared this alias
+          const aliasOwners = Object.keys(usingAliasMap || {}).filter(k => usingAliasMap[k] && Object.prototype.hasOwnProperty.call(usingAliasMap[k], side));
+          if (aliasOwners.length === 1 && matches.indexOf(aliasOwners[0]) !== -1) {
+            const mapped = usingAliasMap[aliasOwners[0]] && usingAliasMap[aliasOwners[0]][side];
+            return { owner: aliasOwners[0], port: mapped || side };
+          }
+          // exact instance name match
+          if (matches.indexOf(side) !== -1) return { owner: side, port: side };
+          // try to find a single match where compPortsMap_main contains the port (should be true for all matches)
+          const filtered = matches.filter(m => compPortsMap_main && compPortsMap_main[m] && compPortsMap_main[m].has(side));
+          if (filtered.length === 1) return { owner: filtered[0], port: side };
+        } catch(e){}
+        // otherwise do not attempt fuzzy resolution here; caller will report unresolved
+        return null;
       }
       return null;
     }
@@ -387,6 +692,97 @@ async function main() {
       const nameHint = node.name || (node.definition && node.definition.name) || null;
       const bindings = [];
       const explicitParts = [];
+        // If this connector use references a connector definition, capture its participants/flows
+          let referencedConnectorDef = null;
+          let localScopeMap = null;
+        try {
+          const defName = node.definition && (node.definition.name || node.definition) ? (node.definition.name || node.definition) : null;
+          if (defName && connectorDefMap[defName]) referencedConnectorDef = connectorDefMap[defName];
+        } catch(e){}
+
+        // build a local scope map from referenced connector def participants: role -> Set(portNames)
+        try {
+          if (referencedConnectorDef && Array.isArray(referencedConnectorDef.participants)) {
+            localScopeMap = {};
+            for (const pn of referencedConnectorDef.participants) {
+              try {
+                const roleName = pn && (pn.name || (pn.id && pn.id.name) || pn.id) ? (pn.name || (pn.id && pn.id.name) || pn.id) : null;
+                const partType = pn && (pn.type || pn.portType || pn.definition || pn.value || pn.valueType) ? (pn.type || pn.portType || pn.definition || pn.value || pn.valueType) : null;
+                if (!roleName) continue;
+                const portSet = new Set();
+                // try to resolve type to a PortDef node
+                let tname = null;
+                if (partType) {
+                  tname = String(partType).split('.').pop();
+                }
+                let pdef = null;
+                if (tname && portDefMap && portDefMap[tname]) pdef = portDefMap[tname];
+                if (!pdef && tname && compDefMap && compDefMap[tname]) pdef = compDefMap[tname];
+                if (pdef) {
+                  // collect ports/members
+                  if (Array.isArray(pdef.ports)) for (const pp of pdef.ports) { const pn2 = pp && (pp.name || (pp.id && pp.id.name) || pp.id) || null; if (pn2) portSet.add(String(pn2)); }
+                  if (Array.isArray(pdef.members)) for (const pp of pdef.members) { const pn2 = pp && (pp.name || (pp.id && pp.id.name) || pp.id) || null; if (pn2) portSet.add(String(pn2)); }
+                  // also traverse node for nested port-like entries
+                  traverse(pdef, x => { if (!x || typeof x !== 'object') return; const nm = x && (x.name || (x.id && x.id.name) || x.id) ? (x.name || (x.id && x.id.name) || x.id) : null; if (!nm) return; if (x.flow || x.direction || x.type || x.ports || x.members) portSet.add(String(nm)); });
+                }
+                localScopeMap[roleName] = Array.from(portSet);
+              } catch(e){}
+            }
+          }
+        } catch(e){}
+
+            // Additionally, extract 'using ports' aliases declared in the enclosing configuration
+            try {
+              // find enclosing configuration for this connector use
+              const findCfg = (n) => { while(n){ if (n.type && /Configuration/i.test(n.type)) return n; n = n.__parent; } return null; };
+              const cfgNode = node && node.__parent ? findCfg(node) : null;
+              if (cfgNode) {
+                // traverse component uses declared in this configuration and extract their 'using ports' aliases
+                traverse(cfgNode, cuNode => {
+                  try {
+                    if (!cuNode || typeof cuNode !== 'object') return;
+                    if (!(cuNode.type && /ComponentUse/i.test(cuNode.type))) return;
+                    const cuName = cuNode.name || (cuNode.id && cuNode.id.name) || cuNode.id || null;
+                    if (!cuName) return;
+                    // initialize array
+                    localScopeMap = localScopeMap || {};
+                    localScopeMap[cuName] = localScopeMap[cuName] || [];
+                    // attempt to get the source snippet for this component use and find 'using ports' content
+                    let snippet = null;
+                    try {
+                      if (cuNode.location && cuNode.location.start && typeof cuNode.location.start.offset === 'number' && cuNode.location.end && typeof cuNode.location.end.offset === 'number') snippet = src.slice(cuNode.location.start.offset, cuNode.location.end.offset);
+                    } catch(e){}
+                    if (!snippet) return;
+                    const m = snippet.match(/using\s+ports\s*:\s*(\{[\s\S]*?\}|[^;\n]+)/mi);
+                    if (!m || !m[1]) return;
+                    const block = m[1].replace(/[\{\}]/g, ' ');
+                    // find alias names before ':' in the block
+                    const aliasRe = /([A-Za-z0-9_]+)\s*:\s*[A-Za-z0-9_\.]+/g;
+                    let mm;
+                    while ((mm = aliasRe.exec(block)) !== null) {
+                      try { const alias = mm[1]; if (alias && localScopeMap[cuName].indexOf(alias) === -1) localScopeMap[cuName].push(alias); } catch(e){}
+                    }
+                  } catch(e){}
+                });
+              }
+            } catch(e){}
+
+      // If parser tokenization left simple 'a = b' patterns in the source snippet, extract them directly
+      try {
+        let snippetText = null;
+        if (node && node.location && node.location.start && typeof node.location.start.offset === 'number' && node.location.end && typeof node.location.end.offset === 'number') {
+          snippetText = src.slice(node.location.start.offset, node.location.end.offset);
+        } else if (node && node.location && node.location.source && node.location.source.text) {
+          snippetText = node.location.source.text;
+        }
+        if (snippetText) {
+          const simpleRe = /([A-Za-z0-9_\.]+)\s*=\s*([A-Za-z0-9_\.]+)/g;
+          let mm;
+          while ((mm = simpleRe.exec(snippetText)) !== null) {
+            try { pushBinding(mm[1], mm[2]); } catch(e){}
+          }
+        }
+      } catch(e){}
 
       // helper: try to push pair if left/right present as strings or objects
       function pushBinding(left, right) {
@@ -453,7 +849,7 @@ async function main() {
       }
 
       if (Array.isArray(node.bindings) && node.bindings.length) {
-        for (const b of node.bindings) {
+  for (const b of node.bindings) {
           // b may be a complex token array like ["bindings", [ <tokens> ]]
           if (Array.isArray(b) && b.length === 2 && Array.isArray(b[1])) {
             const inner = b[1];
@@ -475,8 +871,9 @@ async function main() {
             }
             continue;
           }
-          const left = b && (b.left || b.from) ? (b.left || b.from) : null;
-          const right = b && (b.right || b.to) ? (b.right || b.to) : null;
+          // accept parser shapes that use left/right, from/to, or source/destination
+          const left = b && (b.left || b.from || b.source) ? (b.left || b.from || b.source) : null;
+          const right = b && (b.right || b.to || b.destination) ? (b.right || b.to || b.destination) : null;
           // try flattening if non-string
           const Ls = flattenToString(left);
           const Rs = flattenToString(right);
@@ -521,10 +918,33 @@ async function main() {
 
       // resolve simple bindings into owner/port pairs using compPortsMap_main
       const resolved = [];
-      for (const b of bindings) {
-          const L = resolveSide(b.left);
-          const R = resolveSide(b.right);
-          // if we couldn't resolve owner, keep original flattened strings so codegen can try runtime lookup
+          for (const b of bindings) {
+          let L = resolveSide(b.left, cb && cb.owner ? cb.owner : null, node, localScopeMap);
+          let R = resolveSide(b.right, cb && cb.owner ? cb.owner : null, node, localScopeMap);
+          // if one side resolved and the other didn't, try to re-resolve using the counterpart as ownerHint
+          try {
+            if ((!L || !L.owner) && (R && R.owner)) {
+              L = resolveSide(b.left, R.owner, node, localScopeMap) || L;
+            }
+            if ((!R || !R.owner) && (L && L.owner)) {
+              R = resolveSide(b.right, L.owner, node, localScopeMap) || R;
+            }
+            // fallback: if still unresolved, see if alias maps uniquely identify an owner
+            if ((!L || !L.owner) && typeof b.left === 'string') {
+              const aliasOwners = Object.keys(usingAliasMap || {}).filter(k => usingAliasMap[k] && Object.prototype.hasOwnProperty.call(usingAliasMap[k], b.left));
+              if (aliasOwners.length === 1) {
+                const ao = aliasOwners[0]; const mapped = usingAliasMap[ao] && usingAliasMap[ao][b.left]; L = { owner: ao, port: mapped || b.left };
+              }
+            }
+            if ((!R || !R.owner) && typeof b.right === 'string') {
+              const aliasOwners = Object.keys(usingAliasMap || {}).filter(k => usingAliasMap[k] && Object.prototype.hasOwnProperty.call(usingAliasMap[k], b.right));
+              if (aliasOwners.length === 1) {
+                const ao = aliasOwners[0]; const mapped = usingAliasMap[ao] && usingAliasMap[ao][b.right]; R = { owner: ao, port: mapped || b.right };
+              }
+            }
+          } catch(e) {}
+
+          // if we couldn't resolve owner for both sides, keep original flattened strings
           if ((!L || !L.owner) && (!R || !R.owner)) {
             const Ls = flattenToString(b.left) || (typeof b.left === 'string' ? b.left : null);
             const Rs = flattenToString(b.right) || (typeof b.right === 'string' ? b.right : null);
@@ -536,6 +956,217 @@ async function main() {
             resolved.push({ left: L, right: R });
           }
         }
+
+      // If this connector use references a connector definition, try to qualify unresolved sides
+      try {
+        if (referencedConnectorDef && Array.isArray(resolved) && resolved.length) {
+          // build participant role -> expected portType map from def
+          const partMap = {};
+          const pnodes = referencedConnectorDef.participants || referencedConnectorDef.participantsList || [];
+          if (Array.isArray(pnodes)) {
+            for (const pn of pnodes) {
+              if (!pn) continue;
+              const rname = pn && (pn.name || (pn.id && pn.id.name) || pn.id) ? (pn.name || (pn.id && pn.id.name) || pn.id) : null;
+              const ptype = pn && (pn.type || pn.portType || pn.definition || pn.value || pn.valueType) ? (pn.type || pn.portType || pn.definition || pn.value || pn.valueType) : null;
+              if (rname) partMap[rname] = String(ptype || '');
+            }
+          }
+          // find first flow (if present) to infer left->right role mapping
+          let flowFromRole = null, flowToRole = null;
+          const flowNodes = referencedConnectorDef.flows || referencedConnectorDef.flow || [];
+          if (Array.isArray(flowNodes) && flowNodes.length) {
+            const fn = flowNodes[0];
+            try { flowFromRole = fn && (fn.from || (fn.participants && fn.participants[0]) || null) ? (fn.from || (fn.participants && fn.participants[0]) || null) : null; } catch(e){}
+            try { flowToRole = fn && (fn.to || (fn.participants && fn.participants[1]) || null) ? (fn.to || (fn.participants && fn.participants[1]) || null) : null; } catch(e){}
+          }
+
+          for (let i = 0; i < resolved.length; ++i) {
+            const r = resolved[i];
+            // if left side is unresolved (string or missing owner), try to find owner among components exposing that port
+            try {
+              if (r && r.left && (!r.left.owner || typeof r.left === 'string')) {
+                const portName = (typeof r.left === 'string') ? r.left : (r.left.port || null);
+                if (portName) {
+                  // candidate owners exposing this port
+                  const candidatesAll = Object.keys(compPortsMap_main || {}).filter(cn => compPortsMap_main[cn] && compPortsMap_main[cn].has(portName));
+                  let candidates = candidatesAll.slice();
+                  // prefer candidates in same configuration scope as the ConnectorUse
+                  try {
+                    const cfgOfConnector = (node && node.__parent) ? (function findCfg(n){ while(n){ if (n.type && /Configuration/i.test(n.type)) return n; n = n.__parent; } return null; })(node) : null;
+                    if (cfgOfConnector) {
+                      const scopedByCfg = candidatesAll.filter(cn => {
+                        try {
+                          const compNode = compUseNodeMap[cn];
+                          if (!compNode) return false;
+                          const cfgOfComp = (function findCfg(n){ while(n){ if (n.type && /Configuration/i.test(n.type)) return n; n = n.__parent; } return null; })(compNode);
+                          return cfgOfComp === cfgOfConnector;
+                        } catch(e){ return false; }
+                      });
+                      if (scopedByCfg.length) candidates = scopedByCfg;
+                    }
+                  } catch(e){}
+                  // allow alias-driven owner resolution (if an instance declared an alias for this token)
+                  try {
+                    const aliasOwners = Object.keys(usingAliasMap || {}).filter(k => usingAliasMap[k] && Object.prototype.hasOwnProperty.call(usingAliasMap[k], portName));
+                    if (aliasOwners.length) {
+                      const aliasScoped = candidatesAll.filter(cn => aliasOwners.indexOf(cn) !== -1);
+                      if (aliasScoped.length) candidates = aliasScoped;
+                    }
+                  } catch(e){}
+                  // if flowFromRole provided, filter candidates by matching the component's declared port type
+                  if (flowFromRole && partMap && partMap[flowFromRole] && candidates.length) {
+                    const wantType = String(partMap[flowFromRole]).split('.').pop();
+                    const filtered = candidates.filter(cand => {
+                      try {
+                        const defName = compInstanceToDef && compInstanceToDef[cand];
+                        if (!defName) return false;
+                        const defNode = compDefMap[defName] || compDefMap[String(defName)];
+                        if (!defNode) return false;
+                        // find port in defNode with name portName and inspect its type
+                        let foundType = null;
+                        traverse(defNode, pn => {
+                          if (!pn || typeof pn !== 'object') return;
+                          const nm = pn && (pn.name || (pn.id && pn.id.name) || pn.id) ? (pn.name || (pn.id && pn.id.name) || pn.id) : null;
+                          if (nm === portName) {
+                            foundType = pn && (pn.type || pn.portType || (pn.definition && pn.definition.name) || pn.value || pn.valueType) ? (pn.type || pn.portType || (pn.definition && pn.definition.name) || pn.value || pn.valueType) : null;
+                          }
+                        });
+                        if (!foundType) return false;
+                        const f = String(foundType).split('.').pop();
+                        return f === wantType || normalizeForMatch(f) === normalizeForMatch(wantType);
+                      } catch(e){ return false; }
+                    });
+                    if (filtered.length === 1) { resolved[i].left = { owner: filtered[0], port: portName }; continue; }
+                    if (filtered.length > 1) { resolved[i].left = { owner: filtered[0], port: portName }; continue; }
+                  }
+                  // fallback: if a single candidate exists, pick it
+                  if (candidates.length === 1) { resolved[i].left = { owner: candidates[0], port: portName }; continue; }
+                }
+              }
+              // similar for right side
+              if (r && r.right && (!r.right.owner || typeof r.right === 'string')) {
+                const portName = (typeof r.right === 'string') ? r.right : (r.right.port || null);
+                if (portName) {
+                  const candidatesAll = Object.keys(compPortsMap_main || {}).filter(cn => compPortsMap_main[cn] && compPortsMap_main[cn].has(portName));
+                    let candidates = candidatesAll.slice();
+                    const scopePrefR = (ownerHint && String(ownerHint)) || (cb && cb.owner) || null;
+                    if (scopePrefR) {
+                      const scopedR = candidatesAll.filter(cn => {
+                        try { if (cn === scopePrefR) return true; if (cn.indexOf(scopePrefR + '.') === 0) return true; const short = String(cn).split('.').pop(); if (short === scopePrefR) return true; } catch(e){}
+                        return false;
+                      });
+                      if (scopedR.length) candidates = scopedR;
+                    }
+                    try {
+                      const aliasOwnersR = Object.keys(usingAliasMap || {}).filter(k => usingAliasMap[k] && Object.prototype.hasOwnProperty.call(usingAliasMap[k], portName));
+                      if (aliasOwnersR.length) {
+                        const aliasScopedR = candidatesAll.filter(cn => aliasOwnersR.indexOf(cn) !== -1);
+                        if (aliasScopedR.length) candidates = aliasScopedR;
+                      }
+                    } catch(e){}
+                    if (flowToRole && partMap && partMap[flowToRole] && candidates.length) {
+                    const wantType = String(partMap[flowToRole]).split('.').pop();
+                    const filtered = candidates.filter(cand => {
+                      try {
+                        const defName = compInstanceToDef && compInstanceToDef[cand];
+                        if (!defName) return false;
+                        const defNode = compDefMap[defName] || compDefMap[String(defName)];
+                        if (!defNode) return false;
+                        let foundType = null;
+                        traverse(defNode, pn => {
+                          if (!pn || typeof pn !== 'object') return;
+                          const nm = pn && (pn.name || (pn.id && pn.id.name) || pn.id) ? (pn.name || (pn.id && pn.id.name) || pn.id) : null;
+                          if (nm === portName) {
+                            foundType = pn && (pn.type || pn.portType || (pn.definition && pn.definition.name) || pn.value || pn.valueType) ? (pn.type || pn.portType || (pn.definition && pn.definition.name) || pn.value || pn.valueType) : null;
+                          }
+                        });
+                        if (!foundType) return false;
+                        const f = String(foundType).split('.').pop();
+                        return f === wantType || normalizeForMatch(f) === normalizeForMatch(wantType);
+                      } catch(e){ return false; }
+                    });
+                    if (filtered.length === 1) { resolved[i].right = { owner: filtered[0], port: portName }; continue; }
+                    if (filtered.length > 1) { resolved[i].right = { owner: filtered[0], port: portName }; continue; }
+                  }
+                  if (candidates.length === 1) { resolved[i].right = { owner: candidates[0], port: portName }; continue; }
+                }
+              }
+            } catch(e) {}
+          }
+        }
+      } catch(e) {}
+
+      // deterministic role->instance mapping: if connectorDef present, try to map roles to concrete endpoints
+      try {
+        if (referencedConnectorDef) {
+          // build list of participant roles with expected types
+          const roles = [];
+          const pnodes = referencedConnectorDef.participants || referencedConnectorDef.participantsList || [];
+          if (Array.isArray(pnodes)) {
+            for (const pn of pnodes) {
+              if (!pn) continue;
+              const rname = pn && (pn.name || (pn.id && pn.id.name) || pn.id) ? (pn.name || (pn.id && pn.id.name) || pn.id) : null;
+              const rtype = pn && (pn.type || pn.portType || pn.definition || pn.value || pn.valueType) ? (pn.type || pn.portType || pn.definition || pn.value || pn.valueType) : null;
+              if (rname) roles.push({ role: rname, type: String(rtype || '') });
+            }
+          }
+          // for each role, try to find a unique instance that exposes a port with matching type
+          const roleAssignments = {};
+          for (const r of roles) {
+            const want = r.type.split('.').pop();
+            // candidates: instances that expose any port matching want (by type) or port name exact
+            const candidates = [];
+            for (const inst of Object.keys(compInstanceToDef || {})) {
+              try {
+                const ddef = compInstanceToDef[inst]; if (!ddef) continue;
+                const defNode = compDefMap[ddef] || compDefMap[String(ddef)]; if (!defNode) continue;
+                // find any port in defNode whose type matches want
+                let found = null;
+                traverse(defNode, pn => {
+                  if (!pn || typeof pn !== 'object') return;
+                  const nm = pn && (pn.name || (pn.id && pn.id.name) || pn.id) ? (pn.name || (pn.id && pn.id.name) || pn.id) : null;
+                  if (!nm) return;
+                  const ptype = pn && (pn.type || pn.portType || (pn.definition && pn.definition.name) || pn.value || pn.valueType) ? (pn.type || pn.portType || (pn.definition && pn.definition.name) || pn.value || pn.valueType) : null;
+                  if (!ptype) return;
+                  const t = String(ptype).split('.').pop();
+                  if (t === want || normalizeForMatch(t) === normalizeForMatch(want)) found = nm;
+                });
+                if (found) candidates.push({ inst, port: found });
+              } catch(e){}
+            }
+            // prefer candidates in same configuration as connector use
+            try {
+              const cfgOfConnector = (node && node.__parent) ? (function findCfg(n){ while(n){ if (n.type && /Configuration/i.test(n.type)) return n; n = n.__parent; } return null; })(node) : null;
+              if (cfgOfConnector) {
+                const scoped = candidates.filter(c => {
+                  try { const cn = compUseNodeMap[c.inst]; if (!cn) return false; const cfgOfComp = (function findCfg(n){ while(n){ if (n.type && /Configuration/i.test(n.type)) return n; n = n.__parent; } return null; })(cn); return cfgOfComp === cfgOfConnector; } catch(e){ return false; }
+                });
+                if (scoped.length) {
+                  if (scoped.length === 1) roleAssignments[r.role] = scoped[0]; else roleAssignments[r.role] = scoped[0];
+                  continue;
+                }
+              }
+            } catch(e){}
+            if (candidates.length === 1) roleAssignments[r.role] = candidates[0];
+          }
+          // if we have roleAssignments and resolved had unqualified sides, assign them when unique
+          if (Object.keys(roleAssignments).length) {
+            for (const rid of Object.keys(roleAssignments)) {
+              const asg = roleAssignments[rid];
+              if (!asg) continue;
+              // try to find any resolved entry where either left/right matches role name or port name
+              for (let i=0;i<resolved.length;i++) {
+                const rr = resolved[i];
+                try {
+                  // left
+                  if (rr.left && (!rr.left.owner || typeof rr.left === 'string') && (String(rr.left) === rid || (typeof rr.left === 'string' && String(rr.left) === String(asg.port)))) rr.left = { owner: asg.inst, port: asg.port };
+                  if (rr.right && (!rr.right.owner || typeof rr.right === 'string') && (String(rr.right) === rid || (typeof rr.right === 'string' && String(rr.right) === String(asg.port)))) rr.right = { owner: asg.inst, port: asg.port };
+                } catch(e){}
+              }
+            }
+          }
+        }
+      } catch(e) {}
 
       // build descriptor name: prefer hint, else create deterministic name from bindings
       let cname = nameHint || null;
@@ -661,7 +1292,41 @@ async function main() {
         } catch(e) {}
       }
 
-  const descObj = { name: cname, participants: parts, bindings: resolved, _uid: ++connectorCounter };
+      // if referencedConnectorDef is present, attempt to populate expected participant roles and types
+      if (referencedConnectorDef) {
+        try {
+          const partsFromDef = [];
+          // collect participants declared in def (node.participants array or participants field)
+          const pnodes = referencedConnectorDef.participants || referencedConnectorDef.participantsList || [];
+          if (Array.isArray(pnodes) && pnodes.length) {
+            for (const pn of pnodes) {
+              if (!pn) continue;
+              const pname = pn && (pn.name || (pn.id && pn.id.name) || pn.id) ? (pn.name || (pn.id && pn.id.name) || pn.id) : null;
+              const pport = pn && (pn.type || pn.portType || pn.definition || pn.value || pn.valueType) ? (pn.type || pn.portType || pn.definition || pn.value || pn.valueType) : null;
+              if (pname) partsFromDef.push({ role: pname, portType: pport });
+            }
+          }
+          // flows: try to collect flows to determine direction (fromRole,toRole)
+          const flowNodes = referencedConnectorDef.flows || referencedConnectorDef.flow || [];
+          const flows = [];
+          if (Array.isArray(flowNodes) && flowNodes.length) {
+            for (const fn of flowNodes) {
+              try {
+                const ftype = fn && (fn.type || fn.flowType || fn.value) ? (fn.type || fn.flowType || fn.value) : null;
+                const fromRole = fn && (fn.from || (fn.participants && fn.participants[0]) || null) ? (fn.from || (fn.participants && fn.participants[0]) || null) : null;
+                const toRole = fn && (fn.to || (fn.participants && fn.participants[1]) || null) ? (fn.to || (fn.participants && fn.participants[1]) || null) : null;
+                if (fromRole || toRole) flows.push({ type: ftype, from: fromRole, to: toRole });
+              } catch(e){}
+            }
+          }
+          // attach to descriptor
+          if (partsFromDef.length) parts.push.apply(parts, partsFromDef.map(p=>({ owner: null, port: p.role, _portType: p.portType })));
+          // store flows under a meta field for later qualification
+          if (flows.length) explicitParts.push({ __flows: flows });
+        } catch(e){}
+      }
+
+  const descObj = { name: cname, participants: parts, bindings: resolved, _uid: ++connectorCounter, _node: node };
   connectorDescriptors.push(descObj);
     }
   } catch(e) { /* ignore */ }
@@ -843,17 +1508,118 @@ async function main() {
     if (owner && pname && Object.prototype.hasOwnProperty.call(compPortsMap_main, owner)) compPortsMap_main[owner].add(String(pname));
     if (owner && pname) { const parts = String(owner).split('.'); const short = parts.length ? parts[parts.length-1] : null; if (short && Object.prototype.hasOwnProperty.call(compPortsMap_main, short)) compPortsMap_main[short].add(String(pname)); }
   }
-  try { console.error('[DBG] compPortsMap_main keys:', Object.keys(compPortsMap_main).slice(0,40).map(k=>({k,ports:Array.from(compPortsMap_main[k]||[])}))); } catch(e){}
+  // Process delegations: make delegated ports visible in the owning component's port map
+  // Delegations connect inner instance ports to the component's declared ports. We must
+  // expose the delegated (component-level) port names as available on the component
+  // so resolution within the same configuration picks them preferentially.
+  try {
+    // find all ComponentDef nodes and their top-level port names
+    for (const defName of Object.keys(compDefMap || {})) {
+      try {
+        const defNode = compDefMap[defName];
+        if (!defNode) continue;
+        const cfgs = extractConfigurations(defNode) || [];
+        if (!cfgs.length) continue;
+        const cfgNode = cfgs[0];
+        // collect top-level declared ports on the component (the ones listed before configuration)
+        const declaredPorts = new Set();
+        if (Array.isArray(defNode.ports)) for (const p of defNode.ports) { const pn = p && (p.name || (p.id && p.id.name) || p.id) || null; if (pn) declaredPorts.add(String(pn)); }
+        if (Array.isArray(defNode.members)) for (const p of defNode.members) { const pn = p && (p.name || (p.id && p.id.name) || p.id) || null; if (pn) declaredPorts.add(String(pn)); }
+        // find delegations within the configuration: pattern 'X to Y' -> (source instance port X) delegated to component port Y
+        traverse(cfgNode, n => {
+          if (!n || typeof n !== 'object') return;
+          // detect delegation lists: nodes that have 'delegations' or 'delegationsList'
+          if (Array.isArray(n.delegations)) {
+            for (const d of n.delegations) {
+              try {
+                // d may be string like 'ack to outNotifications' or object { from, to }
+                if (typeof d === 'string') {
+                  const m = d.match(/([\w\.]+)\s+to\s+([\w\.]+)/);
+                  if (m) {
+                    const from = m[1]; const to = m[2];
+                    // `to` is the component-level port name; expose it on the component use(s)
+                    // find component uses of this def and add 'to' to their compPortsMap_main sets
+                    for (const cu of compUses) {
+                      try {
+                        const iname = cu && (cu.name || (cu.id && cu.id.name) || cu.id) || null;
+                        const ddef = cu && (cu.definition || cu.def || null) || null;
+                        if (!iname || !ddef) continue;
+                        if (String(ddef) !== String(defName)) continue;
+                        if (!compPortsMap_main[iname]) compPortsMap_main[iname] = new Set();
+                        compPortsMap_main[iname].add(String(to));
+                      } catch(e){}
+                    }
+                  }
+                } else if (d && d.from && d.to) {
+                  const to = (d.to && (d.to.port || d.to.name || d.to)) ? (d.to.port || d.to.name || d.to) : null;
+                  if (to) {
+                    for (const cu of compUses) {
+                      try {
+                        const iname = cu && (cu.name || (cu.id && cu.id.name) || cu.id) || null;
+                        const ddef = cu && (cu.definition || cu.def || null) || null;
+                        if (!iname || !ddef) continue;
+                        if (String(ddef) !== String(defName)) continue;
+                        if (!compPortsMap_main[iname]) compPortsMap_main[iname] = new Set();
+                        compPortsMap_main[iname].add(String(to));
+                      } catch(e){}
+                    }
+                  }
+                }
+              } catch(e){}
+            }
+          }
+        });
+      } catch(e){}
+    }
+  } catch(e){}
+  try { dbg('[DBG] compPortsMap_main keys:', Object.keys(compPortsMap_main).slice(0,40).map(k=>({k,ports:Array.from(compPortsMap_main[k]||[])}))); } catch(e){}
   // second-pass: re-process connectorBindings using compPortsMap_main to qualify unqualified ports
   try {
+    // AGGRESSIVE PASS: for any connectorDescriptor binding side still unresolved, prefer
+    // components that expose the port in the same Configuration as the connector use.
+    // If multiple candidates exist, choose the first deterministically.
+    try {
+      const findCfg = (n) => { while(n){ if (n.type && /Configuration/i.test(n.type)) return n; n = n.__parent; } return null; };
+      for (const desc of connectorDescriptors) {
+        if (!desc || !Array.isArray(desc.bindings)) continue;
+        const nodeRef = desc._node || null;
+        const cfgOfDesc = nodeRef ? findCfg(nodeRef) : null;
+        for (const b of desc.bindings) {
+          if (!b) continue;
+          for (const side of ['left','right']) {
+            try {
+              const val = b[side];
+              if (!val) continue;
+              // already qualified
+              if (typeof val === 'object' && val.owner) continue;
+              const portName = (typeof val === 'string') ? val : (val && val.port ? val.port : null);
+              if (!portName) continue;
+              // find all candidates that expose this port
+              let candidates = Object.keys(compPortsMap_main || {}).filter(cn => compPortsMap_main[cn] && compPortsMap_main[cn].has(portName));
+              if (!candidates.length) continue;
+              // prefer those in same configuration
+              if (cfgOfDesc) {
+                const scoped = candidates.filter(cn => { try { const n = compUseNodeMap[cn]; return !!n && findCfg(n) === cfgOfDesc; } catch(e){ return false; } });
+                if (scoped.length) candidates = scoped;
+              }
+              // deterministic: pick first candidate
+              if (candidates.length) {
+                b[side] = { owner: candidates[0], port: portName };
+              }
+            } catch(e) { /* ignore per-side */ }
+          }
+        }
+      }
+    } catch(e) { /* non-fatal */ }
     for (const cbEntry of connectorBindings) {
       try {
         const node = cbEntry.node || {};
         const nameHint = node.name || (node.definition && node.definition.name) || null;
         const ownerHint = cbEntry && cbEntry.owner ? cbEntry.owner : null;
         const desc = connectorDescriptors.find(d => d.name === nameHint) || null;
-        if (!desc) continue;
-        if (Array.isArray(desc.participants) && desc.participants.length) continue; // already have participants
+  if (!desc) continue;
+  // do not auto-qualify participants here; only attempt to suggest owners when ownerHint present
+  if (Array.isArray(desc.participants) && desc.participants.length) continue; // already have participants
           // try normalized matching from existing desc.bindings first (fuzzy match port names)
           try {
             if ((!Array.isArray(parts) || parts.length === 0) && Array.isArray(desc.bindings) && desc.bindings.length) {
@@ -866,18 +1632,18 @@ async function main() {
                     const cand = Object.keys(compPortsMap_main).find(cn => {
                       try { return Array.from(compPortsMap_main[cn]||[]).some(p => normalizeForMatch(p) === normalizeForMatch(target) || normalizeForMatch(p).indexOf(normalizeForMatch(target)) !== -1 || normalizeForMatch(target).indexOf(normalizeForMatch(p)) !== -1); } catch(e){ return false; }
                     });
-                    if (cand) { const key = cand + '.' + target; if (!seen.has(key)) { parts.push({ owner: cand, port: target }); seen.add(key); } }
+                    if (cand) { /* suggestion only; do not auto-assign */ }
                   }
                   if (R && R.port && !R.owner) {
                     const target = String(R.port);
                     const cand = Object.keys(compPortsMap_main).find(cn => {
                       try { return Array.from(compPortsMap_main[cn]||[]).some(p => normalizeForMatch(p) === normalizeForMatch(target) || normalizeForMatch(p).indexOf(normalizeForMatch(target)) !== -1 || normalizeForMatch(target).indexOf(normalizeForMatch(p)) !== -1); } catch(e){ return false; }
                     });
-                    if (cand) { const key = cand + '.' + target; if (!seen.has(key)) { parts.push({ owner: cand, port: target }); seen.add(key); } }
+                    if (cand) { /* suggestion only; do not auto-assign */ }
                   }
                 } catch(e) {}
               }
-              if (parts.length) desc.participants = parts;
+              if (parts.length) { /* suggestion only; do not mutate desc.participants */ }
             }
           } catch(e) {}
           // try to extract snippet
@@ -914,7 +1680,7 @@ async function main() {
               if (rownerResolved && rport) { const key = rownerResolved + '.' + rport; if (!seen.has(key)) { parts.push({ owner: rownerResolved, port: rport }); seen.add(key); } }
             }
           }
-          if (parts.length) { desc.participants = parts; }
+          if (parts.length) { /* suggestion only; do not mutate desc.participants */ }
         }
       } catch(e) {}
     }
@@ -1001,7 +1767,141 @@ async function main() {
   });
   const outModelName = declaredModelName || path.basename(input, path.extname(input));
   // debug: show normalized connector descriptors
-  try { console.error('[DBG] connectorDescriptors:', Array.isArray(connectorDescriptors)?connectorDescriptors.length:0, JSON.stringify((connectorDescriptors||[]).slice(0,5).map(d=>({name:d.name, participants:(d.participants||[]).length})))) } catch(e){}
+  try { dbg('[DBG] connectorDescriptors:', Array.isArray(connectorDescriptors)?connectorDescriptors.length:0, JSON.stringify((connectorDescriptors||[]).slice(0,5).map(d=>({name:d.name, participants:(d.participants||[]).length})))) } catch(e){}
+  try { if (process.env.SYSADL_DEBUG_FULL) dbg('[DBG-FULL] connectorDescriptors full:', JSON.stringify(connectorDescriptors, null, 2)); } catch(e){}
+  // PASS: try to recover missing sides by re-parsing textual bindings from source snippet
+  try {
+    for (const desc of connectorDescriptors) {
+      if (!desc || !desc._node) continue;
+      const node = desc._node;
+      // only interested if some binding entries have null sides
+      if (!Array.isArray(desc.bindings) || !desc.bindings.length) continue;
+      const needRepair = desc.bindings.some(b => b && (!b.left || !b.right));
+      if (!needRepair) continue;
+      // obtain snippet text
+      let snippet = null;
+      try {
+        if (node.location && node.location.source && node.location.source.text) snippet = node.location.source.text;
+        else if (node.location && node.location.start && typeof node.location.start.offset === 'number' && node.location.end && typeof node.location.end.offset === 'number') snippet = src.slice(node.location.start.offset, node.location.end.offset);
+      } catch(e){}
+      if (!snippet) continue;
+      const pairs = [];
+      const re = /([A-Za-z0-9_\.]+)\s*=\s*([A-Za-z0-9_\.]+)/g;
+      let m;
+      while ((m = re.exec(snippet)) !== null) pairs.push([m[1], m[2]]);
+      if (!pairs.length) continue;
+      // map pairs to desc.bindings in order
+      for (let i=0;i<Math.min(pairs.length, desc.bindings.length); ++i) {
+        const b = desc.bindings[i]; if (!b) continue;
+        const [ls, rs] = pairs[i];
+        try {
+          if ((!b.left || !b.left.owner) && ls) {
+            const resolvedL = resolveSide(ls, null, node);
+            if (resolvedL && resolvedL.owner) b.left = resolvedL; else if (ls) b.left = ls;
+          }
+          if ((!b.right || !b.right.owner) && rs) {
+            const resolvedR = resolveSide(rs, null, node);
+            if (resolvedR && resolvedR.owner) b.right = resolvedR; else if (rs) b.right = rs;
+          }
+        } catch(e){}
+      }
+    }
+  } catch(e) { /* non-fatal */ }
+  // Final exact-match qualification pass: try to assign unqualified sides when there is an unambiguous exact owner
+  try {
+    for (const desc of connectorDescriptors) {
+      if (!desc) continue;
+      // ensure participants array exists
+      desc.participants = desc.participants || [];
+      // collect ports already assigned
+      const assigned = new Set((desc.participants||[]).map(p=> (p && p.owner && p.port) ? (p.owner + '.' + p.port) : null).filter(Boolean));
+      // try to inspect desc.bindings to find unqualified strings and qualify them
+      if (Array.isArray(desc.bindings)) {
+        for (const b of desc.bindings) {
+          if (!b) continue;
+          const sides = ['left','right'];
+          for (const side of sides) {
+            const token = b[side];
+            if (!token) continue;
+            // if token already object with owner, skip
+            if (typeof token === 'object' && token.owner) continue;
+            const portName = (typeof token === 'string') ? String(token) : (token && token.port ? String(token.port) : null);
+            if (!portName) continue;
+            // first: alias maps exact match
+            try {
+              const aliasOwners = Object.keys(usingAliasMap || {}).filter(k => usingAliasMap[k] && Object.prototype.hasOwnProperty.call(usingAliasMap[k], portName));
+              if (aliasOwners.length === 1) {
+                const ao = aliasOwners[0]; const mapped = usingAliasMap[ao] && usingAliasMap[ao][portName];
+                const realPort = mapped || portName;
+                const key = ao + '.' + realPort;
+                if (!assigned.has(key)) { desc.participants.push({ owner: ao, port: realPort }); assigned.add(key); }
+                continue;
+              }
+            } catch(e){}
+            // second: exact owner candidate where compPortsMap_main[owner] has portName
+            try {
+              const exactOwners = Object.keys(compPortsMap_main || {}).filter(cn => compPortsMap_main[cn] && compPortsMap_main[cn].has(portName));
+              if (exactOwners.length === 1) {
+                const o = exactOwners[0]; const key = o + '.' + portName; if (!assigned.has(key)) { desc.participants.push({ owner: o, port: portName }); assigned.add(key); }
+                continue;
+              }
+            } catch(e){}
+            // third: try short-name mapping (instance short name equals token)
+            try {
+              if (compPortsMap_main && compPortsMap_main[portName]) {
+                const o = portName; const key = o + '.' + portName; if (!assigned.has(key)) { desc.participants.push({ owner: o, port: portName }); assigned.add(key); }
+                continue;
+              }
+            } catch(e){}
+          }
+        }
+      }
+      // If after qualification we have participants but some are still owner:null, try to fill them with unique candidates
+      if (Array.isArray(desc.participants) && desc.participants.length) {
+        for (let i=0;i<desc.participants.length;i++) {
+          const p = desc.participants[i]; if (!p) continue;
+          if (p.owner) continue;
+          const portName = p.port || null; if (!portName) continue;
+          try {
+            const owners = Object.keys(compPortsMap_main || {}).filter(cn => compPortsMap_main[cn] && compPortsMap_main[cn].has(portName));
+            if (owners.length === 1) { desc.participants[i].owner = owners[0]; }
+          } catch(e){}
+        }
+      }
+    }
+  } catch(e) { /* non-fatal */ }
+
+  // Post-process: for any binding entries missing an owner, prefer components declared in the same configuration
+  try {
+    const findCfg = (n) => { while(n){ if (n.type && /Configuration/i.test(n.type)) return n; n = n.__parent; } return null; };
+    for (const desc of connectorDescriptors) {
+      if (!desc || !Array.isArray(desc.bindings)) continue;
+      const nodeRef = desc._node || null;
+      const cfgOfDesc = nodeRef ? findCfg(nodeRef) : null;
+      for (const b of desc.bindings) {
+        if (!b) continue;
+        for (const side of ['left','right']) {
+          const val = b[side];
+          if (!val) continue;
+          if (typeof val === 'object' && val.owner) continue; // already qualified
+          const portName = (typeof val === 'string') ? val : (val && val.port ? val.port : null);
+          if (!portName) continue;
+          // candidates that expose this port
+          const candidatesAll = Object.keys(compPortsMap_main || {}).filter(cn => compPortsMap_main[cn] && compPortsMap_main[cn].has(portName));
+          if (!candidatesAll.length) continue;
+          // prefer components in same configuration
+          let candidates = candidatesAll.slice();
+          if (cfgOfDesc) {
+            const scoped = candidatesAll.filter(cn => { try { const n = compUseNodeMap[cn]; return !!n && findCfg(n) === cfgOfDesc; } catch(e){ return false; } });
+            if (scoped.length) candidates = scoped;
+          }
+          if (candidates.length === 1) {
+            b[side] = { owner: candidates[0], port: portName };
+          }
+        }
+      }
+    }
+  } catch(e) { /* non-fatal */ }
   // determine hierarchical parents: components with 'configuration' are containers (attach children to them)
   const parentMap = {}; // instanceName -> parent expression (e.g. 'this.FactoryAutomationSystem')
   const rootDefs = [];
@@ -1095,8 +1995,8 @@ async function main() {
     }
   } catch(e) { /* ignore heuristic build errors */ }
 
-  try { console.error('[DBG] rootDefs:', JSON.stringify(rootDefs || [])); } catch(e){}
-  try { console.error('[DBG] parentMap:', JSON.stringify(parentMap || {})); } catch(e){}
+  try { dbg('[DBG] rootDefs:', JSON.stringify(rootDefs || [])); } catch(e){}
+  try { dbg('[DBG] parentMap:', JSON.stringify(parentMap || {})); } catch(e){}
   const moduleCode = generateClassModule(outModelName, compUses, portUses, connectorDescriptors, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef);
   const outFile = path.join(outDir, path.basename(input, path.extname(input)) + '.js');
   fs.writeFileSync(outFile, moduleCode, 'utf8');

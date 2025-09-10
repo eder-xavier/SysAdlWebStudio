@@ -133,6 +133,7 @@ class Connector extends Element {
   constructor(name, opts = {}){ super(name, opts); this.participants = []; }
   addParticipant(p){ this.participants.push(p); }
   // register a Port endpoint with this connector (model is needed to map back)
+  // Accepts a Port or a CompositePort sub-port. No runtime name-based resolution happens here.
   addEndpoint(model, port){
     try{
       this.participants = this.participants || [];
@@ -155,7 +156,10 @@ class Connector extends Element {
 }
 
 class Port extends Element {
-  constructor(name, direction='in', opts={}){ super(name, opts); this.direction = direction; this.last = undefined; this.owner = opts.owner || null; }
+  constructor(name, direction='in', opts={}){ super(name, opts); 
+    this.direction = direction; 
+    this.last = undefined; 
+    this.owner = opts.owner || null; }
   send(v, model){ model && model.logEvent && model.logEvent({ elementType: 'port_send', component: this.owner, name: this.name, inputs: [v], when: Date.now() }); this.last = v; if (this.binding && typeof this.binding.receive === 'function') this.binding.receive(v, model); if (model) {
       // dispatch to connectors first (connectors know endpoints and will forward to other ports)
       if (typeof model._dispatchConnectors === 'function') model._dispatchConnectors(this.owner, this.name, v);
@@ -164,6 +168,40 @@ class Port extends Element {
     } }
   receive(v, model){ model && model.logEvent && model.logEvent({ elementType: 'port_receive', component: this.owner, name: this.name, inputs: [v], when: Date.now() }); this.last = v; if (model) model.handlePortReceive(this.owner, this.name, v); }
   bindTo(ref){ this.binding = ref; }
+}
+
+// CompositePort: a Port that contains named sub-ports. Treated as a Port
+// for compatibility. Sub-ports are regular Port instances whose owner is
+// the composite port's qualified owner path (e.g. 'compName.compositePort').
+class CompositePort extends Port {
+  constructor(name, direction='in', opts={}){
+    super(name, direction, opts);
+    this.subports = {}; // name -> Port
+  }
+  addSubPort(name, port){
+    if (!name || !port) return;
+    // port.owner becomes composite qualified owner
+    port.owner = (this.owner ? (this.owner + '.' + this.name) : this.owner) || port.owner;
+    this.subports[name] = port;
+  }
+  getSubPort(name){ return this.subports && this.subports[name] ? this.subports[name] : null; }
+  // send to composite: policy = broadcast to all subports if no sub-name provided
+  send(v, model){
+    model && model.logEvent && model.logEvent({ elementType: 'port_send', component: this.owner, name: this.name, inputs: [v], when: Date.now() });
+    // dispatch to connectors registered on composite-level first
+    if (model && typeof model._dispatchConnectors === 'function') model._dispatchConnectors(this.owner, this.name, v);
+    // then forward to subports (broadcast)
+    for (const sp of Object.values(this.subports || {})) { try { if (sp && typeof sp.receive === 'function') sp.receive(v, model); } catch(e){} }
+    // activities: composite itself may have activities bound to its name
+    if (model) model.handlePortReceive(this.owner, this.name, v);
+  }
+  // receiving on composite behaves similarly
+  receive(v, model){
+    model && model.logEvent && model.logEvent({ elementType: 'port_receive', component: this.owner, name: this.name, inputs: [v], when: Date.now() });
+    if (model && typeof model._dispatchConnectors === 'function') model._dispatchConnectors(this.owner, this.name, v);
+    for (const sp of Object.values(this.subports || {})) { try { if (sp && typeof sp.receive === 'function') sp.receive(v, model); } catch(e){} }
+    if (model) model.handlePortReceive(this.owner, this.name, v);
+  }
 }
 
 class Action {
@@ -352,4 +390,4 @@ function createExecutableFromExpression(exprText, paramNames = []) {
   }
 }
 
-module.exports = { Model, Element, Component, Connector, Port, Activity, Action, createExecutableFromExpression };
+module.exports = { Model, Element, Component, Connector, Port, CompositePort, Activity, Action, createExecutableFromExpression };

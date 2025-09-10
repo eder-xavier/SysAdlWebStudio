@@ -1,0 +1,11 @@
+- Nenhuma resolução de nenhum elemento sysadl deve ser feito em tempo de execução
+-
+
+
+
+
+*** Pendências
+
+- Verificar se os components suportam a diretiva boundary.
+
+- Component -> Port -> Connection -> Port -> Component --allocation--> Activity
