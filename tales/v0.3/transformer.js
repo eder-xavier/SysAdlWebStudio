@@ -47,7 +47,7 @@ function collectPortUses(configNode) {
   return uses;
 }
 
-function generateClassModule(modelName, compUses, portUses, connectorBindings, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, portAliasMap) {
+function generateClassModule(modelName, compUses, portUses, connectorBindings, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, portAliasMap, compDefMapArg, portDefMapArg) {
   const lines = [];
   // runtime imports for generated module
   lines.push("const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression } = require('../SysADLBase');");
@@ -147,6 +147,135 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   // emit ports (attach to component instances)
   // track emitted ports to avoid duplicate lines when portUses and activity ensures overlap
   const __emittedPorts = new Set();
+  try { dbg('[DBG] sample portDefMap keys:', Object.keys(portDefMap).slice(0,20)); dbg('[DBG] sample portDef entry for CTempIPT:', portDefMap['CTempIPT']); } catch(e){}
+  // helper: resolve port direction from PortDef.flow by following instance -> componentDef -> portDef
+  function resolvePortDirectionFor(ownerName, portName) {
+    try {
+      // try deterministic annotation first: check if we have a PortUse annotated with a linked PortDef
+      try {
+        // when ownerName is qualified (component.composite), allow matching PortUse annotated with the base component name
+        const ownerBase = (typeof ownerName === 'string' && ownerName.indexOf('.') !== -1) ? String(ownerName).split('.')[0] : ownerName;
+        const annotated = (portUses || []).find(pu => {
+          if (!pu) return false;
+          const puOwner = pu._ownerComponent || pu.owner;
+          const ownerMatch = (puOwner === ownerName) || (puOwner === ownerBase) || (ownerBase === puOwner);
+          return ownerMatch && (pu.name === portName) && (pu._portDefNode || pu._portDefName);
+        });
+        if (annotated) {
+          const pdefNode = annotated._portDefNode || (annotated._portDefName && portDefMap && (portDefMap[annotated._portDefName] || portDefMap[String(annotated._portDefName)]));
+              if (pdefNode) {
+            try {
+              // robust extraction: prefer explicit flowProperties (string/object) over flowType
+              let ff = null;
+              if (pdefNode.flow) ff = pdefNode.flow;
+              else if (pdefNode.flowProperties) {
+                if (typeof pdefNode.flowProperties === 'string') ff = pdefNode.flowProperties;
+                else if (pdefNode.flowProperties.flow) ff = pdefNode.flowProperties.flow;
+                else if (pdefNode.flowProperties.direction) ff = pdefNode.flowProperties.direction;
+                else if (pdefNode.flowProperties.name) ff = pdefNode.flowProperties.name;
+              } else if (pdefNode.flowType) ff = pdefNode.flowType;
+              else if (pdefNode.direction) ff = pdefNode.direction;
+              if (ff) {
+                const f = String(ff).toLowerCase();
+                if (f.indexOf('inout') !== -1) return 'inout';
+                if (f.indexOf('out') !== -1) return 'out';
+                if (f.indexOf('in') !== -1) return 'in';
+              }
+            } catch(e){}
+          }
+        }
+      } catch(e){}
+
+      // try to get the component definition name for this instance
+      const defName = (compInstanceDef && compInstanceDef[ownerName]) ? compInstanceDef[ownerName] : null;
+      try { dbg('[DBG] resolvePortDirectionFor owner=', ownerName, 'port=', portName, 'defName=', defName); } catch(e){}
+      if (defName) {
+  const defNode = (compDefMapArg) ? (compDefMapArg[defName] || compDefMapArg[String(defName)]) : null;
+  try { dbg('[DBG] compDefMap keys sample:', (compDefMapArg) ? Object.keys(compDefMapArg).slice(0,40) : null); } catch(e){}
+  try { dbg('[DBG] defNode keys:', defNode ? Object.keys(defNode).slice(0,20) : null); } catch(e){}
+        if (defNode) {
+          // try to find a port declaration inside the component definition
+          const portsList = (defNode.ports && Array.isArray(defNode.ports)) ? defNode.ports : (defNode.configuration && defNode.configuration.ports && Array.isArray(defNode.configuration.ports) ? defNode.configuration.ports : null);
+          try { dbg('[DBG] portsList length:', portsList ? portsList.length : 0); } catch(e){}
+          if (Array.isArray(portsList)) {
+            for (const pd of portsList) {
+              const pn = pd && (pd.name || (pd.id && pd.id.name) || pd.id) ? (pd.name || (pd.id && pd.id.name) || pd.id) : null;
+              try { dbg('[DBG] checking pd for pn=', pn, 'pd keys=', pd?Object.keys(pd):null); } catch(e){}
+              if (!pn) continue;
+              if (String(pn) === String(portName)) {
+                // port definition node may reference a PortDef by type, or include flow directly
+                const extractFlow = (node) => {
+                  try {
+                    if (!node) return null;
+                    if (typeof node === 'string') return node;
+                    if (node.flow && typeof node.flow === 'string') return node.flow;
+                    if (node.flow && node.flow.name) return node.flow.name;
+                    if (node.flowType && typeof node.flowType === 'string') return node.flowType;
+                    if (node.flowType && node.flowType.name) return node.flowType.name;
+                    if (node.direction && typeof node.direction === 'string') return node.direction;
+                    if (node.flowProperties) {
+                      const fp = node.flowProperties;
+                      if (typeof fp === 'string') return fp;
+                      if (fp && typeof fp === 'object') {
+                        if (fp.flow && typeof fp.flow === 'string') return fp.flow;
+                        if (fp.direction && typeof fp.direction === 'string') return fp.direction;
+                        if (fp.name && typeof fp.name === 'string') return fp.name;
+                      }
+                    }
+                    if (node.value && typeof node.value === 'string') return node.value;
+                    // sometimes parser wraps info under a nested object 'flow' with properties
+                    if (node.value && typeof node.value === 'object') {
+                      if (node.value.flow && typeof node.value.flow === 'string') return node.value.flow;
+                    }
+                    return null;
+                  } catch (e) { return null; }
+                };
+                const tryNorm = (s) => { if (!s) return null; const f = String(s).toLowerCase(); if (f.indexOf('inout') !== -1) return 'inout'; if (f.indexOf('out') !== -1) return 'out'; if (f.indexOf('in') !== -1) return 'in'; return null; };
+                const pdFlow = extractFlow(pd);
+                const pdNorm = tryNorm(pdFlow);
+                if (pdNorm) return pdNorm;
+                // check if port declares a type that is a PortDef reference
+                let tname = null;
+                try {
+                  if (pd && pd.definition) {
+                    if (typeof pd.definition === 'string') tname = pd.definition;
+                    else if (pd.definition.name) tname = pd.definition.name;
+                    else if (pd.definition.id && pd.definition.id.name) tname = pd.definition.id.name;
+                  }
+                } catch(e){}
+                if (!tname) tname = pd.type || pd.portType || (pd._type && pd._type.name) || null;
+                try { dbg('[DBG] pd.definition:', pd && pd.definition, 'tname=', tname); } catch(e){}
+                if (tname && portDefMapArg && (portDefMapArg[tname] || portDefMapArg[String(tname)])) {
+                  const pdef = portDefMapArg[tname] || portDefMapArg[String(tname)];
+                  try { dbg('[DBG] found portDef for', tname, 'keys=', pdef?Object.keys(pdef):null); } catch(e){}
+                  if (pdef) {
+                    const pdefFlow = (function(){ try { if (!pdef) return null; if (pdef.flow) return pdef.flow; if (pdef.flowType) return pdef.flowType; if (pdef.flowProperties) return pdef.flowProperties; if (pdef.direction) return pdef.direction; return null; } catch(e){ return null;} })();
+                    const pdefNorm = tryNorm(pdefFlow);
+                    if (pdefNorm) return pdefNorm;
+                    // deeper extraction for structured flowProperties
+                    try {
+                      if (pdef.flowProperties && typeof pdef.flowProperties === 'object') {
+                        const fh = pdef.flowProperties.flow || pdef.flowProperties.direction || pdef.flowProperties.name || null;
+                        const fhNorm = tryNorm(fh);
+                        if (fhNorm) return fhNorm;
+                      }
+                    } catch(e){}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      // as a last attempt, if compPortsMap_main maps ownerName to a set and we can find port's PortDef by matching known portDefs
+      if (typeof portDefMap !== 'undefined' && portDefMap) {
+        // scan portDefMap to find a PortDef whose name matches ownerName.portName? skip - not permitted by rule
+        // fallback: try to find a PortUse annotated with a portType that maps to a PortDef
+      }
+    } catch (e) { /* ignore */ }
+    // fallback default to 'in' to keep behavior stable when not resolvable
+    return 'in';
+  }
   for (const pu of portUses) {
     const pname = pu && (pu.name || pu.id || (pu.id && pu.id.name)) ? (pu.name || (pu.id && pu.id.name) || pu.id) : null;
     const owner = pu && pu._ownerComponent ? pu._ownerComponent : (pu.owner || null);
@@ -158,7 +287,9 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     if (!hasChildren) {
     if (!__emittedPorts.has(portKey)) {
       // runtime initializes .ports on components; emit direct addPort call without redundant guard
-      lines.push(`    if (!${ownerExpr}.ports[${JSON.stringify(pname)}]) { const __p = new Port(${JSON.stringify(pname)}, 'in', { owner: ${JSON.stringify(owner)} }); ${ownerExpr}.addPort(__p); }`);
+      const __dir = resolvePortDirectionFor(owner, pname);
+      try { dbg('[DBG] emitting port for', owner, pname, 'resolvedDirection=', __dir); } catch(e){}
+      lines.push(`    if (!${ownerExpr}.ports[${JSON.stringify(pname)}]) { const __p = new Port(${JSON.stringify(pname)}, ${JSON.stringify(__dir)}, { owner: ${JSON.stringify(owner)} }); ${ownerExpr}.addPort(__p); }`);
       __emittedPorts.add(portKey);
     }
   } else {
@@ -166,7 +297,8 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     const children = Array.isArray(pu.ports) ? pu.ports : pu.members;
     const compKey = `${owner}::${pname}`;
     if (!__emittedPorts.has(compKey)) {
-      lines.push(`    if (!${ownerExpr}.ports[${JSON.stringify(pname)}]) { const __cp = new CompositePort(${JSON.stringify(pname)}, 'in', { owner: ${JSON.stringify(owner)} }); ${ownerExpr}.addPort(__cp); }`);
+      const __dir = resolvePortDirectionFor(owner, pname);
+      lines.push(`    if (!${ownerExpr}.ports[${JSON.stringify(pname)}]) { const __cp = new CompositePort(${JSON.stringify(pname)}, ${JSON.stringify(__dir)}, { owner: ${JSON.stringify(owner)} }); ${ownerExpr}.addPort(__cp); }`);
       __emittedPorts.add(compKey);
     }
     for (const sub of (children || [])) {
@@ -174,7 +306,8 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
       if (!subName) continue;
       const subKey = `${owner}::${pname}::${subName}`;
       if (!__emittedPorts.has(subKey)) {
-        lines.push(`    if (!${ownerExpr}.ports[${JSON.stringify(pname)}].getSubPort(${JSON.stringify(subName)})) { const __sp = new Port(${JSON.stringify(subName)}, 'in', { owner: ${JSON.stringify(owner + '.' + pname)} }); ${ownerExpr}.ports[${JSON.stringify(pname)}].addSubPort(${JSON.stringify(subName)}, __sp); }`);
+        const __sdir = resolvePortDirectionFor(owner + '.' + pname, subName);
+        lines.push(`    if (!${ownerExpr}.ports[${JSON.stringify(pname)}].getSubPort(${JSON.stringify(subName)})) { const __sp = new Port(${JSON.stringify(subName)}, ${JSON.stringify(__sdir)}, { owner: ${JSON.stringify(owner + '.' + pname)} }); ${ownerExpr}.ports[${JSON.stringify(pname)}].addSubPort(${JSON.stringify(subName)}, __sp); }`);
         __emittedPorts.add(subKey);
       }
     }
@@ -193,7 +326,8 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
                   const ipKey = `${comp}::${ip}`;
                   if (!__emittedPorts.has(ipKey)) {
                     // runtime ensures components initialize `.ports` in their constructor; emit direct addPort without redundant owner.ports initializer
-                    lines.push(`    if (!${ownerExpr}.ports[${JSON.stringify(ip)}]) { const __p = new Port(${JSON.stringify(ip)}, 'in', { owner: ${JSON.stringify(comp)} }); ${ownerExpr}.addPort(__p); }`);
+                    const __dir = resolvePortDirectionFor(comp, ip);
+                    lines.push(`    if (!${ownerExpr}.ports[${JSON.stringify(ip)}]) { const __p = new Port(${JSON.stringify(ip)}, ${JSON.stringify(__dir)}, { owner: ${JSON.stringify(comp)} }); ${ownerExpr}.addPort(__p); }`);
                     __emittedPorts.add(ipKey);
                   }
                 }
@@ -1426,6 +1560,17 @@ async function main() {
       if (!innerCfgs.length) continue;
       const inner = innerCfgs[0];
       // traverse inner configuration to find port-like nodes and connector bindings
+      // helper: find nearest enclosing ComponentUse node name for correct owner attribution
+      function findNearestComponentUseName(node) {
+        let cur = node;
+        while (cur) {
+          try {
+            if (cur.type && /ComponentUse/i.test(cur.type)) return cur.name || (cur.id && cur.id.name) || cur.id || null;
+          } catch (e) {}
+          cur = cur.__parent;
+        }
+        return null;
+      }
       traverse(inner, n => {
         if (!n || typeof n !== 'object') return;
         // connector binding inside definition -> attribute to this instance
@@ -1437,12 +1582,13 @@ async function main() {
   // composed ports container (has ports array) or explicit 'members' that hold ports
         if ((Array.isArray(n.ports) && n.name) || (Array.isArray(n.members) && n.name)) {
           // register parent port-like node
-          portUses.push(Object.assign({}, n, { _ownerComponent: cu.name, name: n.name }));
+          const inferredOwner = findNearestComponentUseName(n) || cu.name;
+          portUses.push(Object.assign({}, n, { _ownerComponent: inferredOwner, name: n.name }));
           const children = Array.isArray(n.ports) ? n.ports : n.members;
           for (const sub of children) {
             const subName = sub && (sub.name || (sub.id && sub.id.name) || sub.id) || null;
             if (!subName) continue;
-            const copy = Object.assign({}, sub, { _ownerComponent: cu.name, name: subName });
+            const copy = Object.assign({}, sub, { _ownerComponent: inferredOwner, name: subName });
             portUses.push(copy);
           }
           return;
@@ -1791,6 +1937,51 @@ async function main() {
 
   const compInstanceDef = {};
   for (const cu of (compUses || [])) { const iname = cu && (cu.name || (cu.id && cu.id.name) || cu.id) || null; const ddef = cu && (cu.definition || cu.def || (cu.sysadlType && cu.sysadlType.name)) || null; if (iname) compInstanceDef[iname] = ddef; }
+
+  // ANOTAÇÃO DETERMINÍSTICA: para cada PortUse coletado, tente ligar diretamente ao PortDef
+  try {
+    for (const pu of (portUses || [])) {
+      try {
+        if (!pu || !pu.name) continue;
+        const owner = pu._ownerComponent || pu.owner || null;
+        if (!owner) continue;
+        // 1) se a PortUse já tem campo 'definition' que aponta para um PortDef name -> usar
+        let tname = null;
+        if (pu.definition) {
+          if (typeof pu.definition === 'string') tname = pu.definition;
+          else if (pu.definition.name) tname = pu.definition.name;
+          else if (pu.definition.id && pu.definition.id.name) tname = pu.definition.id.name;
+        }
+        // 2) tentar inferir a partir de pd.type/portType/value etc
+        if (!tname) tname = pu.type || pu.portType || (pu._type && pu._type.name) || pu.value || null;
+        // 3) se owner tem a definição do componente, buscar na sua ComponentDef a port com mesmo nome e inspecionar seu 'definition' campo
+        if (!tname) {
+          const defName = compInstanceDef[owner] || null;
+          if (defName && compDefMap[defName]) {
+            const defNode = compDefMap[defName];
+            const portsList = (defNode.ports && Array.isArray(defNode.ports)) ? defNode.ports : (defNode.configuration && defNode.configuration.ports && Array.isArray(defNode.configuration.ports) ? defNode.configuration.ports : defNode.members && Array.isArray(defNode.members) ? defNode.members : []);
+            for (const pd of (portsList || [])) {
+              const pn = pd && (pd.name || (pd.id && pd.id.name) || pd.id) ? (pd.name || (pd.id && pd.id.name) || pd.id) : null;
+              if (!pn) continue;
+              if (String(pn) === String(pu.name)) {
+                if (pd.definition) {
+                  if (typeof pd.definition === 'string') tname = pd.definition;
+                  else if (pd.definition.name) tname = pd.definition.name;
+                }
+                if (!tname) tname = pd.type || pd.portType || null;
+                break;
+              }
+            }
+          }
+        }
+        // 4) normalize and attach annotation if found
+        if (tname && portDefMap && (portDefMap[tname] || portDefMap[String(tname)])) {
+          const resolved = portDefMap[tname] || portDefMap[String(tname)];
+          try { pu._portDefName = String(tname); pu._portDefNode = resolved; } catch(e){}
+        }
+      } catch(e) { /* continue */ }
+    }
+  } catch(e) { /* ignore annotation errors */ }
 
   for (const [an, def] of Object.entries(activityDefs)) {
     const params = def.params || [];
@@ -2165,7 +2356,12 @@ async function main() {
     }
   } catch(e) {}
 
-  const moduleCode = generateClassModule(outModelName, compUses, portUses, connectorDescriptors, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, portAliasMap);
+  let moduleCode = generateClassModule(outModelName, compUses, portUses, connectorDescriptors, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, portAliasMap, compDefMap, portDefMap);
+  // remove JS comments (block and line) to ensure generator does not emit comments
+  try {
+    moduleCode = moduleCode.replace(/\/\*[\s\S]*?\*\//g, ''); // remove /* ... */
+    moduleCode = moduleCode.replace(/(^|[^\\:])\/\/.*$/gm, '$1'); // remove //... line comments (avoid chopping http://)
+  } catch(e) { /* ignore */ }
   const outFile = path.join(outDir, path.basename(input, path.extname(input)) + '.js');
   fs.writeFileSync(outFile, moduleCode, 'utf8');
   console.log('Generated', outFile);
