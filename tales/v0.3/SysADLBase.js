@@ -165,7 +165,7 @@ class Component extends Element {
     this.components = {}; // child instances
     this.sysadlDefinition = opts && opts.sysadlDefinition ? opts.sysadlDefinition : null;
   }
-  addPort(p){ this.ports[p.name] = p; }
+  addPort(p){ if (!p || !p.name) return; if (this.ports[p.name]) return this.ports[p.name]; this.ports[p.name] = p; return p; }
   addComponent(inst){ this.components[inst.name] = inst; }
 }
 
@@ -219,10 +219,13 @@ class CompositePort extends Port {
     this.subports = {}; // name -> Port
   }
   addSubPort(name, port){
-    if (!name || !port) return;
-    // port.owner becomes composite qualified owner
-    port.owner = (this.owner ? (this.owner + '.' + this.name) : this.owner) || port.owner;
-    this.subports[name] = port;
+  if (!name || !port) return;
+  // if sub-port already exists, keep existing instance (idempotent)
+  if (this.subports && this.subports[name]) return this.subports[name];
+  // port.owner becomes composite qualified owner
+  port.owner = (this.owner ? (this.owner + '.' + this.name) : this.owner) || port.owner;
+  this.subports[name] = port;
+  return port;
   }
   getSubPort(name){ return this.subports && this.subports[name] ? this.subports[name] : null; }
   // send to composite: policy = broadcast to all subports if no sub-name provided

@@ -13,6 +13,7 @@ class RTCSystemCFD extends Component { constructor(name){ super(name); } }
 class SysADLModel extends Model {
   constructor(){
     super("SysADLModel");
+    // instantiate components and expose as properties for direct navigation
     this.RTCSystemCFD = new RTCSystemCFD("RTCSystemCFD");
     this.addComponent(this.RTCSystemCFD);
     this.RTCSystemCFD.a1 = new HeaterCP("a1");
@@ -36,6 +37,7 @@ class SysADLModel extends Model {
     this.RTCSystemCFD.rtc.sm = new SensorsMonitorCP("sm");
     this.RTCSystemCFD.rtc.addComponent(this.RTCSystemCFD.rtc.sm);
 
+    // Note: uses runtime helpers addExecutableSafe and attachEndpointSafe provided by SysADLBase
     if (!this.RTCSystemCFD.s1.ports["current"]) { const __p = new Port("current", 'in', { owner: "s1" }); this.RTCSystemCFD.s1.addPort(__p); }
     if (!this.RTCSystemCFD.s2.ports["current"]) { const __p = new Port("current", 'in', { owner: "s2" }); this.RTCSystemCFD.s2.addPort(__p); }
     if (!this.RTCSystemCFD.s3.ports["detected"]) { const __p = new Port("detected", 'in', { owner: "s3" }); this.RTCSystemCFD.s3.addPort(__p); }
@@ -74,12 +76,12 @@ class SysADLModel extends Model {
     this.addExecutableSafe("SysADLModel.CalculateAverageTemperatureEx", "executable def CalculateAverageTemperatureEx(in temp1:CelsiusTemperature,in temp2:CelsiusTemperature):out CelsiusTemperature{return (temp1 + temp2)/2 ; }", []);
     this.addExecutableSafe("SysADLModel.CheckPresenceToSetTemperature", "executable def CheckPresenceToSetTemperature(in presence:Boolean, in userTemp:CelsiusTemperature):out CelsiusTemperature{if(presence == true) return userTemp; else return 2; }", []);
     this.addExecutableSafe("SysADLModel.CompareTemperatureEx", "executable def CompareTemperatureEx(in target:CelsiusTemperature, in average:CelsiusTemperature):out Commands{let heater:Command = types.Command::Off; let cooler:Command = types.Command::Off; if(average > target) {heater = types.Command::Off; cooler = types.Command::On ; } else {heater = types.Command::On; cooler = types.Command::Off ;} }", []);
-    this.addExecutableSafe("SysADLModel.10fa", "executable FahrenheitToCelsiusEx to FahrenheitToCelsiusAN", []);
-    this.addExecutableSafe("SysADLModel.virk", "executable CompareTemperatureEx to CompareTemperatureAN", []);
-    this.addExecutableSafe("SysADLModel.oofq", "executable CommandHeaterEx to CommandHeaterAN", []);
-    this.addExecutableSafe("SysADLModel.ry8j", "executable CommandCoolerEx to CommandCoolerAN", []);
-    this.addExecutableSafe("SysADLModel.3h14", "executable CheckPresenceToSetTemperature to CheckPeresenceToSetTemperatureAN", []);
-    this.addExecutableSafe("SysADLModel.ghtz", "executable CalculateAverageTemperatureEx to CalculateAverageTemperatureAN", []);
+    this.addExecutableSafe("SysADLModel.mqke", "executable FahrenheitToCelsiusEx to FahrenheitToCelsiusAN", []);
+    this.addExecutableSafe("SysADLModel.ky6v", "executable CompareTemperatureEx to CompareTemperatureAN", []);
+    this.addExecutableSafe("SysADLModel.hjn6", "executable CommandHeaterEx to CommandHeaterAN", []);
+    this.addExecutableSafe("SysADLModel.3uqf", "executable CommandCoolerEx to CommandCoolerAN", []);
+    this.addExecutableSafe("SysADLModel.h2tl", "executable CheckPresenceToSetTemperature to CheckPeresenceToSetTemperatureAN", []);
+    this.addExecutableSafe("SysADLModel.97uq", "executable CalculateAverageTemperatureEx to CalculateAverageTemperatureAN", []);
     const act_CalculateAverageTemperatureAC_s1 = new Activity("CalculateAverageTemperatureAC", { component: "s1", inputPorts: ["current"] });
     act_CalculateAverageTemperatureAC_s1.addAction(new Action("CalculateAverageTemperatureAN", [], "CalculateAverageTemperatureEx"));
     this.registerActivity("CalculateAverageTemperatureAC::s1", act_CalculateAverageTemperatureAC_s1);

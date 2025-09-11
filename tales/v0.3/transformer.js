@@ -72,7 +72,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   lines.push(`class ${sanitizeId(modelName)} extends Model {`);
   lines.push('  constructor(){');
   lines.push(`    super(${JSON.stringify(modelName)});`);
-  lines.push('    // instantiate components and expose as properties for direct navigation');
+  
 
   // Instantiate components respecting hierarchical parents (rootDefs holds top-level composite types)
   // rootDefs: array of type names to create at model root (e.g. ['FactoryAutomationSystem'])
@@ -131,7 +131,6 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
 
   // generated code uses runtime-safe helpers exposed by SysADLBase
   lines.push('');
-  lines.push('    // Note: uses runtime helpers addExecutableSafe and attachEndpointSafe provided by SysADLBase');
 
   // build instance path map (instanceName -> expression to reference it in generated code)
   const instancePathMap = {};
@@ -158,7 +157,6 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   const portKey = `${owner}::${pname}`;
     if (!hasChildren) {
     if (!__emittedPorts.has(portKey)) {
-      lines.push(`    // port ${pname} on ${owner} (expr: ${ownerExpr})`);
       // runtime initializes .ports on components; emit direct addPort call without redundant guard
       lines.push(`    if (!${ownerExpr}.ports[${JSON.stringify(pname)}]) { const __p = new Port(${JSON.stringify(pname)}, 'in', { owner: ${JSON.stringify(owner)} }); ${ownerExpr}.addPort(__p); }`);
       __emittedPorts.add(portKey);
@@ -168,7 +166,6 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     const children = Array.isArray(pu.ports) ? pu.ports : pu.members;
     const compKey = `${owner}::${pname}`;
     if (!__emittedPorts.has(compKey)) {
-      lines.push(`    // composite port ${pname} on ${owner} (expr: ${ownerExpr})`);
       lines.push(`    if (!${ownerExpr}.ports[${JSON.stringify(pname)}]) { const __cp = new CompositePort(${JSON.stringify(pname)}, 'in', { owner: ${JSON.stringify(owner)} }); ${ownerExpr}.addPort(__cp); }`);
       __emittedPorts.add(compKey);
     }
@@ -191,8 +188,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
         const comp = a && a.descriptor && a.descriptor.component;
         const inputPorts = (a && a.descriptor && Array.isArray(a.descriptor.inputPorts)) ? a.descriptor.inputPorts : [];
         if (!comp || !inputPorts.length) continue;
-        const ownerExpr = instancePathMap[comp] || `this.${comp}`;
-        lines.push(`    // ensure activity ports for ${comp} (expr: ${ownerExpr})`);
+  const ownerExpr = instancePathMap[comp] || `this.${comp}`;
           for (const ip of inputPorts) {
                   const ipKey = `${comp}::${ip}`;
                   if (!__emittedPorts.has(ipKey)) {
@@ -266,7 +262,6 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     if (__sig && __connectorSigsEmitted.has(__sig)) continue;
     if (__sig) __connectorSigsEmitted.add(__sig);
   } catch(e){}
-  lines.push(`    // connector ${cname}`);
   lines.push(`    const ${varName} = new Connector(${JSON.stringify(cname)});`);
   // track endpoints already emitted for this connector to avoid duplicate __attachEndpoint calls
   lines.push(`    const ${varName}__seen = new Set();`);
@@ -443,6 +438,22 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   }
   lines.push(`function createModel(){ return new ${sanitizeId(modelName)}(); }`);
   lines.push('module.exports = { createModel, ' + sanitizeId(modelName) + ', __portAliases };');
+  // Sanity check: fail-fast if any emitted line attempts to initialize an owner-level
+  // `.ports` object like: if (!this.X.ports) this.X.ports = {};
+  // This enforces the invariant that component constructors in the runtime
+  // (SysADLBase) are the canonical initializer for `.ports` and prevents
+  // older generator code-paths from reintroducing the literal.
+  const forbidden = /^\s*if\s*\(\s*![^)]+\.ports\s*\)\s*[^;\n]*\.ports\s*=\s*\{\s*\}\s*;?\s*$/i;
+  const bad = lines.filter(l => forbidden.test(l));
+  if (bad.length) {
+    const msg = 'Generator invariant violated: owner-level `.ports` initializer emission detected.\n' + bad.slice(0,10).map((s,i)=>`${i+1}) ${s}`).join('\n');
+    if (process.env.SYSADL_STRICT === '1') {
+      throw new Error(msg);
+    } else {
+      console.warn('[WARN] ' + msg + '\nSet SYSADL_STRICT=1 to treat this as an error.');
+    }
+  }
+
   return lines.join('\n');
 }
 

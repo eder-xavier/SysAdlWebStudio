@@ -23,6 +23,7 @@ class SmartPlace extends Component { constructor(name){ super(name); } }
 class SysADLArchitecture extends Model {
   constructor(){
     super("SysADLArchitecture");
+    // instantiate components and expose as properties for direct navigation
     this.SmartPlace = new SmartPlace("SmartPlace");
     this.addComponent(this.SmartPlace);
     this.SmartPlace.ac = new AirConditioner("ac");
@@ -64,6 +65,7 @@ class SysADLArchitecture extends Model {
     this.SmartPlace.Raspberry.tc = new TemperatureController("tc");
     this.SmartPlace.Raspberry.addComponent(this.SmartPlace.Raspberry.tc);
 
+    // Note: uses runtime helpers addExecutableSafe and attachEndpointSafe provided by SysADLBase
     if (!this.SmartPlace.spw.ports["co"]) { const __p = new Port("co", 'in', { owner: "spw" }); this.SmartPlace.spw.addPort(__p); }
     if (!this.SmartPlace.spw.ports["rr"]) { const __p = new Port("rr", 'in', { owner: "spw" }); this.SmartPlace.spw.addPort(__p); }
     if (!this.SmartPlace.spw.ports["db"]) { const __p = new Port("db", 'in', { owner: "spw" }); this.SmartPlace.spw.addPort(__p); }
