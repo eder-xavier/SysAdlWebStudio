@@ -1,8 +1,8 @@
 const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression } = require('../SysADLBase');
-class SensorCP extends Component { constructor(name, opts={}){ super(name, opts); } }
+class SensorCP extends Component { }
 class TempMonitorCP extends Component { constructor(name, opts={}){ super(name, Object.assign({}, opts, { isBoundary: true })); } }
 class StdOutCP extends Component { constructor(name, opts={}){ super(name, Object.assign({}, opts, { isBoundary: true })); } }
-class SystemCP extends Component { constructor(name, opts={}){ super(name, opts); } }
+class SystemCP extends Component { }
 
 class SysADLModel extends Model {
   constructor(){
@@ -26,8 +26,8 @@ class SysADLModel extends Model {
     if (!this.SystemCP.stdOut.ports["c3"]) { const __p = new Port("c3", "in", { owner: "stdOut" }); this.SystemCP.stdOut.addPort(__p); }
     this.addExecutableSafe("SysADLModel.FarToCelEX", "executable def FarToCelEX (in f:Real): out Real {\n\t\treturn 5*(f - 32)/9 ;\n\t}", []);
     this.addExecutableSafe("SysADLModel.CalcAverageEX", "executable def CalcAverageEX(in temp1:Real,in temp2:Real):out Real{\n\t\treturn (temp1 + temp2)/2 ;\n\t}", []);
-    this.addExecutableSafe("SysADLModel.8ztr", "executable FarToCelEX to FarToCelAN", []);
-    this.addExecutableSafe("SysADLModel.rvcm", "executable CalcAverageEX to TempMonitorAN", []);
+    this.addExecutableSafe("SysADLModel.6lz8", "executable FarToCelEX to FarToCelAN", []);
+    this.addExecutableSafe("SysADLModel.3vp2", "executable CalcAverageEX to TempMonitorAN", []);
     const act_FarToCelAC_s1 = new Activity("FarToCelAC", { component: "s1", inputPorts: ["current"] });
     act_FarToCelAC_s1.addAction(new Action("FarToCelAN", [], "FarToCelEX"));
     this.registerActivity("FarToCelAC::s1", act_FarToCelAC_s1);

@@ -165,7 +165,7 @@ class Component extends Element {
     this.components = {}; // child instances
     this.sysadlDefinition = opts && opts.sysadlDefinition ? opts.sysadlDefinition : null;
   // preserve explicit boundary flag when provided by generator
-  this.isBoundary = !!(opts && opts.isBoundary);
+    this.isBoundary = !!(opts && opts.isBoundary);
   }
   addPort(p){ if (!p || !p.name) return; if (this.ports[p.name]) return this.ports[p.name]; this.ports[p.name] = p; return p; }
   addComponent(inst){ this.components[inst.name] = inst; }

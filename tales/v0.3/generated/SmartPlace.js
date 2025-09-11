@@ -1,24 +1,24 @@
 const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression } = require('../SysADLBase');
-class SmartPlaceWeb extends Component { constructor(name, opts={}){ super(name, opts); } }
+class SmartPlaceWeb extends Component { }
 class RoomReservationSystem extends Component { constructor(name, opts={}){ super(name, Object.assign({}, opts, { isBoundary: true })); } }
 class OrionContextBroker extends Component { constructor(name, opts={}){ super(name, Object.assign({}, opts, { isBoundary: true })); } }
 class TemperatureAndHumiditySensor extends Component { constructor(name, opts={}){ super(name, Object.assign({}, opts, { isBoundary: true })); } }
 class PresenceSensor extends Component { constructor(name, opts={}){ super(name, Object.assign({}, opts, { isBoundary: true })); } }
 class DB_PostgreSQL extends Component { constructor(name, opts={}){ super(name, Object.assign({}, opts, { isBoundary: true })); } }
-class AirConditioner extends Component { constructor(name, opts={}){ super(name, opts); } }
+class AirConditioner extends Component { }
 class Led extends Component { constructor(name, opts={}){ super(name, Object.assign({}, opts, { isBoundary: true })); } }
-class Raspberry extends Component { constructor(name, opts={}){ super(name, opts); } }
+class Raspberry extends Component { }
 class Camera extends Component { constructor(name, opts={}){ super(name, Object.assign({}, opts, { isBoundary: true })); } }
 class CamMonitor extends Component { constructor(name, opts={}){ super(name, Object.assign({}, opts, { isBoundary: true })); } }
-class TemperatureController extends Component { constructor(name, opts={}){ super(name, opts); } }
+class TemperatureController extends Component { }
 class DB_SQLite extends Component { constructor(name, opts={}){ super(name, Object.assign({}, opts, { isBoundary: true })); } }
 class Fotosensor extends Component { constructor(name, opts={}){ super(name, Object.assign({}, opts, { isBoundary: true })); } }
 class AirConditionerController extends Component { constructor(name, opts={}){ super(name, Object.assign({}, opts, { isBoundary: true })); } }
-class RegistrationController extends Component { constructor(name, opts={}){ super(name, opts); } }
-class ReportGenerator extends Component { constructor(name, opts={}){ super(name, opts); } }
+class RegistrationController extends Component { }
+class ReportGenerator extends Component { }
 class GraphicsGenerator extends Component { constructor(name, opts={}){ super(name, Object.assign({}, opts, { isBoundary: true })); } }
-class HistoricController extends Component { constructor(name, opts={}){ super(name, opts); } }
-class SmartPlace extends Component { constructor(name, opts={}){ super(name, opts); } }
+class HistoricController extends Component { }
+class SmartPlace extends Component { }
 
 class SysADLArchitecture extends Model {
   constructor(){

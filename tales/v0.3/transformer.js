@@ -13,9 +13,9 @@ async function loadParser(parserPath) {
   return mod.parse;
 }
 
-// debug logging controlled by env var SYSADL_DEBUG
-const DBG = !!process.env.SYSADL_DEBUG;
-function dbg(...args) { if (DBG) console.error(...args); }
+// debug logging: disabled in normal runs to keep generator output clean
+const DBG = false; // set to true temporarily during development if needed
+function dbg() { /* no-op: debug disabled */ }
 
 function traverse(node, cb) {
   if (!node || typeof node !== 'object') return;
@@ -60,13 +60,21 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   } catch(e) {}
   // ensure any rootDefs types are emitted as classes as well
   try { if (Array.isArray(rootDefs)) for (const rd of rootDefs) if (rd) typeNames.add(String(rd)); } catch(e){}
-  try { dbg('[DBG] typeNames:', JSON.stringify(Array.from(typeNames).slice(0,50))); } catch(e){}
+  try { if (DBG) dbg('[DBG] typeNames:', JSON.stringify(Array.from(typeNames).slice(0,50))); } catch(e){}
   // create simple class per definition (if none, skip)
   for (const t of Array.from(typeNames)) {
   // if the component definition indicates boundary, propagate via opts to runtime
   const isBoundaryFlag = (typeof compDefMapArg !== 'undefined' && compDefMapArg && compDefMapArg[String(t)] && !!compDefMapArg[String(t)].isBoundary);
-  const ctor = isBoundaryFlag ? 'constructor(name, opts={}){ super(name, Object.assign({}, opts, { isBoundary: true })); }' : 'constructor(name, opts={}){ super(name, opts); }';
-  const cls = 'class ' + sanitizeId(String(t)) + ' extends Component { ' + ctor + ' }';
+  // Only emit an explicit constructor when we need to modify opts (e.g. inject isBoundary).
+  // If the constructor would be a no-op that only calls super(name, opts), omit it and let
+  // JavaScript inheritance provide the default behavior.
+  let cls;
+  if (isBoundaryFlag) {
+    const ctor = 'constructor(name, opts={}){ super(name, Object.assign({}, opts, { isBoundary: true })); }';
+    cls = 'class ' + sanitizeId(String(t)) + ' extends Component { ' + ctor + ' }';
+  } else {
+    cls = 'class ' + sanitizeId(String(t)) + ' extends Component { }';
+  }
     lines.push(cls);
   }
   lines.push('');
@@ -159,7 +167,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   // emit ports (attach to component instances)
   // track emitted ports to avoid duplicate lines when portUses and activity ensures overlap
   const __emittedPorts = new Set();
-  try { dbg('[DBG] sample portDefMap keys:', Object.keys(portDefMap).slice(0,20)); dbg('[DBG] sample portDef entry for CTempIPT:', portDefMap['CTempIPT']); } catch(e){}
+  try { if (DBG) { dbg('[DBG] sample portDefMap keys:', Object.keys(portDefMap).slice(0,20)); dbg('[DBG] sample portDef entry for CTempIPT:', portDefMap['CTempIPT']); } } catch(e){}
   // helper: resolve port direction from PortDef.flow by following instance -> componentDef -> portDef
   function resolvePortDirectionFor(ownerName, portName) {
     try {
@@ -300,7 +308,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     if (!__emittedPorts.has(portKey)) {
       // runtime initializes .ports on components; emit direct addPort call without redundant guard
       const __dir = resolvePortDirectionFor(owner, pname);
-      try { dbg('[DBG] emitting port for', owner, pname, 'resolvedDirection=', __dir); } catch(e){}
+              try { if (DBG) dbg('[DBG] emitting port for', owner, pname, 'resolvedDirection=', __dir); } catch(e){}
       lines.push(`    if (!${ownerExpr}.ports[${JSON.stringify(pname)}]) { const __p = new Port(${JSON.stringify(pname)}, ${JSON.stringify(__dir)}, { owner: ${JSON.stringify(owner)} }); ${ownerExpr}.addPort(__p); }`);
       __emittedPorts.add(portKey);
     }
