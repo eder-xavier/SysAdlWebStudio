@@ -1,39 +1,39 @@
 const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression } = require('../SysADLBase');
-class TemperatureSensorCP extends Component { constructor(name){ super(name); } }
-class PresenceSensorCP extends Component { constructor(name){ super(name); } }
-class UserInterfaceCP extends Component { constructor(name){ super(name); } }
-class CoolerCP extends Component { constructor(name){ super(name); } }
-class HeaterCP extends Component { constructor(name){ super(name); } }
-class RoomTemperatureControllerCP extends Component { constructor(name){ super(name); } }
-class SensorsMonitorCP extends Component { constructor(name){ super(name); } }
-class CommanderCP extends Component { constructor(name){ super(name); } }
-class PresenceCheckerCP extends Component { constructor(name){ super(name); } }
-class RTCSystemCFD extends Component { constructor(name){ super(name); } }
+class TemperatureSensorCP extends Component { constructor(name, opts={}){ super(name, Object.assign({}, opts, { isBoundary: true })); } }
+class PresenceSensorCP extends Component { constructor(name, opts={}){ super(name, Object.assign({}, opts, { isBoundary: true })); } }
+class UserInterfaceCP extends Component { constructor(name, opts={}){ super(name, Object.assign({}, opts, { isBoundary: true })); } }
+class CoolerCP extends Component { constructor(name, opts={}){ super(name, Object.assign({}, opts, { isBoundary: true })); } }
+class HeaterCP extends Component { constructor(name, opts={}){ super(name, Object.assign({}, opts, { isBoundary: true })); } }
+class RoomTemperatureControllerCP extends Component { constructor(name, opts={}){ super(name, opts); } }
+class SensorsMonitorCP extends Component { constructor(name, opts={}){ super(name, opts); } }
+class CommanderCP extends Component { constructor(name, opts={}){ super(name, opts); } }
+class PresenceCheckerCP extends Component { constructor(name, opts={}){ super(name, opts); } }
+class RTCSystemCFD extends Component { constructor(name, opts={}){ super(name, opts); } }
 
 class SysADLModel extends Model {
   constructor(){
     super("SysADLModel");
-    this.RTCSystemCFD = new RTCSystemCFD("RTCSystemCFD");
+    this.RTCSystemCFD = new RTCSystemCFD("RTCSystemCFD", { sysadlDefinition: "RTCSystemCFD" });
     this.addComponent(this.RTCSystemCFD);
-    this.RTCSystemCFD.a1 = new HeaterCP("a1");
+    this.RTCSystemCFD.a1 = new HeaterCP("a1", { isBoundary: true, sysadlDefinition: "HeaterCP" });
     this.RTCSystemCFD.addComponent(this.RTCSystemCFD.a1);
-    this.RTCSystemCFD.a2 = new CoolerCP("a2");
+    this.RTCSystemCFD.a2 = new CoolerCP("a2", { isBoundary: true, sysadlDefinition: "CoolerCP" });
     this.RTCSystemCFD.addComponent(this.RTCSystemCFD.a2);
-    this.RTCSystemCFD.rtc = new RoomTemperatureControllerCP("rtc");
+    this.RTCSystemCFD.rtc = new RoomTemperatureControllerCP("rtc", { sysadlDefinition: "RoomTemperatureControllerCP" });
     this.RTCSystemCFD.addComponent(this.RTCSystemCFD.rtc);
-    this.RTCSystemCFD.s1 = new TemperatureSensorCP("s1");
+    this.RTCSystemCFD.s1 = new TemperatureSensorCP("s1", { isBoundary: true, sysadlDefinition: "TemperatureSensorCP" });
     this.RTCSystemCFD.addComponent(this.RTCSystemCFD.s1);
-    this.RTCSystemCFD.s2 = new TemperatureSensorCP("s2");
+    this.RTCSystemCFD.s2 = new TemperatureSensorCP("s2", { isBoundary: true, sysadlDefinition: "TemperatureSensorCP" });
     this.RTCSystemCFD.addComponent(this.RTCSystemCFD.s2);
-    this.RTCSystemCFD.s3 = new PresenceSensorCP("s3");
+    this.RTCSystemCFD.s3 = new PresenceSensorCP("s3", { isBoundary: true, sysadlDefinition: "PresenceSensorCP" });
     this.RTCSystemCFD.addComponent(this.RTCSystemCFD.s3);
-    this.RTCSystemCFD.ui = new UserInterfaceCP("ui");
+    this.RTCSystemCFD.ui = new UserInterfaceCP("ui", { isBoundary: true, sysadlDefinition: "UserInterfaceCP" });
     this.RTCSystemCFD.addComponent(this.RTCSystemCFD.ui);
-    this.RTCSystemCFD.rtc.cm = new CommanderCP("cm");
+    this.RTCSystemCFD.rtc.cm = new CommanderCP("cm", { sysadlDefinition: "CommanderCP" });
     this.RTCSystemCFD.rtc.addComponent(this.RTCSystemCFD.rtc.cm);
-    this.RTCSystemCFD.rtc.pc = new PresenceCheckerCP("pc");
+    this.RTCSystemCFD.rtc.pc = new PresenceCheckerCP("pc", { sysadlDefinition: "PresenceCheckerCP" });
     this.RTCSystemCFD.rtc.addComponent(this.RTCSystemCFD.rtc.pc);
-    this.RTCSystemCFD.rtc.sm = new SensorsMonitorCP("sm");
+    this.RTCSystemCFD.rtc.sm = new SensorsMonitorCP("sm", { sysadlDefinition: "SensorsMonitorCP" });
     this.RTCSystemCFD.rtc.addComponent(this.RTCSystemCFD.rtc.sm);
 
     if (!this.RTCSystemCFD.s1.ports["current"]) { const __p = new Port("current", "out", { owner: "s1" }); this.RTCSystemCFD.s1.addPort(__p); }
@@ -74,12 +74,12 @@ class SysADLModel extends Model {
     this.addExecutableSafe("SysADLModel.CalculateAverageTemperatureEx", "executable def CalculateAverageTemperatureEx(in temp1:CelsiusTemperature,in temp2:CelsiusTemperature):out CelsiusTemperature{return (temp1 + temp2)/2 ; }", []);
     this.addExecutableSafe("SysADLModel.CheckPresenceToSetTemperature", "executable def CheckPresenceToSetTemperature(in presence:Boolean, in userTemp:CelsiusTemperature):out CelsiusTemperature{if(presence == true) return userTemp; else return 2; }", []);
     this.addExecutableSafe("SysADLModel.CompareTemperatureEx", "executable def CompareTemperatureEx(in target:CelsiusTemperature, in average:CelsiusTemperature):out Commands{let heater:Command = types.Command::Off; let cooler:Command = types.Command::Off; if(average > target) {heater = types.Command::Off; cooler = types.Command::On ; } else {heater = types.Command::On; cooler = types.Command::Off ;} }", []);
-    this.addExecutableSafe("SysADLModel.fxa7", "executable FahrenheitToCelsiusEx to FahrenheitToCelsiusAN", []);
-    this.addExecutableSafe("SysADLModel.7f33", "executable CompareTemperatureEx to CompareTemperatureAN", []);
-    this.addExecutableSafe("SysADLModel.hl8j", "executable CommandHeaterEx to CommandHeaterAN", []);
-    this.addExecutableSafe("SysADLModel.350l", "executable CommandCoolerEx to CommandCoolerAN", []);
-    this.addExecutableSafe("SysADLModel.cx98", "executable CheckPresenceToSetTemperature to CheckPeresenceToSetTemperatureAN", []);
-    this.addExecutableSafe("SysADLModel.4tgv", "executable CalculateAverageTemperatureEx to CalculateAverageTemperatureAN", []);
+    this.addExecutableSafe("SysADLModel.me6x", "executable FahrenheitToCelsiusEx to FahrenheitToCelsiusAN", []);
+    this.addExecutableSafe("SysADLModel.kxj8", "executable CompareTemperatureEx to CompareTemperatureAN", []);
+    this.addExecutableSafe("SysADLModel.boim", "executable CommandHeaterEx to CommandHeaterAN", []);
+    this.addExecutableSafe("SysADLModel.3pau", "executable CommandCoolerEx to CommandCoolerAN", []);
+    this.addExecutableSafe("SysADLModel.t7eh", "executable CheckPresenceToSetTemperature to CheckPeresenceToSetTemperatureAN", []);
+    this.addExecutableSafe("SysADLModel.bc7h", "executable CalculateAverageTemperatureEx to CalculateAverageTemperatureAN", []);
     const act_CalculateAverageTemperatureAC_s1 = new Activity("CalculateAverageTemperatureAC", { component: "s1", inputPorts: ["current"] });
     act_CalculateAverageTemperatureAC_s1.addAction(new Action("CalculateAverageTemperatureAN", [], "CalculateAverageTemperatureEx"));
     this.registerActivity("CalculateAverageTemperatureAC::s1", act_CalculateAverageTemperatureAC_s1);

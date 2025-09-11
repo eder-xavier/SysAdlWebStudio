@@ -63,7 +63,10 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   try { dbg('[DBG] typeNames:', JSON.stringify(Array.from(typeNames).slice(0,50))); } catch(e){}
   // create simple class per definition (if none, skip)
   for (const t of Array.from(typeNames)) {
-    const cls = 'class ' + sanitizeId(String(t)) + ' extends Component { constructor(name){ super(name); } }';
+  // if the component definition indicates boundary, propagate via opts to runtime
+  const isBoundaryFlag = (typeof compDefMapArg !== 'undefined' && compDefMapArg && compDefMapArg[String(t)] && !!compDefMapArg[String(t)].isBoundary);
+  const ctor = isBoundaryFlag ? 'constructor(name, opts={}){ super(name, Object.assign({}, opts, { isBoundary: true })); }' : 'constructor(name, opts={}){ super(name, opts); }';
+  const cls = 'class ' + sanitizeId(String(t)) + ' extends Component { ' + ctor + ' }';
     lines.push(cls);
   }
   lines.push('');
@@ -83,8 +86,11 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     for (const rdef of rootDefs) {
       if (!rdef) continue;
       const prop = sanitizeId(String(rdef));
-      lines.push(`    this.${prop} = new ${sanitizeId(String(rdef))}(${JSON.stringify(String(rdef))});`);
-      lines.push(`    this.addComponent(this.${prop});`);
+  // determine opts for root def if available
+  const rootIsBoundary = (compDefMapArg && compDefMapArg[String(rdef)] && !!compDefMapArg[String(rdef)].isBoundary);
+  const rootOpts = rootIsBoundary ? `{ isBoundary: true, sysadlDefinition: ${JSON.stringify(String(rdef))} }` : `{ sysadlDefinition: ${JSON.stringify(String(rdef))} }`;
+  lines.push(`    this.${prop} = new ${sanitizeId(String(rdef))}(${JSON.stringify(String(rdef))}, ${rootOpts});`);
+  lines.push(`    this.addComponent(this.${prop});`);
     }
   }
 
@@ -120,12 +126,18 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     const iname = it.name; const typeCls = it.typeCls; const parentPath = it.parentPath;
     if (parentPath) {
       // attach under parentPath, e.g. this.FactoryAutomationSystem.agvs
-      lines.push(`    ${parentPath}.${iname} = new ${typeCls}(${JSON.stringify(String(iname))});`);
-      lines.push(`    ${parentPath}.addComponent(${parentPath}.${iname});`);
+  const instDef = (compInstanceDef && compInstanceDef[iname]) ? compInstanceDef[iname] : null;
+  const instIsBoundary = (instDef && compDefMapArg && compDefMapArg[String(instDef)] && !!compDefMapArg[String(instDef)].isBoundary);
+  const instOpts = instIsBoundary ? `{ isBoundary: true, sysadlDefinition: ${JSON.stringify(String(instDef))} }` : `{ sysadlDefinition: ${instDef ? JSON.stringify(String(instDef)) : 'null'} }`;
+  lines.push(`    ${parentPath}.${iname} = new ${typeCls}(${JSON.stringify(String(iname))}, ${instOpts});`);
+  lines.push(`    ${parentPath}.addComponent(${parentPath}.${iname});`);
     } else {
       // fallback to previous behavior: top-level instance
-      lines.push(`    this.${iname} = new ${typeCls}(${JSON.stringify(String(iname))});`);
-      lines.push(`    this.addComponent(this.${iname});`);
+  const instDef = (compInstanceDef && compInstanceDef[iname]) ? compInstanceDef[iname] : null;
+  const instIsBoundary = (instDef && compDefMapArg && compDefMapArg[String(instDef)] && !!compDefMapArg[String(instDef)].isBoundary);
+  const instOpts = instIsBoundary ? `{ isBoundary: true, sysadlDefinition: ${JSON.stringify(String(instDef))} }` : `{ sysadlDefinition: ${instDef ? JSON.stringify(String(instDef)) : 'null'} }`;
+  lines.push(`    this.${iname} = new ${typeCls}(${JSON.stringify(String(iname))}, ${instOpts});`);
+  lines.push(`    this.addComponent(this.${iname});`);
     }
   }
 
