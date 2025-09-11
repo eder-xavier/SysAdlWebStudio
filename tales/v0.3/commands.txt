@@ -1,3 +1,5 @@
 node tales/v0.3/transformer.js AGV.sysadl tales/v0.3/generated
 node tales/v0.3/tests/inspect_model.js
 node tales/v0.3/tests/simulate_agv.js
+
+node tales/v0.3/simulator.js tales/v0.3/generated/Simple.js --payload '{"s1.temp1":32,"s2.temp2":50}'

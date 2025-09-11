@@ -65,6 +65,46 @@ class Model extends Element {
     }
   }
 
+  // safe helper used by generated modules: compile and register executable, ignore failures
+  addExecutableSafe(name, body, params) {
+    try {
+      const fn = createExecutableFromExpression(String(body || ''), Array.isArray(params) ? params : (params || []));
+      this.addExecutable(name, fn);
+    } catch (e) {
+      // ignore errors during generation-time registration
+    }
+  }
+
+  // safe attach for connectors emitted by generator. Accepts either:
+  // - (connector, portObj) where portObj is a Port/CompositePort instance
+  // - (connector, compObj, portName) where compObj is a Component instance and portName a string
+  attachEndpointSafe(connector, compOrPort, portName) {
+    try {
+      if (!connector || !compOrPort) return;
+      // if second argument looks like a Port instance, attach directly
+      if (typeof compOrPort === 'object' && compOrPort && compOrPort.name && compOrPort.owner) {
+        connector.addEndpoint(this, compOrPort);
+        return;
+      }
+      // otherwise treat compOrPort as a component and portName as the port id
+      const comp = compOrPort;
+      if (!comp || !portName) return;
+      if (comp.ports && comp.ports[portName]) { connector.addEndpoint(this, comp.ports[portName]); return; }
+      // fallback: search composite ports for a matching sub-port
+      if (comp.ports) {
+        for (const k of Object.keys(comp.ports)) {
+          try {
+            const cp = comp.ports[k];
+            if (cp && typeof cp.getSubPort === 'function') {
+              const sp = cp.getSubPort(portName);
+              if (sp) { connector.addEndpoint(this, sp); return; }
+            }
+          } catch (e) { /* ignore */ }
+        }
+      }
+    } catch (e) { /* ignore */ }
+  }
+
   registerActivity(key, activity) {
     if (!key) return;
     this._activities[key] = activity;

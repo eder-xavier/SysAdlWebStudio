@@ -47,7 +47,7 @@ function collectPortUses(configNode) {
   return uses;
 }
 
-function generateClassModule(modelName, compUses, portUses, connectorBindings, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef) {
+function generateClassModule(modelName, compUses, portUses, connectorBindings, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, portAliasMap) {
   const lines = [];
   // runtime imports for generated module
   lines.push("const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression } = require('../SysADLBase');");
@@ -129,12 +129,9 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     }
   }
 
-  // small helpers to keep generated code compact
+  // generated code uses runtime-safe helpers exposed by SysADLBase
   lines.push('');
-  lines.push('    // helper to add executable safely');
-  lines.push('    const __addExec = (ename, body, params) => { try { this.addExecutable(ename, createExecutableFromExpression(String(body||""), params||[])); } catch(e) { /* ignore */ } };');
-  lines.push('    // helper to attach connector endpoint: expects a concrete component object or expression (no runtime lookup)');
-  lines.push('    const __attachEndpoint = (conn, compObj, portName) => { try { if (!compObj || !portName) return; if (compObj && compObj.ports && compObj.ports[portName]) conn.addEndpoint(this, compObj.ports[portName]); } catch(e){} };');
+  lines.push('    // Note: uses runtime helpers addExecutableSafe and attachEndpointSafe provided by SysADLBase');
 
   // build instance path map (instanceName -> expression to reference it in generated code)
   const instancePathMap = {};
@@ -149,6 +146,8 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   }
 
   // emit ports (attach to component instances)
+  // track emitted ports to avoid duplicate lines when portUses and activity ensures overlap
+  const __emittedPorts = new Set();
   for (const pu of portUses) {
     const pname = pu && (pu.name || pu.id || (pu.id && pu.id.name)) ? (pu.name || (pu.id && pu.id.name) || pu.id) : null;
     const owner = pu && pu._ownerComponent ? pu._ownerComponent : (pu.owner || null);
@@ -156,20 +155,31 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   const ownerExpr = instancePathMap[owner] || `this.${owner}`;
   // detect composite port declarations: pu may have children in pu.ports or pu.members
   const hasChildren = Array.isArray(pu.ports) && pu.ports.length || Array.isArray(pu.members) && pu.members.length;
-  if (!hasChildren) {
-    lines.push(`    // port ${pname} on ${owner} (expr: ${ownerExpr})`);
-    lines.push(`    if (!${ownerExpr}.ports) ${ownerExpr}.ports = {};`);
-    lines.push(`    if (!${ownerExpr}.ports[${JSON.stringify(pname)}]) { const __p = new Port(${JSON.stringify(pname)}, 'in', { owner: ${JSON.stringify(owner)} }); ${ownerExpr}.addPort(__p); }`);
+  const portKey = `${owner}::${pname}`;
+    if (!hasChildren) {
+    if (!__emittedPorts.has(portKey)) {
+      lines.push(`    // port ${pname} on ${owner} (expr: ${ownerExpr})`);
+      // runtime initializes .ports on components; emit direct addPort call without redundant guard
+      lines.push(`    if (!${ownerExpr}.ports[${JSON.stringify(pname)}]) { const __p = new Port(${JSON.stringify(pname)}, 'in', { owner: ${JSON.stringify(owner)} }); ${ownerExpr}.addPort(__p); }`);
+      __emittedPorts.add(portKey);
+    }
   } else {
     // emit CompositePort and its sub-ports
     const children = Array.isArray(pu.ports) ? pu.ports : pu.members;
-    lines.push(`    // composite port ${pname} on ${owner} (expr: ${ownerExpr})`);
-    lines.push(`    if (!${ownerExpr}.ports) ${ownerExpr}.ports = {};`);
-    lines.push(`    if (!${ownerExpr}.ports[${JSON.stringify(pname)}]) { const __cp = new CompositePort(${JSON.stringify(pname)}, 'in', { owner: ${JSON.stringify(owner)} }); ${ownerExpr}.addPort(__cp); }`);
+    const compKey = `${owner}::${pname}`;
+    if (!__emittedPorts.has(compKey)) {
+      lines.push(`    // composite port ${pname} on ${owner} (expr: ${ownerExpr})`);
+      lines.push(`    if (!${ownerExpr}.ports[${JSON.stringify(pname)}]) { const __cp = new CompositePort(${JSON.stringify(pname)}, 'in', { owner: ${JSON.stringify(owner)} }); ${ownerExpr}.addPort(__cp); }`);
+      __emittedPorts.add(compKey);
+    }
     for (const sub of (children || [])) {
       const subName = sub && (sub.name || (sub.id && sub.id.name) || sub.id) || null;
       if (!subName) continue;
-      lines.push(`    if (!${ownerExpr}.ports[${JSON.stringify(pname)}].getSubPort(${JSON.stringify(subName)})) { const __sp = new Port(${JSON.stringify(subName)}, 'in', { owner: ${JSON.stringify(owner + '.' + pname)} }); ${ownerExpr}.ports[${JSON.stringify(pname)}].addSubPort(${JSON.stringify(subName)}, __sp); }`);
+      const subKey = `${owner}::${pname}::${subName}`;
+      if (!__emittedPorts.has(subKey)) {
+        lines.push(`    if (!${ownerExpr}.ports[${JSON.stringify(pname)}].getSubPort(${JSON.stringify(subName)})) { const __sp = new Port(${JSON.stringify(subName)}, 'in', { owner: ${JSON.stringify(owner + '.' + pname)} }); ${ownerExpr}.ports[${JSON.stringify(pname)}].addSubPort(${JSON.stringify(subName)}, __sp); }`);
+        __emittedPorts.add(subKey);
+      }
     }
   }
   }
@@ -183,10 +193,14 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
         if (!comp || !inputPorts.length) continue;
         const ownerExpr = instancePathMap[comp] || `this.${comp}`;
         lines.push(`    // ensure activity ports for ${comp} (expr: ${ownerExpr})`);
-        lines.push(`    if (!${ownerExpr}.ports) ${ownerExpr}.ports = {};`);
-        for (const ip of inputPorts) {
-            lines.push(`    if (!${ownerExpr}.ports[${JSON.stringify(ip)}]) { const __p = new Port(${JSON.stringify(ip)}, 'in', { owner: ${JSON.stringify(comp)} }); ${ownerExpr}.addPort(__p); }`);
-          }
+          for (const ip of inputPorts) {
+                  const ipKey = `${comp}::${ip}`;
+                  if (!__emittedPorts.has(ipKey)) {
+                    // runtime ensures components initialize `.ports` in their constructor; emit direct addPort without redundant owner.ports initializer
+                    lines.push(`    if (!${ownerExpr}.ports[${JSON.stringify(ip)}]) { const __p = new Port(${JSON.stringify(ip)}, 'in', { owner: ${JSON.stringify(comp)} }); ${ownerExpr}.addPort(__p); }`);
+                    __emittedPorts.add(ipKey);
+                  }
+                }
       }
     }
   } catch(e) { /* ignore */ }
@@ -200,7 +214,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
       let en = ex.name || null;
       if (!en) en = `${modelName}.${Math.random().toString(36).slice(2,6)}`;
       else if (!en.includes('.')) en = `${modelName}.${en}`;
-      lines.push(`    __addExec(${JSON.stringify(en)}, ${JSON.stringify(String(body))}, ${JSON.stringify(params)});`);
+  lines.push(`    this.addExecutableSafe(${JSON.stringify(en)}, ${JSON.stringify(String(body))}, ${JSON.stringify(params)});`);
     }
   }
 
@@ -226,27 +240,56 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   const unresolvedBindings = [];
   // emit connectors (use normalized connectorDescriptors so we have participants/bindings resolved)
   if (Array.isArray(connectorDescriptors) && connectorDescriptors.length) {
+    // avoid emitting multiple connectors that resolve to the same concrete endpoint set
+    const __connectorSigsEmitted = new Set();
     for (const cb of connectorDescriptors) {
       const cname = cb.name || ('connector_' + Math.random().toString(36).slice(2,6));
       const uid = cb && cb._uid ? '_' + String(cb._uid) : '';
       const varName = 'conn_' + sanitizeId(String(cname)) + uid;
-      lines.push(`    // connector ${cname}`);
-      lines.push(`    const ${varName} = new Connector(${JSON.stringify(cname)});`);
+  // build a simple signature from participants/bindings to detect duplicate connectors (owner::port sorted)
+  try {
+    const __partsForSig = [];
+    if (Array.isArray(cb.participants) && cb.participants.length) {
+      for (const p of cb.participants) {
+        if (p && p.owner && p.port) __partsForSig.push(`${p.owner}::${p.port}`);
+      }
+    }
+    if (Array.isArray(cb.bindings) && cb.bindings.length) {
+      for (const b of cb.bindings) {
+        try {
+          if (b && b.left && b.left.owner && b.left.port) __partsForSig.push(`${b.left.owner}::${b.left.port}`);
+          if (b && b.right && b.right.owner && b.right.port) __partsForSig.push(`${b.right.owner}::${b.right.port}`);
+        } catch(e){}
+      }
+    }
+    const __sig = (__partsForSig.length ? __partsForSig.sort().join('|') : null);
+    if (__sig && __connectorSigsEmitted.has(__sig)) continue;
+    if (__sig) __connectorSigsEmitted.add(__sig);
+  } catch(e){}
+  lines.push(`    // connector ${cname}`);
+  lines.push(`    const ${varName} = new Connector(${JSON.stringify(cname)});`);
+  // track endpoints already emitted for this connector to avoid duplicate __attachEndpoint calls
+  lines.push(`    const ${varName}__seen = new Set();`);
+  // generator-time dedupe: avoid emitting identical attach lines multiple times
+  const emittedConnEndpointsLocal = new Set();
       // attach participants if present (resolved earlier)
-      if (Array.isArray(cb.participants) && cb.participants.length) {
+          if (Array.isArray(cb.participants) && cb.participants.length) {
         for (const p of cb.participants) {
           if (!p || !p.owner || !p.port) { unresolvedBindings.push({ connector: cname, reason: 'missing owner/port', entry: p }); continue; }
           // owner may be qualified like 'a.b' -> prefer instancePathMap lookup to get full expression
           const ownerExpr = (instancePathMap && instancePathMap[p.owner]) ? instancePathMap[p.owner] : `this.${p.owner}`;
-          // if port contains dot, it's a sub-port reference: e.g. 'composite.sub'
+          // compute a stable key for dedupe
+          const epKey = `${p.owner}::${p.port}`;
+          if (emittedConnEndpointsLocal.has(epKey)) continue;
+          emittedConnEndpointsLocal.add(epKey);
+          // emit attach only if not seen for this connector
           if (String(p.port).indexOf('.') !== -1) {
             const parts = String(p.port).split('.');
             const sub = parts.slice(1).join('.');
             const main = parts[0];
-            // expect ownerExpr.ports[main].getSubPort(sub) to exist
-            lines.push(`    { const __owner = ${ownerExpr}; const __compPort = (__owner && __owner.ports && __owner.ports[${JSON.stringify(main)}]) ? __owner.ports[${JSON.stringify(main)}] : null; if(!__compPort) throw new Error('Missing composite port '+${JSON.stringify(main)}+' on '+${JSON.stringify(p.owner)}); const __sp = __compPort.getSubPort(${JSON.stringify(sub)}); if(!__sp) throw new Error('Missing sub-port '+${JSON.stringify(sub)}+' on '+${JSON.stringify(p.owner)}+'.'+${JSON.stringify(main)}); __attachEndpoint(${varName}, __owner, __sp.name); }`);
+            lines.push(`    { const __owner = ${ownerExpr}; const __compPort = (__owner && __owner.ports && __owner.ports[${JSON.stringify(main)}]) ? __owner.ports[${JSON.stringify(main)}] : null; if(!__compPort) throw new Error('Missing composite port '+${JSON.stringify(main)}+' on '+${JSON.stringify(p.owner)}); const __sp = __compPort.getSubPort(${JSON.stringify(sub)}); if(!__sp) throw new Error('Missing sub-port '+${JSON.stringify(sub)}+' on '+${JSON.stringify(p.owner)}+'.'+${JSON.stringify(main)}); if(!${varName}__seen.has(${JSON.stringify(epKey)})) { this.attachEndpointSafe(${varName}, __sp); ${varName}__seen.add(${JSON.stringify(epKey)}); } }`);
           } else {
-            lines.push(`    __attachEndpoint(${varName}, ${ownerExpr}, ${JSON.stringify(p.port)});`);
+            lines.push(`    if(!${varName}__seen.has(${JSON.stringify(epKey)})) { this.attachEndpointSafe(${varName}, ${ownerExpr}, ${JSON.stringify(p.port)}); ${varName}__seen.add(${JSON.stringify(epKey)}); }`);
           }
         }
       }
@@ -261,15 +304,17 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
             const lparts = String(left).split('.'); const rparts = String(right).split('.');
             const lowner = lparts.length>1? lparts[0] : null; const lport = lparts.length>1? lparts.slice(1).join('.') : lparts[0];
             const rowner = rparts.length>1? rparts[0] : null; const rport = rparts.length>1? rparts.slice(1).join('.') : rparts[0];
-            if (lowner) {
-              const ownerExpr = (instancePathMap && instancePathMap[lowner]) ? instancePathMap[lowner] : `this.${lowner}`;
-              lines.push(`    __attachEndpoint(${varName}, ${ownerExpr}, ${JSON.stringify(lport)});`);
+                      if (lowner) {
+                        const ownerExpr = (instancePathMap && instancePathMap[lowner]) ? instancePathMap[lowner] : `this.${lowner}`;
+            const epKeyL = `${lowner}::${lport}`;
+            if (!emittedConnEndpointsLocal.has(epKeyL)) { emittedConnEndpointsLocal.add(epKeyL); lines.push(`    if(!${varName}__seen.has(${JSON.stringify(epKeyL)})) { this.attachEndpointSafe(${varName}, ${ownerExpr}, ${JSON.stringify(lport)}); ${varName}__seen.add(${JSON.stringify(epKeyL)}); }`); }
             } else {
         unresolvedBindings.push({ connector: cname, reason: 'unqualified port left', port: lport, binding: b });
             }
             if (rowner) {
               const ownerExpr = (instancePathMap && instancePathMap[rowner]) ? instancePathMap[rowner] : `this.${rowner}`;
-              lines.push(`    __attachEndpoint(${varName}, ${ownerExpr}, ${JSON.stringify(rport)});`);
+  const epKeyR = `${rowner}::${rport}`;
+  if (!emittedConnEndpointsLocal.has(epKeyR)) { emittedConnEndpointsLocal.add(epKeyR); lines.push(`    if(!${varName}__seen.has(${JSON.stringify(epKeyR)})) { this.attachEndpointSafe(${varName}, ${ownerExpr}, ${JSON.stringify(rport)}); ${varName}__seen.add(${JSON.stringify(epKeyR)}); }`); }
             } else {
         unresolvedBindings.push({ connector: cname, reason: 'unqualified port right', port: rport, binding: b });
             }
@@ -280,11 +325,13 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
           const robj = (typeof right === 'object' && right) ? right : null;
           if (lobj && lobj.owner && lobj.port) {
             const ownerExpr = instancePathMap[lobj.owner] || `this.${lobj.owner}`;
-            lines.push(`    __attachEndpoint(${varName}, ${ownerExpr}, ${JSON.stringify(lobj.port)});`);
+            const epKeyL = `${lobj.owner}::${lobj.port}`;
+            if (!emittedConnEndpointsLocal.has(epKeyL)) { emittedConnEndpointsLocal.add(epKeyL); lines.push(`    if(!${varName}__seen.has(${JSON.stringify(epKeyL)})) { this.attachEndpointSafe(${varName}, ${ownerExpr}, ${JSON.stringify(lobj.port)}); ${varName}__seen.add(${JSON.stringify(epKeyL)}); }`); }
           } else if (lobj && (!lobj.owner || !lobj.port)) unresolvedBindings.push({ connector: cname, reason: 'unresolved object left', entry: lobj });
           if (robj && robj.owner && robj.port) {
             const ownerExpr = instancePathMap[robj.owner] || `this.${robj.owner}`;
-            lines.push(`    __attachEndpoint(${varName}, ${ownerExpr}, ${JSON.stringify(robj.port)});`);
+            const epKeyR = `${robj.owner}::${robj.port}`;
+            if (!emittedConnEndpointsLocal.has(epKeyR)) { emittedConnEndpointsLocal.add(epKeyR); lines.push(`    if(!${varName}__seen.has(${JSON.stringify(epKeyR)})) { this.attachEndpointSafe(${varName}, ${ownerExpr}, ${JSON.stringify(robj.port)}); ${varName}__seen.add(${JSON.stringify(epKeyR)}); }`); }
           } else if (robj && (!robj.owner || !robj.port)) unresolvedBindings.push({ connector: cname, reason: 'unresolved object right', entry: robj });
         }
       }
@@ -383,8 +430,19 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   lines.push('  }');
   lines.push('}');
   lines.push('');
+  // embed port alias metadata so consumers (simulator/tools) can map SysADL alias names
+  try {
+    const pa = portAliasMap || {};
+    // deterministic stringify: sort keys
+    const keys = Object.keys(pa).sort();
+    const ordered = {};
+    for (const k of keys) ordered[k] = pa[k];
+    lines.push('const __portAliases = ' + JSON.stringify(ordered, null, 2) + ';');
+  } catch(e) {
+    lines.push('const __portAliases = {};');
+  }
   lines.push(`function createModel(){ return new ${sanitizeId(modelName)}(); }`);
-  lines.push('module.exports = { createModel, ' + sanitizeId(modelName) + ' };');
+  lines.push('module.exports = { createModel, ' + sanitizeId(modelName) + ', __portAliases };');
   return lines.join('\n');
 }
 
@@ -1902,45 +1960,109 @@ async function main() {
       }
     }
   } catch(e) { /* non-fatal */ }
-  // determine hierarchical parents: components with 'configuration' are containers (attach children to them)
+  // determine hierarchical parents using transitive reachability among ComponentDefs with configurations
+  // algorithm: build directed graph A -> B when ComponentDef A's configuration instantiates ComponentDef B.
+  // collapse SCCs; if some SCC reaches all others, choose its members as root(s); otherwise choose all source SCCs as roots.
   const parentMap = {}; // instanceName -> parent expression (e.g. 'this.FactoryAutomationSystem')
   const rootDefs = [];
   try {
-    // heuristic: find top-level ComponentUse that refers to FactoryAutomationSystem or components that have 'configuration'
+    // build set of ComponentDefs that are 'composed' (have a configuration)
+    const composedDefs = Object.keys(compDefMap || {}).filter(defName => {
+      try { const defNode = compDefMap[defName]; return Array.isArray(extractConfigurations(defNode)) && extractConfigurations(defNode).length > 0; } catch(e) { return false; }
+    });
+    // If no composed components, abort as per rule
+    if (!composedDefs.length) throw new Error('Generation failed: nenhum ComponentDef composto (com Configuration) encontrado no arquivo.');
+
+    // abort if any ComponentUse references a ComponentDef not present in compDefMap
     for (const cu of compUses) {
       try {
-        const def = cu.definition || null;
-        if (!def) continue;
-        // if the definition node has a configuration under compDefMap, treat it as a composite
-        const defNode = compDefMap[def] || compDefMap[String(def)];
-        if (defNode) {
-          const hasCfg = (function(){ let f=false; traverse(defNode, n=>{ if (n && (n.type === 'Configuration' || /Configuration/i.test(n.type))) f=true; }); return f; })();
-          if (hasCfg) {
-            // if instance name equals FactoryAutomationSystem or type is FactoryAutomationSystem, consider it root
-            if (String(def).indexOf('FactoryAutomationSystem') !== -1 || (cu.name && String(cu.name).indexOf('FactoryAutomationSystem') !== -1)) rootDefs.push(def);
-          }
-        }
-      } catch(e){}
+        const ddef = cu.definition || null;
+        if (!ddef) continue;
+        if (!compDefMap[ddef]) throw new Error('Generation failed: ComponentUse "' + (cu.name||String(ddef)) + '" referencia definição ausente: ' + String(ddef));
+      } catch(e) { throw e; }
     }
-    // fallback: if no rootDefs found, try to pick FactoryAutomationSystem by name from compDefs
-    if (!rootDefs.length && compDefMap['FactoryAutomationSystem']) rootDefs.push('FactoryAutomationSystem');
 
-    // if FactoryAutomationSystem def exists, attach its declared component names to be children of that root
-    try {
-      if (compDefMap['FactoryAutomationSystem']) {
-        const fasNode = compDefMap['FactoryAutomationSystem'];
-        const inner = extractConfigurations(fasNode) || [];
-        if (inner.length) {
-          traverse(inner[0], n => {
+    // build adjacency among composed defs
+    const adj = {};
+    for (const d of composedDefs) adj[d] = new Set();
+    for (const d of composedDefs) {
+      try {
+        const defNode = compDefMap[d];
+        const cfgs = extractConfigurations(defNode) || [];
+        if (!cfgs.length) continue;
+        traverse(cfgs[0], n => {
+          try {
             if (!n || typeof n !== 'object') return;
             if (n.type === 'ComponentUse' || /ComponentUse/i.test(n.type)) {
-              const child = n.name || (n.id && n.id.name) || null;
-              if (child) parentMap[child] = `this.FactoryAutomationSystem`;
+              const childDef = n.definition || n.def || null;
+              if (childDef && adj.hasOwnProperty(childDef)) adj[d].add(childDef);
             }
-          });
-        }
+          } catch(e){}
+        });
+      } catch(e){}
+    }
+
+    // Tarjan SCC to collapse cycles
+    const indexMap = {}; let index = 0; const stack = []; const onStack = new Set(); const sccs = []; const nodeList = Object.keys(adj);
+    function strongconnect(v) {
+      indexMap[v] = { idx: index, low: index }; index++;
+      stack.push(v); onStack.add(v);
+      for (const w of adj[v]) {
+        if (indexMap[w] === undefined) { strongconnect(w); indexMap[v].low = Math.min(indexMap[v].low, indexMap[w].low); }
+        else if (onStack.has(w)) { indexMap[v].low = Math.min(indexMap[v].low, indexMap[w].idx); }
       }
-    } catch(e){}
+      if (indexMap[v].low === indexMap[v].idx) {
+        const comp = [];
+        while (true) {
+          const w = stack.pop(); onStack.delete(w); comp.push(w);
+          if (w === v) break;
+        }
+        sccs.push(comp);
+      }
+    }
+    for (const v of nodeList) if (indexMap[v] === undefined) try { strongconnect(v); } catch(e){}
+
+    // build condensed graph of SCCs
+    const sccId = {}; for (let i=0;i<sccs.length;i++) for (const m of sccs[i]) sccId[m] = i;
+    const condensedAdj = {}; for (let i=0;i<sccs.length;i++) condensedAdj[i] = new Set();
+    for (const u of Object.keys(adj)) for (const v of adj[u]) if (sccId[u] !== undefined && sccId[v] !== undefined && sccId[u] !== sccId[v]) condensedAdj[sccId[u]].add(sccId[v]);
+
+    const totalScc = sccs.length;
+    function reachesAll(sid) {
+      const seen = new Set(); const st = [sid]; while(st.length) { const x = st.pop(); if (seen.has(x)) continue; seen.add(x); for (const y of (condensedAdj[x]||[])) if (!seen.has(y)) st.push(y); }
+      return seen.size === totalScc;
+    }
+
+    // find SCCs that reach all others
+    const reachingSCCs = [];
+    for (let i=0;i<totalScc;i++) try { if (reachesAll(i)) reachingSCCs.push(i); } catch(e){}
+    if (reachingSCCs.length) {
+      // pick all members of the reaching SCCs as roots
+      for (const sid of reachingSCCs) for (const member of sccs[sid]) if (rootDefs.indexOf(member) === -1) rootDefs.push(member);
+    } else {
+      // no single SCC reaches all: emit all source SCCs (indegree 0) as roots (option A)
+      const indeg = {}; for (let i=0;i<totalScc;i++) indeg[i] = 0;
+      for (const u of Object.keys(condensedAdj)) for (const v of condensedAdj[u]) indeg[v] = (indeg[v]||0) + 1;
+      const sources = Object.keys(indeg).filter(k => indeg[k] === 0).map(k=>parseInt(k,10));
+      for (const sid of sources) for (const member of sccs[sid]) if (rootDefs.indexOf(member) === -1) rootDefs.push(member);
+    }
+
+    // populate parentMap for direct children of each rootDef by traversing its configuration
+    for (const rd of rootDefs) {
+      try {
+        const defNode = compDefMap[rd]; if (!defNode) continue;
+        const inner = extractConfigurations(defNode) || [];
+        if (!inner.length) continue;
+        traverse(inner[0], n => {
+          if (!n || typeof n !== 'object') return;
+          if (n.type === 'ComponentUse' || /ComponentUse/i.test(n.type)) {
+            const child = n.name || (n.id && n.id.name) || null;
+            if (child) parentMap[child] = `this.${sanitizeId(String(rd))}`;
+          }
+        });
+      } catch(e){}
+    }
+  } catch(e) { throw e; }
 
     // Build parentLocal map: childInstanceName -> parentInstanceName, only from explicit ComponentUse nodes
     const parentLocal = {};
@@ -1979,7 +2101,7 @@ async function main() {
       return rec(inst);
     }
 
-    // merge any existing parentMap entries (e.g. from FactoryAutomationSystem discovery) into parentLocal
+    // merge any existing parentMap entries (from discovered roots) into parentLocal
     for (const k of Object.keys(parentMap)) {
       try {
         const v = parentMap[k];
@@ -1993,11 +2115,46 @@ async function main() {
       const full = getFullParentPath(parentLocal[child]) || `this.${parentLocal[child]}`;
       parentMap[child] = full;
     }
-  } catch(e) { /* ignore heuristic build errors */ }
 
   try { dbg('[DBG] rootDefs:', JSON.stringify(rootDefs || [])); } catch(e){}
   try { dbg('[DBG] parentMap:', JSON.stringify(parentMap || {})); } catch(e){}
-  const moduleCode = generateClassModule(outModelName, compUses, portUses, connectorDescriptors, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef);
+  // build portAliasMap: instanceName -> { aliasName: realPortName | null }
+  const portAliasMap = {};
+  try {
+    // usingAliasMap was built earlier: ownerInstance -> { alias: mappedPort | null }
+    for (const inst of Object.keys(usingAliasMap || {})) {
+      try {
+        const amap = usingAliasMap[inst] || {};
+        portAliasMap[inst] = portAliasMap[inst] || {};
+        for (const alias of Object.keys(amap)) {
+          const mapped = amap[alias];
+          if (mapped) {
+            // if mapped is a real port name known in compPortsMap_main, keep it
+            if (compPortsMap_main && compPortsMap_main[inst] && compPortsMap_main[inst].has(mapped)) portAliasMap[inst][alias] = mapped;
+            else portAliasMap[inst][alias] = mapped;
+          } else {
+            // null indicates alias exists but mapping unknown; keep null so tools can attempt heuristic
+            portAliasMap[inst][alias] = null;
+          }
+        }
+      } catch(e){}
+    }
+    // also, if a component has exactly one port, consider mapping common alias names to it (helpful default)
+    for (const inst of Object.keys(compPortsMap_main || {})) {
+      try {
+        const ports = Array.from(compPortsMap_main[inst]||[]);
+        if (ports.length === 1) {
+          const only = ports[0];
+          portAliasMap[inst] = portAliasMap[inst] || {};
+          // add common alias tokens mapping to the sole port (only if not already present)
+          const candidates = ['temp1','temp2','current','c3','in','out','value'];
+          for (const tok of candidates) if (!Object.prototype.hasOwnProperty.call(portAliasMap[inst], tok)) portAliasMap[inst][tok] = only;
+        }
+      } catch(e){}
+    }
+  } catch(e) {}
+
+  const moduleCode = generateClassModule(outModelName, compUses, portUses, connectorDescriptors, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, portAliasMap);
   const outFile = path.join(outDir, path.basename(input, path.extname(input)) + '.js');
   fs.writeFileSync(outFile, moduleCode, 'utf8');
   console.log('Generated', outFile);
