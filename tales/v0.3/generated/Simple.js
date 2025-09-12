@@ -1,35 +1,46 @@
 const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression } = require('../SysADLBase');
-const __sysadl_types = {
-  "datatypes": {},
-  "valueTypes": {
-    "Int": {
-      "extends": null,
-      "unit": null,
-      "dimension": null
-    },
-    "Boolean": {
-      "extends": null,
-      "unit": null,
-      "dimension": null
-    },
-    "String": {
-      "extends": null,
-      "unit": null,
-      "dimension": null
-    },
-    "Void": {
-      "extends": null,
-      "unit": null,
-      "dimension": null
-    },
-    "Real": {
-      "extends": null,
-      "unit": null,
-      "dimension": null
+class Int {
+  constructor(value) {
+    if (value !== undefined) {
+      this.value = parseInt(value, 10);
+      if (isNaN(this.value)) throw new Error(`Invalid Int value: ${value}`);
     }
-  },
-  "enumerations": {}
-};
+  }
+}
+
+class Boolean {
+  constructor(value) {
+    if (value !== undefined) {
+      this.value = value;
+    }
+  }
+}
+
+class String {
+  constructor(value) {
+    if (value !== undefined) {
+      this.value = value;
+    }
+  }
+}
+
+class Void {
+  constructor(value) {
+    if (value !== undefined) {
+      this.value = value;
+    }
+  }
+}
+
+class Real {
+  constructor(value) {
+    if (value !== undefined) {
+      this.value = parseFloat(value);
+      if (isNaN(this.value)) throw new Error(`Invalid Real value: ${value}`);
+    }
+  }
+}
+
 class SensorCP extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
 class TempMonitorCP extends Component { }
 class StdOutCP extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
@@ -57,8 +68,8 @@ class SysADLModel extends Model {
     if (!this.SystemCP.stdOut.ports["c3"]) { const __p = new Port("c3", "in", { owner: "stdOut" }); this.SystemCP.stdOut.addPort(__p); }
     this.addExecutableSafe("SysADLModel.FarToCelEX", "executable def FarToCelEX (in f:Real): out Real {\n\t\treturn 5*(f - 32)/9 ;\n\t}", []);
     this.addExecutableSafe("SysADLModel.CalcAverageEX", "executable def CalcAverageEX(in temp1:Real,in temp2:Real):out Real{\n\t\treturn (temp1 + temp2)/2 ;\n\t}", []);
-    this.addExecutableSafe("SysADLModel.yyez", "executable FarToCelEX to FarToCelAN", []);
-    this.addExecutableSafe("SysADLModel.6lql", "executable CalcAverageEX to TempMonitorAN", []);
+    this.addExecutableSafe("SysADLModel.wjgw", "executable FarToCelEX to FarToCelAN", []);
+    this.addExecutableSafe("SysADLModel.bndi", "executable CalcAverageEX to TempMonitorAN", []);
     const act_FarToCelAC_s1 = new Activity("FarToCelAC", { component: "s1", inputPorts: ["current"] });
     act_FarToCelAC_s1.addAction(new Action("FarToCelAN", [], "FarToCelEX"));
     this.registerActivity("FarToCelAC::s1", act_FarToCelAC_s1);
@@ -111,4 +122,4 @@ class SysADLModel extends Model {
 
 const __portAliases = {};
 function createModel(){ return new SysADLModel(); }
-module.exports = { createModel, SysADLModel, __portAliases, types: __sysadl_types };
+module.exports = { createModel, SysADLModel, __portAliases, Int, Boolean, String, Void, Real };

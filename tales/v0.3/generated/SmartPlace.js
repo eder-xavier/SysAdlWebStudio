@@ -1,251 +1,295 @@
 const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression } = require('../SysADLBase');
-const __sysadl_types = {
-  "datatypes": {
-    "DataSensor": {
-      "extends": null,
-      "attributes": [
-        {
-          "name": "id",
-          "type": "String"
-        },
-        {
-          "name": "value",
-          "type": "String"
-        },
-        {
-          "name": "typeSensor",
-          "type": "TypeSensor"
-        }
-      ]
-    },
-    "RestFulRaspeberry": {
-      "extends": null,
-      "attributes": [
-        {
-          "name": "ip",
-          "type": "String"
-        },
-        {
-          "name": "port",
-          "type": "String"
-        },
-        {
-          "name": "path",
-          "type": "String"
-        },
-        {
-          "name": "i",
-          "type": "Intervention"
-        },
-        {
-          "name": "m",
-          "type": "Measurement"
-        }
-      ]
-    },
-    "Sensor": {
-      "extends": null,
-      "attributes": [
-        {
-          "name": "room",
-          "type": "String"
-        },
-        {
-          "name": "type_sensor",
-          "type": "TypeSensor"
-        },
-        {
-          "name": "id",
-          "type": "String"
-        }
-      ]
-    },
-    "Measurement": {
-      "extends": null,
-      "attributes": [
-        {
-          "name": "value",
-          "type": "String"
-        },
-        {
-          "name": "schedule",
-          "type": "Schedule"
-        },
-        {
-          "name": "sensor",
-          "type": "Sensor"
-        }
-      ]
-    },
-    "Schedule": {
-      "extends": null,
-      "attributes": [
-        {
-          "name": "timestamp",
-          "type": "Int"
-        }
-      ]
-    },
-    "Location": {
-      "extends": null,
-      "attributes": [
-        {
-          "name": "latitude",
-          "type": "Real"
-        },
-        {
-          "name": "longitude",
-          "type": "Real"
-        }
-      ]
-    },
-    "Building": {
-      "extends": null,
-      "attributes": [
-        {
-          "name": "id",
-          "type": "String"
-        },
-        {
-          "name": "location",
-          "type": "Location"
-        }
-      ]
-    },
-    "Room": {
-      "extends": null,
-      "attributes": [
-        {
-          "name": "id",
-          "type": "String"
-        },
-        {
-          "name": "building",
-          "type": "String"
-        }
-      ]
-    },
-    "AirConditioner": {
-      "extends": null,
-      "attributes": [
-        {
-          "name": "room",
-          "type": "String"
-        },
-        {
-          "name": "id",
-          "type": "String"
-        }
-      ]
-    },
-    "ContextInformation": {
-      "extends": null,
-      "attributes": [
-        {
-          "name": "sensor",
-          "type": "Sensor"
-        },
-        {
-          "name": "air_conditioner",
-          "type": "AirConditioner"
-        },
-        {
-          "name": "room",
-          "type": "Room"
-        },
-        {
-          "name": "building",
-          "type": "Building"
-        }
-      ]
-    },
-    "UpdateDB": {
-      "extends": null,
-      "attributes": [
-        {
-          "name": "idAirCond",
-          "type": "String"
-        },
-        {
-          "name": "currentTime",
-          "type": "Schedule"
-        },
-        {
-          "name": "actionTemp",
-          "type": "InfraredCode"
-        }
-      ]
-    },
-    "FrameList": {
-      "extends": null,
-      "attributes": []
-    },
-    "Intervention": {
-      "extends": null,
-      "attributes": [
-        {
-          "name": "icAirCond",
-          "type": "InfraredCode"
-        },
-        {
-          "name": "airCond",
-          "type": "AirConditioner"
-        },
-        {
-          "name": "schedule",
-          "type": "Schedule"
-        }
-      ]
+class Int {
+  constructor(value) {
+    if (value !== undefined) {
+      this.value = parseInt(value, 10);
+      if (isNaN(this.value)) throw new Error(`Invalid Int value: ${value}`);
     }
-  },
-  "valueTypes": {
-    "Int": {
-      "extends": null,
-      "unit": null,
-      "dimension": null
-    },
-    "Boolean": {
-      "extends": null,
-      "unit": null,
-      "dimension": null
-    },
-    "String": {
-      "extends": null,
-      "unit": null,
-      "dimension": null
-    },
-    "Void": {
-      "extends": null,
-      "unit": null,
-      "dimension": null
-    },
-    "Real": {
-      "extends": null,
-      "unit": null,
-      "dimension": null
-    }
-  },
-  "enumerations": {
-    "InfraredCode": [
-      "increase",
-      "decrease",
-      "turn_on",
-      "turn_off"
-    ],
-    "increase": [],
-    "decrease": [],
-    "turn_on": [],
-    "turn_off": [],
-    "TypeSensor": [
-      "temperature",
-      "humidity",
-      "presence"
-    ],
-    "temperature": [],
-    "humidity": [],
-    "presence": []
   }
-};
+}
+
+class Boolean {
+  constructor(value) {
+    if (value !== undefined) {
+      this.value = value;
+    }
+  }
+}
+
+class String {
+  constructor(value) {
+    if (value !== undefined) {
+      this.value = value;
+    }
+  }
+}
+
+class Void {
+  constructor(value) {
+    if (value !== undefined) {
+      this.value = value;
+    }
+  }
+}
+
+class Real {
+  constructor(value) {
+    if (value !== undefined) {
+      this.value = parseFloat(value);
+      if (isNaN(this.value)) throw new Error(`Invalid Real value: ${value}`);
+    }
+  }
+}
+
+const InfraredCode = Object.freeze({
+  increase: "increase",
+  decrease: "decrease",
+  turn_on: "turn_on",
+  turn_off: "turn_off"
+});
+
+const TypeSensor = Object.freeze({
+  temperature: "temperature",
+  humidity: "humidity",
+  presence: "presence"
+});
+
+class DataSensor {
+  constructor(obj = {}) {
+    if (typeof obj !== 'object' || obj === null) {
+      throw new Error(`Invalid object for ${name}: expected object`);
+    }
+    if ('id' in obj) {
+      
+      this.id = obj.id;
+    }
+    if ('value' in obj) {
+      
+      this.value = obj.value;
+    }
+    if ('typeSensor' in obj) {
+      
+      this.typeSensor = obj.typeSensor;
+    }
+  }
+}
+
+class RestFulRaspeberry {
+  constructor(obj = {}) {
+    if (typeof obj !== 'object' || obj === null) {
+      throw new Error(`Invalid object for ${name}: expected object`);
+    }
+    if ('ip' in obj) {
+      
+      this.ip = obj.ip;
+    }
+    if ('port' in obj) {
+      
+      this.port = obj.port;
+    }
+    if ('path' in obj) {
+      
+      this.path = obj.path;
+    }
+    if ('i' in obj) {
+      
+      this.i = obj.i;
+    }
+    if ('m' in obj) {
+      
+      this.m = obj.m;
+    }
+  }
+}
+
+class Sensor {
+  constructor(obj = {}) {
+    if (typeof obj !== 'object' || obj === null) {
+      throw new Error(`Invalid object for ${name}: expected object`);
+    }
+    if ('room' in obj) {
+      
+      this.room = obj.room;
+    }
+    if ('type_sensor' in obj) {
+      
+      this.type_sensor = obj.type_sensor;
+    }
+    if ('id' in obj) {
+      
+      this.id = obj.id;
+    }
+  }
+}
+
+class Measurement {
+  constructor(obj = {}) {
+    if (typeof obj !== 'object' || obj === null) {
+      throw new Error(`Invalid object for ${name}: expected object`);
+    }
+    if ('value' in obj) {
+      
+      this.value = obj.value;
+    }
+    if ('schedule' in obj) {
+      
+      this.schedule = obj.schedule;
+    }
+    if ('sensor' in obj) {
+      
+      this.sensor = obj.sensor;
+    }
+  }
+}
+
+class Schedule {
+  constructor(obj = {}) {
+    if (typeof obj !== 'object' || obj === null) {
+      throw new Error(`Invalid object for ${name}: expected object`);
+    }
+    if ('timestamp' in obj) {
+      
+      this.timestamp = obj.timestamp;
+    }
+  }
+}
+
+class Location {
+  constructor(obj = {}) {
+    if (typeof obj !== 'object' || obj === null) {
+      throw new Error(`Invalid object for ${name}: expected object`);
+    }
+    if ('latitude' in obj) {
+      
+      this.latitude = obj.latitude;
+    }
+    if ('longitude' in obj) {
+      
+      this.longitude = obj.longitude;
+    }
+  }
+}
+
+class Building {
+  constructor(obj = {}) {
+    if (typeof obj !== 'object' || obj === null) {
+      throw new Error(`Invalid object for ${name}: expected object`);
+    }
+    if ('id' in obj) {
+      
+      this.id = obj.id;
+    }
+    if ('location' in obj) {
+      
+      this.location = obj.location;
+    }
+  }
+}
+
+class Room {
+  constructor(obj = {}) {
+    if (typeof obj !== 'object' || obj === null) {
+      throw new Error(`Invalid object for ${name}: expected object`);
+    }
+    if ('id' in obj) {
+      
+      this.id = obj.id;
+    }
+    if ('building' in obj) {
+      
+      this.building = obj.building;
+    }
+  }
+}
+
+class AirConditioner {
+  constructor(obj = {}) {
+    if (typeof obj !== 'object' || obj === null) {
+      throw new Error(`Invalid object for ${name}: expected object`);
+    }
+    if ('room' in obj) {
+      
+      this.room = obj.room;
+    }
+    if ('id' in obj) {
+      
+      this.id = obj.id;
+    }
+  }
+}
+
+class ContextInformation {
+  constructor(obj = {}) {
+    if (typeof obj !== 'object' || obj === null) {
+      throw new Error(`Invalid object for ${name}: expected object`);
+    }
+    if ('sensor' in obj) {
+      
+      this.sensor = obj.sensor;
+    }
+    if ('air_conditioner' in obj) {
+      
+      this.air_conditioner = obj.air_conditioner;
+    }
+    if ('room' in obj) {
+      
+      this.room = obj.room;
+    }
+    if ('building' in obj) {
+      
+      this.building = obj.building;
+    }
+  }
+}
+
+class UpdateDB {
+  constructor(obj = {}) {
+    if (typeof obj !== 'object' || obj === null) {
+      throw new Error(`Invalid object for ${name}: expected object`);
+    }
+    if ('idAirCond' in obj) {
+      
+      this.idAirCond = obj.idAirCond;
+    }
+    if ('currentTime' in obj) {
+      
+      this.currentTime = obj.currentTime;
+    }
+    if ('actionTemp' in obj) {
+      
+      this.actionTemp = obj.actionTemp;
+    }
+  }
+}
+
+class FrameList {
+  constructor(obj = {}) {
+    if (typeof obj !== 'object' || obj === null) {
+      throw new Error(`Invalid object for ${name}: expected object`);
+    }
+  }
+}
+
+class Intervention {
+  constructor(obj = {}) {
+    if (typeof obj !== 'object' || obj === null) {
+      throw new Error(`Invalid object for ${name}: expected object`);
+    }
+    if ('icAirCond' in obj) {
+      
+      this.icAirCond = obj.icAirCond;
+    }
+    if ('airCond' in obj) {
+      
+      this.airCond = obj.airCond;
+    }
+    if ('schedule' in obj) {
+      
+      this.schedule = obj.schedule;
+    }
+  }
+}
+
 class SmartPlaceWeb extends Component { }
 class RoomReservationSystem extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
 class OrionContextBroker extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
@@ -577,4 +621,4 @@ class SysADLArchitecture extends Model {
 
 const __portAliases = {};
 function createModel(){ return new SysADLArchitecture(); }
-module.exports = { createModel, SysADLArchitecture, __portAliases, types: __sysadl_types };
+module.exports = { createModel, SysADLArchitecture, __portAliases, Int, Boolean, String, Void, Real, InfraredCode, TypeSensor, DataSensor, RestFulRaspeberry, Sensor, Measurement, Schedule, Location, Building, Room, AirConditioner, ContextInformation, UpdateDB, FrameList, Intervention };

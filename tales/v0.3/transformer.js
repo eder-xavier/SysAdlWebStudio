@@ -51,12 +51,118 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   const lines = [];
   // runtime imports for generated module
   lines.push("const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression } = require('../SysADLBase');");
-  // embed SysADL types metadata collected at generation time
-  try {
+  // generate JS classes for SysADL types instead of JSON embedding
+  function generateTypeClasses(embeddedTypes) {
+    const classLines = [];
     const t = embeddedTypes && typeof embeddedTypes === 'object' ? embeddedTypes : { datatypes: {}, valueTypes: {}, enumerations: {} };
-    lines.push('const __sysadl_types = ' + JSON.stringify(t, null, 2) + ';');
+    
+    // Generate value types as classes
+    for (const [name, info] of Object.entries(t.valueTypes || {})) {
+      if (!name) continue;
+      const superType = info.extends || null;
+      const unit = info.unit || null;
+      const dimension = info.dimension || null;
+      
+      let classCode = `class ${name}`;
+      if (superType) {
+        classCode += ` extends ${superType}`;
+      }
+      classCode += ' {\n';
+      
+      // Constructor with parse logic
+      classCode += '  constructor(value) {\n';
+      if (superType) {
+        classCode += '    super(value);\n';
+      }
+      classCode += '    if (value !== undefined) {\n';
+      // Add parsing based on type
+      if (name === 'Int') {
+        classCode += '      this.value = parseInt(value, 10);\n';
+        classCode += '      if (isNaN(this.value)) throw new Error(`Invalid Int value: ${value}`);\n';
+      } else if (name === 'Real') {
+        classCode += '      this.value = parseFloat(value);\n';
+        classCode += '      if (isNaN(this.value)) throw new Error(`Invalid Real value: ${value}`);\n';
+      } else if (name === 'Boolean') {
+        classCode += '      this.value = value;\n';
+      } else if (name === 'String') {
+        classCode += '      this.value = value;\n';
+      } else {
+        classCode += '      this.value = value;\n';
+      }
+      classCode += '    }\n';
+      classCode += '  }\n';
+      
+      // Add unit and dimension as static properties if present
+      if (unit) {
+        classCode += `  static unit = '${unit}';\n`;
+      }
+      if (dimension) {
+        classCode += `  static dimension = '${dimension}';\n`;
+      }
+      
+      classCode += '}\n';
+      classLines.push(classCode);
+    }
+    
+    // Generate enumerations as Object.freeze
+    for (const [name, literals] of Object.entries(t.enumerations || {})) {
+      if (!name || !Array.isArray(literals)) continue;
+      const enumValues = literals.map((lit, idx) => `  ${lit}: "${lit}"`).join(',\n');
+      const enumCode = `const ${name} = Object.freeze({\n${enumValues}\n});\n`;
+      classLines.push(enumCode);
+    }
+    
+    // Generate datatypes as classes with validation
+    for (const [name, info] of Object.entries(t.datatypes || {})) {
+      if (!name) continue;
+      const superType = info.extends || null;
+      const attributes = info.attributes || [];
+      
+      let classCode = `class ${name}`;
+      if (superType) {
+        classCode += ` extends ${superType}`;
+      }
+      classCode += ' {\n';
+      
+      // Constructor with attribute validation
+      classCode += '  constructor(obj = {}) {\n';
+      if (superType) {
+        classCode += '    super(obj);\n';
+      }
+      classCode += '    if (typeof obj !== \'object\' || obj === null) {\n';
+      classCode += '      throw new Error(`Invalid object for ${name}: expected object`);\n';
+      classCode += '    }\n';
+      
+      // Validate required attributes
+      for (const attr of attributes) {
+        if (!attr || !attr.name) continue;
+        const attrName = attr.name;
+        const attrType = attr.type;
+        classCode += `    if ('${attrName}' in obj) {\n`;
+        if (attrType) {
+          // Add type validation if type is known
+          classCode += `      // Validate ${attrName} as ${attrType}\n`;
+          classCode += `      this.${attrName} = obj.${attrName};\n`;
+        } else {
+          classCode += `      this.${attrName} = obj.${attrName};\n`;
+        }
+        classCode += '    }\n';
+      }
+      
+      classCode += '  }\n';
+      classCode += '}\n';
+      classLines.push(classCode);
+    }
+    
+    return classLines.join('\n');
+  }
+  
+  // Generate type classes
+  try {
+    const typeClasses = generateTypeClasses(embeddedTypes);
+    lines.push(typeClasses);
   } catch(e) {
-    lines.push('const __sysadl_types = { datatypes: {}, valueTypes: {}, enumerations: {} };');
+    console.warn('Failed to generate type classes:', e.message);
   }
   // connectorDescriptors: normalized bindings may be provided in outer scope; if not, derive from parameter
   const connectorDescriptors = (typeof connectorBindings !== 'undefined' && connectorBindings) ? connectorBindings : [];
@@ -598,7 +704,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     lines.push('const __portAliases = {};');
   }
   lines.push(`function createModel(){ return new ${sanitizeId(modelName)}(); }`);
-  lines.push('module.exports = { createModel, ' + sanitizeId(modelName) + ', __portAliases, types: __sysadl_types };');
+  lines.push('module.exports = { createModel, ' + sanitizeId(modelName) + ', __portAliases' + ((embeddedTypes.valueTypes && Object.keys(embeddedTypes.valueTypes).length) || (embeddedTypes.enumerations && Object.keys(embeddedTypes.enumerations).length) || (embeddedTypes.datatypes && Object.keys(embeddedTypes.datatypes).length) ? ', ' + Object.keys(embeddedTypes.valueTypes || {}).concat(Object.keys(embeddedTypes.enumerations || {})).concat(Object.keys(embeddedTypes.datatypes || {})).map(sanitizeId).join(', ') : '') + ' };');
   // Sanity check: fail-fast if any emitted line attempts to initialize an owner-level
   // `.ports` object like: if (!this.X.ports) this.X.ports = {};
   // This enforces the invariant that component constructors in the runtime
@@ -682,7 +788,9 @@ async function main() {
         else if (Array.isArray(n.values)) literals = n.values.map(v => String(v)).filter(Boolean);
         else if (typeof n.content === 'string') literals = n.content.split(/[\,\s]+/).map(s=>s.trim()).filter(Boolean);
         else if (n.enumLiteralValueList && Array.isArray(n.enumLiteralValueList)) literals = n.enumLiteralValueList.map(x => x && (x.name || (x.id && x.id.name) || x)).filter(Boolean).map(String);
-        embeddedTypes.enumerations[String(name)] = literals;
+        if (literals.length > 0) {
+          embeddedTypes.enumerations[String(name)] = literals;
+        }
       }
     } catch(e){}
   });
