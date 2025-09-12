@@ -47,10 +47,17 @@ function collectPortUses(configNode) {
   return uses;
 }
 
-function generateClassModule(modelName, compUses, portUses, connectorBindings, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, portAliasMap, compDefMapArg, portDefMapArg) {
+function generateClassModule(modelName, compUses, portUses, connectorBindings, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, portAliasMap, compDefMapArg, portDefMapArg, embeddedTypes) {
   const lines = [];
   // runtime imports for generated module
   lines.push("const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression } = require('../SysADLBase');");
+  // embed SysADL types metadata collected at generation time
+  try {
+    const t = embeddedTypes && typeof embeddedTypes === 'object' ? embeddedTypes : { datatypes: {}, valueTypes: {}, enumerations: {} };
+    lines.push('const __sysadl_types = ' + JSON.stringify(t, null, 2) + ';');
+  } catch(e) {
+    lines.push('const __sysadl_types = { datatypes: {}, valueTypes: {}, enumerations: {} };');
+  }
   // connectorDescriptors: normalized bindings may be provided in outer scope; if not, derive from parameter
   const connectorDescriptors = (typeof connectorBindings !== 'undefined' && connectorBindings) ? connectorBindings : [];
   const typeNames = new Set();
@@ -70,7 +77,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   // JavaScript inheritance provide the default behavior.
   let cls;
   if (isBoundaryFlag) {
-    const ctor = 'constructor(name, opts={}){ super(name, Object.assign({}, opts, { isBoundary: true })); }';
+    const ctor = 'constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); }';
     cls = 'class ' + sanitizeId(String(t)) + ' extends Component { ' + ctor + ' }';
   } else {
     cls = 'class ' + sanitizeId(String(t)) + ' extends Component { }';
@@ -591,7 +598,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     lines.push('const __portAliases = {};');
   }
   lines.push(`function createModel(){ return new ${sanitizeId(modelName)}(); }`);
-  lines.push('module.exports = { createModel, ' + sanitizeId(modelName) + ', __portAliases };');
+  lines.push('module.exports = { createModel, ' + sanitizeId(modelName) + ', __portAliases, types: __sysadl_types };');
   // Sanity check: fail-fast if any emitted line attempts to initialize an owner-level
   // `.ports` object like: if (!this.X.ports) this.X.ports = {};
   // This enforces the invariant that component constructors in the runtime
@@ -647,6 +654,38 @@ async function main() {
   // collect port definitions (port def nodes) so we can expand participant port sets for connector definitions
   const portDefMap = {};
   traverse(ast, n => { if (n && (n.type === 'PortDef' || /PortDef/i.test(n.type) || (n.type && /port\s+def/i.test(String(n.type))))) { const nm = n.name || (n.id && n.id.name) || n.id || null; if (nm) portDefMap[nm] = n; } });
+
+  // collect SysADL types to embed
+  function qnameToString(x){ try{ if(!x) return null; if(typeof x==='string') return x; if (x.name) return x.name; if (x.id && x.id.name) return x.id.name; if (Array.isArray(x.parts)) return x.parts.join('.'); }catch(e){} return null; }
+  function attrTypeOf(a){ try{ if(!a) return null; if (a.definition) return qnameToString(a.definition); if (a.type) return qnameToString(a.type); if (a.valueType) return qnameToString(a.valueType); if (a.value) return qnameToString(a.value); }catch(e){} return null; }
+  const embeddedTypes = { datatypes: {}, valueTypes: {}, enumerations: {} };
+  traverse(ast, n => {
+    if (!n || typeof n !== 'object') return;
+    try {
+      if (n.type === 'DataTypeDef' || /DataTypeDef/i.test(n.type)) {
+        const name = n.name || (n.id && n.id.name) || n.id || null; if (!name) return;
+        const superType = qnameToString(n.superType || n.extends || n.super || null);
+        const attrs = [];
+        const attrsRaw = n.attributes || n.attrs || n.properties || [];
+        if (Array.isArray(attrsRaw)) for (const it of attrsRaw) { try { const an = it && (it.name || (it.id && it.id.name) || it.id) || null; if (!an) continue; const at = attrTypeOf(it); attrs.push({ name: String(an), type: at || null }); } catch(e){} }
+        embeddedTypes.datatypes[String(name)] = { extends: superType || null, attributes: attrs };
+      } else if (n.type === 'ValueType' || /ValueType/i.test(n.type)) {
+        const name = n.name || (n.id && n.id.name) || n.id || null; if (!name) return;
+        const superType = qnameToString(n.superType || n.extends || null);
+        const unit = qnameToString(n.unit || null);
+        const dimension = qnameToString(n.dimension || null);
+        embeddedTypes.valueTypes[String(name)] = { extends: superType || null, unit: unit || null, dimension: dimension || null };
+      } else if (n.type === 'Enumeration' || /Enumeration/i.test(n.type) || n.type === 'EnumDef' || /Enum/i.test(n.type)) {
+        const name = n.name || (n.id && n.id.name) || n.id || null; if (!name) return;
+        let literals = [];
+        if (Array.isArray(n.literals)) literals = n.literals.map(x => x && (x.name || (x.id && x.id.name) || x)).filter(Boolean).map(String);
+        else if (Array.isArray(n.values)) literals = n.values.map(v => String(v)).filter(Boolean);
+        else if (typeof n.content === 'string') literals = n.content.split(/[\,\s]+/).map(s=>s.trim()).filter(Boolean);
+        else if (n.enumLiteralValueList && Array.isArray(n.enumLiteralValueList)) literals = n.enumLiteralValueList.map(x => x && (x.name || (x.id && x.id.name) || x)).filter(Boolean).map(String);
+        embeddedTypes.enumerations[String(name)] = literals;
+      }
+    } catch(e){}
+  });
 
   const configs = extractConfigurations(ast);
   let cfg = configs[0] || ast;
@@ -2376,7 +2415,7 @@ async function main() {
     }
   } catch(e) {}
 
-  let moduleCode = generateClassModule(outModelName, compUses, portUses, connectorDescriptors, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, portAliasMap, compDefMap, portDefMap);
+  let moduleCode = generateClassModule(outModelName, compUses, portUses, connectorDescriptors, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, portAliasMap, compDefMap, portDefMap, embeddedTypes);
   // remove JS comments (block and line) to ensure generator does not emit comments
   try {
     moduleCode = moduleCode.replace(/\/\*[\s\S]*?\*\//g, ''); // remove /* ... */
