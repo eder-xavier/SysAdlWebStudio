@@ -131,50 +131,50 @@ class SysADLModel extends Model {
     this.RTCSystemCFD.rtc.sm = new SensorsMonitorCP("sm", { sysadlDefinition: "SensorsMonitorCP" });
     this.RTCSystemCFD.rtc.addComponent(this.RTCSystemCFD.rtc.sm);
 
-    if (!this.RTCSystemCFD.s1.ports["current"]) { const __p = new Port("current", "out", { owner: "s1" }); this.RTCSystemCFD.s1.addPort(__p); }
-    if (!this.RTCSystemCFD.s2.ports["current"]) { const __p = new Port("current", "out", { owner: "s2" }); this.RTCSystemCFD.s2.addPort(__p); }
-    if (!this.RTCSystemCFD.s3.ports["detected"]) { const __p = new Port("detected", "out", { owner: "s3" }); this.RTCSystemCFD.s3.addPort(__p); }
-    if (!this.RTCSystemCFD.ui.ports["desired"]) { const __p = new Port("desired", "out", { owner: "ui" }); this.RTCSystemCFD.ui.addPort(__p); }
-    if (!this.RTCSystemCFD.a2.ports["controllerC"]) { const __p = new Port("controllerC", "in", { owner: "a2" }); this.RTCSystemCFD.a2.addPort(__p); }
-    if (!this.RTCSystemCFD.a1.ports["controllerH"]) { const __p = new Port("controllerH", "in", { owner: "a1" }); this.RTCSystemCFD.a1.addPort(__p); }
-    if (!this.RTCSystemCFD.rtc.ports["detectedRTC"]) { const __p = new Port("detectedRTC", "in", { owner: "rtc" }); this.RTCSystemCFD.rtc.addPort(__p); }
-    if (!this.RTCSystemCFD.rtc.ports["localtemp1"]) { const __p = new Port("localtemp1", "in", { owner: "rtc" }); this.RTCSystemCFD.rtc.addPort(__p); }
-    if (!this.RTCSystemCFD.rtc.ports["localTemp2"]) { const __p = new Port("localTemp2", "in", { owner: "rtc" }); this.RTCSystemCFD.rtc.addPort(__p); }
-    if (!this.RTCSystemCFD.rtc.ports["userTempRTC"]) { const __p = new Port("userTempRTC", "in", { owner: "rtc" }); this.RTCSystemCFD.rtc.addPort(__p); }
-    if (!this.RTCSystemCFD.rtc.ports["heatingRTC"]) { const __p = new Port("heatingRTC", "out", { owner: "rtc" }); this.RTCSystemCFD.rtc.addPort(__p); }
-    if (!this.RTCSystemCFD.rtc.ports["coolingRTC"]) { const __p = new Port("coolingRTC", "out", { owner: "rtc" }); this.RTCSystemCFD.rtc.addPort(__p); }
-    if (!this.RTCSystemCFD.rtc.ports["s1"]) { const __p = new Port("s1", "in", { owner: "rtc" }); this.RTCSystemCFD.rtc.addPort(__p); }
-    if (!this.RTCSystemCFD.rtc.ports["s2"]) { const __p = new Port("s2", "in", { owner: "rtc" }); this.RTCSystemCFD.rtc.addPort(__p); }
-    if (!this.RTCSystemCFD.rtc.ports["average"]) { const __p = new Port("average", "out", { owner: "rtc" }); this.RTCSystemCFD.rtc.addPort(__p); }
-    if (!this.RTCSystemCFD.rtc.ports["target2"]) { const __p = new Port("target2", "in", { owner: "rtc" }); this.RTCSystemCFD.rtc.addPort(__p); }
-    if (!this.RTCSystemCFD.rtc.ports["average2"]) { const __p = new Port("average2", "in", { owner: "rtc" }); this.RTCSystemCFD.rtc.addPort(__p); }
-    if (!this.RTCSystemCFD.rtc.ports["heating"]) { const __p = new Port("heating", "out", { owner: "rtc" }); this.RTCSystemCFD.rtc.addPort(__p); }
-    if (!this.RTCSystemCFD.rtc.ports["cooling"]) { const __p = new Port("cooling", "out", { owner: "rtc" }); this.RTCSystemCFD.rtc.addPort(__p); }
-    if (!this.RTCSystemCFD.rtc.ports["detected"]) { const __p = new Port("detected", "in", { owner: "rtc" }); this.RTCSystemCFD.rtc.addPort(__p); }
-    if (!this.RTCSystemCFD.rtc.ports["userTemp"]) { const __p = new Port("userTemp", "in", { owner: "rtc" }); this.RTCSystemCFD.rtc.addPort(__p); }
-    if (!this.RTCSystemCFD.rtc.ports["target"]) { const __p = new Port("target", "out", { owner: "rtc" }); this.RTCSystemCFD.rtc.addPort(__p); }
-    if (!this.RTCSystemCFD.rtc.sm.ports["s1"]) { const __p = new Port("s1", "in", { owner: "sm" }); this.RTCSystemCFD.rtc.sm.addPort(__p); }
-    if (!this.RTCSystemCFD.rtc.sm.ports["s2"]) { const __p = new Port("s2", "in", { owner: "sm" }); this.RTCSystemCFD.rtc.sm.addPort(__p); }
-    if (!this.RTCSystemCFD.rtc.sm.ports["average"]) { const __p = new Port("average", "out", { owner: "sm" }); this.RTCSystemCFD.rtc.sm.addPort(__p); }
-    if (!this.RTCSystemCFD.rtc.cm.ports["target2"]) { const __p = new Port("target2", "in", { owner: "cm" }); this.RTCSystemCFD.rtc.cm.addPort(__p); }
-    if (!this.RTCSystemCFD.rtc.cm.ports["average2"]) { const __p = new Port("average2", "in", { owner: "cm" }); this.RTCSystemCFD.rtc.cm.addPort(__p); }
-    if (!this.RTCSystemCFD.rtc.cm.ports["heating"]) { const __p = new Port("heating", "out", { owner: "cm" }); this.RTCSystemCFD.rtc.cm.addPort(__p); }
-    if (!this.RTCSystemCFD.rtc.cm.ports["cooling"]) { const __p = new Port("cooling", "out", { owner: "cm" }); this.RTCSystemCFD.rtc.cm.addPort(__p); }
-    if (!this.RTCSystemCFD.rtc.pc.ports["detected"]) { const __p = new Port("detected", "in", { owner: "pc" }); this.RTCSystemCFD.rtc.pc.addPort(__p); }
-    if (!this.RTCSystemCFD.rtc.pc.ports["userTemp"]) { const __p = new Port("userTemp", "in", { owner: "pc" }); this.RTCSystemCFD.rtc.pc.addPort(__p); }
-    if (!this.RTCSystemCFD.rtc.pc.ports["target"]) { const __p = new Port("target", "out", { owner: "pc" }); this.RTCSystemCFD.rtc.pc.addPort(__p); }
+    this.RTCSystemCFD.s1.addPort(new Port("current", "out", { owner: "s1" }));
+    this.RTCSystemCFD.s2.addPort(new Port("current", "out", { owner: "s2" }));
+    this.RTCSystemCFD.s3.addPort(new Port("detected", "out", { owner: "s3" }));
+    this.RTCSystemCFD.ui.addPort(new Port("desired", "out", { owner: "ui" }));
+    this.RTCSystemCFD.a2.addPort(new Port("controllerC", "in", { owner: "a2" }));
+    this.RTCSystemCFD.a1.addPort(new Port("controllerH", "in", { owner: "a1" }));
+    this.RTCSystemCFD.rtc.addPort(new Port("detectedRTC", "in", { owner: "rtc" }));
+    this.RTCSystemCFD.rtc.addPort(new Port("localtemp1", "in", { owner: "rtc" }));
+    this.RTCSystemCFD.rtc.addPort(new Port("localTemp2", "in", { owner: "rtc" }));
+    this.RTCSystemCFD.rtc.addPort(new Port("userTempRTC", "in", { owner: "rtc" }));
+    this.RTCSystemCFD.rtc.addPort(new Port("heatingRTC", "out", { owner: "rtc" }));
+    this.RTCSystemCFD.rtc.addPort(new Port("coolingRTC", "out", { owner: "rtc" }));
+    this.RTCSystemCFD.rtc.addPort(new Port("s1", "in", { owner: "rtc" }));
+    this.RTCSystemCFD.rtc.addPort(new Port("s2", "in", { owner: "rtc" }));
+    this.RTCSystemCFD.rtc.addPort(new Port("average", "out", { owner: "rtc" }));
+    this.RTCSystemCFD.rtc.addPort(new Port("target2", "in", { owner: "rtc" }));
+    this.RTCSystemCFD.rtc.addPort(new Port("average2", "in", { owner: "rtc" }));
+    this.RTCSystemCFD.rtc.addPort(new Port("heating", "out", { owner: "rtc" }));
+    this.RTCSystemCFD.rtc.addPort(new Port("cooling", "out", { owner: "rtc" }));
+    this.RTCSystemCFD.rtc.addPort(new Port("detected", "in", { owner: "rtc" }));
+    this.RTCSystemCFD.rtc.addPort(new Port("userTemp", "in", { owner: "rtc" }));
+    this.RTCSystemCFD.rtc.addPort(new Port("target", "out", { owner: "rtc" }));
+    this.RTCSystemCFD.rtc.sm.addPort(new Port("s1", "in", { owner: "sm" }));
+    this.RTCSystemCFD.rtc.sm.addPort(new Port("s2", "in", { owner: "sm" }));
+    this.RTCSystemCFD.rtc.sm.addPort(new Port("average", "out", { owner: "sm" }));
+    this.RTCSystemCFD.rtc.cm.addPort(new Port("target2", "in", { owner: "cm" }));
+    this.RTCSystemCFD.rtc.cm.addPort(new Port("average2", "in", { owner: "cm" }));
+    this.RTCSystemCFD.rtc.cm.addPort(new Port("heating", "out", { owner: "cm" }));
+    this.RTCSystemCFD.rtc.cm.addPort(new Port("cooling", "out", { owner: "cm" }));
+    this.RTCSystemCFD.rtc.pc.addPort(new Port("detected", "in", { owner: "pc" }));
+    this.RTCSystemCFD.rtc.pc.addPort(new Port("userTemp", "in", { owner: "pc" }));
+    this.RTCSystemCFD.rtc.pc.addPort(new Port("target", "out", { owner: "pc" }));
     this.addExecutableSafe("SysADLModel.CommandCoolerEx", "executable def CommandCoolerEx(in cmds:Commands): out Command{return cmds->cooler ; }", []);
     this.addExecutableSafe("SysADLModel.CommandHeaterEx", "executable def CommandHeaterEx(in cmds:Commands): out Command{return cmds->heater ; }", []);
     this.addExecutableSafe("SysADLModel.FahrenheitToCelsiusEx", "executable def FahrenheitToCelsiusEx(in f:FahrenheitTemperature): out CelsiusTemperature{return 5*(f - 32)/9 ; }", []);
     this.addExecutableSafe("SysADLModel.CalculateAverageTemperatureEx", "executable def CalculateAverageTemperatureEx(in temp1:CelsiusTemperature,in temp2:CelsiusTemperature):out CelsiusTemperature{return (temp1 + temp2)/2 ; }", []);
     this.addExecutableSafe("SysADLModel.CheckPresenceToSetTemperature", "executable def CheckPresenceToSetTemperature(in presence:Boolean, in userTemp:CelsiusTemperature):out CelsiusTemperature{if(presence == true) return userTemp; else return 2; }", []);
     this.addExecutableSafe("SysADLModel.CompareTemperatureEx", "executable def CompareTemperatureEx(in target:CelsiusTemperature, in average:CelsiusTemperature):out Commands{let heater:Command = types.Command::Off; let cooler:Command = types.Command::Off; if(average > target) {heater = types.Command::Off; cooler = types.Command::On ; } else {heater = types.Command::On; cooler = types.Command::Off ;} }", []);
-    this.addExecutableSafe("SysADLModel.5k42", "executable FahrenheitToCelsiusEx to FahrenheitToCelsiusAN", []);
-    this.addExecutableSafe("SysADLModel.iv7t", "executable CompareTemperatureEx to CompareTemperatureAN", []);
-    this.addExecutableSafe("SysADLModel.grsk", "executable CommandHeaterEx to CommandHeaterAN", []);
-    this.addExecutableSafe("SysADLModel.l1yr", "executable CommandCoolerEx to CommandCoolerAN", []);
-    this.addExecutableSafe("SysADLModel.zb2p", "executable CheckPresenceToSetTemperature to CheckPeresenceToSetTemperatureAN", []);
-    this.addExecutableSafe("SysADLModel.3o69", "executable CalculateAverageTemperatureEx to CalculateAverageTemperatureAN", []);
+    this.addExecutableSafe("SysADLModel.vdpr", "executable FahrenheitToCelsiusEx to FahrenheitToCelsiusAN", []);
+    this.addExecutableSafe("SysADLModel.38bm", "executable CompareTemperatureEx to CompareTemperatureAN", []);
+    this.addExecutableSafe("SysADLModel.m9jj", "executable CommandHeaterEx to CommandHeaterAN", []);
+    this.addExecutableSafe("SysADLModel.8xbm", "executable CommandCoolerEx to CommandCoolerAN", []);
+    this.addExecutableSafe("SysADLModel.dgh6", "executable CheckPresenceToSetTemperature to CheckPeresenceToSetTemperatureAN", []);
+    this.addExecutableSafe("SysADLModel.duwt", "executable CalculateAverageTemperatureEx to CalculateAverageTemperatureAN", []);
     const act_CalculateAverageTemperatureAC_s1 = new Activity("CalculateAverageTemperatureAC", { component: "s1", inputPorts: ["current"] });
     act_CalculateAverageTemperatureAC_s1.addAction(new Action("CalculateAverageTemperatureAN", [], "CalculateAverageTemperatureEx"));
     this.registerActivity("CalculateAverageTemperatureAC::s1", act_CalculateAverageTemperatureAC_s1);

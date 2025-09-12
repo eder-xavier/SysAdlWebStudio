@@ -355,69 +355,69 @@ class SysADLArchitecture extends Model {
     this.SmartPlace.Raspberry.tc = new TemperatureController("tc", { sysadlDefinition: "TemperatureController" });
     this.SmartPlace.Raspberry.addComponent(this.SmartPlace.Raspberry.tc);
 
-    if (!this.SmartPlace.spw.ports["co"]) { const __p = new Port("co", "out", { owner: "spw" }); this.SmartPlace.spw.addPort(__p); }
-    if (!this.SmartPlace.spw.ports["rr"]) { const __p = new Port("rr", "in", { owner: "spw" }); this.SmartPlace.spw.addPort(__p); }
-    if (!this.SmartPlace.spw.ports["db"]) { const __p = new Port("db", "in", { owner: "spw" }); this.SmartPlace.spw.addPort(__p); }
-    if (!this.SmartPlace.spw.ports["u"]) { const __p = new Port("u", "out", { owner: "spw" }); this.SmartPlace.spw.addPort(__p); }
-    if (!this.SmartPlace.spw.ports["ctx"]) { const __p = new Port("ctx", "in", { owner: "spw" }); this.SmartPlace.spw.addPort(__p); }
-    if (!this.SmartPlace.spw.ports["ciRc"]) { const __p = new Port("ciRc", "out", { owner: "spw" }); this.SmartPlace.spw.addPort(__p); }
-    if (!this.SmartPlace.spw.ports["regUi"]) { const __p = new Port("regUi", "in", { owner: "spw" }); this.SmartPlace.spw.addPort(__p); }
-    if (!this.SmartPlace.spw.ports["a"]) { const __p = new Port("a", "in", { owner: "spw" }); this.SmartPlace.spw.addPort(__p); }
-    if (!this.SmartPlace.spw.ports["dbGg"]) { const __p = new Port("dbGg", "in", { owner: "spw" }); this.SmartPlace.spw.addPort(__p); }
-    if (!this.SmartPlace.spw.ports["ctxGg"]) { const __p = new Port("ctxGg", "in", { owner: "spw" }); this.SmartPlace.spw.addPort(__p); }
-    if (!this.SmartPlace.spw.ports["rrHc"]) { const __p = new Port("rrHc", "in", { owner: "spw" }); this.SmartPlace.spw.addPort(__p); }
-    if (!this.SmartPlace.spw.ports["uHc"]) { const __p = new Port("uHc", "out", { owner: "spw" }); this.SmartPlace.spw.addPort(__p); }
-    if (!this.SmartPlace.spw.ports["ctxHc"]) { const __p = new Port("ctxHc", "in", { owner: "spw" }); this.SmartPlace.spw.addPort(__p); }
-    if (!this.SmartPlace.rrs.ports["ri"]) { const __p = new Port("ri", "in", { owner: "rrs" }); this.SmartPlace.rrs.addPort(__p); }
-    if (!this.SmartPlace.ocb.ports["ci"]) { const __p = new Port("ci", "in", { owner: "ocb" }); this.SmartPlace.ocb.addPort(__p); }
-    if (!this.SmartPlace.ocb.ports["ctx"]) { const __p = new Port("ctx", "in", { owner: "ocb" }); this.SmartPlace.ocb.addPort(__p); }
-    if (!this.SmartPlace.ths.ports["temperature"]) { const __p = new Port("temperature", "out", { owner: "ths" }); this.SmartPlace.ths.addPort(__p); }
-    if (!this.SmartPlace.ps.ports["presence"]) { const __p = new Port("presence", "out", { owner: "ps" }); this.SmartPlace.ps.addPort(__p); }
-    if (!this.SmartPlace.psql.ports["db"]) { const __p = new Port("db", "in", { owner: "psql" }); this.SmartPlace.psql.addPort(__p); }
-    if (!this.SmartPlace.psql.ports["u"]) { const __p = new Port("u", "in", { owner: "psql" }); this.SmartPlace.psql.addPort(__p); }
-    if (!this.SmartPlace.ac.ports["is"]) { const __p = new Port("is", "in", { owner: "ac" }); this.SmartPlace.ac.addPort(__p); }
-    if (!this.SmartPlace.ac.ports["uF"]) { const __p = new Port("uF", "out", { owner: "ac" }); this.SmartPlace.ac.addPort(__p); }
-    if (!this.SmartPlace.ac.ports["isF"]) { const __p = new Port("isF", "in", { owner: "ac" }); this.SmartPlace.ac.addPort(__p); }
-    if (!this.SmartPlace.ac.ports["uAcc"]) { const __p = new Port("uAcc", "in", { owner: "ac" }); this.SmartPlace.ac.addPort(__p); }
-    if (!this.SmartPlace.Led.ports["c"]) { const __p = new Port("c", "in", { owner: "Led" }); this.SmartPlace.Led.addPort(__p); }
-    if (!this.SmartPlace.Led.ports["is"]) { const __p = new Port("is", "out", { owner: "Led" }); this.SmartPlace.Led.addPort(__p); }
-    if (!this.SmartPlace.Raspberry.ports["c"]) { const __p = new Port("c", "out", { owner: "Raspberry" }); this.SmartPlace.Raspberry.addPort(__p); }
-    if (!this.SmartPlace.Raspberry.ports["ri"]) { const __p = new Port("ri", "in", { owner: "Raspberry" }); this.SmartPlace.Raspberry.addPort(__p); }
-    if (!this.SmartPlace.Raspberry.ports["f"]) { const __p = new Port("f", "in", { owner: "Raspberry" }); this.SmartPlace.Raspberry.addPort(__p); }
-    if (!this.SmartPlace.Raspberry.ports["temperature"]) { const __p = new Port("temperature", "in", { owner: "Raspberry" }); this.SmartPlace.Raspberry.addPort(__p); }
-    if (!this.SmartPlace.Raspberry.ports["presence"]) { const __p = new Port("presence", "in", { owner: "Raspberry" }); this.SmartPlace.Raspberry.addPort(__p); }
-    if (!this.SmartPlace.Raspberry.ports["rr"]) { const __p = new Port("rr", "out", { owner: "Raspberry" }); this.SmartPlace.Raspberry.addPort(__p); }
-    if (!this.SmartPlace.Raspberry.ports["fCm"]) { const __p = new Port("fCm", "in", { owner: "Raspberry" }); this.SmartPlace.Raspberry.addPort(__p); }
-    if (!this.SmartPlace.Raspberry.ports["numPeopleCm"]) { const __p = new Port("numPeopleCm", "out", { owner: "Raspberry" }); this.SmartPlace.Raspberry.addPort(__p); }
-    if (!this.SmartPlace.Raspberry.ports["presenceTc"]) { const __p = new Port("presenceTc", "in", { owner: "Raspberry" }); this.SmartPlace.Raspberry.addPort(__p); }
-    if (!this.SmartPlace.Raspberry.ports["rraspTc"]) { const __p = new Port("rraspTc", "out", { owner: "Raspberry" }); this.SmartPlace.Raspberry.addPort(__p); }
-    if (!this.SmartPlace.Raspberry.ports["riTc"]) { const __p = new Port("riTc", "in", { owner: "Raspberry" }); this.SmartPlace.Raspberry.addPort(__p); }
-    if (!this.SmartPlace.Raspberry.ports["temperatureTc"]) { const __p = new Port("temperatureTc", "in", { owner: "Raspberry" }); this.SmartPlace.Raspberry.addPort(__p); }
-    if (!this.SmartPlace.Raspberry.ports["numPeopleTc"]) { const __p = new Port("numPeopleTc", "in", { owner: "Raspberry" }); this.SmartPlace.Raspberry.addPort(__p); }
-    if (!this.SmartPlace.Raspberry.ports["cTc"]) { const __p = new Port("cTc", "out", { owner: "Raspberry" }); this.SmartPlace.Raspberry.addPort(__p); }
-    if (!this.SmartPlace.Raspberry.ports["rresp"]) { const __p = new Port("rresp", "in", { owner: "Raspberry" }); this.SmartPlace.Raspberry.addPort(__p); }
-    if (!this.SmartPlace.Camera.ports["f"]) { const __p = new Port("f", "out", { owner: "Camera" }); this.SmartPlace.Camera.addPort(__p); }
-    if (!this.SmartPlace.Raspberry.cm.ports["f"]) { const __p = new Port("f", "in", { owner: "cm" }); this.SmartPlace.Raspberry.cm.addPort(__p); }
-    if (!this.SmartPlace.Raspberry.cm.ports["numPeople"]) { const __p = new Port("numPeople", "out", { owner: "cm" }); this.SmartPlace.Raspberry.cm.addPort(__p); }
-    if (!this.SmartPlace.Raspberry.tc.ports["presence"]) { const __p = new Port("presence", "in", { owner: "tc" }); this.SmartPlace.Raspberry.tc.addPort(__p); }
-    if (!this.SmartPlace.Raspberry.tc.ports["rrasp"]) { const __p = new Port("rrasp", "out", { owner: "tc" }); this.SmartPlace.Raspberry.tc.addPort(__p); }
-    if (!this.SmartPlace.Raspberry.tc.ports["ri"]) { const __p = new Port("ri", "in", { owner: "tc" }); this.SmartPlace.Raspberry.tc.addPort(__p); }
-    if (!this.SmartPlace.Raspberry.tc.ports["temperature"]) { const __p = new Port("temperature", "in", { owner: "tc" }); this.SmartPlace.Raspberry.tc.addPort(__p); }
-    if (!this.SmartPlace.Raspberry.tc.ports["numPeople"]) { const __p = new Port("numPeople", "in", { owner: "tc" }); this.SmartPlace.Raspberry.tc.addPort(__p); }
-    if (!this.SmartPlace.Raspberry.tc.ports["c"]) { const __p = new Port("c", "out", { owner: "tc" }); this.SmartPlace.Raspberry.tc.addPort(__p); }
-    if (!this.SmartPlace.Raspberry.sqlite.ports["ri"]) { const __p = new Port("ri", "in", { owner: "sqlite" }); this.SmartPlace.Raspberry.sqlite.addPort(__p); }
-    if (!this.SmartPlace.Raspberry.sqlite.ports["rresp"]) { const __p = new Port("rresp", "in", { owner: "sqlite" }); this.SmartPlace.Raspberry.sqlite.addPort(__p); }
-    if (!this.SmartPlace.ac.f.ports["u"]) { const __p = new Port("u", "out", { owner: "f" }); this.SmartPlace.ac.f.addPort(__p); }
-    if (!this.SmartPlace.ac.f.ports["is"]) { const __p = new Port("is", "in", { owner: "f" }); this.SmartPlace.ac.f.addPort(__p); }
-    if (!this.SmartPlace.ac.acc.ports["u"]) { const __p = new Port("u", "in", { owner: "acc" }); this.SmartPlace.ac.acc.addPort(__p); }
-    if (!this.SmartPlace.spw.rc.ports["ci"]) { const __p = new Port("ci", "out", { owner: "rc" }); this.SmartPlace.spw.rc.addPort(__p); }
-    if (!this.SmartPlace.spw.rc.ports["regUi"]) { const __p = new Port("regUi", "in", { owner: "rc" }); this.SmartPlace.spw.rc.addPort(__p); }
-    if (!this.SmartPlace.spw.rg.ports["a"]) { const __p = new Port("a", "in", { owner: "rg" }); this.SmartPlace.spw.rg.addPort(__p); }
-    if (!this.SmartPlace.spw.gg.ports["db"]) { const __p = new Port("db", "in", { owner: "gg" }); this.SmartPlace.spw.gg.addPort(__p); }
-    if (!this.SmartPlace.spw.gg.ports["ctx"]) { const __p = new Port("ctx", "in", { owner: "gg" }); this.SmartPlace.spw.gg.addPort(__p); }
-    if (!this.SmartPlace.spw.hc.ports["rr"]) { const __p = new Port("rr", "in", { owner: "hc" }); this.SmartPlace.spw.hc.addPort(__p); }
-    if (!this.SmartPlace.spw.hc.ports["u"]) { const __p = new Port("u", "out", { owner: "hc" }); this.SmartPlace.spw.hc.addPort(__p); }
-    if (!this.SmartPlace.spw.hc.ports["ctx"]) { const __p = new Port("ctx", "in", { owner: "hc" }); this.SmartPlace.spw.hc.addPort(__p); }
+    this.SmartPlace.spw.addPort(new Port("co", "out", { owner: "spw" }));
+    this.SmartPlace.spw.addPort(new Port("rr", "in", { owner: "spw" }));
+    this.SmartPlace.spw.addPort(new Port("db", "in", { owner: "spw" }));
+    this.SmartPlace.spw.addPort(new Port("u", "out", { owner: "spw" }));
+    this.SmartPlace.spw.addPort(new Port("ctx", "in", { owner: "spw" }));
+    this.SmartPlace.spw.addPort(new Port("ciRc", "out", { owner: "spw" }));
+    this.SmartPlace.spw.addPort(new Port("regUi", "in", { owner: "spw" }));
+    this.SmartPlace.spw.addPort(new Port("a", "in", { owner: "spw" }));
+    this.SmartPlace.spw.addPort(new Port("dbGg", "in", { owner: "spw" }));
+    this.SmartPlace.spw.addPort(new Port("ctxGg", "in", { owner: "spw" }));
+    this.SmartPlace.spw.addPort(new Port("rrHc", "in", { owner: "spw" }));
+    this.SmartPlace.spw.addPort(new Port("uHc", "out", { owner: "spw" }));
+    this.SmartPlace.spw.addPort(new Port("ctxHc", "in", { owner: "spw" }));
+    this.SmartPlace.rrs.addPort(new Port("ri", "in", { owner: "rrs" }));
+    this.SmartPlace.ocb.addPort(new Port("ci", "in", { owner: "ocb" }));
+    this.SmartPlace.ocb.addPort(new Port("ctx", "in", { owner: "ocb" }));
+    this.SmartPlace.ths.addPort(new Port("temperature", "out", { owner: "ths" }));
+    this.SmartPlace.ps.addPort(new Port("presence", "out", { owner: "ps" }));
+    this.SmartPlace.psql.addPort(new Port("db", "in", { owner: "psql" }));
+    this.SmartPlace.psql.addPort(new Port("u", "in", { owner: "psql" }));
+    this.SmartPlace.ac.addPort(new Port("is", "in", { owner: "ac" }));
+    this.SmartPlace.ac.addPort(new Port("uF", "out", { owner: "ac" }));
+    this.SmartPlace.ac.addPort(new Port("isF", "in", { owner: "ac" }));
+    this.SmartPlace.ac.addPort(new Port("uAcc", "in", { owner: "ac" }));
+    this.SmartPlace.Led.addPort(new Port("c", "in", { owner: "Led" }));
+    this.SmartPlace.Led.addPort(new Port("is", "out", { owner: "Led" }));
+    this.SmartPlace.Raspberry.addPort(new Port("c", "out", { owner: "Raspberry" }));
+    this.SmartPlace.Raspberry.addPort(new Port("ri", "in", { owner: "Raspberry" }));
+    this.SmartPlace.Raspberry.addPort(new Port("f", "in", { owner: "Raspberry" }));
+    this.SmartPlace.Raspberry.addPort(new Port("temperature", "in", { owner: "Raspberry" }));
+    this.SmartPlace.Raspberry.addPort(new Port("presence", "in", { owner: "Raspberry" }));
+    this.SmartPlace.Raspberry.addPort(new Port("rr", "out", { owner: "Raspberry" }));
+    this.SmartPlace.Raspberry.addPort(new Port("fCm", "in", { owner: "Raspberry" }));
+    this.SmartPlace.Raspberry.addPort(new Port("numPeopleCm", "out", { owner: "Raspberry" }));
+    this.SmartPlace.Raspberry.addPort(new Port("presenceTc", "in", { owner: "Raspberry" }));
+    this.SmartPlace.Raspberry.addPort(new Port("rraspTc", "out", { owner: "Raspberry" }));
+    this.SmartPlace.Raspberry.addPort(new Port("riTc", "in", { owner: "Raspberry" }));
+    this.SmartPlace.Raspberry.addPort(new Port("temperatureTc", "in", { owner: "Raspberry" }));
+    this.SmartPlace.Raspberry.addPort(new Port("numPeopleTc", "in", { owner: "Raspberry" }));
+    this.SmartPlace.Raspberry.addPort(new Port("cTc", "out", { owner: "Raspberry" }));
+    this.SmartPlace.Raspberry.addPort(new Port("rresp", "in", { owner: "Raspberry" }));
+    this.SmartPlace.Camera.addPort(new Port("f", "out", { owner: "Camera" }));
+    this.SmartPlace.Raspberry.cm.addPort(new Port("f", "in", { owner: "cm" }));
+    this.SmartPlace.Raspberry.cm.addPort(new Port("numPeople", "out", { owner: "cm" }));
+    this.SmartPlace.Raspberry.tc.addPort(new Port("presence", "in", { owner: "tc" }));
+    this.SmartPlace.Raspberry.tc.addPort(new Port("rrasp", "out", { owner: "tc" }));
+    this.SmartPlace.Raspberry.tc.addPort(new Port("ri", "in", { owner: "tc" }));
+    this.SmartPlace.Raspberry.tc.addPort(new Port("temperature", "in", { owner: "tc" }));
+    this.SmartPlace.Raspberry.tc.addPort(new Port("numPeople", "in", { owner: "tc" }));
+    this.SmartPlace.Raspberry.tc.addPort(new Port("c", "out", { owner: "tc" }));
+    this.SmartPlace.Raspberry.sqlite.addPort(new Port("ri", "in", { owner: "sqlite" }));
+    this.SmartPlace.Raspberry.sqlite.addPort(new Port("rresp", "in", { owner: "sqlite" }));
+    this.SmartPlace.ac.f.addPort(new Port("u", "out", { owner: "f" }));
+    this.SmartPlace.ac.f.addPort(new Port("is", "in", { owner: "f" }));
+    this.SmartPlace.ac.acc.addPort(new Port("u", "in", { owner: "acc" }));
+    this.SmartPlace.spw.rc.addPort(new Port("ci", "out", { owner: "rc" }));
+    this.SmartPlace.spw.rc.addPort(new Port("regUi", "in", { owner: "rc" }));
+    this.SmartPlace.spw.rg.addPort(new Port("a", "in", { owner: "rg" }));
+    this.SmartPlace.spw.gg.addPort(new Port("db", "in", { owner: "gg" }));
+    this.SmartPlace.spw.gg.addPort(new Port("ctx", "in", { owner: "gg" }));
+    this.SmartPlace.spw.hc.addPort(new Port("rr", "in", { owner: "hc" }));
+    this.SmartPlace.spw.hc.addPort(new Port("u", "out", { owner: "hc" }));
+    this.SmartPlace.spw.hc.addPort(new Port("ctx", "in", { owner: "hc" }));
     const act_RaspberryControllerAC_spw = new Activity("RaspberryControllerAC", { component: "spw", inputPorts: ["u"] });
     this.registerActivity("RaspberryControllerAC::spw", act_RaspberryControllerAC_spw);
     const act_RaspberryControllerAC_rrs = new Activity("RaspberryControllerAC", { component: "rrs", inputPorts: ["ri"] });

@@ -164,74 +164,74 @@ class SysADLArchitecture extends Model {
     this.FactoryAutomationSystem.agvs.vc.vt = new VehicleTimer("vt", { sysadlDefinition: "VehicleTimer" });
     this.FactoryAutomationSystem.agvs.vc.addComponent(this.FactoryAutomationSystem.agvs.vc.vt);
 
-    if (!this.FactoryAutomationSystem.ss.ports["in_outData"]) { const __p = new Port("in_outData", "in", { owner: "ss" }); this.FactoryAutomationSystem.ss.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.ports["sendStatus"]) { const __p = new Port("sendStatus", "out", { owner: "agvs" }); this.FactoryAutomationSystem.agvs.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.ports["in_outData"]) { const __p = new Port("in_outData", "in", { owner: "agvs" }); this.FactoryAutomationSystem.agvs.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.ports["start_stop_in"]) { const __p = new Port("start_stop_in", "in", { owner: "agvs" }); this.FactoryAutomationSystem.agvs.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.ports["started_stopped_out"]) { const __p = new Port("started_stopped_out", "out", { owner: "agvs" }); this.FactoryAutomationSystem.agvs.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.ports["arrivalDetected_out"]) { const __p = new Port("arrivalDetected_out", "out", { owner: "agvs" }); this.FactoryAutomationSystem.agvs.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.ports["start"]) { const __p = new Port("start", "in", { owner: "agvs" }); this.FactoryAutomationSystem.agvs.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.ports["started"]) { const __p = new Port("started", "out", { owner: "agvs" }); this.FactoryAutomationSystem.agvs.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.ports["arrivalDetected_in"]) { const __p = new Port("arrivalDetected_in", "in", { owner: "agvs" }); this.FactoryAutomationSystem.agvs.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.ports["startArm"]) { const __p = new Port("startArm", "out", { owner: "agvs" }); this.FactoryAutomationSystem.agvs.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.ports["startedArm"]) { const __p = new Port("startedArm", "in", { owner: "agvs" }); this.FactoryAutomationSystem.agvs.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.ports["started_stopped_in"]) { const __p = new Port("started_stopped_in", "in", { owner: "agvs" }); this.FactoryAutomationSystem.agvs.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.ports["start_stop_out"]) { const __p = new Port("start_stop_out", "out", { owner: "agvs" }); this.FactoryAutomationSystem.agvs.addPort(__p); }
-    if (!this.FactoryAutomationSystem.ds.ports["receiveStatus"]) { const __p = new Port("receiveStatus", "in", { owner: "ds" }); this.FactoryAutomationSystem.ds.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.m.ports["start_stop"]) { const __p = new Port("start_stop", "in", { owner: "m" }); this.FactoryAutomationSystem.agvs.m.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.m.ports["started_stopped"]) { const __p = new Port("started_stopped", "out", { owner: "m" }); this.FactoryAutomationSystem.agvs.m.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.as.ports["arrivalDetected"]) { const __p = new Port("arrivalDetected", "out", { owner: "as" }); this.FactoryAutomationSystem.agvs.as.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.ra.ports["start"]) { const __p = new Port("start", "in", { owner: "ra" }); this.FactoryAutomationSystem.agvs.ra.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.ra.ports["started"]) { const __p = new Port("started", "out", { owner: "ra" }); this.FactoryAutomationSystem.agvs.ra.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ports["sendStatus"]) { const __p = new Port("sendStatus", "out", { owner: "vc" }); this.FactoryAutomationSystem.agvs.vc.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ports["arrivalDetected"]) { const __p = new Port("arrivalDetected", "in", { owner: "vc" }); this.FactoryAutomationSystem.agvs.vc.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ports["startArm"]) { const __p = new Port("startArm", "out", { owner: "vc" }); this.FactoryAutomationSystem.agvs.vc.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ports["startedArm"]) { const __p = new Port("startedArm", "in", { owner: "vc" }); this.FactoryAutomationSystem.agvs.vc.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ports["started_stopped"]) { const __p = new Port("started_stopped", "in", { owner: "vc" }); this.FactoryAutomationSystem.agvs.vc.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ports["start_stop"]) { const __p = new Port("start_stop", "out", { owner: "vc" }); this.FactoryAutomationSystem.agvs.vc.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ports["in_outData"]) { const __p = new Port("in_outData", "in", { owner: "vc" }); this.FactoryAutomationSystem.agvs.vc.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ports["ack_cs"]) { const __p = new Port("ack_cs", "in", { owner: "vc" }); this.FactoryAutomationSystem.agvs.vc.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ports["location_cs"]) { const __p = new Port("location_cs", "out", { owner: "vc" }); this.FactoryAutomationSystem.agvs.vc.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ports["destination_cs"]) { const __p = new Port("destination_cs", "in", { owner: "vc" }); this.FactoryAutomationSystem.agvs.vc.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ports["stop"]) { const __p = new Port("stop", "out", { owner: "vc" }); this.FactoryAutomationSystem.agvs.vc.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ports["passed"]) { const __p = new Port("passed", "out", { owner: "vc" }); this.FactoryAutomationSystem.agvs.vc.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ports["cmd_ca"]) { const __p = new Port("cmd_ca", "in", { owner: "vc" }); this.FactoryAutomationSystem.agvs.vc.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ports["ack_ca"]) { const __p = new Port("ack_ca", "in", { owner: "vc" }); this.FactoryAutomationSystem.agvs.vc.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ports["inAck"]) { const __p = new Port("inAck", "in", { owner: "vc" }); this.FactoryAutomationSystem.agvs.vc.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ports["ack"]) { const __p = new Port("ack", "out", { owner: "vc" }); this.FactoryAutomationSystem.agvs.vc.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ports["outAck"]) { const __p = new Port("outAck", "out", { owner: "vc" }); this.FactoryAutomationSystem.agvs.vc.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ports["move"]) { const __p = new Port("move", "in", { owner: "vc" }); this.FactoryAutomationSystem.agvs.vc.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ports["cmd_sm"]) { const __p = new Port("cmd_sm", "out", { owner: "vc" }); this.FactoryAutomationSystem.agvs.vc.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ports["destination"]) { const __p = new Port("destination", "out", { owner: "vc" }); this.FactoryAutomationSystem.agvs.vc.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ports["start"]) { const __p = new Port("start", "out", { owner: "vc" }); this.FactoryAutomationSystem.agvs.vc.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ports["arrivedStatus"]) { const __p = new Port("arrivedStatus", "out", { owner: "vc" }); this.FactoryAutomationSystem.agvs.vc.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ports["loaded_unloaded"]) { const __p = new Port("loaded_unloaded", "in", { owner: "vc" }); this.FactoryAutomationSystem.agvs.vc.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ports["AGVStatus"]) { const __p = new Port("AGVStatus", "out", { owner: "vc" }); this.FactoryAutomationSystem.agvs.vc.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ports["location_vt"]) { const __p = new Port("location_vt", "in", { owner: "vc" }); this.FactoryAutomationSystem.agvs.vc.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ports["destination_vt"]) { const __p = new Port("destination_vt", "in", { owner: "vc" }); this.FactoryAutomationSystem.agvs.vc.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ports["cmd"]) { const __p = new Port("cmd", "in", { owner: "vc" }); this.FactoryAutomationSystem.agvs.vc.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.cs.ports["ack"]) { const __p = new Port("ack", "in", { owner: "cs" }); this.FactoryAutomationSystem.agvs.vc.cs.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.cs.ports["location"]) { const __p = new Port("location", "out", { owner: "cs" }); this.FactoryAutomationSystem.agvs.vc.cs.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.cs.ports["destination"]) { const __p = new Port("destination", "in", { owner: "cs" }); this.FactoryAutomationSystem.agvs.vc.cs.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.cs.ports["stop"]) { const __p = new Port("stop", "out", { owner: "cs" }); this.FactoryAutomationSystem.agvs.vc.cs.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.cs.ports["arrivalDetected"]) { const __p = new Port("arrivalDetected", "in", { owner: "cs" }); this.FactoryAutomationSystem.agvs.vc.cs.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.cs.ports["passed"]) { const __p = new Port("passed", "out", { owner: "cs" }); this.FactoryAutomationSystem.agvs.vc.cs.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ca.ports["cmd"]) { const __p = new Port("cmd", "in", { owner: "ca" }); this.FactoryAutomationSystem.agvs.vc.ca.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ca.ports["ack"]) { const __p = new Port("ack", "in", { owner: "ca" }); this.FactoryAutomationSystem.agvs.vc.ca.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.ca.ports["startArm"]) { const __p = new Port("startArm", "out", { owner: "ca" }); this.FactoryAutomationSystem.agvs.vc.ca.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.nm.ports["inAck"]) { const __p = new Port("inAck", "in", { owner: "nm" }); this.FactoryAutomationSystem.agvs.vc.nm.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.nm.ports["ack"]) { const __p = new Port("ack", "out", { owner: "nm" }); this.FactoryAutomationSystem.agvs.vc.nm.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.nm.ports["outAck"]) { const __p = new Port("outAck", "out", { owner: "nm" }); this.FactoryAutomationSystem.agvs.vc.nm.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.sm.ports["move"]) { const __p = new Port("move", "in", { owner: "sm" }); this.FactoryAutomationSystem.agvs.vc.sm.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.sm.ports["cmd"]) { const __p = new Port("cmd", "out", { owner: "sm" }); this.FactoryAutomationSystem.agvs.vc.sm.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.sm.ports["destination"]) { const __p = new Port("destination", "out", { owner: "sm" }); this.FactoryAutomationSystem.agvs.vc.sm.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.sm.ports["start"]) { const __p = new Port("start", "out", { owner: "sm" }); this.FactoryAutomationSystem.agvs.vc.sm.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.na.ports["arrivedStatus"]) { const __p = new Port("arrivedStatus", "out", { owner: "na" }); this.FactoryAutomationSystem.agvs.vc.na.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.na.ports["loaded_unloaded"]) { const __p = new Port("loaded_unloaded", "in", { owner: "na" }); this.FactoryAutomationSystem.agvs.vc.na.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.vt.ports["AGVStatus"]) { const __p = new Port("AGVStatus", "out", { owner: "vt" }); this.FactoryAutomationSystem.agvs.vc.vt.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.vt.ports["location"]) { const __p = new Port("location", "in", { owner: "vt" }); this.FactoryAutomationSystem.agvs.vc.vt.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.vt.ports["destination"]) { const __p = new Port("destination", "in", { owner: "vt" }); this.FactoryAutomationSystem.agvs.vc.vt.addPort(__p); }
-    if (!this.FactoryAutomationSystem.agvs.vc.vt.ports["cmd"]) { const __p = new Port("cmd", "in", { owner: "vt" }); this.FactoryAutomationSystem.agvs.vc.vt.addPort(__p); }
+    this.FactoryAutomationSystem.ss.addPort(new Port("in_outData", "in", { owner: "ss" }));
+    this.FactoryAutomationSystem.agvs.addPort(new Port("sendStatus", "out", { owner: "agvs" }));
+    this.FactoryAutomationSystem.agvs.addPort(new Port("in_outData", "in", { owner: "agvs" }));
+    this.FactoryAutomationSystem.agvs.addPort(new Port("start_stop_in", "in", { owner: "agvs" }));
+    this.FactoryAutomationSystem.agvs.addPort(new Port("started_stopped_out", "out", { owner: "agvs" }));
+    this.FactoryAutomationSystem.agvs.addPort(new Port("arrivalDetected_out", "out", { owner: "agvs" }));
+    this.FactoryAutomationSystem.agvs.addPort(new Port("start", "in", { owner: "agvs" }));
+    this.FactoryAutomationSystem.agvs.addPort(new Port("started", "out", { owner: "agvs" }));
+    this.FactoryAutomationSystem.agvs.addPort(new Port("arrivalDetected_in", "in", { owner: "agvs" }));
+    this.FactoryAutomationSystem.agvs.addPort(new Port("startArm", "out", { owner: "agvs" }));
+    this.FactoryAutomationSystem.agvs.addPort(new Port("startedArm", "in", { owner: "agvs" }));
+    this.FactoryAutomationSystem.agvs.addPort(new Port("started_stopped_in", "in", { owner: "agvs" }));
+    this.FactoryAutomationSystem.agvs.addPort(new Port("start_stop_out", "out", { owner: "agvs" }));
+    this.FactoryAutomationSystem.ds.addPort(new Port("receiveStatus", "in", { owner: "ds" }));
+    this.FactoryAutomationSystem.agvs.m.addPort(new Port("start_stop", "in", { owner: "m" }));
+    this.FactoryAutomationSystem.agvs.m.addPort(new Port("started_stopped", "out", { owner: "m" }));
+    this.FactoryAutomationSystem.agvs.as.addPort(new Port("arrivalDetected", "out", { owner: "as" }));
+    this.FactoryAutomationSystem.agvs.ra.addPort(new Port("start", "in", { owner: "ra" }));
+    this.FactoryAutomationSystem.agvs.ra.addPort(new Port("started", "out", { owner: "ra" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("sendStatus", "out", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("arrivalDetected", "in", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("startArm", "out", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("startedArm", "in", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("started_stopped", "in", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("start_stop", "out", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("in_outData", "in", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("ack_cs", "in", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("location_cs", "out", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("destination_cs", "in", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("stop", "out", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("passed", "out", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("cmd_ca", "in", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("ack_ca", "in", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("inAck", "in", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("ack", "out", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("outAck", "out", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("move", "in", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("cmd_sm", "out", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("destination", "out", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("start", "out", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("arrivedStatus", "out", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("loaded_unloaded", "in", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("AGVStatus", "out", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("location_vt", "in", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("destination_vt", "in", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("cmd", "in", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.cs.addPort(new Port("ack", "in", { owner: "cs" }));
+    this.FactoryAutomationSystem.agvs.vc.cs.addPort(new Port("location", "out", { owner: "cs" }));
+    this.FactoryAutomationSystem.agvs.vc.cs.addPort(new Port("destination", "in", { owner: "cs" }));
+    this.FactoryAutomationSystem.agvs.vc.cs.addPort(new Port("stop", "out", { owner: "cs" }));
+    this.FactoryAutomationSystem.agvs.vc.cs.addPort(new Port("arrivalDetected", "in", { owner: "cs" }));
+    this.FactoryAutomationSystem.agvs.vc.cs.addPort(new Port("passed", "out", { owner: "cs" }));
+    this.FactoryAutomationSystem.agvs.vc.ca.addPort(new Port("cmd", "in", { owner: "ca" }));
+    this.FactoryAutomationSystem.agvs.vc.ca.addPort(new Port("ack", "in", { owner: "ca" }));
+    this.FactoryAutomationSystem.agvs.vc.ca.addPort(new Port("startArm", "out", { owner: "ca" }));
+    this.FactoryAutomationSystem.agvs.vc.nm.addPort(new Port("inAck", "in", { owner: "nm" }));
+    this.FactoryAutomationSystem.agvs.vc.nm.addPort(new Port("ack", "out", { owner: "nm" }));
+    this.FactoryAutomationSystem.agvs.vc.nm.addPort(new Port("outAck", "out", { owner: "nm" }));
+    this.FactoryAutomationSystem.agvs.vc.sm.addPort(new Port("move", "in", { owner: "sm" }));
+    this.FactoryAutomationSystem.agvs.vc.sm.addPort(new Port("cmd", "out", { owner: "sm" }));
+    this.FactoryAutomationSystem.agvs.vc.sm.addPort(new Port("destination", "out", { owner: "sm" }));
+    this.FactoryAutomationSystem.agvs.vc.sm.addPort(new Port("start", "out", { owner: "sm" }));
+    this.FactoryAutomationSystem.agvs.vc.na.addPort(new Port("arrivedStatus", "out", { owner: "na" }));
+    this.FactoryAutomationSystem.agvs.vc.na.addPort(new Port("loaded_unloaded", "in", { owner: "na" }));
+    this.FactoryAutomationSystem.agvs.vc.vt.addPort(new Port("AGVStatus", "out", { owner: "vt" }));
+    this.FactoryAutomationSystem.agvs.vc.vt.addPort(new Port("location", "in", { owner: "vt" }));
+    this.FactoryAutomationSystem.agvs.vc.vt.addPort(new Port("destination", "in", { owner: "vt" }));
+    this.FactoryAutomationSystem.agvs.vc.vt.addPort(new Port("cmd", "in", { owner: "vt" }));
     this.addExecutableSafe("SysADLArchitecture.SendStartMotorEX", "executable def SendStartMotorEX ( in move : VehicleData) : out CommandToMotor {\n\t\treturn CommandToMotor::start;\n\t}", []);
     this.addExecutableSafe("SysADLArchitecture.SendCommandEX", "executable def SendCommandEX ( in move : VehicleData) : out CommandToArm {\n\t\treturn move->command;\n\t}", []);
     this.addExecutableSafe("SysADLArchitecture.SendDestinationEX", "executable def SendDestinationEX ( in move : VehicleData) : out Location {\n\t\treturn move->destination;\n\t}", []);
@@ -244,18 +244,18 @@ class SysADLArchitecture extends Model {
     this.addExecutableSafe("SysADLArchitecture.ControlArmEX", "executable def ControlArmEX ( in statusMotor : NotificationFromMotor, in cmd : CommandToArm) : out CommandToArm {\n\t\tif(statusMotor == NotificationFromMotor::stopped)\n\t\t\treturn cmd;\n\t\telse\n\t\t\treturn CommandToArm::idle;\n\t}", []);
     this.addExecutableSafe("SysADLArchitecture.NotifierArmEX", "executable def NotifierArmEX ( in statusArm : NotificationFromArm) : \n\tout\tNotificationToSupervisory {\n\t\treturn NotificationToSupervisory::arrived;\n\t}", []);
     this.addExecutableSafe("SysADLArchitecture.VehicleTimerEX", "executable def VehicleTimerEX ( in location : Location, in cmd : CommandToArm, \n\t\tin destination : Location) : out Status {\n\t\t\n\t\tlet s : Status;\n\t\ts->destination = destination;\n\t\ts->location = location;\n\t\ts->command = cmd;\n\t\t\n\t\treturn s;\n\t}", []);
-    this.addExecutableSafe("SysADLArchitecture.1rh2", "executable CompareStationsEX to CompareStationsAN", []);
-    this.addExecutableSafe("SysADLArchitecture.jwon", "executable ControlArmEX to ControlArmAN", []);
-    this.addExecutableSafe("SysADLArchitecture.zeg5", "executable NotifierArmEX to NotifierArmAN", []);
-    this.addExecutableSafe("SysADLArchitecture.4nyc", "executable NotifyAGVFromMotorEX to NotifyAGVFromMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.wjno", "executable NotifySupervisoryFromMotorEX to NotifySupervisoryFromMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.299j", "executable PassedMotorEX to PassedMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.na2v", "executable SendCommandEX to SendCommandAN", []);
-    this.addExecutableSafe("SysADLArchitecture.bul7", "executable SendCurrentLocationEX to SendCurrentLocationAN", []);
-    this.addExecutableSafe("SysADLArchitecture.mecm", "executable SendDestinationEX to SendDestinationAN", []);
-    this.addExecutableSafe("SysADLArchitecture.x94t", "executable SendStartMotorEX to SendStartMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.thuq", "executable StopMotorEX to StopMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.5932", "executable VehicleTimerEX to VehicleTimerAN", []);
+    this.addExecutableSafe("SysADLArchitecture.tp16", "executable CompareStationsEX to CompareStationsAN", []);
+    this.addExecutableSafe("SysADLArchitecture.ogln", "executable ControlArmEX to ControlArmAN", []);
+    this.addExecutableSafe("SysADLArchitecture.g5ik", "executable NotifierArmEX to NotifierArmAN", []);
+    this.addExecutableSafe("SysADLArchitecture.h68o", "executable NotifyAGVFromMotorEX to NotifyAGVFromMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.vgc6", "executable NotifySupervisoryFromMotorEX to NotifySupervisoryFromMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.n5dv", "executable PassedMotorEX to PassedMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.fr2i", "executable SendCommandEX to SendCommandAN", []);
+    this.addExecutableSafe("SysADLArchitecture.egb1", "executable SendCurrentLocationEX to SendCurrentLocationAN", []);
+    this.addExecutableSafe("SysADLArchitecture.epaq", "executable SendDestinationEX to SendDestinationAN", []);
+    this.addExecutableSafe("SysADLArchitecture.msna", "executable SendStartMotorEX to SendStartMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.q08m", "executable StopMotorEX to StopMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.hz15", "executable VehicleTimerEX to VehicleTimerAN", []);
     const act_StartMovingAC_sm = new Activity("StartMovingAC", { component: "sm", inputPorts: ["move"] });
     act_StartMovingAC_sm.addAction(new Action("SendStartMotorAN", [], "SendStartMotorEX"));
     act_StartMovingAC_sm.addAction(new Action("SendCommandAN", [], "SendCommandEX"));

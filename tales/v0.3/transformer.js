@@ -422,7 +422,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
       // runtime initializes .ports on components; emit direct addPort call without redundant guard
       const __dir = resolvePortDirectionFor(owner, pname);
               try { if (DBG) dbg('[DBG] emitting port for', owner, pname, 'resolvedDirection=', __dir); } catch(e){}
-      lines.push(`    if (!${ownerExpr}.ports[${JSON.stringify(pname)}]) { const __p = new Port(${JSON.stringify(pname)}, ${JSON.stringify(__dir)}, { owner: ${JSON.stringify(owner)} }); ${ownerExpr}.addPort(__p); }`);
+      lines.push(`    ${ownerExpr}.addPort(new Port(${JSON.stringify(pname)}, ${JSON.stringify(__dir)}, { owner: ${JSON.stringify(owner)} }));`);
       __emittedPorts.add(portKey);
     }
   } else {
@@ -431,7 +431,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     const compKey = `${owner}::${pname}`;
     if (!__emittedPorts.has(compKey)) {
       const __dir = resolvePortDirectionFor(owner, pname);
-      lines.push(`    if (!${ownerExpr}.ports[${JSON.stringify(pname)}]) { const __cp = new CompositePort(${JSON.stringify(pname)}, ${JSON.stringify(__dir)}, { owner: ${JSON.stringify(owner)} }); ${ownerExpr}.addPort(__cp); }`);
+      lines.push(`    ${ownerExpr}.addPort(new CompositePort(${JSON.stringify(pname)}, ${JSON.stringify(__dir)}, { owner: ${JSON.stringify(owner)} }));`);
       __emittedPorts.add(compKey);
     }
     for (const sub of (children || [])) {
@@ -460,7 +460,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
                   if (!__emittedPorts.has(ipKey)) {
                     // runtime ensures components initialize `.ports` in their constructor; emit direct addPort without redundant owner.ports initializer
                     const __dir = resolvePortDirectionFor(comp, ip);
-                    lines.push(`    if (!${ownerExpr}.ports[${JSON.stringify(ip)}]) { const __p = new Port(${JSON.stringify(ip)}, ${JSON.stringify(__dir)}, { owner: ${JSON.stringify(comp)} }); ${ownerExpr}.addPort(__p); }`);
+                    lines.push(`${ownerExpr}.addPort(new Port(${JSON.stringify(ip)}, ${JSON.stringify(__dir)}, { owner: ${JSON.stringify(comp)} }));`);
                     __emittedPorts.add(ipKey);
                   }
                 }
