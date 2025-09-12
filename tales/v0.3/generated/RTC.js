@@ -1,47 +1,47 @@
-const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression } = require('../SysADLBase');
-class Int {
+const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression, createTypedClass, registerCustomEnum, Enum } = require('../SysADLBase');
+const Int = createTypedClass('Int', () => class {
   constructor(value) {
     if (value !== undefined) {
       this.value = parseInt(value, 10);
       if (isNaN(this.value)) throw new Error(`Invalid Int value: ${value}`);
     }
   }
-}
+});
 
-class Boolean {
+const Boolean = createTypedClass('Boolean', () => class {
   constructor(value) {
     if (value !== undefined) {
       this.value = value;
     }
   }
-}
+});
 
-class String {
+const String = createTypedClass('String', () => class {
   constructor(value) {
     if (value !== undefined) {
       this.value = value;
     }
   }
-}
+});
 
-class Void {
+const Void = createTypedClass('Void', () => class {
   constructor(value) {
     if (value !== undefined) {
       this.value = value;
     }
   }
-}
+});
 
-class Real {
+const Real = createTypedClass('Real', () => class {
   constructor(value) {
     if (value !== undefined) {
       this.value = parseFloat(value);
       if (isNaN(this.value)) throw new Error(`Invalid Real value: ${value}`);
     }
   }
-}
+});
 
-class temperature extends Real {
+const temperature = createTypedClass('temperature', () => class extends Real {
   constructor(value) {
     super(value);
     if (value !== undefined) {
@@ -49,9 +49,9 @@ class temperature extends Real {
     }
   }
   static dimension = 'Temperature';
-}
+});
 
-class FahrenheitTemperature extends temperature {
+const FahrenheitTemperature = createTypedClass('FahrenheitTemperature', () => class extends temperature {
   constructor(value) {
     super(value);
     if (value !== undefined) {
@@ -60,9 +60,9 @@ class FahrenheitTemperature extends temperature {
   }
   static unit = 'Fahrenheit';
   static dimension = 'Temperature';
-}
+});
 
-class CelsiusTemperature extends temperature {
+const CelsiusTemperature = createTypedClass('CelsiusTemperature', () => class extends temperature {
   constructor(value) {
     super(value);
     if (value !== undefined) {
@@ -71,17 +71,13 @@ class CelsiusTemperature extends temperature {
   }
   static unit = 'Celsius';
   static dimension = 'Temperature';
-}
-
-const Command = Object.freeze({
-  On: "On",
-  Off: "Off"
 });
 
-class Commands {
+const Command = new Enum("On", "Off");
+const Commands = createTypedClass('Commands', () => class {
   constructor(obj = {}) {
     if (typeof obj !== 'object' || obj === null) {
-      throw new Error(`Invalid object for ${name}: expected object`);
+      throw new Error(`Invalid object for Commands: expected object`);
     }
     if ('heater' in obj) {
       
@@ -92,7 +88,7 @@ class Commands {
       this.cooler = obj.cooler;
     }
   }
-}
+});
 
 class TemperatureSensorCP extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
 class PresenceSensorCP extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
@@ -169,12 +165,12 @@ class SysADLModel extends Model {
     this.addExecutableSafe("SysADLModel.CalculateAverageTemperatureEx", "executable def CalculateAverageTemperatureEx(in temp1:CelsiusTemperature,in temp2:CelsiusTemperature):out CelsiusTemperature{return (temp1 + temp2)/2 ; }", []);
     this.addExecutableSafe("SysADLModel.CheckPresenceToSetTemperature", "executable def CheckPresenceToSetTemperature(in presence:Boolean, in userTemp:CelsiusTemperature):out CelsiusTemperature{if(presence == true) return userTemp; else return 2; }", []);
     this.addExecutableSafe("SysADLModel.CompareTemperatureEx", "executable def CompareTemperatureEx(in target:CelsiusTemperature, in average:CelsiusTemperature):out Commands{let heater:Command = types.Command::Off; let cooler:Command = types.Command::Off; if(average > target) {heater = types.Command::Off; cooler = types.Command::On ; } else {heater = types.Command::On; cooler = types.Command::Off ;} }", []);
-    this.addExecutableSafe("SysADLModel.vdpr", "executable FahrenheitToCelsiusEx to FahrenheitToCelsiusAN", []);
-    this.addExecutableSafe("SysADLModel.38bm", "executable CompareTemperatureEx to CompareTemperatureAN", []);
-    this.addExecutableSafe("SysADLModel.m9jj", "executable CommandHeaterEx to CommandHeaterAN", []);
-    this.addExecutableSafe("SysADLModel.8xbm", "executable CommandCoolerEx to CommandCoolerAN", []);
-    this.addExecutableSafe("SysADLModel.dgh6", "executable CheckPresenceToSetTemperature to CheckPeresenceToSetTemperatureAN", []);
-    this.addExecutableSafe("SysADLModel.duwt", "executable CalculateAverageTemperatureEx to CalculateAverageTemperatureAN", []);
+    this.addExecutableSafe("SysADLModel.b34q", "executable FahrenheitToCelsiusEx to FahrenheitToCelsiusAN", []);
+    this.addExecutableSafe("SysADLModel.rdhg", "executable CompareTemperatureEx to CompareTemperatureAN", []);
+    this.addExecutableSafe("SysADLModel.3w8x", "executable CommandHeaterEx to CommandHeaterAN", []);
+    this.addExecutableSafe("SysADLModel.boxo", "executable CommandCoolerEx to CommandCoolerAN", []);
+    this.addExecutableSafe("SysADLModel.9yx8", "executable CheckPresenceToSetTemperature to CheckPeresenceToSetTemperatureAN", []);
+    this.addExecutableSafe("SysADLModel.h0q0", "executable CalculateAverageTemperatureEx to CalculateAverageTemperatureAN", []);
     const act_CalculateAverageTemperatureAC_s1 = new Activity("CalculateAverageTemperatureAC", { component: "s1", inputPorts: ["current"] });
     act_CalculateAverageTemperatureAC_s1.addAction(new Action("CalculateAverageTemperatureAN", [], "CalculateAverageTemperatureEx"));
     this.registerActivity("CalculateAverageTemperatureAC::s1", act_CalculateAverageTemperatureAC_s1);

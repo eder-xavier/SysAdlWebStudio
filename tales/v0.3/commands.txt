@@ -8,5 +8,4 @@ node transformer.js ../AGV.sysadl
 node transformer.js ../SmartPlace.sysadl
 node transformer.js ../RTC.sysadl
 
-
-❯ node simulator.js generated/Simple.js --payload '{"SystemCP.s1.current": 77, "SystemCP.s2.current": 68}'
+node simulator.js generated/Simple.js --payload '{"SystemCP.s1.current": 77, "SystemCP.s2.current": 68}'

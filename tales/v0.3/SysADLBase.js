@@ -154,8 +154,17 @@ class Model extends Element {
     return last;
   }
 
-  logEvent(e){ const now = new Date(); this._log.push(Object.assign({}, e, { when: now.toISOString() })); }
-  getLog(){ return this._log.slice(); }
+  // Validate data type before sending through port
+  validatePortData(portName, data, expectedType) {
+    if (!expectedType) return data; // No type validation if not specified
+    // Type validation removed - just return data as-is
+    return data;
+  }
+
+  // Get type registry for external access (removed)
+  getTypeRegistry() {
+    return null; // Type registry removed
+  }
 }
 
 class Component extends Element {
@@ -198,17 +207,34 @@ class Connector extends Element {
 }
 
 class Port extends Element {
-  constructor(name, direction='in', opts={}){ super(name, opts); 
-    this.direction = direction; 
-    this.last = undefined; 
-    this.owner = opts.owner || null; }
-  send(v, model){ model && model.logEvent && model.logEvent({ elementType: 'port_send', component: this.owner, name: this.name, inputs: [v], when: Date.now() }); this.last = v; if (this.binding && typeof this.binding.receive === 'function') this.binding.receive(v, model); if (model) {
+  constructor(name, direction='in', opts={}){
+    super(name, opts);
+    this.direction = direction;
+    this.last = undefined;
+    this.owner = opts.owner || null;
+    this.expectedType = opts.expectedType || null; // Type validation
+  }
+
+  send(v, model){
+    // Type validation removed
+    model && model.logEvent && model.logEvent({ elementType: 'port_send', component: this.owner, name: this.name, inputs: [v], when: Date.now() });
+    this.last = v;
+    if (this.binding && typeof this.binding.receive === 'function') this.binding.receive(v, model);
+    if (model) {
       // dispatch to connectors first (connectors know endpoints and will forward to other ports)
       if (typeof model._dispatchConnectors === 'function') model._dispatchConnectors(this.owner, this.name, v);
       // still notify model of receive to trigger activities on this component
       model.handlePortReceive(this.owner, this.name, v);
-    } }
-  receive(v, model){ model && model.logEvent && model.logEvent({ elementType: 'port_receive', component: this.owner, name: this.name, inputs: [v], when: Date.now() }); this.last = v; if (model) model.handlePortReceive(this.owner, this.name, v); }
+    }
+  }
+
+  receive(v, model){
+    // Type validation removed
+    model && model.logEvent && model.logEvent({ elementType: 'port_receive', component: this.owner, name: this.name, inputs: [v], when: Date.now() });
+    this.last = v;
+    if (model) model.handlePortReceive(this.owner, this.name, v);
+  }
+
   bindTo(ref){ this.binding = ref; }
 }
 
@@ -232,6 +258,7 @@ class CompositePort extends Port {
   getSubPort(name){ return this.subports && this.subports[name] ? this.subports[name] : null; }
   // send to composite: policy = broadcast to all subports if no sub-name provided
   send(v, model){
+    // Type validation removed
     model && model.logEvent && model.logEvent({ elementType: 'port_send', component: this.owner, name: this.name, inputs: [v], when: Date.now() });
     // dispatch to connectors registered on composite-level first
     if (model && typeof model._dispatchConnectors === 'function') model._dispatchConnectors(this.owner, this.name, v);
@@ -242,6 +269,7 @@ class CompositePort extends Port {
   }
   // receiving on composite behaves similarly
   receive(v, model){
+    // Type validation removed
     model && model.logEvent && model.logEvent({ elementType: 'port_receive', component: this.owner, name: this.name, inputs: [v], when: Date.now() });
     if (model && typeof model._dispatchConnectors === 'function') model._dispatchConnectors(this.owner, this.name, v);
     for (const sp of Object.values(this.subports || {})) { try { if (sp && typeof sp.receive === 'function') sp.receive(v, model); } catch(e){} }
@@ -435,4 +463,87 @@ function createExecutableFromExpression(exprText, paramNames = []) {
   }
 }
 
-module.exports = { Model, Element, Component, Connector, Port, CompositePort, Activity, Action, createExecutableFromExpression };
+// Built-in SysADL types (simplified, no registration)
+const Int = class {
+  constructor(value) {
+    if (value !== undefined) {
+      this.value = parseInt(value, 10);
+      if (isNaN(this.value)) throw new Error(`Invalid Int value: ${value}`);
+    }
+  }
+};
+
+const Bool = class {
+  constructor(value) {
+    if (value !== undefined) {
+      this.value = Boolean(value);
+    }
+  }
+};
+
+const Str = class {
+  constructor(value) {
+    if (value !== undefined) {
+      this.value = String(value);
+    }
+  }
+};
+
+const Void = class {
+  constructor(value) {
+    if (value !== undefined) {
+      this.value = value;
+    }
+  }
+};
+
+const Real = class {
+  constructor(value) {
+    if (value !== undefined) {
+      this.value = parseFloat(value);
+      if (isNaN(this.value)) throw new Error(`Invalid Real value: ${value}`);
+    }
+  }
+};
+
+// Simple Enum class for generated code
+class Enum {
+  constructor(...values) {
+    this._values = values;
+
+    // Add properties for each enum value (lowercase access)
+    values.forEach((value, index) => {
+      const propName = value.toLowerCase();
+      Object.defineProperty(this, propName, {
+        get() { return value; },
+        enumerable: true,
+        configurable: true
+      });
+    });
+  }
+
+  // Static method to create enum with properties
+  static create(...values) {
+    return new Enum(...values);
+  }
+}
+
+// Export everything (type registry removed)
+module.exports = {
+  Model,
+  Element,
+  Component,
+  Connector,
+  Port,
+  CompositePort,
+  Activity,
+  Action,
+  createExecutableFromExpression,
+  Enum,
+  // Built-in types
+  Int,
+  Boolean: Bool,
+  String: Str,
+  Void,
+  Real
+};

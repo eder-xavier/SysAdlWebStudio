@@ -50,48 +50,48 @@ function collectPortUses(configNode) {
 function generateClassModule(modelName, compUses, portUses, connectorBindings, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, portAliasMap, compDefMapArg, portDefMapArg, embeddedTypes) {
   const lines = [];
   // runtime imports for generated module
-  lines.push("const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression } = require('../SysADLBase');");
-  // generate JS classes for SysADL types instead of JSON embedding
+  lines.push("const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression, createTypedClass, registerCustomEnum, Enum } = require('../SysADLBase');");
+  // Generate type classes using the new auto-registration system
   function generateTypeClasses(embeddedTypes) {
     const classLines = [];
     const t = embeddedTypes && typeof embeddedTypes === 'object' ? embeddedTypes : { datatypes: {}, valueTypes: {}, enumerations: {} };
-    
-    // Generate value types as classes
+
+    // Generate value types as classes with auto-registration
     for (const [name, info] of Object.entries(t.valueTypes || {})) {
       if (!name) continue;
       const superType = info.extends || null;
       const unit = info.unit || null;
       const dimension = info.dimension || null;
-      
-      let classCode = `class ${name}`;
+
+      let classCode = `const ${name} = createTypedClass('${name}', () => class`;
       if (superType) {
         classCode += ` extends ${superType}`;
       }
-      classCode += ' {\n';
-      
+      classCode += ` {\n`;
+
       // Constructor with parse logic
-      classCode += '  constructor(value) {\n';
+      classCode += `  constructor(value) {\n`;
       if (superType) {
-        classCode += '    super(value);\n';
+        classCode += `    super(value);\n`;
       }
-      classCode += '    if (value !== undefined) {\n';
+      classCode += `    if (value !== undefined) {\n`;
       // Add parsing based on type
       if (name === 'Int') {
-        classCode += '      this.value = parseInt(value, 10);\n';
-        classCode += '      if (isNaN(this.value)) throw new Error(`Invalid Int value: ${value}`);\n';
+        classCode += `      this.value = parseInt(value, 10);\n`;
+        classCode += `      if (isNaN(this.value)) throw new Error(\`Invalid Int value: \${value}\`);\n`;
       } else if (name === 'Real') {
-        classCode += '      this.value = parseFloat(value);\n';
-        classCode += '      if (isNaN(this.value)) throw new Error(`Invalid Real value: ${value}`);\n';
+        classCode += `      this.value = parseFloat(value);\n`;
+        classCode += `      if (isNaN(this.value)) throw new Error(\`Invalid Real value: \${value}\`);\n`;
       } else if (name === 'Boolean') {
-        classCode += '      this.value = value;\n';
+        classCode += `      this.value = value;\n`;
       } else if (name === 'String') {
-        classCode += '      this.value = value;\n';
+        classCode += `      this.value = value;\n`;
       } else {
-        classCode += '      this.value = value;\n';
+        classCode += `      this.value = value;\n`;
       }
-      classCode += '    }\n';
-      classCode += '  }\n';
-      
+      classCode += `    }\n`;
+      classCode += `  }\n`;
+
       // Add unit and dimension as static properties if present
       if (unit) {
         classCode += `  static unit = '${unit}';\n`;
@@ -99,40 +99,39 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
       if (dimension) {
         classCode += `  static dimension = '${dimension}';\n`;
       }
-      
-      classCode += '}\n';
+
+      classCode += `});\n`;
       classLines.push(classCode);
     }
-    
-    // Generate enumerations as Object.freeze
+
+    // Generate enumerations with auto-registration
     for (const [name, literals] of Object.entries(t.enumerations || {})) {
       if (!name || !Array.isArray(literals)) continue;
-      const enumValues = literals.map((lit, idx) => `  ${lit}: "${lit}"`).join(',\n');
-      const enumCode = `const ${name} = Object.freeze({\n${enumValues}\n});\n`;
+      const enumCode = `const ${name} = new Enum(${literals.map(lit => `"${lit}"`).join(', ')});`;
       classLines.push(enumCode);
     }
-    
-    // Generate datatypes as classes with validation
+
+    // Generate datatypes as classes with auto-registration
     for (const [name, info] of Object.entries(t.datatypes || {})) {
       if (!name) continue;
       const superType = info.extends || null;
       const attributes = info.attributes || [];
-      
-      let classCode = `class ${name}`;
+
+      let classCode = `const ${name} = createTypedClass('${name}', () => class`;
       if (superType) {
         classCode += ` extends ${superType}`;
       }
-      classCode += ' {\n';
-      
+      classCode += ` {\n`;
+
       // Constructor with attribute validation
-      classCode += '  constructor(obj = {}) {\n';
+      classCode += `  constructor(obj = {}) {\n`;
       if (superType) {
-        classCode += '    super(obj);\n';
+        classCode += `    super(obj);\n`;
       }
-      classCode += '    if (typeof obj !== \'object\' || obj === null) {\n';
-      classCode += '      throw new Error(`Invalid object for ${name}: expected object`);\n';
-      classCode += '    }\n';
-      
+      classCode += `    if (typeof obj !== 'object' || obj === null) {\n`;
+      classCode += `      throw new Error(\`Invalid object for ${name}: expected object\`);\n`;
+      classCode += `    }\n`;
+
       // Validate required attributes
       for (const attr of attributes) {
         if (!attr || !attr.name) continue;
@@ -146,14 +145,14 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
         } else {
           classCode += `      this.${attrName} = obj.${attrName};\n`;
         }
-        classCode += '    }\n';
+        classCode += `    }\n`;
       }
-      
-      classCode += '  }\n';
-      classCode += '}\n';
+
+      classCode += `  }\n`;
+      classCode += `});\n`;
       classLines.push(classCode);
     }
-    
+
     return classLines.join('\n');
   }
   

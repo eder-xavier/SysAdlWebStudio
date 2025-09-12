@@ -1,63 +1,52 @@
-const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression } = require('../SysADLBase');
-class Int {
+const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression, createTypedClass, registerCustomEnum, Enum } = require('../SysADLBase');
+const Int = createTypedClass('Int', () => class {
   constructor(value) {
     if (value !== undefined) {
       this.value = parseInt(value, 10);
       if (isNaN(this.value)) throw new Error(`Invalid Int value: ${value}`);
     }
   }
-}
+});
 
-class Boolean {
+const Boolean = createTypedClass('Boolean', () => class {
   constructor(value) {
     if (value !== undefined) {
       this.value = value;
     }
   }
-}
+});
 
-class String {
+const String = createTypedClass('String', () => class {
   constructor(value) {
     if (value !== undefined) {
       this.value = value;
     }
   }
-}
+});
 
-class Void {
+const Void = createTypedClass('Void', () => class {
   constructor(value) {
     if (value !== undefined) {
       this.value = value;
     }
   }
-}
+});
 
-class Real {
+const Real = createTypedClass('Real', () => class {
   constructor(value) {
     if (value !== undefined) {
       this.value = parseFloat(value);
       if (isNaN(this.value)) throw new Error(`Invalid Real value: ${value}`);
     }
   }
-}
-
-const InfraredCode = Object.freeze({
-  increase: "increase",
-  decrease: "decrease",
-  turn_on: "turn_on",
-  turn_off: "turn_off"
 });
 
-const TypeSensor = Object.freeze({
-  temperature: "temperature",
-  humidity: "humidity",
-  presence: "presence"
-});
-
-class DataSensor {
+const InfraredCode = new Enum("increase", "decrease", "turn_on", "turn_off");
+const TypeSensor = new Enum("temperature", "humidity", "presence");
+const DataSensor = createTypedClass('DataSensor', () => class {
   constructor(obj = {}) {
     if (typeof obj !== 'object' || obj === null) {
-      throw new Error(`Invalid object for ${name}: expected object`);
+      throw new Error(`Invalid object for DataSensor: expected object`);
     }
     if ('id' in obj) {
       
@@ -72,12 +61,12 @@ class DataSensor {
       this.typeSensor = obj.typeSensor;
     }
   }
-}
+});
 
-class RestFulRaspeberry {
+const RestFulRaspeberry = createTypedClass('RestFulRaspeberry', () => class {
   constructor(obj = {}) {
     if (typeof obj !== 'object' || obj === null) {
-      throw new Error(`Invalid object for ${name}: expected object`);
+      throw new Error(`Invalid object for RestFulRaspeberry: expected object`);
     }
     if ('ip' in obj) {
       
@@ -100,12 +89,12 @@ class RestFulRaspeberry {
       this.m = obj.m;
     }
   }
-}
+});
 
-class Sensor {
+const Sensor = createTypedClass('Sensor', () => class {
   constructor(obj = {}) {
     if (typeof obj !== 'object' || obj === null) {
-      throw new Error(`Invalid object for ${name}: expected object`);
+      throw new Error(`Invalid object for Sensor: expected object`);
     }
     if ('room' in obj) {
       
@@ -120,12 +109,12 @@ class Sensor {
       this.id = obj.id;
     }
   }
-}
+});
 
-class Measurement {
+const Measurement = createTypedClass('Measurement', () => class {
   constructor(obj = {}) {
     if (typeof obj !== 'object' || obj === null) {
-      throw new Error(`Invalid object for ${name}: expected object`);
+      throw new Error(`Invalid object for Measurement: expected object`);
     }
     if ('value' in obj) {
       
@@ -140,24 +129,24 @@ class Measurement {
       this.sensor = obj.sensor;
     }
   }
-}
+});
 
-class Schedule {
+const Schedule = createTypedClass('Schedule', () => class {
   constructor(obj = {}) {
     if (typeof obj !== 'object' || obj === null) {
-      throw new Error(`Invalid object for ${name}: expected object`);
+      throw new Error(`Invalid object for Schedule: expected object`);
     }
     if ('timestamp' in obj) {
       
       this.timestamp = obj.timestamp;
     }
   }
-}
+});
 
-class Location {
+const Location = createTypedClass('Location', () => class {
   constructor(obj = {}) {
     if (typeof obj !== 'object' || obj === null) {
-      throw new Error(`Invalid object for ${name}: expected object`);
+      throw new Error(`Invalid object for Location: expected object`);
     }
     if ('latitude' in obj) {
       
@@ -168,12 +157,12 @@ class Location {
       this.longitude = obj.longitude;
     }
   }
-}
+});
 
-class Building {
+const Building = createTypedClass('Building', () => class {
   constructor(obj = {}) {
     if (typeof obj !== 'object' || obj === null) {
-      throw new Error(`Invalid object for ${name}: expected object`);
+      throw new Error(`Invalid object for Building: expected object`);
     }
     if ('id' in obj) {
       
@@ -184,12 +173,12 @@ class Building {
       this.location = obj.location;
     }
   }
-}
+});
 
-class Room {
+const Room = createTypedClass('Room', () => class {
   constructor(obj = {}) {
     if (typeof obj !== 'object' || obj === null) {
-      throw new Error(`Invalid object for ${name}: expected object`);
+      throw new Error(`Invalid object for Room: expected object`);
     }
     if ('id' in obj) {
       
@@ -200,28 +189,12 @@ class Room {
       this.building = obj.building;
     }
   }
-}
+});
 
-class AirConditioner {
+const ContextInformation = createTypedClass('ContextInformation', () => class {
   constructor(obj = {}) {
     if (typeof obj !== 'object' || obj === null) {
-      throw new Error(`Invalid object for ${name}: expected object`);
-    }
-    if ('room' in obj) {
-      
-      this.room = obj.room;
-    }
-    if ('id' in obj) {
-      
-      this.id = obj.id;
-    }
-  }
-}
-
-class ContextInformation {
-  constructor(obj = {}) {
-    if (typeof obj !== 'object' || obj === null) {
-      throw new Error(`Invalid object for ${name}: expected object`);
+      throw new Error(`Invalid object for ContextInformation: expected object`);
     }
     if ('sensor' in obj) {
       
@@ -240,12 +213,12 @@ class ContextInformation {
       this.building = obj.building;
     }
   }
-}
+});
 
-class UpdateDB {
+const UpdateDB = createTypedClass('UpdateDB', () => class {
   constructor(obj = {}) {
     if (typeof obj !== 'object' || obj === null) {
-      throw new Error(`Invalid object for ${name}: expected object`);
+      throw new Error(`Invalid object for UpdateDB: expected object`);
     }
     if ('idAirCond' in obj) {
       
@@ -260,20 +233,20 @@ class UpdateDB {
       this.actionTemp = obj.actionTemp;
     }
   }
-}
+});
 
-class FrameList {
+const FrameList = createTypedClass('FrameList', () => class {
   constructor(obj = {}) {
     if (typeof obj !== 'object' || obj === null) {
-      throw new Error(`Invalid object for ${name}: expected object`);
+      throw new Error(`Invalid object for FrameList: expected object`);
     }
   }
-}
+});
 
-class Intervention {
+const Intervention = createTypedClass('Intervention', () => class {
   constructor(obj = {}) {
     if (typeof obj !== 'object' || obj === null) {
-      throw new Error(`Invalid object for ${name}: expected object`);
+      throw new Error(`Invalid object for Intervention: expected object`);
     }
     if ('icAirCond' in obj) {
       
@@ -288,7 +261,7 @@ class Intervention {
       this.schedule = obj.schedule;
     }
   }
-}
+});
 
 class SmartPlaceWeb extends Component { }
 class RoomReservationSystem extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
