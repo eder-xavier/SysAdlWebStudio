@@ -27,14 +27,45 @@ function loadModelFromModulePath(modelPath){
 
 function findInputPorts(model){
   const inputPorts = [];
-  // prefer explicit components map if present
-  const comps = model.components || model;
-  for (const [cname, comp] of Object.entries(comps || {})) {
-    if (!comp || !comp.ports) continue;
-    for (const [pname, port] of Object.entries(comp.ports)) {
-      if (!port.direction || port.direction === 'in') inputPorts.push({ component: cname, port: pname, portObj: port });
+
+  // Função auxiliar para buscar portas recursivamente
+  const findPortsRecursive = (root, path = '') => {
+    if (!root || typeof root !== 'object') return;
+
+    // Se tem portas, processa elas
+    if (root.ports) {
+      for (const [pname, port] of Object.entries(root.ports)) {
+        if (!port.direction || port.direction === 'in') {
+          inputPorts.push({
+            component: path || (root.name || 'root'),
+            port: pname,
+            portObj: port,
+            fullPath: path ? `${path}.${pname}` : pname
+          });
+        }
+      }
     }
+
+    // Busca recursivamente em subcomponentes
+    if (root.components) {
+      for (const [cname, comp] of Object.entries(root.components)) {
+        const newPath = path ? `${path}.${cname}` : cname;
+        findPortsRecursive(comp, newPath);
+      }
+    }
+  };
+
+  // Começar a busca no componente raiz ou no próprio modelo se não houver componentes
+  if (model.components && Object.keys(model.components).length > 0) {
+    // Se o modelo tem componentes, buscar neles
+    for (const [compName, comp] of Object.entries(model.components)) {
+      findPortsRecursive(comp, compName);
+    }
+  } else {
+    // Caso contrário, buscar no próprio modelo
+    findPortsRecursive(model);
   }
+
   return inputPorts;
 }
 
@@ -55,68 +86,110 @@ function findPortRecursive(root, name){
 // Resolve alias like 's1.temp1' to actual component+port in the model.
 function resolveAliasTarget(model, alias, portAliases){
   if (!alias) return null;
+
+  // Função auxiliar para buscar componente recursivamente
+  const findComponentRecursive = (root, name, path = '') => {
+    if (!root || typeof root !== 'object') return null;
+
+    // Verifica se o componente atual é o que procuramos
+    if (root.name === name || path === name) {
+      return { comp: root, path };
+    }
+
+    // Busca em subcomponentes
+    if (root.components) {
+      for (const [cname, comp] of Object.entries(root.components)) {
+        const newPath = path ? `${path}.${cname}` : cname;
+        const found = findComponentRecursive(comp, name, newPath);
+        if (found) return found;
+      }
+    }
+
+    return null;
+  };
+
   // if alias is component.port
   if (alias.indexOf('.')!==-1){
     const [compName, portName] = alias.split('.');
-    // try direct component property
-    const comp = model[compName] || (model.components && model.components[compName]);
-    if (comp && comp.ports && comp.ports[portName]) return { comp, portName };
-    // if portName not found, use first available port of component
-    if (comp && comp.ports) {
-      const keys = Object.keys(comp.ports);
-      if (keys.length) return { comp, portName: keys[0] };
+
+    // Busca o componente na estrutura hierárquica
+    const comps = model.components || model;
+    const foundComp = findComponentRecursive(comps, compName);
+
+    if (foundComp && foundComp.comp.ports && foundComp.comp.ports[portName]) {
+      return { comp: foundComp.comp, portName };
     }
+
+    // if portName not found, use first available port of component
+    if (foundComp && foundComp.comp.ports) {
+      const keys = Object.keys(foundComp.comp.ports);
+      if (keys.length) return { comp: foundComp.comp, portName: keys[0] };
+    }
+
     // consult generated alias metadata first
     try {
       if (portAliases && portAliases[compName] && portAliases[compName][portName]) {
         const real = portAliases[compName][portName];
-        if (comp && comp.ports && comp.ports[real]) return { comp, portName: real };
-      }
-    } catch(e){}
-    // fallback: recursive search for component by name in the model
-    const findComponentByName = (root, name) => {
-      if (!root || typeof root !== 'object') return null;
-      for (const k of Object.keys(root)){
-        const v = root[k];
-        if (v && typeof v === 'object') {
-          if (k === name) return v;
-          const deeper = findComponentByName(v, name);
-          if (deeper) return deeper;
+        if (foundComp && foundComp.comp.ports && foundComp.comp.ports[real]) {
+          return { comp: foundComp.comp, portName: real };
         }
       }
-      return null;
-    };
-    const deepComp = findComponentByName(model, compName);
-    if (deepComp) {
-      if (deepComp.ports && deepComp.ports[portName]) return { comp: deepComp, portName };
-      if (deepComp.ports) { const ks = Object.keys(deepComp.ports); if (ks.length) return { comp: deepComp, portName: ks[0] }; }
-    }
+    } catch(e){}
+
     return null;
   }
+
   // if alias is only port name, try to find any component that has this port
-  for (const k of Object.keys(model)){
-    const v = model[k];
-    if (v && typeof v === 'object' && v.ports && v.ports[alias]) return { comp: v, portName: alias };
-  }
-  // as last resort, do recursive search
-  for (const k of Object.keys(model)){
-    const v = model[k];
-    if (v && typeof v === 'object'){
-      const p = findPortRecursive(v, alias);
-      if (p) return { comp: v, portName: alias };
+  const findPortInModel = (root) => {
+    if (!root || typeof root !== 'object') return null;
+
+    if (root.ports && root.ports[alias]) {
+      return { comp: root, portName: alias };
     }
-  }
-  return null;
+
+    if (root.components) {
+      for (const comp of Object.values(root.components)) {
+        const found = findPortInModel(comp);
+        if (found) return found;
+      }
+    }
+
+    return null;
+  };
+
+  const comps = model.components || model;
+  return findPortInModel(comps);
 }
 
 function sendPayloadToPortByName(model, portName, payload){
-  for(const k of Object.keys(model)){
-    if(k.startsWith('_')) continue;
-    const comp = model[k];
-    if(!comp || typeof comp !== 'object') continue;
-    const p = findPortRecursive(comp, portName);
-    if(p) return p.send(payload, model);
+  // Função auxiliar para buscar e enviar para porta recursivamente
+  const findAndSendPort = (root, name) => {
+    if (!root || typeof root !== 'object') return false;
+
+    // Verifica se tem a porta neste nível
+    if (root.ports && root.ports[name]) {
+      root.ports[name].send(payload, model);
+      return true;
+    }
+
+    // Busca recursivamente em subcomponentes
+    if (root.components) {
+      for (const comp of Object.values(root.components)) {
+        if (findAndSendPort(comp, name)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  };
+
+  // Tenta encontrar e enviar para a porta
+  const comps = model.components || model;
+  if (findAndSendPort(comps, portName)) {
+    return true;
   }
+
   throw new Error('Port not found: '+portName);
 }
 
