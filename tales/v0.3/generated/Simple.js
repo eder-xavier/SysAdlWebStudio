@@ -1,48 +1,7 @@
-const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression, createTypedClass, registerCustomEnum, Enum } = require('../SysADLBase');
-const Int = createTypedClass('Int', () => class {
-  constructor(value) {
-    if (value !== undefined) {
-      this.value = parseInt(value, 10);
-      if (isNaN(this.value)) throw new Error(`Invalid Int value: ${value}`);
-    }
-  }
-});
+const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit } = require('../SysADLBase');
 
-const Boolean = createTypedClass('Boolean', () => class {
-  constructor(value) {
-    if (value !== undefined) {
-      this.value = value;
-    }
-  }
-});
-
-const String = createTypedClass('String', () => class {
-  constructor(value) {
-    if (value !== undefined) {
-      this.value = value;
-    }
-  }
-});
-
-const Void = createTypedClass('Void', () => class {
-  constructor(value) {
-    if (value !== undefined) {
-      this.value = value;
-    }
-  }
-});
-
-const Real = createTypedClass('Real', () => class {
-  constructor(value) {
-    if (value !== undefined) {
-      this.value = parseFloat(value);
-      if (isNaN(this.value)) throw new Error(`Invalid Real value: ${value}`);
-    }
-  }
-});
-
-class SensorCP extends Component { }
-class TempMonitorCP extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
+class SensorCP extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
+class TempMonitorCP extends Component { }
 class StdOutCP extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
 class SystemCP extends Component { }
 
@@ -51,13 +10,13 @@ class SysADLModel extends Model {
     super("SysADLModel");
     this.SystemCP = new SystemCP("SystemCP", { sysadlDefinition: "SystemCP" });
     this.addComponent(this.SystemCP);
-    this.SystemCP.s1 = new SensorCP("s1", { sysadlDefinition: "SensorCP" });
+    this.SystemCP.s1 = new SensorCP("s1", { isBoundary: true, sysadlDefinition: "SensorCP" });
     this.SystemCP.addComponent(this.SystemCP.s1);
-    this.SystemCP.s2 = new SensorCP("s2", { sysadlDefinition: "SensorCP" });
+    this.SystemCP.s2 = new SensorCP("s2", { isBoundary: true, sysadlDefinition: "SensorCP" });
     this.SystemCP.addComponent(this.SystemCP.s2);
     this.SystemCP.stdOut = new StdOutCP("stdOut", { isBoundary: true, sysadlDefinition: "StdOutCP" });
     this.SystemCP.addComponent(this.SystemCP.stdOut);
-    this.SystemCP.tempMon = new TempMonitorCP("tempMon", { isBoundary: true, sysadlDefinition: "TempMonitorCP" });
+    this.SystemCP.tempMon = new TempMonitorCP("tempMon", { sysadlDefinition: "TempMonitorCP" });
     this.SystemCP.addComponent(this.SystemCP.tempMon);
 
     this.SystemCP.s1.addPort(new Port("current", "in", { owner: "s1" }));
@@ -68,8 +27,8 @@ class SysADLModel extends Model {
     this.SystemCP.stdOut.addPort(new Port("c3", "in", { owner: "stdOut" }));
     this.addExecutableSafe("SysADLModel.FarToCelEX", "executable def FarToCelEX (in f:Real): out Real {\n\t\treturn 5*(f - 32)/9 ;\n\t}", []);
     this.addExecutableSafe("SysADLModel.CalcAverageEX", "executable def CalcAverageEX(in temp1:Real,in temp2:Real):out Real{\n\t\treturn (temp1 + temp2)/2 ;\n\t}", []);
-    this.addExecutableSafe("SysADLModel.q1ei", "executable FarToCelEX to FarToCelAN", []);
-    this.addExecutableSafe("SysADLModel.is3j", "executable CalcAverageEX to TempMonitorAN", []);
+    this.addExecutableSafe("SysADLModel.rnvk", "executable FarToCelEX to FarToCelAN", []);
+    this.addExecutableSafe("SysADLModel.y79m", "executable CalcAverageEX to TempMonitorAN", []);
     const act_FarToCelAC_s1 = new Activity("FarToCelAC", { component: "s1", inputPorts: ["current"] });
     act_FarToCelAC_s1.addAction(new Action("FarToCelAN", [], "FarToCelEX"));
     this.registerActivity("FarToCelAC::s1", act_FarToCelAC_s1);
@@ -122,4 +81,4 @@ class SysADLModel extends Model {
 
 const __portAliases = {};
 function createModel(){ return new SysADLModel(); }
-module.exports = { createModel, SysADLModel, __portAliases, Int, Boolean, String, Void, Real };
+module.exports = { createModel, SysADLModel, __portAliases };

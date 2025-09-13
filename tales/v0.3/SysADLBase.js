@@ -463,46 +463,150 @@ function createExecutableFromExpression(exprText, paramNames = []) {
   }
 }
 
-// Built-in SysADL types (simplified, no registration)
-const Int = class {
+// Base classes for SysADL type system
+class SysADLType {
   constructor(value) {
-    if (value !== undefined) {
-      this.value = parseInt(value, 10);
-      if (isNaN(this.value)) throw new Error(`Invalid Int value: ${value}`);
+    this.value = value;
+  }
+
+  toString() {
+    return String(this.value);
+  }
+}
+
+class ValueType extends SysADLType {
+  constructor(value) {
+    super(value);
+    this.value = this.parse(value);
+    this.validate();
+  }
+
+  parse(value) {
+    return value; // Override in subclasses
+  }
+
+  validate() {
+    // Override in subclasses for validation
+  }
+}
+
+class DataType extends SysADLType {
+  constructor(obj = {}) {
+    super(obj);
+    this.initializeAttributes(obj);
+  }
+
+  initializeAttributes(obj) {
+    // Will be implemented by generated subclasses
+  }
+}
+
+class Dimension {
+  constructor(name) {
+    this.name = name;
+  }
+
+  toString() {
+    return this.name;
+  }
+}
+
+class Unit {
+  constructor(name, config = {}) {
+    this.name = name;
+    this.dimension = config.dimension || null;
+  }
+
+  toString() {
+    return this.name;
+  }
+}
+
+// Factory functions for type creation
+function valueType(name, config = {}) {
+  return class extends ValueType {
+    constructor(value) {
+      super(value);
     }
+
+    parse(value) {
+      if (config.extends && typeof config.extends.prototype.parse === 'function') {
+        // If extending another ValueType, use its parse method first
+        const baseInstance = new config.extends(value);
+        return baseInstance.value;
+      }
+      return config.parse ? config.parse(value) : value;
+    }
+
+    validate() {
+      if (config.validate && !config.validate(this.value)) {
+        throw new Error(`Invalid ${name} value: ${this.value}`);
+      }
+    }
+
+    static get unit() {
+      return config.unit || null;
+    }
+
+    static get dimension() {
+      return config.dimension || null;
+    }
+  };
+}
+
+function dataType(name, attributes = {}) {
+  return class extends DataType {
+    initializeAttributes(obj) {
+      for (const [attrName, attrType] of Object.entries(attributes)) {
+        if (attrName in obj) {
+          // Type validation could be added here in the future
+          this[attrName] = obj[attrName];
+        }
+      }
+    }
+  };
+}
+
+function dimension(name) {
+  return new Dimension(name);
+}
+
+function unit(name, config = {}) {
+  return new Unit(name, config);
+}
+
+// Built-in primitive types (always available)
+const Int = class extends ValueType {
+  parse(value) {
+    const parsed = parseInt(value, 10);
+    if (isNaN(parsed)) throw new Error(`Invalid Int value: ${value}`);
+    return parsed;
   }
 };
 
-const Bool = class {
-  constructor(value) {
-    if (value !== undefined) {
-      this.value = Boolean(value);
-    }
+const Boolean = class extends ValueType {
+  parse(value) {
+    return Boolean(value);
   }
 };
 
-const Str = class {
-  constructor(value) {
-    if (value !== undefined) {
-      this.value = String(value);
-    }
+const String = class extends ValueType {
+  parse(value) {
+    return String(value);
   }
 };
 
-const Void = class {
-  constructor(value) {
-    if (value !== undefined) {
-      this.value = value;
-    }
+const Void = class extends ValueType {
+  parse(value) {
+    return value;
   }
 };
 
-const Real = class {
-  constructor(value) {
-    if (value !== undefined) {
-      this.value = parseFloat(value);
-      if (isNaN(this.value)) throw new Error(`Invalid Real value: ${value}`);
-    }
+const Real = class extends ValueType {
+  parse(value) {
+    const parsed = parseFloat(value);
+    if (isNaN(parsed)) throw new Error(`Invalid Real value: ${value}`);
+    return parsed;
   }
 };
 
@@ -528,7 +632,7 @@ class Enum {
   }
 }
 
-// Export everything (type registry removed)
+// Export everything
 module.exports = {
   Model,
   Element,
@@ -540,10 +644,20 @@ module.exports = {
   Action,
   createExecutableFromExpression,
   Enum,
-  // Built-in types
+  // Built-in primitive types
   Int,
-  Boolean: Bool,
-  String: Str,
+  Boolean,
+  String,
   Void,
-  Real
+  Real,
+  // Type system
+  ValueType,
+  DataType,
+  Dimension,
+  Unit,
+  // Factory functions
+  valueType,
+  dataType,
+  dimension,
+  unit
 };

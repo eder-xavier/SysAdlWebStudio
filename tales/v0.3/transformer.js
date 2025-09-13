@@ -50,107 +50,96 @@ function collectPortUses(configNode) {
 function generateClassModule(modelName, compUses, portUses, connectorBindings, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, portAliasMap, compDefMapArg, portDefMapArg, embeddedTypes) {
   const lines = [];
   // runtime imports for generated module
-  lines.push("const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression, createTypedClass, registerCustomEnum, Enum } = require('../SysADLBase');");
+  lines.push("const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit } = require('../SysADLBase');");
+  
+  // Add blank line after imports
+  lines.push("");
+  
   // Generate type classes using the new auto-registration system
   function generateTypeClasses(embeddedTypes) {
     const classLines = [];
-    const t = embeddedTypes && typeof embeddedTypes === 'object' ? embeddedTypes : { datatypes: {}, valueTypes: {}, enumerations: {} };
+    const t = embeddedTypes && typeof embeddedTypes === 'object' ? embeddedTypes : { datatypes: {}, valueTypes: {}, enumerations: {}, dimensions: {}, units: {} };
 
-    // Generate value types as classes with auto-registration
-    for (const [name, info] of Object.entries(t.valueTypes || {})) {
+    // Define primitive types that are already imported from SysADLBase
+    const primitiveTypes = new Set(['Int', 'Boolean', 'String', 'Real', 'Void']);
+
+    // Generate dimensions first (they may be referenced by units and value types)
+    for (const [name, info] of Object.entries(t.dimensions || {})) {
       if (!name) continue;
-      const superType = info.extends || null;
-      const unit = info.unit || null;
-      const dimension = info.dimension || null;
-
-      let classCode = `const ${name} = createTypedClass('${name}', () => class`;
-      if (superType) {
-        classCode += ` extends ${superType}`;
-      }
-      classCode += ` {\n`;
-
-      // Constructor with parse logic
-      classCode += `  constructor(value) {\n`;
-      if (superType) {
-        classCode += `    super(value);\n`;
-      }
-      classCode += `    if (value !== undefined) {\n`;
-      // Add parsing based on type
-      if (name === 'Int') {
-        classCode += `      this.value = parseInt(value, 10);\n`;
-        classCode += `      if (isNaN(this.value)) throw new Error(\`Invalid Int value: \${value}\`);\n`;
-      } else if (name === 'Real') {
-        classCode += `      this.value = parseFloat(value);\n`;
-        classCode += `      if (isNaN(this.value)) throw new Error(\`Invalid Real value: \${value}\`);\n`;
-      } else if (name === 'Boolean') {
-        classCode += `      this.value = value;\n`;
-      } else if (name === 'String') {
-        classCode += `      this.value = value;\n`;
-      } else {
-        classCode += `      this.value = value;\n`;
-      }
-      classCode += `    }\n`;
-      classCode += `  }\n`;
-
-      // Add unit and dimension as static properties if present
-      if (unit) {
-        classCode += `  static unit = '${unit}';\n`;
-      }
-      if (dimension) {
-        classCode += `  static dimension = '${dimension}';\n`;
-      }
-
-      classCode += `});\n`;
-      classLines.push(classCode);
+      classLines.push(`const ${name} = dimension('${name}');`);
     }
 
-    // Generate enumerations with auto-registration
+    // Generate units (may reference dimensions)
+    for (const [name, info] of Object.entries(t.units || {})) {
+      if (!name) continue;
+      const dimensionRef = info.dimension || null;
+      if (dimensionRef) {
+        classLines.push(`const ${name} = unit('${name}', { dimension: ${dimensionRef} });`);
+      } else {
+        classLines.push(`const ${name} = unit('${name}');`);
+      }
+    }
+
+    // Generate value types using new factory function (skip primitives)
+    for (const [name, info] of Object.entries(t.valueTypes || {})) {
+      if (!name) continue;
+      
+      // Skip primitive types - they are already imported from SysADLBase
+      if (primitiveTypes.has(name)) {
+        continue;
+      }
+      
+      const superType = info.extends || null;
+      const unitRef = info.unit || null;
+      const dimensionRef = info.dimension || null;
+
+      // Build config object
+      const configParts = [];
+      
+      if (superType) {
+        configParts.push(`extends: ${superType}`);
+      }
+      
+      if (unitRef) {
+        configParts.push(`unit: ${unitRef}`);
+      }
+      
+      if (dimensionRef) {
+        configParts.push(`dimension: ${dimensionRef}`);
+      }
+
+      const config = configParts.length > 0 ? `{ ${configParts.join(', ')} }` : '{}';
+      classLines.push(`const ${name} = valueType('${name}', ${config});`);
+    }
+
+    // Generate enumerations (unchanged)
     for (const [name, literals] of Object.entries(t.enumerations || {})) {
       if (!name || !Array.isArray(literals)) continue;
       const enumCode = `const ${name} = new Enum(${literals.map(lit => `"${lit}"`).join(', ')});`;
       classLines.push(enumCode);
     }
 
-    // Generate datatypes as classes with auto-registration
+    // Generate datatypes using new factory function
     for (const [name, info] of Object.entries(t.datatypes || {})) {
       if (!name) continue;
-      const superType = info.extends || null;
       const attributes = info.attributes || [];
 
-      let classCode = `const ${name} = createTypedClass('${name}', () => class`;
-      if (superType) {
-        classCode += ` extends ${superType}`;
-      }
-      classCode += ` {\n`;
-
-      // Constructor with attribute validation
-      classCode += `  constructor(obj = {}) {\n`;
-      if (superType) {
-        classCode += `    super(obj);\n`;
-      }
-      classCode += `    if (typeof obj !== 'object' || obj === null) {\n`;
-      classCode += `      throw new Error(\`Invalid object for ${name}: expected object\`);\n`;
-      classCode += `    }\n`;
-
-      // Validate required attributes
+      // Build attributes object with type references
+      const attrParts = [];
       for (const attr of attributes) {
         if (!attr || !attr.name) continue;
         const attrName = attr.name;
         const attrType = attr.type;
-        classCode += `    if ('${attrName}' in obj) {\n`;
         if (attrType) {
-          // Add type validation if type is known
-          classCode += `      // Validate ${attrName} as ${attrType}\n`;
-          classCode += `      this.${attrName} = obj.${attrName};\n`;
+          // Use direct reference to the type (assumes it was defined earlier)
+          attrParts.push(`${attrName}: ${attrType}`);
         } else {
-          classCode += `      this.${attrName} = obj.${attrName};\n`;
+          attrParts.push(`${attrName}: null`);
         }
-        classCode += `    }\n`;
       }
 
-      classCode += `  }\n`;
-      classCode += `});\n`;
-      classLines.push(classCode);
+      const attributesObj = attrParts.length > 0 ? `{ ${attrParts.join(', ')} }` : '{}';
+      classLines.push(`const ${name} = dataType('${name}', ${attributesObj});`);
     }
 
     return classLines.join('\n');
@@ -159,7 +148,11 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   // Generate type classes
   try {
     const typeClasses = generateTypeClasses(embeddedTypes);
-    lines.push(typeClasses);
+    if (typeClasses.trim()) {
+      lines.push(typeClasses);
+      // Add blank line after type declarations if any types were generated
+      lines.push("");
+    }
   } catch(e) {
     console.warn('Failed to generate type classes:', e.message);
   }
@@ -703,7 +696,19 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     lines.push('const __portAliases = {};');
   }
   lines.push(`function createModel(){ return new ${sanitizeId(modelName)}(); }`);
-  lines.push('module.exports = { createModel, ' + sanitizeId(modelName) + ', __portAliases' + ((embeddedTypes.valueTypes && Object.keys(embeddedTypes.valueTypes).length) || (embeddedTypes.enumerations && Object.keys(embeddedTypes.enumerations).length) || (embeddedTypes.datatypes && Object.keys(embeddedTypes.datatypes).length) ? ', ' + Object.keys(embeddedTypes.valueTypes || {}).concat(Object.keys(embeddedTypes.enumerations || {})).concat(Object.keys(embeddedTypes.datatypes || {})).map(sanitizeId).join(', ') : '') + ' };');
+  
+  // Define primitive types that are already available in SysADLBase
+  const primitiveTypes = new Set(['Int', 'Boolean', 'String', 'Real', 'Void']);
+  
+  // Filter out primitive types from exports
+  const filteredValueTypes = Object.keys(embeddedTypes.valueTypes || {}).filter(name => !primitiveTypes.has(name));
+  const allExportedTypes = filteredValueTypes
+    .concat(Object.keys(embeddedTypes.enumerations || {}))
+    .concat(Object.keys(embeddedTypes.datatypes || {}))
+    .concat(Object.keys(embeddedTypes.dimensions || {}))
+    .concat(Object.keys(embeddedTypes.units || {}));
+  
+  lines.push('module.exports = { createModel, ' + sanitizeId(modelName) + ', __portAliases' + (allExportedTypes.length > 0 ? ', ' + allExportedTypes.map(sanitizeId).join(', ') : '') + ' };');
   // Sanity check: fail-fast if any emitted line attempts to initialize an owner-level
   // `.ports` object like: if (!this.X.ports) this.X.ports = {};
   // This enforces the invariant that component constructors in the runtime
@@ -763,7 +768,11 @@ async function main() {
   // collect SysADL types to embed
   function qnameToString(x){ try{ if(!x) return null; if(typeof x==='string') return x; if (x.name) return x.name; if (x.id && x.id.name) return x.id.name; if (Array.isArray(x.parts)) return x.parts.join('.'); }catch(e){} return null; }
   function attrTypeOf(a){ try{ if(!a) return null; if (a.definition) return qnameToString(a.definition); if (a.type) return qnameToString(a.type); if (a.valueType) return qnameToString(a.valueType); if (a.value) return qnameToString(a.value); }catch(e){} return null; }
-  const embeddedTypes = { datatypes: {}, valueTypes: {}, enumerations: {} };
+  const embeddedTypes = { datatypes: {}, valueTypes: {}, enumerations: {}, dimensions: {}, units: {} };
+  
+  // Define primitive types that are already available in SysADLBase
+  const primitiveTypes = new Set(['Int', 'Boolean', 'String', 'Real', 'Void']);
+  
   traverse(ast, n => {
     if (!n || typeof n !== 'object') return;
     try {
@@ -776,6 +785,12 @@ async function main() {
         embeddedTypes.datatypes[String(name)] = { extends: superType || null, attributes: attrs };
       } else if (n.type === 'ValueType' || /ValueType/i.test(n.type)) {
         const name = n.name || (n.id && n.id.name) || n.id || null; if (!name) return;
+        
+        // Skip primitive types - they are already available in SysADLBase
+        if (primitiveTypes.has(name)) {
+          return;
+        }
+        
         const superType = qnameToString(n.superType || n.extends || null);
         const unit = qnameToString(n.unit || null);
         const dimension = qnameToString(n.dimension || null);
@@ -790,6 +805,13 @@ async function main() {
         if (literals.length > 0) {
           embeddedTypes.enumerations[String(name)] = literals;
         }
+      } else if (n.type === 'Dimension' || /Dimension/i.test(n.type)) {
+        const name = n.name || (n.id && n.id.name) || n.id || null; if (!name) return;
+        embeddedTypes.dimensions[String(name)] = {};
+      } else if (n.type === 'Unit' || /Unit/i.test(n.type)) {
+        const name = n.name || (n.id && n.id.name) || n.id || null; if (!name) return;
+        const dimension = qnameToString(n.dimension || null);
+        embeddedTypes.units[String(name)] = { dimension: dimension || null };
       }
     } catch(e){}
   });

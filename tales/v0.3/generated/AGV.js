@@ -1,98 +1,13 @@
-const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression, createTypedClass, registerCustomEnum, Enum } = require('../SysADLBase');
-const Int = createTypedClass('Int', () => class {
-  constructor(value) {
-    if (value !== undefined) {
-      this.value = parseInt(value, 10);
-      if (isNaN(this.value)) throw new Error(`Invalid Int value: ${value}`);
-    }
-  }
-});
-
-const Boolean = createTypedClass('Boolean', () => class {
-  constructor(value) {
-    if (value !== undefined) {
-      this.value = value;
-    }
-  }
-});
-
-const String = createTypedClass('String', () => class {
-  constructor(value) {
-    if (value !== undefined) {
-      this.value = value;
-    }
-  }
-});
-
-const Void = createTypedClass('Void', () => class {
-  constructor(value) {
-    if (value !== undefined) {
-      this.value = value;
-    }
-  }
-});
-
-const Real = createTypedClass('Real', () => class {
-  constructor(value) {
-    if (value !== undefined) {
-      this.value = parseFloat(value);
-      if (isNaN(this.value)) throw new Error(`Invalid Real value: ${value}`);
-    }
-  }
-});
+const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit } = require('../SysADLBase');
 
 const NotificationToSupervisory = new Enum("departed", "arrived", "passed", "traveling");
 const NotificationFromArm = new Enum("loaded", "unloaded");
 const CommandToArm = new Enum("load", "unload", "idle");
 const NotificationFromMotor = new Enum("started", "stopped");
 const CommandToMotor = new Enum("start", "stop");
-const Status = createTypedClass('Status', () => class {
-  constructor(obj = {}) {
-    if (typeof obj !== 'object' || obj === null) {
-      throw new Error(`Invalid object for Status: expected object`);
-    }
-    if ('location' in obj) {
-      
-      this.location = obj.location;
-    }
-    if ('destination' in obj) {
-      
-      this.destination = obj.destination;
-    }
-    if ('command' in obj) {
-      
-      this.command = obj.command;
-    }
-  }
-});
-
-const Location = createTypedClass('Location', () => class {
-  constructor(obj = {}) {
-    if (typeof obj !== 'object' || obj === null) {
-      throw new Error(`Invalid object for Location: expected object`);
-    }
-    if ('location' in obj) {
-      
-      this.location = obj.location;
-    }
-  }
-});
-
-const VehicleData = createTypedClass('VehicleData', () => class {
-  constructor(obj = {}) {
-    if (typeof obj !== 'object' || obj === null) {
-      throw new Error(`Invalid object for VehicleData: expected object`);
-    }
-    if ('destination' in obj) {
-      
-      this.destination = obj.destination;
-    }
-    if ('command' in obj) {
-      
-      this.command = obj.command;
-    }
-  }
-});
+const Status = dataType('Status', { location: Location, destination: Location, command: CommandToArm });
+const Location = dataType('Location', { location: String });
+const VehicleData = dataType('VehicleData', { destination: Location, command: CommandToArm });
 
 class SupervisorySystem extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
 class AGVSystem extends Component { }
@@ -221,18 +136,18 @@ class SysADLArchitecture extends Model {
     this.addExecutableSafe("SysADLArchitecture.ControlArmEX", "executable def ControlArmEX ( in statusMotor : NotificationFromMotor, in cmd : CommandToArm) : out CommandToArm {\n\t\tif(statusMotor == NotificationFromMotor::stopped)\n\t\t\treturn cmd;\n\t\telse\n\t\t\treturn CommandToArm::idle;\n\t}", []);
     this.addExecutableSafe("SysADLArchitecture.NotifierArmEX", "executable def NotifierArmEX ( in statusArm : NotificationFromArm) : \n\tout\tNotificationToSupervisory {\n\t\treturn NotificationToSupervisory::arrived;\n\t}", []);
     this.addExecutableSafe("SysADLArchitecture.VehicleTimerEX", "executable def VehicleTimerEX ( in location : Location, in cmd : CommandToArm, \n\t\tin destination : Location) : out Status {\n\t\t\n\t\tlet s : Status;\n\t\ts->destination = destination;\n\t\ts->location = location;\n\t\ts->command = cmd;\n\t\t\n\t\treturn s;\n\t}", []);
-    this.addExecutableSafe("SysADLArchitecture.fxmr", "executable CompareStationsEX to CompareStationsAN", []);
-    this.addExecutableSafe("SysADLArchitecture.evcn", "executable ControlArmEX to ControlArmAN", []);
-    this.addExecutableSafe("SysADLArchitecture.9983", "executable NotifierArmEX to NotifierArmAN", []);
-    this.addExecutableSafe("SysADLArchitecture.c98c", "executable NotifyAGVFromMotorEX to NotifyAGVFromMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.nyih", "executable NotifySupervisoryFromMotorEX to NotifySupervisoryFromMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.2njq", "executable PassedMotorEX to PassedMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.6b8w", "executable SendCommandEX to SendCommandAN", []);
-    this.addExecutableSafe("SysADLArchitecture.e5sp", "executable SendCurrentLocationEX to SendCurrentLocationAN", []);
-    this.addExecutableSafe("SysADLArchitecture.a0of", "executable SendDestinationEX to SendDestinationAN", []);
-    this.addExecutableSafe("SysADLArchitecture.7bkb", "executable SendStartMotorEX to SendStartMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.h478", "executable StopMotorEX to StopMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.xljj", "executable VehicleTimerEX to VehicleTimerAN", []);
+    this.addExecutableSafe("SysADLArchitecture.p3ok", "executable CompareStationsEX to CompareStationsAN", []);
+    this.addExecutableSafe("SysADLArchitecture.u1jv", "executable ControlArmEX to ControlArmAN", []);
+    this.addExecutableSafe("SysADLArchitecture.7kiy", "executable NotifierArmEX to NotifierArmAN", []);
+    this.addExecutableSafe("SysADLArchitecture.5qam", "executable NotifyAGVFromMotorEX to NotifyAGVFromMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.1etz", "executable NotifySupervisoryFromMotorEX to NotifySupervisoryFromMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.u2ms", "executable PassedMotorEX to PassedMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.m6wd", "executable SendCommandEX to SendCommandAN", []);
+    this.addExecutableSafe("SysADLArchitecture.l5sw", "executable SendCurrentLocationEX to SendCurrentLocationAN", []);
+    this.addExecutableSafe("SysADLArchitecture.64k5", "executable SendDestinationEX to SendDestinationAN", []);
+    this.addExecutableSafe("SysADLArchitecture.bz3a", "executable SendStartMotorEX to SendStartMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.kua3", "executable StopMotorEX to StopMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.wlb4", "executable VehicleTimerEX to VehicleTimerAN", []);
     const act_StartMovingAC_sm = new Activity("StartMovingAC", { component: "sm", inputPorts: ["move"] });
     act_StartMovingAC_sm.addAction(new Action("SendStartMotorAN", [], "SendStartMotorEX"));
     act_StartMovingAC_sm.addAction(new Action("SendCommandAN", [], "SendCommandEX"));
@@ -390,4 +305,4 @@ class SysADLArchitecture extends Model {
 
 const __portAliases = {};
 function createModel(){ return new SysADLArchitecture(); }
-module.exports = { createModel, SysADLArchitecture, __portAliases, Int, Boolean, String, Void, Real, NotificationToSupervisory, NotificationFromArm, CommandToArm, NotificationFromMotor, CommandToMotor, Status, Location, VehicleData };
+module.exports = { createModel, SysADLArchitecture, __portAliases, NotificationToSupervisory, NotificationFromArm, CommandToArm, NotificationFromMotor, CommandToMotor, Status, Location, VehicleData };
