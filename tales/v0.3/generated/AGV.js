@@ -109,19 +109,122 @@ class PT_ISupervisorySystem extends CompositePort {
 }
 
 // Components
-class CP_SupervisorySystem extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class CP_AGVSystem extends Component { }
-class CP_DisplaySystem extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class CP_Motor extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class CP_ArrivalSensor extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class CP_RobotArm extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class CP_VehicleControl extends Component { }
-class CP_CheckStation extends Component { }
-class CP_ControlArm extends Component { }
-class CP_NotifierMotor extends Component { }
-class CP_StartMoving extends Component { }
-class CP_NotifierArm extends Component { }
-class CP_VehicleTimer extends Component { }
+class CP_SupervisorySystem extends Component {
+  constructor(name, opts={}) {
+      super(name, { ...opts, isBoundary: true });
+      // Add ports from component definition
+      this.addPort(new PT_ISupervisorySystem("in_outData", { owner: name }));
+    }
+}
+class CP_AGVSystem extends Component {
+  constructor(name, opts={}) {
+      super(name, opts);
+      // Add ports from component definition
+      this.addPort(new PT_outStatus("sendStatus", { owner: name }));
+      this.addPort(new PT_IAGVSystem("in_outData", { owner: name }));
+    }
+}
+class CP_DisplaySystem extends Component {
+  constructor(name, opts={}) {
+      super(name, { ...opts, isBoundary: true });
+      // Add ports from component definition
+      this.addPort(new PT_inStatus("receiveStatus", { owner: name }));
+    }
+}
+class CP_Motor extends Component {
+  constructor(name, opts={}) {
+      super(name, { ...opts, isBoundary: true });
+      // Add ports from component definition
+      this.addPort(new PT_inCommandToMotor("start_stop", { owner: name }));
+      this.addPort(new PT_outNotificationFromMotor("started_stopped", { owner: name }));
+    }
+}
+class CP_ArrivalSensor extends Component {
+  constructor(name, opts={}) {
+      super(name, { ...opts, isBoundary: true });
+      // Add ports from component definition
+      this.addPort(new PT_outLocation("arrivalDetected", { owner: name }));
+    }
+}
+class CP_RobotArm extends Component {
+  constructor(name, opts={}) {
+      super(name, { ...opts, isBoundary: true });
+      // Add ports from component definition
+      this.addPort(new PT_inCommandToArm("start", { owner: name }));
+      this.addPort(new PT_outNotificationFromArm("started", { owner: name }));
+    }
+}
+class CP_VehicleControl extends Component {
+  constructor(name, opts={}) {
+      super(name, opts);
+      // Add ports from component definition
+      this.addPort(new PT_outStatus("sendStatus", { owner: name }));
+      this.addPort(new PT_inLocation("arrivalDetected", { owner: name }));
+      this.addPort(new PT_outCommandToArm("startArm", { owner: name }));
+      this.addPort(new PT_inNotificationFromArm("startedArm", { owner: name }));
+      this.addPort(new PT_inNotificationFromMotor("started_stopped", { owner: name }));
+      this.addPort(new PT_outCommandToMotor("start_stop", { owner: name }));
+      this.addPort(new PT_IAGVSystem("in_outData", { owner: name }));
+    }
+}
+class CP_CheckStation extends Component {
+  constructor(name, opts={}) {
+      super(name, opts);
+      // Add ports from component definition
+      this.addPort(new PT_inNotificationFromMotor("ack", { owner: name }));
+      this.addPort(new PT_outLocation("location", { owner: name }));
+      this.addPort(new PT_inLocation("destination", { owner: name }));
+      this.addPort(new PT_outCommandToMotor("stop", { owner: name }));
+      this.addPort(new PT_inLocation("arrivalDetected", { owner: name }));
+      this.addPort(new PT_outNotificationToSupervisory("passed", { owner: name }));
+    }
+}
+class CP_ControlArm extends Component {
+  constructor(name, opts={}) {
+      super(name, opts);
+      // Add ports from component definition
+      this.addPort(new PT_inCommandToArm("cmd", { owner: name }));
+      this.addPort(new PT_inNotificationFromMotor("ack", { owner: name }));
+      this.addPort(new PT_outCommandToArm("startArm", { owner: name }));
+    }
+}
+class CP_NotifierMotor extends Component {
+  constructor(name, opts={}) {
+      super(name, opts);
+      // Add ports from component definition
+      this.addPort(new PT_inNotificationFromMotor("inAck", { owner: name }));
+      this.addPort(new PT_outNotificationToSupervisory("ack", { owner: name }));
+      this.addPort(new PT_outNotificationFromMotor("outAck", { owner: name }));
+    }
+}
+class CP_StartMoving extends Component {
+  constructor(name, opts={}) {
+      super(name, opts);
+      // Add ports from component definition
+      this.addPort(new PT_inVehicleData("move", { owner: name }));
+      this.addPort(new PT_outCommandToArm("cmd", { owner: name }));
+      this.addPort(new PT_outLocation("destination", { owner: name }));
+      this.addPort(new PT_outCommandToMotor("start", { owner: name }));
+    }
+}
+class CP_NotifierArm extends Component {
+  constructor(name, opts={}) {
+      super(name, opts);
+      // Add ports from component definition
+      this.addPort(new PT_outNotificationToSupervisory("arrivedStatus", { owner: name }));
+      this.addPort(new PT_inNotificationFromArm("loaded_unloaded", { owner: name }));
+    }
+}
+class CP_VehicleTimer extends Component {
+  constructor(name, opts={}) {
+      super(name, opts);
+      // Add ports from component definition
+      this.addPort(new PT_outStatus("AGVStatus", { owner: name }));
+      this.addPort(new PT_inLocation("location", { owner: name }));
+      this.addPort(new PT_inLocation("destination", { owner: name }));
+      this.addPort(new PT_inCommandToArm("cmd", { owner: name }));
+    }
+}
 class CP_FactoryAutomationSystem extends Component { }
 
 class SysADLArchitecture extends Model {
@@ -236,18 +339,18 @@ class SysADLArchitecture extends Model {
     this.addExecutableSafe("SysADLArchitecture.ControlArmEX", "executable def ControlArmEX ( in statusMotor : NotificationFromMotor, in cmd : CommandToArm) : out CommandToArm {\n\t\tif(statusMotor == NotificationFromMotor::stopped)\n\t\t\treturn cmd;\n\t\telse\n\t\t\treturn CommandToArm::idle;\n\t}", []);
     this.addExecutableSafe("SysADLArchitecture.NotifierArmEX", "executable def NotifierArmEX ( in statusArm : NotificationFromArm) : \n\tout\tNotificationToSupervisory {\n\t\treturn NotificationToSupervisory::arrived;\n\t}", []);
     this.addExecutableSafe("SysADLArchitecture.VehicleTimerEX", "executable def VehicleTimerEX ( in location : Location, in cmd : CommandToArm, \n\t\tin destination : Location) : out Status {\n\t\t\n\t\tlet s : Status;\n\t\ts->destination = destination;\n\t\ts->location = location;\n\t\ts->command = cmd;\n\t\t\n\t\treturn s;\n\t}", []);
-    this.addExecutableSafe("SysADLArchitecture.uxl5", "executable CompareStationsEX to CompareStationsAN", []);
-    this.addExecutableSafe("SysADLArchitecture.143p", "executable ControlArmEX to ControlArmAN", []);
-    this.addExecutableSafe("SysADLArchitecture.k8mg", "executable NotifierArmEX to NotifierArmAN", []);
-    this.addExecutableSafe("SysADLArchitecture.lmjy", "executable NotifyAGVFromMotorEX to NotifyAGVFromMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.8iai", "executable NotifySupervisoryFromMotorEX to NotifySupervisoryFromMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.8c4x", "executable PassedMotorEX to PassedMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.ugmr", "executable SendCommandEX to SendCommandAN", []);
-    this.addExecutableSafe("SysADLArchitecture.zlia", "executable SendCurrentLocationEX to SendCurrentLocationAN", []);
-    this.addExecutableSafe("SysADLArchitecture.at9t", "executable SendDestinationEX to SendDestinationAN", []);
-    this.addExecutableSafe("SysADLArchitecture.afx6", "executable SendStartMotorEX to SendStartMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.be3g", "executable StopMotorEX to StopMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.7hxs", "executable VehicleTimerEX to VehicleTimerAN", []);
+    this.addExecutableSafe("SysADLArchitecture.q2i9", "executable CompareStationsEX to CompareStationsAN", []);
+    this.addExecutableSafe("SysADLArchitecture.50k4", "executable ControlArmEX to ControlArmAN", []);
+    this.addExecutableSafe("SysADLArchitecture.pwn8", "executable NotifierArmEX to NotifierArmAN", []);
+    this.addExecutableSafe("SysADLArchitecture.003t", "executable NotifyAGVFromMotorEX to NotifyAGVFromMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.9u26", "executable NotifySupervisoryFromMotorEX to NotifySupervisoryFromMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.ckq3", "executable PassedMotorEX to PassedMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.czza", "executable SendCommandEX to SendCommandAN", []);
+    this.addExecutableSafe("SysADLArchitecture.h0ej", "executable SendCurrentLocationEX to SendCurrentLocationAN", []);
+    this.addExecutableSafe("SysADLArchitecture.x806", "executable SendDestinationEX to SendDestinationAN", []);
+    this.addExecutableSafe("SysADLArchitecture.lgoc", "executable SendStartMotorEX to SendStartMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.0lhh", "executable StopMotorEX to StopMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.wcue", "executable VehicleTimerEX to VehicleTimerAN", []);
     const act_StartMovingAC_sm = new Activity("StartMovingAC", { component: "sm", inputPorts: ["move"] });
     act_StartMovingAC_sm.addAction(new Action("SendStartMotorAN", [], "SendStartMotorEX"));
     act_StartMovingAC_sm.addAction(new Action("SendCommandAN", [], "SendCommandEX"));

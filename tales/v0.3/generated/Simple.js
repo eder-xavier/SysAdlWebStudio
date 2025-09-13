@@ -19,9 +19,29 @@ class PT_FTempOPT extends SimplePort {
 }
 
 // Components
-class CP_SensorCP extends Component { }
-class CP_TempMonitorCP extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class CP_StdOutCP extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
+class CP_SensorCP extends Component {
+  constructor(name, opts={}) {
+      super(name, opts);
+      // Add ports from component definition
+      this.addPort(new PT_FTempOPT("current", { owner: name }));
+    }
+}
+class CP_TempMonitorCP extends Component {
+  constructor(name, opts={}) {
+      super(name, { ...opts, isBoundary: true });
+      // Add ports from component definition
+      this.addPort(new PT_CTempIPT("s1", { owner: name }));
+      this.addPort(new PT_CTempIPT("s2", { owner: name }));
+      this.addPort(new PT_CTempOPT("average", { owner: name }));
+    }
+}
+class CP_StdOutCP extends Component {
+  constructor(name, opts={}) {
+      super(name, { ...opts, isBoundary: true });
+      // Add ports from component definition
+      this.addPort(new PT_CTempIPT("c3", { owner: name }));
+    }
+}
 class CP_SystemCP extends Component { }
 
 class SysADLModel extends Model {
@@ -46,8 +66,8 @@ class SysADLModel extends Model {
     this.SystemCP.stdOut.addPort(new PT_CTempIPT("c3", "in", { owner: "stdOut" }));
     this.addExecutableSafe("SysADLModel.FarToCelEX", "executable def FarToCelEX (in f:Real): out Real {\n\t\treturn 5*(f - 32)/9 ;\n\t}", []);
     this.addExecutableSafe("SysADLModel.CalcAverageEX", "executable def CalcAverageEX(in temp1:Real,in temp2:Real):out Real{\n\t\treturn (temp1 + temp2)/2 ;\n\t}", []);
-    this.addExecutableSafe("SysADLModel.a5he", "executable FarToCelEX to FarToCelAN", []);
-    this.addExecutableSafe("SysADLModel.26wq", "executable CalcAverageEX to TempMonitorAN", []);
+    this.addExecutableSafe("SysADLModel.jhal", "executable FarToCelEX to FarToCelAN", []);
+    this.addExecutableSafe("SysADLModel.7dgs", "executable CalcAverageEX to TempMonitorAN", []);
     const act_FarToCelAC_s1 = new Activity("FarToCelAC", { component: "s1", inputPorts: ["current"] });
     act_FarToCelAC_s1.addAction(new Action("FarToCelAN", [], "FarToCelEX"));
     this.registerActivity("FarToCelAC::s1", act_FarToCelAC_s1);

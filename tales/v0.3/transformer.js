@@ -343,22 +343,82 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     lines.push("");
     lines.push("// Components");
   }
+  
+  // Helper function to extract ports from ComponentDef
+  function extractComponentDefPorts(compDefNode) {
+    const ports = [];
+    if (!compDefNode) return ports;
+    
+    // Look for ports in different possible locations
+    const portSources = [
+      compDefNode.ports,
+      compDefNode.members,
+      compDefNode.portDeclarations,
+      compDefNode.portList
+    ];
+    
+    for (const portSource of portSources) {
+      if (Array.isArray(portSource)) {
+        for (const port of portSource) {
+          if (port && port.name) {
+            const portName = port.name || (port.id && port.id.name) || port.id;
+            const portType = port.definition || port.type || null;
+            const portTypeStr = portType ? (portType.name || portType.id || String(portType)) : null;
+            
+            if (portName && portTypeStr) {
+              ports.push({
+                name: portName,
+                type: portTypeStr
+              });
+            }
+          }
+        }
+      }
+    }
+    
+    return ports;
+  }
+  
   // create simple class per definition (if none, skip)
   for (const t of Array.from(typeNames)) {
-  // if the component definition indicates boundary, propagate via opts to runtime
-  const isBoundaryFlag = (typeof compDefMapArg !== 'undefined' && compDefMapArg && compDefMapArg[String(t)] && !!compDefMapArg[String(t)].isBoundary);
-  // Only emit an explicit constructor when we need to modify opts (e.g. inject isBoundary).
-  // If the constructor would be a no-op that only calls super(name, opts), omit it and let
-  // JavaScript inheritance provide the default behavior.
-  let cls;
-  const prefixedClassName = 'CP_' + sanitizeId(String(t));
-  if (isBoundaryFlag) {
-    const ctor = 'constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); }';
-    cls = 'class ' + prefixedClassName + ' extends Component { ' + ctor + ' }';
-  } else {
-    cls = 'class ' + prefixedClassName + ' extends Component { }';
-  }
-    lines.push(cls);
+    // if the component definition indicates boundary, propagate via opts to runtime
+    const isBoundaryFlag = (typeof compDefMapArg !== 'undefined' && compDefMapArg && compDefMapArg[String(t)] && !!compDefMapArg[String(t)].isBoundary);
+    
+    // Get component definition to extract ports
+    const compDefNode = (typeof compDefMapArg !== 'undefined' && compDefMapArg) ? compDefMapArg[String(t)] : null;
+    const compPorts = extractComponentDefPorts(compDefNode);
+    
+    const prefixedClassName = 'CP_' + sanitizeId(String(t));
+    
+    // Always generate constructor if we have ports or need boundary flag
+    if (compPorts.length > 0 || isBoundaryFlag) {
+      let ctorLines = [];
+      ctorLines.push('constructor(name, opts={}) {');
+      
+      if (isBoundaryFlag) {
+        ctorLines.push('    super(name, { ...opts, isBoundary: true });');
+      } else {
+        ctorLines.push('    super(name, opts);');
+      }
+      
+      if (compPorts.length > 0) {
+        ctorLines.push('    // Add ports from component definition');
+        for (const port of compPorts) {
+          const portTypeClass = `PT_${port.type}`;
+          ctorLines.push(`    this.addPort(new ${portTypeClass}("${port.name}", { owner: name }));`);
+        }
+      }
+      
+      ctorLines.push('  }');
+      const ctor = ctorLines.join('\n  ');
+      
+      lines.push(`class ${prefixedClassName} extends Component {`);
+      lines.push(`  ${ctor}`);
+      lines.push(`}`);
+    } else {
+      // No ports and not boundary - use simple class
+      lines.push(`class ${prefixedClassName} extends Component { }`);
+    }
   }
   lines.push('');
 

@@ -188,25 +188,163 @@ class PT_ContextI2O extends CompositePort {
 }
 
 // Components
-class CP_SmartPlaceWeb extends Component { }
-class CP_RoomReservationSystem extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class CP_OrionContextBroker extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class CP_TemperatureAndHumiditySensor extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class CP_PresenceSensor extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class CP_DB_PostgreSQL extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class CP_AirConditioner extends Component { }
-class CP_Led extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class CP_Raspberry extends Component { }
-class CP_Camera extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class CP_CamMonitor extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class CP_TemperatureController extends Component { }
-class CP_DB_SQLite extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class CP_Fotosensor extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class CP_AirConditionerController extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class CP_RegistrationController extends Component { }
-class CP_ReportGenerator extends Component { }
-class CP_GraphicsGenerator extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class CP_HistoricController extends Component { }
+class CP_SmartPlaceWeb extends Component {
+  constructor(name, opts={}) {
+      super(name, opts);
+      // Add ports from component definition
+      this.addPort(new PT_ContextInformationOPT("co", { owner: name }));
+      this.addPort(new PT_RestfulRaspberryIPT("rr", { owner: name }));
+      this.addPort(new PT_DataBaseO2I("db", { owner: name }));
+      this.addPort(new PT_UpdateOPT("u", { owner: name }));
+      this.addPort(new PT_ContextO2I("ctx", { owner: name }));
+    }
+}
+class CP_RoomReservationSystem extends Component {
+  constructor(name, opts={}) {
+      super(name, { ...opts, isBoundary: true });
+      // Add ports from component definition
+      this.addPort(new PT_ReservationInformationI2O("ri", { owner: name }));
+    }
+}
+class CP_OrionContextBroker extends Component {
+  constructor(name, opts={}) {
+      super(name, { ...opts, isBoundary: true });
+      // Add ports from component definition
+      this.addPort(new PT_ContextInformationIPT("ci", { owner: name }));
+      this.addPort(new PT_ContextI2O("ctx", { owner: name }));
+    }
+}
+class CP_TemperatureAndHumiditySensor extends Component {
+  constructor(name, opts={}) {
+      super(name, { ...opts, isBoundary: true });
+      // Add ports from component definition
+      this.addPort(new PT_ValueOPT("temperature", { owner: name }));
+    }
+}
+class CP_PresenceSensor extends Component {
+  constructor(name, opts={}) {
+      super(name, { ...opts, isBoundary: true });
+      // Add ports from component definition
+      this.addPort(new PT_ValueOPT("presence", { owner: name }));
+    }
+}
+class CP_DB_PostgreSQL extends Component {
+  constructor(name, opts={}) {
+      super(name, { ...opts, isBoundary: true });
+      // Add ports from component definition
+      this.addPort(new PT_DataBaseI2O("db", { owner: name }));
+      this.addPort(new PT_UpdateIPT("u", { owner: name }));
+    }
+}
+class CP_AirConditioner extends Component {
+  constructor(name, opts={}) {
+      super(name, opts);
+      // Add ports from component definition
+      this.addPort(new PT_InfraredSignalIPT("is", { owner: name }));
+    }
+}
+class CP_Led extends Component {
+  constructor(name, opts={}) {
+      super(name, { ...opts, isBoundary: true });
+      // Add ports from component definition
+      this.addPort(new PT_CommandIPT("c", { owner: name }));
+      this.addPort(new PT_InfraredSignalOPT("is", { owner: name }));
+    }
+}
+class CP_Raspberry extends Component {
+  constructor(name, opts={}) {
+      super(name, opts);
+      // Add ports from component definition
+      this.addPort(new PT_CommandOPT("c", { owner: name }));
+      this.addPort(new PT_ReservationInformationO2I("ri", { owner: name }));
+      this.addPort(new PT_FrameListIPT("f", { owner: name }));
+      this.addPort(new PT_ValueIPT("temperature", { owner: name }));
+      this.addPort(new PT_ValueIPT("presence", { owner: name }));
+      this.addPort(new PT_RestfulRaspberryOPT("rr", { owner: name }));
+    }
+}
+class CP_Camera extends Component {
+  constructor(name, opts={}) {
+      super(name, { ...opts, isBoundary: true });
+      // Add ports from component definition
+      this.addPort(new PT_FrameListOPT("f", { owner: name }));
+    }
+}
+class CP_CamMonitor extends Component {
+  constructor(name, opts={}) {
+      super(name, { ...opts, isBoundary: true });
+      // Add ports from component definition
+      this.addPort(new PT_FrameListIPT("f", { owner: name }));
+      this.addPort(new PT_ValueOPT("numPeople", { owner: name }));
+    }
+}
+class CP_TemperatureController extends Component {
+  constructor(name, opts={}) {
+      super(name, opts);
+      // Add ports from component definition
+      this.addPort(new PT_ValueIPT("presence", { owner: name }));
+      this.addPort(new PT_RestfulRaspberryOPT("rrasp", { owner: name }));
+      this.addPort(new PT_ReservationInformationO2I("ri", { owner: name }));
+      this.addPort(new PT_ValueIPT("temperature", { owner: name }));
+      this.addPort(new PT_ValueIPT("numPeople", { owner: name }));
+      this.addPort(new PT_CommandOPT("c", { owner: name }));
+    }
+}
+class CP_DB_SQLite extends Component {
+  constructor(name, opts={}) {
+      super(name, { ...opts, isBoundary: true });
+      // Add ports from component definition
+      this.addPort(new PT_ReservationInformationI2O("ri", { owner: name }));
+      this.addPort(new PT_ReservationResponseIPT("rresp", { owner: name }));
+    }
+}
+class CP_Fotosensor extends Component {
+  constructor(name, opts={}) {
+      super(name, { ...opts, isBoundary: true });
+      // Add ports from component definition
+      this.addPort(new PT_UndefinedOPT("u", { owner: name }));
+      this.addPort(new PT_InfraredSignalIPT("is", { owner: name }));
+    }
+}
+class CP_AirConditionerController extends Component {
+  constructor(name, opts={}) {
+      super(name, { ...opts, isBoundary: true });
+      // Add ports from component definition
+      this.addPort(new PT_UndefinedIPT("u", { owner: name }));
+    }
+}
+class CP_RegistrationController extends Component {
+  constructor(name, opts={}) {
+      super(name, opts);
+      // Add ports from component definition
+      this.addPort(new PT_ContextInformationOPT("ci", { owner: name }));
+      this.addPort(new PT_ContextInformationIPT("regUi", { owner: name }));
+    }
+}
+class CP_ReportGenerator extends Component {
+  constructor(name, opts={}) {
+      super(name, opts);
+      // Add ports from component definition
+      this.addPort(new PT_ContextInformationIPT("a", { owner: name }));
+    }
+}
+class CP_GraphicsGenerator extends Component {
+  constructor(name, opts={}) {
+      super(name, { ...opts, isBoundary: true });
+      // Add ports from component definition
+      this.addPort(new PT_DataBaseO2I("db", { owner: name }));
+      this.addPort(new PT_ContextO2I("ctx", { owner: name }));
+    }
+}
+class CP_HistoricController extends Component {
+  constructor(name, opts={}) {
+      super(name, opts);
+      // Add ports from component definition
+      this.addPort(new PT_RestfulRaspberryIPT("rr", { owner: name }));
+      this.addPort(new PT_UpdateOPT("u", { owner: name }));
+      this.addPort(new PT_ContextO2I("ctx", { owner: name }));
+    }
+}
 class CP_SmartPlace extends Component { }
 
 class SysADLArchitecture extends Model {
