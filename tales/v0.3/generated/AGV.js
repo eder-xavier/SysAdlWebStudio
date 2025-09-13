@@ -1,5 +1,6 @@
 const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit } = require('../SysADLBase');
 
+// Types
 const EN_NotificationToSupervisory = new Enum("departed", "arrived", "passed", "traveling");
 const EN_NotificationFromArm = new Enum("loaded", "unloaded");
 const EN_CommandToArm = new Enum("load", "unload", "idle");
@@ -9,6 +10,99 @@ const DT_Status = dataType('Status', { location: DT_Location, destination: DT_Lo
 const DT_Location = dataType('Location', { location: String });
 const DT_VehicleData = dataType('VehicleData', { destination: DT_Location, command: EN_CommandToArm });
 
+// Ports
+class PT_inLocation extends Port {
+  constructor(name, opts = {}) {
+    super(name, "in", { ...{ expectedType: "Location" }, ...opts });
+  }
+}
+class PT_outLocation extends Port {
+  constructor(name, opts = {}) {
+    super(name, "out", { ...{ expectedType: "Location" }, ...opts });
+  }
+}
+class PT_inStatus extends Port {
+  constructor(name, opts = {}) {
+    super(name, "in", { ...{ expectedType: "Status" }, ...opts });
+  }
+}
+class PT_outStatus extends Port {
+  constructor(name, opts = {}) {
+    super(name, "out", { ...{ expectedType: "Status" }, ...opts });
+  }
+}
+class PT_inVehicleData extends Port {
+  constructor(name, opts = {}) {
+    super(name, "in", { ...{ expectedType: "VehicleData" }, ...opts });
+  }
+}
+class PT_outVehicleData extends Port {
+  constructor(name, opts = {}) {
+    super(name, "out", { ...{ expectedType: "VehicleData" }, ...opts });
+  }
+}
+class PT_inNotificationFromMotor extends Port {
+  constructor(name, opts = {}) {
+    super(name, "in", { ...{ expectedType: "NotificationFromMotor" }, ...opts });
+  }
+}
+class PT_outNotificationFromMotor extends Port {
+  constructor(name, opts = {}) {
+    super(name, "out", { ...{ expectedType: "NotificationFromMotor" }, ...opts });
+  }
+}
+class PT_inCommandToMotor extends Port {
+  constructor(name, opts = {}) {
+    super(name, "in", { ...{ expectedType: "CommandToMotor" }, ...opts });
+  }
+}
+class PT_outCommandToMotor extends Port {
+  constructor(name, opts = {}) {
+    super(name, "out", { ...{ expectedType: "CommandToMotor" }, ...opts });
+  }
+}
+class PT_inNotificationFromArm extends Port {
+  constructor(name, opts = {}) {
+    super(name, "in", { ...{ expectedType: "NotificationFromArm" }, ...opts });
+  }
+}
+class PT_outNotificationFromArm extends Port {
+  constructor(name, opts = {}) {
+    super(name, "out", { ...{ expectedType: "NotificationFromArm" }, ...opts });
+  }
+}
+class PT_inCommandToArm extends Port {
+  constructor(name, opts = {}) {
+    super(name, "in", { ...{ expectedType: "CommandToArm" }, ...opts });
+  }
+}
+class PT_outCommandToArm extends Port {
+  constructor(name, opts = {}) {
+    super(name, "out", { ...{ expectedType: "CommandToArm" }, ...opts });
+  }
+}
+class PT_inNotificationToSupervisory extends Port {
+  constructor(name, opts = {}) {
+    super(name, "in", { ...{ expectedType: "NotificationToSupervisory" }, ...opts });
+  }
+}
+class PT_outNotificationToSupervisory extends Port {
+  constructor(name, opts = {}) {
+    super(name, "out", { ...{ expectedType: "NotificationToSupervisory" }, ...opts });
+  }
+}
+class PT_IAGVSystem extends Port {
+  constructor(name, opts = {}) {
+    super(name, "in", { ...{ expectedType: "CompositePortDef" }, ...opts });
+  }
+}
+class PT_ISupervisorySystem extends Port {
+  constructor(name, opts = {}) {
+    super(name, "in", { ...{ expectedType: "CompositePortDef" }, ...opts });
+  }
+}
+
+// Components
 class CP_SupervisorySystem extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
 class CP_AGVSystem extends Component { }
 class CP_DisplaySystem extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
@@ -56,74 +150,74 @@ class SysADLArchitecture extends Model {
     this.FactoryAutomationSystem.agvs.vc.vt = new CP_VehicleTimer("vt", { sysadlDefinition: "VehicleTimer" });
     this.FactoryAutomationSystem.agvs.vc.addComponent(this.FactoryAutomationSystem.agvs.vc.vt);
 
-    this.FactoryAutomationSystem.ss.addPort(new Port("in_outData", "in", { owner: "ss" }));
-    this.FactoryAutomationSystem.agvs.addPort(new Port("sendStatus", "out", { owner: "agvs" }));
-    this.FactoryAutomationSystem.agvs.addPort(new Port("in_outData", "in", { owner: "agvs" }));
-    this.FactoryAutomationSystem.agvs.addPort(new Port("start_stop_in", "in", { owner: "agvs" }));
-    this.FactoryAutomationSystem.agvs.addPort(new Port("started_stopped_out", "out", { owner: "agvs" }));
-    this.FactoryAutomationSystem.agvs.addPort(new Port("arrivalDetected_out", "out", { owner: "agvs" }));
-    this.FactoryAutomationSystem.agvs.addPort(new Port("start", "in", { owner: "agvs" }));
-    this.FactoryAutomationSystem.agvs.addPort(new Port("started", "out", { owner: "agvs" }));
-    this.FactoryAutomationSystem.agvs.addPort(new Port("arrivalDetected_in", "in", { owner: "agvs" }));
-    this.FactoryAutomationSystem.agvs.addPort(new Port("startArm", "out", { owner: "agvs" }));
-    this.FactoryAutomationSystem.agvs.addPort(new Port("startedArm", "in", { owner: "agvs" }));
-    this.FactoryAutomationSystem.agvs.addPort(new Port("started_stopped_in", "in", { owner: "agvs" }));
-    this.FactoryAutomationSystem.agvs.addPort(new Port("start_stop_out", "out", { owner: "agvs" }));
-    this.FactoryAutomationSystem.ds.addPort(new Port("receiveStatus", "in", { owner: "ds" }));
-    this.FactoryAutomationSystem.agvs.m.addPort(new Port("start_stop", "in", { owner: "m" }));
-    this.FactoryAutomationSystem.agvs.m.addPort(new Port("started_stopped", "out", { owner: "m" }));
-    this.FactoryAutomationSystem.agvs.as.addPort(new Port("arrivalDetected", "out", { owner: "as" }));
-    this.FactoryAutomationSystem.agvs.ra.addPort(new Port("start", "in", { owner: "ra" }));
-    this.FactoryAutomationSystem.agvs.ra.addPort(new Port("started", "out", { owner: "ra" }));
-    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("sendStatus", "out", { owner: "vc" }));
-    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("arrivalDetected", "in", { owner: "vc" }));
-    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("startArm", "out", { owner: "vc" }));
-    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("startedArm", "in", { owner: "vc" }));
-    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("started_stopped", "in", { owner: "vc" }));
-    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("start_stop", "out", { owner: "vc" }));
-    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("in_outData", "in", { owner: "vc" }));
-    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("ack_cs", "in", { owner: "vc" }));
-    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("location_cs", "out", { owner: "vc" }));
-    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("destination_cs", "in", { owner: "vc" }));
-    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("stop", "out", { owner: "vc" }));
-    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("passed", "out", { owner: "vc" }));
-    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("cmd_ca", "in", { owner: "vc" }));
-    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("ack_ca", "in", { owner: "vc" }));
-    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("inAck", "in", { owner: "vc" }));
-    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("ack", "out", { owner: "vc" }));
-    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("outAck", "out", { owner: "vc" }));
-    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("move", "in", { owner: "vc" }));
-    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("cmd_sm", "out", { owner: "vc" }));
-    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("destination", "out", { owner: "vc" }));
-    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("start", "out", { owner: "vc" }));
-    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("arrivedStatus", "out", { owner: "vc" }));
-    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("loaded_unloaded", "in", { owner: "vc" }));
-    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("AGVStatus", "out", { owner: "vc" }));
-    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("location_vt", "in", { owner: "vc" }));
-    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("destination_vt", "in", { owner: "vc" }));
-    this.FactoryAutomationSystem.agvs.vc.addPort(new Port("cmd", "in", { owner: "vc" }));
-    this.FactoryAutomationSystem.agvs.vc.cs.addPort(new Port("ack", "in", { owner: "cs" }));
-    this.FactoryAutomationSystem.agvs.vc.cs.addPort(new Port("location", "out", { owner: "cs" }));
-    this.FactoryAutomationSystem.agvs.vc.cs.addPort(new Port("destination", "in", { owner: "cs" }));
-    this.FactoryAutomationSystem.agvs.vc.cs.addPort(new Port("stop", "out", { owner: "cs" }));
-    this.FactoryAutomationSystem.agvs.vc.cs.addPort(new Port("arrivalDetected", "in", { owner: "cs" }));
-    this.FactoryAutomationSystem.agvs.vc.cs.addPort(new Port("passed", "out", { owner: "cs" }));
-    this.FactoryAutomationSystem.agvs.vc.ca.addPort(new Port("cmd", "in", { owner: "ca" }));
-    this.FactoryAutomationSystem.agvs.vc.ca.addPort(new Port("ack", "in", { owner: "ca" }));
-    this.FactoryAutomationSystem.agvs.vc.ca.addPort(new Port("startArm", "out", { owner: "ca" }));
-    this.FactoryAutomationSystem.agvs.vc.nm.addPort(new Port("inAck", "in", { owner: "nm" }));
-    this.FactoryAutomationSystem.agvs.vc.nm.addPort(new Port("ack", "out", { owner: "nm" }));
-    this.FactoryAutomationSystem.agvs.vc.nm.addPort(new Port("outAck", "out", { owner: "nm" }));
-    this.FactoryAutomationSystem.agvs.vc.sm.addPort(new Port("move", "in", { owner: "sm" }));
-    this.FactoryAutomationSystem.agvs.vc.sm.addPort(new Port("cmd", "out", { owner: "sm" }));
-    this.FactoryAutomationSystem.agvs.vc.sm.addPort(new Port("destination", "out", { owner: "sm" }));
-    this.FactoryAutomationSystem.agvs.vc.sm.addPort(new Port("start", "out", { owner: "sm" }));
-    this.FactoryAutomationSystem.agvs.vc.na.addPort(new Port("arrivedStatus", "out", { owner: "na" }));
-    this.FactoryAutomationSystem.agvs.vc.na.addPort(new Port("loaded_unloaded", "in", { owner: "na" }));
-    this.FactoryAutomationSystem.agvs.vc.vt.addPort(new Port("AGVStatus", "out", { owner: "vt" }));
-    this.FactoryAutomationSystem.agvs.vc.vt.addPort(new Port("location", "in", { owner: "vt" }));
-    this.FactoryAutomationSystem.agvs.vc.vt.addPort(new Port("destination", "in", { owner: "vt" }));
-    this.FactoryAutomationSystem.agvs.vc.vt.addPort(new Port("cmd", "in", { owner: "vt" }));
+    this.FactoryAutomationSystem.ss.addPort(new PT_ISupervisorySystem("in_outData", "in", { owner: "ss" }));
+    this.FactoryAutomationSystem.agvs.addPort(new PT_outStatus("sendStatus", "out", { owner: "agvs" }));
+    this.FactoryAutomationSystem.agvs.addPort(new PT_IAGVSystem("in_outData", "in", { owner: "agvs" }));
+    this.FactoryAutomationSystem.agvs.addPort(new PT_inCommandToMotor("start_stop_in", "in", { owner: "agvs" }));
+    this.FactoryAutomationSystem.agvs.addPort(new PT_outNotificationFromMotor("started_stopped_out", "out", { owner: "agvs" }));
+    this.FactoryAutomationSystem.agvs.addPort(new PT_outLocation("arrivalDetected_out", "out", { owner: "agvs" }));
+    this.FactoryAutomationSystem.agvs.addPort(new PT_inCommandToArm("start", "in", { owner: "agvs" }));
+    this.FactoryAutomationSystem.agvs.addPort(new PT_outNotificationFromArm("started", "out", { owner: "agvs" }));
+    this.FactoryAutomationSystem.agvs.addPort(new PT_inLocation("arrivalDetected_in", "in", { owner: "agvs" }));
+    this.FactoryAutomationSystem.agvs.addPort(new PT_outCommandToArm("startArm", "out", { owner: "agvs" }));
+    this.FactoryAutomationSystem.agvs.addPort(new PT_inNotificationFromArm("startedArm", "in", { owner: "agvs" }));
+    this.FactoryAutomationSystem.agvs.addPort(new PT_inNotificationFromMotor("started_stopped_in", "in", { owner: "agvs" }));
+    this.FactoryAutomationSystem.agvs.addPort(new PT_outCommandToMotor("start_stop_out", "out", { owner: "agvs" }));
+    this.FactoryAutomationSystem.ds.addPort(new PT_inStatus("receiveStatus", "in", { owner: "ds" }));
+    this.FactoryAutomationSystem.agvs.m.addPort(new PT_inCommandToMotor("start_stop", "in", { owner: "m" }));
+    this.FactoryAutomationSystem.agvs.m.addPort(new PT_outNotificationFromMotor("started_stopped", "out", { owner: "m" }));
+    this.FactoryAutomationSystem.agvs.as.addPort(new PT_outLocation("arrivalDetected", "out", { owner: "as" }));
+    this.FactoryAutomationSystem.agvs.ra.addPort(new PT_inCommandToArm("start", "in", { owner: "ra" }));
+    this.FactoryAutomationSystem.agvs.ra.addPort(new PT_outNotificationFromArm("started", "out", { owner: "ra" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new PT_outStatus("sendStatus", "out", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new PT_inLocation("arrivalDetected", "in", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new PT_outCommandToArm("startArm", "out", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new PT_inNotificationFromArm("startedArm", "in", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new PT_inNotificationFromMotor("started_stopped", "in", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new PT_outCommandToMotor("start_stop", "out", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new PT_IAGVSystem("in_outData", "in", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new PT_inNotificationFromMotor("ack_cs", "in", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new PT_outLocation("location_cs", "out", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new PT_inLocation("destination_cs", "in", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new PT_outCommandToMotor("stop", "out", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new PT_outNotificationToSupervisory("passed", "out", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new PT_inCommandToArm("cmd_ca", "in", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new PT_inNotificationFromMotor("ack_ca", "in", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new PT_inNotificationFromMotor("inAck", "in", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new PT_outNotificationToSupervisory("ack", "out", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new PT_outNotificationFromMotor("outAck", "out", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new PT_inVehicleData("move", "in", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new PT_outCommandToArm("cmd_sm", "out", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new PT_outLocation("destination", "out", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new PT_outCommandToMotor("start", "out", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new PT_outNotificationToSupervisory("arrivedStatus", "out", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new PT_inNotificationFromArm("loaded_unloaded", "in", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new PT_outStatus("AGVStatus", "out", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new PT_inLocation("location_vt", "in", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new PT_inLocation("destination_vt", "in", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.addPort(new PT_inCommandToArm("cmd", "in", { owner: "vc" }));
+    this.FactoryAutomationSystem.agvs.vc.cs.addPort(new PT_inNotificationFromMotor("ack", "in", { owner: "cs" }));
+    this.FactoryAutomationSystem.agvs.vc.cs.addPort(new PT_outLocation("location", "out", { owner: "cs" }));
+    this.FactoryAutomationSystem.agvs.vc.cs.addPort(new PT_inLocation("destination", "in", { owner: "cs" }));
+    this.FactoryAutomationSystem.agvs.vc.cs.addPort(new PT_outCommandToMotor("stop", "out", { owner: "cs" }));
+    this.FactoryAutomationSystem.agvs.vc.cs.addPort(new PT_inLocation("arrivalDetected", "in", { owner: "cs" }));
+    this.FactoryAutomationSystem.agvs.vc.cs.addPort(new PT_outNotificationToSupervisory("passed", "out", { owner: "cs" }));
+    this.FactoryAutomationSystem.agvs.vc.ca.addPort(new PT_inCommandToArm("cmd", "in", { owner: "ca" }));
+    this.FactoryAutomationSystem.agvs.vc.ca.addPort(new PT_inNotificationFromMotor("ack", "in", { owner: "ca" }));
+    this.FactoryAutomationSystem.agvs.vc.ca.addPort(new PT_outCommandToArm("startArm", "out", { owner: "ca" }));
+    this.FactoryAutomationSystem.agvs.vc.nm.addPort(new PT_inNotificationFromMotor("inAck", "in", { owner: "nm" }));
+    this.FactoryAutomationSystem.agvs.vc.nm.addPort(new PT_outNotificationToSupervisory("ack", "out", { owner: "nm" }));
+    this.FactoryAutomationSystem.agvs.vc.nm.addPort(new PT_outNotificationFromMotor("outAck", "out", { owner: "nm" }));
+    this.FactoryAutomationSystem.agvs.vc.sm.addPort(new PT_inVehicleData("move", "in", { owner: "sm" }));
+    this.FactoryAutomationSystem.agvs.vc.sm.addPort(new PT_outCommandToArm("cmd", "out", { owner: "sm" }));
+    this.FactoryAutomationSystem.agvs.vc.sm.addPort(new PT_outLocation("destination", "out", { owner: "sm" }));
+    this.FactoryAutomationSystem.agvs.vc.sm.addPort(new PT_outCommandToMotor("start", "out", { owner: "sm" }));
+    this.FactoryAutomationSystem.agvs.vc.na.addPort(new PT_outNotificationToSupervisory("arrivedStatus", "out", { owner: "na" }));
+    this.FactoryAutomationSystem.agvs.vc.na.addPort(new PT_inNotificationFromArm("loaded_unloaded", "in", { owner: "na" }));
+    this.FactoryAutomationSystem.agvs.vc.vt.addPort(new PT_outStatus("AGVStatus", "out", { owner: "vt" }));
+    this.FactoryAutomationSystem.agvs.vc.vt.addPort(new PT_inLocation("location", "in", { owner: "vt" }));
+    this.FactoryAutomationSystem.agvs.vc.vt.addPort(new PT_inLocation("destination", "in", { owner: "vt" }));
+    this.FactoryAutomationSystem.agvs.vc.vt.addPort(new PT_inCommandToArm("cmd", "in", { owner: "vt" }));
     this.addExecutableSafe("SysADLArchitecture.SendStartMotorEX", "executable def SendStartMotorEX ( in move : VehicleData) : out CommandToMotor {\n\t\treturn CommandToMotor::start;\n\t}", []);
     this.addExecutableSafe("SysADLArchitecture.SendCommandEX", "executable def SendCommandEX ( in move : VehicleData) : out CommandToArm {\n\t\treturn move->command;\n\t}", []);
     this.addExecutableSafe("SysADLArchitecture.SendDestinationEX", "executable def SendDestinationEX ( in move : VehicleData) : out Location {\n\t\treturn move->destination;\n\t}", []);
@@ -136,18 +230,18 @@ class SysADLArchitecture extends Model {
     this.addExecutableSafe("SysADLArchitecture.ControlArmEX", "executable def ControlArmEX ( in statusMotor : NotificationFromMotor, in cmd : CommandToArm) : out CommandToArm {\n\t\tif(statusMotor == NotificationFromMotor::stopped)\n\t\t\treturn cmd;\n\t\telse\n\t\t\treturn CommandToArm::idle;\n\t}", []);
     this.addExecutableSafe("SysADLArchitecture.NotifierArmEX", "executable def NotifierArmEX ( in statusArm : NotificationFromArm) : \n\tout\tNotificationToSupervisory {\n\t\treturn NotificationToSupervisory::arrived;\n\t}", []);
     this.addExecutableSafe("SysADLArchitecture.VehicleTimerEX", "executable def VehicleTimerEX ( in location : Location, in cmd : CommandToArm, \n\t\tin destination : Location) : out Status {\n\t\t\n\t\tlet s : Status;\n\t\ts->destination = destination;\n\t\ts->location = location;\n\t\ts->command = cmd;\n\t\t\n\t\treturn s;\n\t}", []);
-    this.addExecutableSafe("SysADLArchitecture.rk9e", "executable CompareStationsEX to CompareStationsAN", []);
-    this.addExecutableSafe("SysADLArchitecture.itz9", "executable ControlArmEX to ControlArmAN", []);
-    this.addExecutableSafe("SysADLArchitecture.lr3s", "executable NotifierArmEX to NotifierArmAN", []);
-    this.addExecutableSafe("SysADLArchitecture.v50b", "executable NotifyAGVFromMotorEX to NotifyAGVFromMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.nb6i", "executable NotifySupervisoryFromMotorEX to NotifySupervisoryFromMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.926h", "executable PassedMotorEX to PassedMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.r7fg", "executable SendCommandEX to SendCommandAN", []);
-    this.addExecutableSafe("SysADLArchitecture.1w2w", "executable SendCurrentLocationEX to SendCurrentLocationAN", []);
-    this.addExecutableSafe("SysADLArchitecture.37ws", "executable SendDestinationEX to SendDestinationAN", []);
-    this.addExecutableSafe("SysADLArchitecture.weaz", "executable SendStartMotorEX to SendStartMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.37gx", "executable StopMotorEX to StopMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.gvvr", "executable VehicleTimerEX to VehicleTimerAN", []);
+    this.addExecutableSafe("SysADLArchitecture.rrk3", "executable CompareStationsEX to CompareStationsAN", []);
+    this.addExecutableSafe("SysADLArchitecture.orgg", "executable ControlArmEX to ControlArmAN", []);
+    this.addExecutableSafe("SysADLArchitecture.o7mr", "executable NotifierArmEX to NotifierArmAN", []);
+    this.addExecutableSafe("SysADLArchitecture.0tad", "executable NotifyAGVFromMotorEX to NotifyAGVFromMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.lh6a", "executable NotifySupervisoryFromMotorEX to NotifySupervisoryFromMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.lwac", "executable PassedMotorEX to PassedMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.1m05", "executable SendCommandEX to SendCommandAN", []);
+    this.addExecutableSafe("SysADLArchitecture.mtmf", "executable SendCurrentLocationEX to SendCurrentLocationAN", []);
+    this.addExecutableSafe("SysADLArchitecture.ojz7", "executable SendDestinationEX to SendDestinationAN", []);
+    this.addExecutableSafe("SysADLArchitecture.ujs0", "executable SendStartMotorEX to SendStartMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.f263", "executable StopMotorEX to StopMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.lo5d", "executable VehicleTimerEX to VehicleTimerAN", []);
     const act_StartMovingAC_sm = new Activity("StartMovingAC", { component: "sm", inputPorts: ["move"] });
     act_StartMovingAC_sm.addAction(new Action("SendStartMotorAN", [], "SendStartMotorEX"));
     act_StartMovingAC_sm.addAction(new Action("SendCommandAN", [], "SendCommandEX"));
@@ -305,4 +399,4 @@ class SysADLArchitecture extends Model {
 
 const __portAliases = {};
 function createModel(){ return new SysADLArchitecture(); }
-module.exports = { createModel, SysADLArchitecture, __portAliases, EN_NotificationToSupervisory, EN_NotificationFromArm, EN_CommandToArm, EN_NotificationFromMotor, EN_CommandToMotor, DT_Status, DT_Location, DT_VehicleData };
+module.exports = { createModel, SysADLArchitecture, __portAliases, EN_NotificationToSupervisory, EN_NotificationFromArm, EN_CommandToArm, EN_NotificationFromMotor, EN_CommandToMotor, DT_Status, DT_Location, DT_VehicleData, PT_inLocation, PT_outLocation, PT_inStatus, PT_outStatus, PT_inVehicleData, PT_outVehicleData, PT_inNotificationFromMotor, PT_outNotificationFromMotor, PT_inCommandToMotor, PT_outCommandToMotor, PT_inNotificationFromArm, PT_outNotificationFromArm, PT_inCommandToArm, PT_outCommandToArm, PT_inNotificationToSupervisory, PT_outNotificationToSupervisory, PT_IAGVSystem, PT_ISupervisorySystem };

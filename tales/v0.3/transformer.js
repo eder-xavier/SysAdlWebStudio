@@ -55,13 +55,68 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   // Add blank line after imports
   lines.push("");
   
+  // Helper function to determine the port class to use (PT_ class if available, otherwise Port)
+  function getPortClass(portName, isComposite = false, portUse = null) {
+    if (isComposite) {
+      return 'CompositePort'; // CompositePort doesn't have PT_ variants for now
+    }
+    
+    // Try to find port type from portUse context
+    if (portUse) {
+      try {
+        // Check if the portUse has type information
+        const portType = portUse.type || portUse.portType || 
+                        (portUse.definition && portUse.definition.name) ||
+                        portUse._portDefName || null;
+        
+        if (portType && embeddedTypes && embeddedTypes.ports && embeddedTypes.ports[portType]) {
+          return `PT_${portType}`;
+        }
+        
+        // Check if portUse has a _portDefNode reference
+        if (portUse._portDefNode && portUse._portDefNode.name) {
+          const defName = portUse._portDefNode.name;
+          if (embeddedTypes && embeddedTypes.ports && embeddedTypes.ports[defName]) {
+            return `PT_${defName}`;
+          }
+        }
+      } catch(e) { /* ignore */ }
+    }
+    
+    // Check if there's a port definition that matches this port name directly
+    if (embeddedTypes && embeddedTypes.ports && embeddedTypes.ports[portName]) {
+      return `PT_${portName}`;
+    }
+    
+    // Check if we can find a port definition by scanning portDefMap
+    try {
+      if (typeof portDefMapArg !== 'undefined' && portDefMapArg && portDefMapArg[portName]) {
+        return `PT_${portName}`;
+      }
+    } catch(e) { /* ignore */ }
+    
+    // Default to standard Port class
+    return 'Port';
+  }
+  
   // Generate type classes using the new auto-registration system
   function generateTypeClasses(embeddedTypes) {
     const classLines = [];
-    const t = embeddedTypes && typeof embeddedTypes === 'object' ? embeddedTypes : { datatypes: {}, valueTypes: {}, enumerations: {}, dimensions: {}, units: {}, pins: {}, constraints: {}, databuffers: {}, requirements: {} };
+    const t = embeddedTypes && typeof embeddedTypes === 'object' ? embeddedTypes : { datatypes: {}, valueTypes: {}, enumerations: {}, dimensions: {}, units: {}, pins: {}, constraints: {}, databuffers: {}, requirements: {}, ports: {} };
 
     // Define primitive types that are already imported from SysADLBase
     const primitiveTypes = new Set(['Int', 'Boolean', 'String', 'Real', 'Void']);
+
+    // Check if we have any types to generate
+    const hasTypes = Object.keys(t.dimensions || {}).length > 0 || 
+                    Object.keys(t.units || {}).length > 0 ||
+                    Object.keys(t.valueTypes || {}).length > 0 ||
+                    Object.keys(t.enumerations || {}).length > 0 ||
+                    Object.keys(t.datatypes || {}).length > 0;
+
+    if (hasTypes) {
+      classLines.push('// Types');
+    }
 
     // Generate dimensions first (they may be referenced by units and value types)
     for (const [name, info] of Object.entries(t.dimensions || {})) {
@@ -193,6 +248,34 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
       classLines.push(`const ${prefixedName} = /* Requirement implementation */ null; // TODO: Implement Requirement factory`);
     }
 
+    // Add blank line between type declarations and port classes
+    if (Object.keys(t.ports || {}).length > 0) {
+      classLines.push('');
+      classLines.push('// Ports');
+    }
+
+    // Generate port classes
+    for (const [name, info] of Object.entries(t.ports || {})) {
+      if (!name) continue;
+      const prefixedName = `PT_${name}`;
+      const direction = info.direction || 'in';
+      const expectedType = info.expectedType || null;
+      
+      // Build config object for port
+      const configParts = [];
+      if (expectedType) {
+        // Use string literal for expected type to avoid undefined reference issues
+        configParts.push(`expectedType: ${JSON.stringify(expectedType)}`);
+      }
+      
+      const config = configParts.length > 0 ? `{ ${configParts.join(', ')} }` : '{}';
+      classLines.push(`class ${prefixedName} extends Port {`);
+      classLines.push(`  constructor(name, opts = {}) {`);
+      classLines.push(`    super(name, ${JSON.stringify(direction)}, { ...${config}, ...opts });`);
+      classLines.push(`  }`);
+      classLines.push(`}`);
+    }
+
     return classLines.join('\n');
   }
   
@@ -201,8 +284,6 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     const typeClasses = generateTypeClasses(embeddedTypes);
     if (typeClasses.trim()) {
       lines.push(typeClasses);
-      // Add blank line after type declarations if any types were generated
-      lines.push("");
     }
   } catch(e) {
     console.warn('Failed to generate type classes:', e.message);
@@ -217,6 +298,16 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   // ensure any rootDefs types are emitted as classes as well
   try { if (Array.isArray(rootDefs)) for (const rd of rootDefs) if (rd) typeNames.add(String(rd)); } catch(e){}
   try { if (DBG) dbg('[DBG] typeNames:', JSON.stringify(Array.from(typeNames).slice(0,50))); } catch(e){}
+
+  // Add blank line before component classes if there were any type classes
+  const hasTypeClasses = Object.keys(embeddedTypes.ports || {}).length > 0 || 
+                        Object.keys(embeddedTypes.datatypes || {}).length > 0 ||
+                        Object.keys(embeddedTypes.enumerations || {}).length > 0 ||
+                        Object.keys(embeddedTypes.valueTypes || {}).length > 0;
+  if (hasTypeClasses && typeNames.size > 0) {
+    lines.push("");
+    lines.push("// Components");
+  }
   // create simple class per definition (if none, skip)
   for (const t of Array.from(typeNames)) {
   // if the component definition indicates boundary, propagate via opts to runtime
@@ -465,8 +556,9 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     if (!__emittedPorts.has(portKey)) {
       // runtime initializes .ports on components; emit direct addPort call without redundant guard
       const __dir = resolvePortDirectionFor(owner, pname);
-              try { if (DBG) dbg('[DBG] emitting port for', owner, pname, 'resolvedDirection=', __dir); } catch(e){}
-      lines.push(`    ${ownerExpr}.addPort(new Port(${JSON.stringify(pname)}, ${JSON.stringify(__dir)}, { owner: ${JSON.stringify(owner)} }));`);
+      const portClass = getPortClass(pname, false, pu);
+              try { if (DBG) dbg('[DBG] emitting port for', owner, pname, 'resolvedDirection=', __dir, 'portClass=', portClass); } catch(e){}
+      lines.push(`    ${ownerExpr}.addPort(new ${portClass}(${JSON.stringify(pname)}, ${JSON.stringify(__dir)}, { owner: ${JSON.stringify(owner)} }));`);
       __emittedPorts.add(portKey);
     }
   } else {
@@ -475,7 +567,8 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     const compKey = `${owner}::${pname}`;
     if (!__emittedPorts.has(compKey)) {
       const __dir = resolvePortDirectionFor(owner, pname);
-      lines.push(`    ${ownerExpr}.addPort(new CompositePort(${JSON.stringify(pname)}, ${JSON.stringify(__dir)}, { owner: ${JSON.stringify(owner)} }));`);
+      const portClass = getPortClass(pname, true, pu);
+      lines.push(`    ${ownerExpr}.addPort(new ${portClass}(${JSON.stringify(pname)}, ${JSON.stringify(__dir)}, { owner: ${JSON.stringify(owner)} }));`);
       __emittedPorts.add(compKey);
     }
     for (const sub of (children || [])) {
@@ -484,7 +577,8 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
       const subKey = `${owner}::${pname}::${subName}`;
       if (!__emittedPorts.has(subKey)) {
         const __sdir = resolvePortDirectionFor(owner + '.' + pname, subName);
-        lines.push(`    if (!${ownerExpr}.ports[${JSON.stringify(pname)}].getSubPort(${JSON.stringify(subName)})) { const __sp = new Port(${JSON.stringify(subName)}, ${JSON.stringify(__sdir)}, { owner: ${JSON.stringify(owner + '.' + pname)} }); ${ownerExpr}.ports[${JSON.stringify(pname)}].addSubPort(${JSON.stringify(subName)}, __sp); }`);
+        const subPortClass = getPortClass(subName, false, sub);
+        lines.push(`    if (!${ownerExpr}.ports[${JSON.stringify(pname)}].getSubPort(${JSON.stringify(subName)})) { const __sp = new ${subPortClass}(${JSON.stringify(subName)}, ${JSON.stringify(__sdir)}, { owner: ${JSON.stringify(owner + '.' + pname)} }); ${ownerExpr}.ports[${JSON.stringify(pname)}].addSubPort(${JSON.stringify(subName)}, __sp); }`);
         __emittedPorts.add(subKey);
       }
     }
@@ -504,7 +598,8 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
                   if (!__emittedPorts.has(ipKey)) {
                     // runtime ensures components initialize `.ports` in their constructor; emit direct addPort without redundant owner.ports initializer
                     const __dir = resolvePortDirectionFor(comp, ip);
-                    lines.push(`${ownerExpr}.addPort(new Port(${JSON.stringify(ip)}, ${JSON.stringify(__dir)}, { owner: ${JSON.stringify(comp)} }));`);
+                    const portClass = getPortClass(ip, false, null);
+                    lines.push(`${ownerExpr}.addPort(new ${portClass}(${JSON.stringify(ip)}, ${JSON.stringify(__dir)}, { owner: ${JSON.stringify(comp)} }));`);
                     __emittedPorts.add(ipKey);
                   }
                 }
@@ -780,6 +875,9 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     
   const prefixedRequirements = Object.keys(embeddedTypes.requirements || {})
     .map(name => `RQ_${name}`);
+    
+  const prefixedPorts = Object.keys(embeddedTypes.ports || {})
+    .map(name => `PT_${name}`);
   
   const allExportedTypes = filteredValueTypes
     .concat(prefixedEnumerations)
@@ -789,7 +887,8 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     .concat(prefixedPins)
     .concat(prefixedConstraints)
     .concat(prefixedDatabuffers)
-    .concat(prefixedRequirements);
+    .concat(prefixedRequirements)
+    .concat(prefixedPorts);
   
   lines.push('module.exports = { createModel, ' + sanitizeId(modelName) + ', __portAliases' + (allExportedTypes.length > 0 ? ', ' + allExportedTypes.map(sanitizeId).join(', ') : '') + ' };');
   // Sanity check: fail-fast if any emitted line attempts to initialize an owner-level
@@ -851,7 +950,7 @@ async function main() {
   // collect SysADL types to embed
   function qnameToString(x){ try{ if(!x) return null; if(typeof x==='string') return x; if (x.name) return x.name; if (x.id && x.id.name) return x.id.name; if (Array.isArray(x.parts)) return x.parts.join('.'); }catch(e){} return null; }
   function attrTypeOf(a){ try{ if(!a) return null; if (a.definition) return qnameToString(a.definition); if (a.type) return qnameToString(a.type); if (a.valueType) return qnameToString(a.valueType); if (a.value) return qnameToString(a.value); }catch(e){} return null; }
-  const embeddedTypes = { datatypes: {}, valueTypes: {}, enumerations: {}, dimensions: {}, units: {} };
+  const embeddedTypes = { datatypes: {}, valueTypes: {}, enumerations: {}, dimensions: {}, units: {}, ports: {} };
   
   // Define primitive types that are already available in SysADLBase
   const primitiveTypes = new Set(['Int', 'Boolean', 'String', 'Real', 'Void']);
@@ -895,6 +994,48 @@ async function main() {
         const name = n.name || (n.id && n.id.name) || n.id || null; if (!name) return;
         const dimension = qnameToString(n.dimension || null);
         embeddedTypes.units[String(name)] = { dimension: dimension || null };
+      } else if (n.type === 'PortDef' || /PortDef/i.test(n.type)) {
+        const name = n.name || (n.id && n.id.name) || n.id || null; if (!name) return;
+        // Extract direction and type from flow properties
+        let direction = 'in'; // default
+        let expectedType = null;
+        
+        try {
+          // Extract direction from flowProperties
+          if (n.flowProperties) {
+            const flowProp = String(n.flowProperties).toLowerCase();
+            if (flowProp.includes('out')) direction = 'out';
+            else if (flowProp.includes('inout')) direction = 'inout';
+          }
+          
+          // Extract type from flowType
+          if (n.flowType) {
+            expectedType = String(n.flowType);
+          }
+          
+          // Fallback: try older logic for different AST structures
+          if (!expectedType) {
+            if (n.flow) {
+              const flowStr = String(n.flow).toLowerCase();
+              if (flowStr.includes('out')) direction = 'out';
+              else if (flowStr.includes('inout')) direction = 'inout';
+              
+              const flowParts = String(n.flow).split(/\s+/).filter(Boolean);
+              if (flowParts.length >= 2) {
+                expectedType = flowParts[flowParts.length - 1];
+              }
+            } else if (n.direction) {
+              direction = String(n.direction).toLowerCase();
+            }
+          }
+          
+          // Final fallback: try to get type from other common fields
+          if (!expectedType) {
+            expectedType = qnameToString(n.type || n.dataType || n.valueType || n.flowType || null);
+          }
+        } catch(e) { /* ignore parsing errors */ }
+        
+        embeddedTypes.ports[String(name)] = { direction, expectedType: expectedType || null };
       }
     } catch(e){}
   });
@@ -2631,7 +2772,8 @@ async function main() {
   // remove JS comments (block and line) to ensure generator does not emit comments
   try {
     moduleCode = moduleCode.replace(/\/\*[\s\S]*?\*\//g, ''); // remove /* ... */
-    moduleCode = moduleCode.replace(/(^|[^\\:])\/\/.*$/gm, '$1'); // remove //... line comments (avoid chopping http://)
+    // Keep // comments since we now use them for section headers
+    // moduleCode = moduleCode.replace(/(^|[^\\:])\/\/.*$/gm, '$1'); // remove //... line comments (avoid chopping http://)
   } catch(e) { /* ignore */ }
   const outFile = path.join(outDir, path.basename(input, path.extname(input)) + '.js');
   fs.writeFileSync(outFile, moduleCode, 'utf8');
