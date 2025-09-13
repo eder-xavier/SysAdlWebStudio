@@ -1,4 +1,4 @@
-const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit } = require('../SysADLBase');
+const { Model, Component, Port, SimplePort, CompositePort, Connector, Activity, Action, createExecutableFromExpression, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit } = require('../SysADLBase');
 
 // Types
 const EN_NotificationToSupervisory = new Enum("departed", "arrived", "passed", "traveling");
@@ -11,94 +11,100 @@ const DT_Location = dataType('Location', { location: String });
 const DT_VehicleData = dataType('VehicleData', { destination: DT_Location, command: EN_CommandToArm });
 
 // Ports
-class PT_inLocation extends Port {
+class PT_inLocation extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "Location" }, ...opts });
   }
 }
-class PT_outLocation extends Port {
+class PT_outLocation extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "Location" }, ...opts });
   }
 }
-class PT_inStatus extends Port {
+class PT_inStatus extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "Status" }, ...opts });
   }
 }
-class PT_outStatus extends Port {
+class PT_outStatus extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "Status" }, ...opts });
   }
 }
-class PT_inVehicleData extends Port {
+class PT_inVehicleData extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "VehicleData" }, ...opts });
   }
 }
-class PT_outVehicleData extends Port {
+class PT_outVehicleData extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "VehicleData" }, ...opts });
   }
 }
-class PT_inNotificationFromMotor extends Port {
+class PT_inNotificationFromMotor extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "NotificationFromMotor" }, ...opts });
   }
 }
-class PT_outNotificationFromMotor extends Port {
+class PT_outNotificationFromMotor extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "NotificationFromMotor" }, ...opts });
   }
 }
-class PT_inCommandToMotor extends Port {
+class PT_inCommandToMotor extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "CommandToMotor" }, ...opts });
   }
 }
-class PT_outCommandToMotor extends Port {
+class PT_outCommandToMotor extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "CommandToMotor" }, ...opts });
   }
 }
-class PT_inNotificationFromArm extends Port {
+class PT_inNotificationFromArm extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "NotificationFromArm" }, ...opts });
   }
 }
-class PT_outNotificationFromArm extends Port {
+class PT_outNotificationFromArm extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "NotificationFromArm" }, ...opts });
   }
 }
-class PT_inCommandToArm extends Port {
+class PT_inCommandToArm extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "CommandToArm" }, ...opts });
   }
 }
-class PT_outCommandToArm extends Port {
+class PT_outCommandToArm extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "CommandToArm" }, ...opts });
   }
 }
-class PT_inNotificationToSupervisory extends Port {
+class PT_inNotificationToSupervisory extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "NotificationToSupervisory" }, ...opts });
   }
 }
-class PT_outNotificationToSupervisory extends Port {
+class PT_outNotificationToSupervisory extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "NotificationToSupervisory" }, ...opts });
   }
 }
-class PT_IAGVSystem extends Port {
+class PT_IAGVSystem extends CompositePort {
   constructor(name, opts = {}) {
-    super(name, "in", { ...{ expectedType: "CompositePortDef" }, ...opts });
+    super(name, 'composite', opts);
+    // Add sub-ports
+    this.addSubPort("inMoveToStation", new SimplePort("inMoveToStation", "in", { ...{ expectedType: "VehicleData" }, owner: this.owner }));
+    this.addSubPort("outNotifications", new SimplePort("outNotifications", "out", { ...{ expectedType: "NotificationToSupervisory" }, owner: this.owner }));
   }
 }
-class PT_ISupervisorySystem extends Port {
+class PT_ISupervisorySystem extends CompositePort {
   constructor(name, opts = {}) {
-    super(name, "in", { ...{ expectedType: "CompositePortDef" }, ...opts });
+    super(name, 'composite', opts);
+    // Add sub-ports
+    this.addSubPort("outMoveToStation", new SimplePort("outMoveToStation", "out", { ...{ expectedType: "VehicleData" }, owner: this.owner }));
+    this.addSubPort("inNotifications", new SimplePort("inNotifications", "in", { ...{ expectedType: "NotificationToSupervisory" }, owner: this.owner }));
   }
 }
 
@@ -230,18 +236,18 @@ class SysADLArchitecture extends Model {
     this.addExecutableSafe("SysADLArchitecture.ControlArmEX", "executable def ControlArmEX ( in statusMotor : NotificationFromMotor, in cmd : CommandToArm) : out CommandToArm {\n\t\tif(statusMotor == NotificationFromMotor::stopped)\n\t\t\treturn cmd;\n\t\telse\n\t\t\treturn CommandToArm::idle;\n\t}", []);
     this.addExecutableSafe("SysADLArchitecture.NotifierArmEX", "executable def NotifierArmEX ( in statusArm : NotificationFromArm) : \n\tout\tNotificationToSupervisory {\n\t\treturn NotificationToSupervisory::arrived;\n\t}", []);
     this.addExecutableSafe("SysADLArchitecture.VehicleTimerEX", "executable def VehicleTimerEX ( in location : Location, in cmd : CommandToArm, \n\t\tin destination : Location) : out Status {\n\t\t\n\t\tlet s : Status;\n\t\ts->destination = destination;\n\t\ts->location = location;\n\t\ts->command = cmd;\n\t\t\n\t\treturn s;\n\t}", []);
-    this.addExecutableSafe("SysADLArchitecture.rrk3", "executable CompareStationsEX to CompareStationsAN", []);
-    this.addExecutableSafe("SysADLArchitecture.orgg", "executable ControlArmEX to ControlArmAN", []);
-    this.addExecutableSafe("SysADLArchitecture.o7mr", "executable NotifierArmEX to NotifierArmAN", []);
-    this.addExecutableSafe("SysADLArchitecture.0tad", "executable NotifyAGVFromMotorEX to NotifyAGVFromMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.lh6a", "executable NotifySupervisoryFromMotorEX to NotifySupervisoryFromMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.lwac", "executable PassedMotorEX to PassedMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.1m05", "executable SendCommandEX to SendCommandAN", []);
-    this.addExecutableSafe("SysADLArchitecture.mtmf", "executable SendCurrentLocationEX to SendCurrentLocationAN", []);
-    this.addExecutableSafe("SysADLArchitecture.ojz7", "executable SendDestinationEX to SendDestinationAN", []);
-    this.addExecutableSafe("SysADLArchitecture.ujs0", "executable SendStartMotorEX to SendStartMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.f263", "executable StopMotorEX to StopMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.lo5d", "executable VehicleTimerEX to VehicleTimerAN", []);
+    this.addExecutableSafe("SysADLArchitecture.uxl5", "executable CompareStationsEX to CompareStationsAN", []);
+    this.addExecutableSafe("SysADLArchitecture.143p", "executable ControlArmEX to ControlArmAN", []);
+    this.addExecutableSafe("SysADLArchitecture.k8mg", "executable NotifierArmEX to NotifierArmAN", []);
+    this.addExecutableSafe("SysADLArchitecture.lmjy", "executable NotifyAGVFromMotorEX to NotifyAGVFromMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.8iai", "executable NotifySupervisoryFromMotorEX to NotifySupervisoryFromMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.8c4x", "executable PassedMotorEX to PassedMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.ugmr", "executable SendCommandEX to SendCommandAN", []);
+    this.addExecutableSafe("SysADLArchitecture.zlia", "executable SendCurrentLocationEX to SendCurrentLocationAN", []);
+    this.addExecutableSafe("SysADLArchitecture.at9t", "executable SendDestinationEX to SendDestinationAN", []);
+    this.addExecutableSafe("SysADLArchitecture.afx6", "executable SendStartMotorEX to SendStartMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.be3g", "executable StopMotorEX to StopMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.7hxs", "executable VehicleTimerEX to VehicleTimerAN", []);
     const act_StartMovingAC_sm = new Activity("StartMovingAC", { component: "sm", inputPorts: ["move"] });
     act_StartMovingAC_sm.addAction(new Action("SendStartMotorAN", [], "SendStartMotorEX"));
     act_StartMovingAC_sm.addAction(new Action("SendCommandAN", [], "SendCommandEX"));

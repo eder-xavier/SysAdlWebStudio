@@ -1,18 +1,18 @@
-const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit } = require('../SysADLBase');
+const { Model, Component, Port, SimplePort, CompositePort, Connector, Activity, Action, createExecutableFromExpression, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit } = require('../SysADLBase');
 
 
 // Ports
-class PT_CTempIPT extends Port {
+class PT_CTempIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "Real" }, ...opts });
   }
 }
-class PT_CTempOPT extends Port {
+class PT_CTempOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "Real" }, ...opts });
   }
 }
-class PT_FTempOPT extends Port {
+class PT_FTempOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "Real" }, ...opts });
   }
@@ -46,8 +46,8 @@ class SysADLModel extends Model {
     this.SystemCP.stdOut.addPort(new PT_CTempIPT("c3", "in", { owner: "stdOut" }));
     this.addExecutableSafe("SysADLModel.FarToCelEX", "executable def FarToCelEX (in f:Real): out Real {\n\t\treturn 5*(f - 32)/9 ;\n\t}", []);
     this.addExecutableSafe("SysADLModel.CalcAverageEX", "executable def CalcAverageEX(in temp1:Real,in temp2:Real):out Real{\n\t\treturn (temp1 + temp2)/2 ;\n\t}", []);
-    this.addExecutableSafe("SysADLModel.0vuq", "executable FarToCelEX to FarToCelAN", []);
-    this.addExecutableSafe("SysADLModel.1mu3", "executable CalcAverageEX to TempMonitorAN", []);
+    this.addExecutableSafe("SysADLModel.a5he", "executable FarToCelEX to FarToCelAN", []);
+    this.addExecutableSafe("SysADLModel.26wq", "executable CalcAverageEX to TempMonitorAN", []);
     const act_FarToCelAC_s1 = new Activity("FarToCelAC", { component: "s1", inputPorts: ["current"] });
     act_FarToCelAC_s1.addAction(new Action("FarToCelAN", [], "FarToCelEX"));
     this.registerActivity("FarToCelAC::s1", act_FarToCelAC_s1);

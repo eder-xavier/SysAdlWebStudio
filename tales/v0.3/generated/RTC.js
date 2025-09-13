@@ -1,4 +1,4 @@
-const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit } = require('../SysADLBase');
+const { Model, Component, Port, SimplePort, CompositePort, Connector, Activity, Action, createExecutableFromExpression, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit } = require('../SysADLBase');
 
 // Types
 const DM_Temperature = dimension('Temperature');
@@ -11,37 +11,37 @@ const EN_Command = new Enum("On", "Off");
 const DT_Commands = dataType('Commands', { heater: EN_Command, cooler: EN_Command });
 
 // Ports
-class PT_FTemperatureOPT extends Port {
+class PT_FTemperatureOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "FahrenheitTemperature" }, ...opts });
   }
 }
-class PT_PresenceIPT extends Port {
+class PT_PresenceIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "Boolean" }, ...opts });
   }
 }
-class PT_PresenceOPT extends Port {
+class PT_PresenceOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "Boolean" }, ...opts });
   }
 }
-class PT_CTemperatureIPT extends Port {
+class PT_CTemperatureIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "CelsiusTemperature" }, ...opts });
   }
 }
-class PT_CommandIPT extends Port {
+class PT_CommandIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "Command" }, ...opts });
   }
 }
-class PT_CommandOPT extends Port {
+class PT_CommandOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "Command" }, ...opts });
   }
 }
-class PT_CTemperatureOPT extends Port {
+class PT_CTemperatureOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "CelsiusTemperature" }, ...opts });
   }
@@ -123,12 +123,12 @@ class SysADLModel extends Model {
     this.addExecutableSafe("SysADLModel.CalculateAverageTemperatureEx", "executable def CalculateAverageTemperatureEx(in temp1:CelsiusTemperature,in temp2:CelsiusTemperature):out CelsiusTemperature{return (temp1 + temp2)/2 ; }", []);
     this.addExecutableSafe("SysADLModel.CheckPresenceToSetTemperature", "executable def CheckPresenceToSetTemperature(in presence:Boolean, in userTemp:CelsiusTemperature):out CelsiusTemperature{if(presence == true) return userTemp; else return 2; }", []);
     this.addExecutableSafe("SysADLModel.CompareTemperatureEx", "executable def CompareTemperatureEx(in target:CelsiusTemperature, in average:CelsiusTemperature):out Commands{let heater:Command = types.Command::Off; let cooler:Command = types.Command::Off; if(average > target) {heater = types.Command::Off; cooler = types.Command::On ; } else {heater = types.Command::On; cooler = types.Command::Off ;} }", []);
-    this.addExecutableSafe("SysADLModel.hl5o", "executable FahrenheitToCelsiusEx to FahrenheitToCelsiusAN", []);
-    this.addExecutableSafe("SysADLModel.hypa", "executable CompareTemperatureEx to CompareTemperatureAN", []);
-    this.addExecutableSafe("SysADLModel.xk3m", "executable CommandHeaterEx to CommandHeaterAN", []);
-    this.addExecutableSafe("SysADLModel.4z6h", "executable CommandCoolerEx to CommandCoolerAN", []);
-    this.addExecutableSafe("SysADLModel.hcf9", "executable CheckPresenceToSetTemperature to CheckPeresenceToSetTemperatureAN", []);
-    this.addExecutableSafe("SysADLModel.crtv", "executable CalculateAverageTemperatureEx to CalculateAverageTemperatureAN", []);
+    this.addExecutableSafe("SysADLModel.i3l2", "executable FahrenheitToCelsiusEx to FahrenheitToCelsiusAN", []);
+    this.addExecutableSafe("SysADLModel.32s8", "executable CompareTemperatureEx to CompareTemperatureAN", []);
+    this.addExecutableSafe("SysADLModel.p9th", "executable CommandHeaterEx to CommandHeaterAN", []);
+    this.addExecutableSafe("SysADLModel.lu8j", "executable CommandCoolerEx to CommandCoolerAN", []);
+    this.addExecutableSafe("SysADLModel.5yi9", "executable CheckPresenceToSetTemperature to CheckPeresenceToSetTemperatureAN", []);
+    this.addExecutableSafe("SysADLModel.crts", "executable CalculateAverageTemperatureEx to CalculateAverageTemperatureAN", []);
     const act_CalculateAverageTemperatureAC_s1 = new Activity("CalculateAverageTemperatureAC", { component: "s1", inputPorts: ["current"] });
     act_CalculateAverageTemperatureAC_s1.addAction(new Action("CalculateAverageTemperatureAN", [], "CalculateAverageTemperatureEx"));
     this.registerActivity("CalculateAverageTemperatureAC::s1", act_CalculateAverageTemperatureAC_s1);

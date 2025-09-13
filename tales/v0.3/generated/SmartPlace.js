@@ -1,4 +1,4 @@
-const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit } = require('../SysADLBase');
+const { Model, Component, Port, SimplePort, CompositePort, Connector, Activity, Action, createExecutableFromExpression, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit } = require('../SysADLBase');
 
 // Types
 const EN_InfraredCode = new Enum("increase", "decrease", "turn_on", "turn_off");
@@ -18,154 +18,172 @@ const DT_FrameList = dataType('FrameList', {});
 const DT_Intervention = dataType('Intervention', { icAirCond: EN_InfraredCode, airCond: DT_AirConditioner, schedule: DT_Schedule });
 
 // Ports
-class PT_ValueOPT extends Port {
+class PT_ValueOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "Int" }, ...opts });
   }
 }
-class PT_ValueIPT extends Port {
+class PT_ValueIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "Int" }, ...opts });
   }
 }
-class PT_ReservationResponseIPT extends Port {
+class PT_ReservationResponseIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "Boolean" }, ...opts });
   }
 }
-class PT_ReservationResponseOPT extends Port {
+class PT_ReservationResponseOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "Boolean" }, ...opts });
   }
 }
-class PT_RequestOPT extends Port {
+class PT_RequestOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "String" }, ...opts });
   }
 }
-class PT_RequestIPT extends Port {
+class PT_RequestIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "String" }, ...opts });
   }
 }
-class PT_InfraredSignalIPT extends Port {
+class PT_InfraredSignalIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "Void" }, ...opts });
   }
 }
-class PT_InfraredSignalOPT extends Port {
+class PT_InfraredSignalOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "Void" }, ...opts });
   }
 }
-class PT_ContextInformationOPT extends Port {
+class PT_ContextInformationOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "ContextInformation" }, ...opts });
   }
 }
-class PT_ContextInformationIPT extends Port {
+class PT_ContextInformationIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "ContextInformation" }, ...opts });
   }
 }
-class PT_UndefinedOPT extends Port {
+class PT_UndefinedOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "Void" }, ...opts });
   }
 }
-class PT_UndefinedIPT extends Port {
+class PT_UndefinedIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "Void" }, ...opts });
   }
 }
-class PT_CommandIPT extends Port {
+class PT_CommandIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "InfraredCode" }, ...opts });
   }
 }
-class PT_CommandOPT extends Port {
+class PT_CommandOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "InfraredCode" }, ...opts });
   }
 }
-class PT_RestfulRaspberryIPT extends Port {
+class PT_RestfulRaspberryIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "RestFulRaspeberry" }, ...opts });
   }
 }
-class PT_RestfulRaspberryOPT extends Port {
+class PT_RestfulRaspberryOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "RestFulRaspeberry" }, ...opts });
   }
 }
-class PT_DataBaseRespOPT extends Port {
+class PT_DataBaseRespOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "String" }, ...opts });
   }
 }
-class PT_DataBaseRespIPT extends Port {
+class PT_DataBaseRespIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "String" }, ...opts });
   }
 }
-class PT_ScheduleOPT extends Port {
+class PT_ScheduleOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "Schedule" }, ...opts });
   }
 }
-class PT_ScheduleIPT extends Port {
+class PT_ScheduleIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "Schedule" }, ...opts });
   }
 }
-class PT_UpdateIPT extends Port {
+class PT_UpdateIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "UpdateDB" }, ...opts });
   }
 }
-class PT_UpdateOPT extends Port {
+class PT_UpdateOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "UpdateDB" }, ...opts });
   }
 }
-class PT_FrameListIPT extends Port {
+class PT_FrameListIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "FrameList" }, ...opts });
   }
 }
-class PT_FrameListOPT extends Port {
+class PT_FrameListOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "FrameList" }, ...opts });
   }
 }
-class PT_DataBaseO2I extends Port {
+class PT_DataBaseO2I extends CompositePort {
   constructor(name, opts = {}) {
-    super(name, "in", { ...{ expectedType: "CompositePortDef" }, ...opts });
+    super(name, 'composite', opts);
+    // Add sub-ports
+    this.addSubPort("reqODB", new SimplePort("reqODB", "in", { ...{ expectedType: "RequestOPT" }, owner: this.owner }));
+    this.addSubPort("respIDB", new SimplePort("respIDB", "in", { ...{ expectedType: "DataBaseRespIPT" }, owner: this.owner }));
   }
 }
-class PT_DataBaseI2O extends Port {
+class PT_DataBaseI2O extends CompositePort {
   constructor(name, opts = {}) {
-    super(name, "in", { ...{ expectedType: "CompositePortDef" }, ...opts });
+    super(name, 'composite', opts);
+    // Add sub-ports
+    this.addSubPort("reqIDB", new SimplePort("reqIDB", "in", { ...{ expectedType: "RequestIPT" }, owner: this.owner }));
+    this.addSubPort("respODB", new SimplePort("respODB", "in", { ...{ expectedType: "DataBaseRespOPT" }, owner: this.owner }));
   }
 }
-class PT_ReservationInformationO2I extends Port {
+class PT_ReservationInformationO2I extends CompositePort {
   constructor(name, opts = {}) {
-    super(name, "in", { ...{ expectedType: "CompositePortDef" }, ...opts });
+    super(name, 'composite', opts);
+    // Add sub-ports
+    this.addSubPort("reqORI", new SimplePort("reqORI", "in", { ...{ expectedType: "RequestOPT" }, owner: this.owner }));
+    this.addSubPort("respIRI", new SimplePort("respIRI", "in", { ...{ expectedType: "ReservationResponseIPT" }, owner: this.owner }));
   }
 }
-class PT_ReservationInformationI2O extends Port {
+class PT_ReservationInformationI2O extends CompositePort {
   constructor(name, opts = {}) {
-    super(name, "in", { ...{ expectedType: "CompositePortDef" }, ...opts });
+    super(name, 'composite', opts);
+    // Add sub-ports
+    this.addSubPort("reqIRI", new SimplePort("reqIRI", "in", { ...{ expectedType: "RequestIPT" }, owner: this.owner }));
+    this.addSubPort("respORI", new SimplePort("respORI", "in", { ...{ expectedType: "ReservationResponseOPT" }, owner: this.owner }));
   }
 }
-class PT_ContextO2I extends Port {
+class PT_ContextO2I extends CompositePort {
   constructor(name, opts = {}) {
-    super(name, "in", { ...{ expectedType: "CompositePortDef" }, ...opts });
+    super(name, 'composite', opts);
+    // Add sub-ports
+    this.addSubPort("reqOC", new SimplePort("reqOC", "in", { ...{ expectedType: "RequestOPT" }, owner: this.owner }));
+    this.addSubPort("respIC", new SimplePort("respIC", "in", { ...{ expectedType: "ContextInformationIPT" }, owner: this.owner }));
   }
 }
-class PT_ContextI2O extends Port {
+class PT_ContextI2O extends CompositePort {
   constructor(name, opts = {}) {
-    super(name, "in", { ...{ expectedType: "CompositePortDef" }, ...opts });
+    super(name, 'composite', opts);
+    // Add sub-ports
+    this.addSubPort("reqIC", new SimplePort("reqIC", "in", { ...{ expectedType: "RequestIPT" }, owner: this.owner }));
+    this.addSubPort("respOC", new SimplePort("respOC", "in", { ...{ expectedType: "ContextInformationOPT" }, owner: this.owner }));
   }
 }
 

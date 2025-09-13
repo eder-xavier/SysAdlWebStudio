@@ -238,6 +238,13 @@ class Port extends Element {
   bindTo(ref){ this.binding = ref; }
 }
 
+// SimplePort: extends Port for simple data ports
+class SimplePort extends Port {
+  constructor(name, direction='in', opts={}){
+    super(name, direction, opts);
+  }
+}
+
 // CompositePort: a Port that contains named sub-ports. Treated as a Port
 // for compatibility. Sub-ports are regular Port instances whose owner is
 // the composite port's qualified owner path (e.g. 'compName.compositePort').
@@ -639,6 +646,7 @@ module.exports = {
   Component,
   Connector,
   Port,
+  SimplePort,
   CompositePort,
   Activity,
   Action,

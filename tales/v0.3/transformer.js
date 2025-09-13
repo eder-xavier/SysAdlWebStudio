@@ -50,7 +50,7 @@ function collectPortUses(configNode) {
 function generateClassModule(modelName, compUses, portUses, connectorBindings, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, portAliasMap, compDefMapArg, portDefMapArg, embeddedTypes) {
   const lines = [];
   // runtime imports for generated module
-  lines.push("const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit } = require('../SysADLBase');");
+  lines.push("const { Model, Component, Port, SimplePort, CompositePort, Connector, Activity, Action, createExecutableFromExpression, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit } = require('../SysADLBase');");
   
   // Add blank line after imports
   lines.push("");
@@ -258,20 +258,55 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     for (const [name, info] of Object.entries(t.ports || {})) {
       if (!name) continue;
       const prefixedName = `PT_${name}`;
-      const direction = info.direction || 'in';
-      const expectedType = info.expectedType || null;
       
-      // Build config object for port
-      const configParts = [];
-      if (expectedType) {
-        // Use string literal for expected type to avoid undefined reference issues
-        configParts.push(`expectedType: ${JSON.stringify(expectedType)}`);
+      // Determine if this is a composite port
+      const isComposite = info.isComposite || 
+                         (info.expectedType && info.expectedType.toLowerCase().includes('composite')) ||
+                         (info.type && info.type.toLowerCase().includes('composite'));
+      
+      // Choose the base class based on port type
+      const baseClass = isComposite ? 'CompositePort' : 'SimplePort';
+      
+      classLines.push(`class ${prefixedName} extends ${baseClass} {`);
+      classLines.push(`  constructor(name, opts = {}) {`);
+      
+      if (isComposite) {
+        // For composite ports, don't specify direction or expectedType - these are defined by subports
+        classLines.push(`    super(name, 'composite', opts);`);
+        
+        // If this is a composite port with sub-ports, add them
+        if (info.subports) {
+          classLines.push(`    // Add sub-ports`);
+          for (const [subportName, subportInfo] of Object.entries(info.subports)) {
+            const subDirection = subportInfo.direction || 'in';
+            const subExpectedType = subportInfo.expectedType || null;
+            
+            // Build sub-port config
+            const subConfigParts = [];
+            if (subExpectedType) {
+              subConfigParts.push(`expectedType: ${JSON.stringify(subExpectedType)}`);
+            }
+            const subConfig = subConfigParts.length > 0 ? `{ ${subConfigParts.join(', ')} }` : '{}';
+            
+            classLines.push(`    this.addSubPort(${JSON.stringify(subportName)}, new SimplePort(${JSON.stringify(subportName)}, ${JSON.stringify(subDirection)}, { ...${subConfig}, owner: this.owner }));`);
+          }
+        }
+      } else {
+        // For simple ports, use direction and expectedType as before
+        const direction = info.direction || 'in';
+        const expectedType = info.expectedType || null;
+        
+        // Build config object for port
+        const configParts = [];
+        if (expectedType) {
+          // Use string literal for expected type to avoid undefined reference issues
+          configParts.push(`expectedType: ${JSON.stringify(expectedType)}`);
+        }
+        
+        const config = configParts.length > 0 ? `{ ${configParts.join(', ')} }` : '{}';
+        classLines.push(`    super(name, ${JSON.stringify(direction)}, { ...${config}, ...opts });`);
       }
       
-      const config = configParts.length > 0 ? `{ ${configParts.join(', ')} }` : '{}';
-      classLines.push(`class ${prefixedName} extends Port {`);
-      classLines.push(`  constructor(name, opts = {}) {`);
-      classLines.push(`    super(name, ${JSON.stringify(direction)}, { ...${config}, ...opts });`);
       classLines.push(`  }`);
       classLines.push(`}`);
     }
@@ -994,11 +1029,98 @@ async function main() {
         const name = n.name || (n.id && n.id.name) || n.id || null; if (!name) return;
         const dimension = qnameToString(n.dimension || null);
         embeddedTypes.units[String(name)] = { dimension: dimension || null };
-      } else if (n.type === 'PortDef' || /PortDef/i.test(n.type)) {
+      } else if (n.type === 'PortDef' || /PortDef/i.test(n.type) || n.type === 'CompositePortDef' || /CompositePortDef/i.test(n.type)) {
         const name = n.name || (n.id && n.id.name) || n.id || null; if (!name) return;
         // Extract direction and type from flow properties
         let direction = 'in'; // default
         let expectedType = null;
+        let isComposite = n.type === 'CompositePortDef' || /CompositePortDef/i.test(n.type);
+        let subports = {};
+        
+        // Check if this port has a 'ports' section (composite port)
+        if (n.ports || n.subports || (Array.isArray(n.elements) && n.elements.some(e => e && e.type === 'PortDef'))) {
+          isComposite = true;
+          
+          // Extract sub-ports from the ports section
+          const portsSection = n.ports || n.subports || n.elements || [];
+          if (Array.isArray(portsSection)) {
+            for (const subportNode of portsSection) {
+              try {
+                // Handle PortUse in composite port definitions
+                if (subportNode && (subportNode.type === 'PortUse' || /PortUse/i.test(subportNode.type))) {
+                  const subportName = subportNode.name || (subportNode.id && subportNode.id.name) || subportNode.id || null;
+                  const subportDefinition = subportNode.definition || subportNode.def || null;
+                  
+                  if (subportName && subportDefinition) {
+                    // Determine direction and type from the definition name
+                    let subDirection = 'in';
+                    let subExpectedType = String(subportDefinition);
+                    
+                    // Parse direction from definition name patterns
+                    const defStr = String(subportDefinition).toLowerCase();
+                    if (defStr.startsWith('out') || defStr.includes('out')) {
+                      subDirection = 'out';
+                    } else if (defStr.startsWith('in') || defStr.includes('in')) {
+                      subDirection = 'in';
+                    }
+                    
+                    // Extract the type part from definition (remove in/out prefix)
+                    subExpectedType = String(subportDefinition)
+                      .replace(/^(in|out)/, '')
+                      .replace(/^(In|Out)/, '');
+                    
+                    subports[subportName] = { direction: subDirection, expectedType: subExpectedType };
+                  }
+                }
+                // Handle regular PortDef in composite ports  
+                else if (subportNode && (subportNode.type === 'PortDef' || /PortDef/i.test(subportNode.type))) {
+                  const subportName = subportNode.name || (subportNode.id && subportNode.id.name) || subportNode.id || null;
+                  if (subportName) {
+                    let subDirection = 'in';
+                    let subExpectedType = null;
+                    
+                    // Extract sub-port direction and type
+                    if (subportNode.flowProperties) {
+                      const flowProp = String(subportNode.flowProperties).toLowerCase();
+                      if (flowProp.includes('out')) subDirection = 'out';
+                      else if (flowProp.includes('inout')) subDirection = 'inout';
+                    }
+                    
+                    if (subportNode.flowType) {
+                      subExpectedType = String(subportNode.flowType);
+                    } else if (subportNode.flow) {
+                      const flowStr = String(subportNode.flow).toLowerCase();
+                      if (flowStr.includes('out')) subDirection = 'out';
+                      else if (flowStr.includes('inout')) subDirection = 'inout';
+                      
+                      const flowParts = String(subportNode.flow).split(/\s+/).filter(Boolean);
+                      if (flowParts.length >= 2) {
+                        subExpectedType = flowParts[flowParts.length - 1];
+                      }
+                    }
+                    
+                    subports[subportName] = { direction: subDirection, expectedType: subExpectedType };
+                  }
+                }
+              } catch(e) { /* ignore sub-port parsing errors */ }
+            }
+          } else if (portsSection && typeof portsSection === 'object') {
+            // Handle object structure for ports
+            for (const [subportName, subportDef] of Object.entries(portsSection)) {
+              try {
+                if (subportDef && subportName) {
+                  let subDirection = 'in';
+                  let subExpectedType = null;
+                  
+                  if (subportDef.direction) subDirection = String(subportDef.direction);
+                  if (subportDef.type || subportDef.expectedType) subExpectedType = String(subportDef.type || subportDef.expectedType);
+                  
+                  subports[subportName] = { direction: subDirection, expectedType: subExpectedType };
+                }
+              } catch(e) { /* ignore sub-port parsing errors */ }
+            }
+          }
+        }
         
         try {
           // Extract direction from flowProperties
@@ -1033,9 +1155,19 @@ async function main() {
           if (!expectedType) {
             expectedType = qnameToString(n.type || n.dataType || n.valueType || n.flowType || null);
           }
+          
+          // For composite ports, set the default expected type if none found
+          if (isComposite && !expectedType) {
+            expectedType = 'CompositePortDef';
+          }
         } catch(e) { /* ignore parsing errors */ }
         
-        embeddedTypes.ports[String(name)] = { direction, expectedType: expectedType || null };
+        embeddedTypes.ports[String(name)] = { 
+          direction, 
+          expectedType: expectedType || null, 
+          isComposite,
+          subports: Object.keys(subports).length > 0 ? subports : null
+        };
       }
     } catch(e){}
   });
