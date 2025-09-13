@@ -3,8 +3,8 @@
 
 class Element {
   constructor(name, opts = {}) {
-    this.name = String(name);
-    this.sysadlName = String(name);
+    this.name = name ? name.toString() : '';
+    this.sysadlName = name ? name.toString() : '';
     this.props = { ...opts };
   }
 }
