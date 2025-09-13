@@ -1,22 +1,22 @@
 const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit } = require('../SysADLBase');
 
-class SensorCP extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class TempMonitorCP extends Component { }
-class StdOutCP extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class SystemCP extends Component { }
+class CP_SensorCP extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
+class CP_TempMonitorCP extends Component { }
+class CP_StdOutCP extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
+class CP_SystemCP extends Component { }
 
 class SysADLModel extends Model {
   constructor(){
     super("SysADLModel");
-    this.SystemCP = new SystemCP("SystemCP", { sysadlDefinition: "SystemCP" });
+    this.SystemCP = new CP_SystemCP("SystemCP", { sysadlDefinition: "SystemCP" });
     this.addComponent(this.SystemCP);
-    this.SystemCP.s1 = new SensorCP("s1", { isBoundary: true, sysadlDefinition: "SensorCP" });
+    this.SystemCP.s1 = new CP_SensorCP("s1", { isBoundary: true, sysadlDefinition: "SensorCP" });
     this.SystemCP.addComponent(this.SystemCP.s1);
-    this.SystemCP.s2 = new SensorCP("s2", { isBoundary: true, sysadlDefinition: "SensorCP" });
+    this.SystemCP.s2 = new CP_SensorCP("s2", { isBoundary: true, sysadlDefinition: "SensorCP" });
     this.SystemCP.addComponent(this.SystemCP.s2);
-    this.SystemCP.stdOut = new StdOutCP("stdOut", { isBoundary: true, sysadlDefinition: "StdOutCP" });
+    this.SystemCP.stdOut = new CP_StdOutCP("stdOut", { isBoundary: true, sysadlDefinition: "StdOutCP" });
     this.SystemCP.addComponent(this.SystemCP.stdOut);
-    this.SystemCP.tempMon = new TempMonitorCP("tempMon", { sysadlDefinition: "TempMonitorCP" });
+    this.SystemCP.tempMon = new CP_TempMonitorCP("tempMon", { sysadlDefinition: "TempMonitorCP" });
     this.SystemCP.addComponent(this.SystemCP.tempMon);
 
     this.SystemCP.s1.addPort(new Port("current", "in", { owner: "s1" }));
@@ -27,8 +27,8 @@ class SysADLModel extends Model {
     this.SystemCP.stdOut.addPort(new Port("c3", "in", { owner: "stdOut" }));
     this.addExecutableSafe("SysADLModel.FarToCelEX", "executable def FarToCelEX (in f:Real): out Real {\n\t\treturn 5*(f - 32)/9 ;\n\t}", []);
     this.addExecutableSafe("SysADLModel.CalcAverageEX", "executable def CalcAverageEX(in temp1:Real,in temp2:Real):out Real{\n\t\treturn (temp1 + temp2)/2 ;\n\t}", []);
-    this.addExecutableSafe("SysADLModel.rnvk", "executable FarToCelEX to FarToCelAN", []);
-    this.addExecutableSafe("SysADLModel.y79m", "executable CalcAverageEX to TempMonitorAN", []);
+    this.addExecutableSafe("SysADLModel.uetw", "executable FarToCelEX to FarToCelAN", []);
+    this.addExecutableSafe("SysADLModel.asz4", "executable CalcAverageEX to TempMonitorAN", []);
     const act_FarToCelAC_s1 = new Activity("FarToCelAC", { component: "s1", inputPorts: ["current"] });
     act_FarToCelAC_s1.addAction(new Action("FarToCelAN", [], "FarToCelEX"));
     this.registerActivity("FarToCelAC::s1", act_FarToCelAC_s1);

@@ -1,59 +1,59 @@
 const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit } = require('../SysADLBase');
 
-const NotificationToSupervisory = new Enum("departed", "arrived", "passed", "traveling");
-const NotificationFromArm = new Enum("loaded", "unloaded");
-const CommandToArm = new Enum("load", "unload", "idle");
-const NotificationFromMotor = new Enum("started", "stopped");
-const CommandToMotor = new Enum("start", "stop");
-const Status = dataType('Status', { location: Location, destination: Location, command: CommandToArm });
-const Location = dataType('Location', { location: String });
-const VehicleData = dataType('VehicleData', { destination: Location, command: CommandToArm });
+const EN_NotificationToSupervisory = new Enum("departed", "arrived", "passed", "traveling");
+const EN_NotificationFromArm = new Enum("loaded", "unloaded");
+const EN_CommandToArm = new Enum("load", "unload", "idle");
+const EN_NotificationFromMotor = new Enum("started", "stopped");
+const EN_CommandToMotor = new Enum("start", "stop");
+const DT_Status = dataType('Status', { location: DT_Location, destination: DT_Location, command: EN_CommandToArm });
+const DT_Location = dataType('Location', { location: String });
+const DT_VehicleData = dataType('VehicleData', { destination: DT_Location, command: EN_CommandToArm });
 
-class SupervisorySystem extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class AGVSystem extends Component { }
-class DisplaySystem extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class Motor extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class ArrivalSensor extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class RobotArm extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class VehicleControl extends Component { }
-class CheckStation extends Component { }
-class ControlArm extends Component { }
-class NotifierMotor extends Component { }
-class StartMoving extends Component { }
-class NotifierArm extends Component { }
-class VehicleTimer extends Component { }
-class FactoryAutomationSystem extends Component { }
+class CP_SupervisorySystem extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
+class CP_AGVSystem extends Component { }
+class CP_DisplaySystem extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
+class CP_Motor extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
+class CP_ArrivalSensor extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
+class CP_RobotArm extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
+class CP_VehicleControl extends Component { }
+class CP_CheckStation extends Component { }
+class CP_ControlArm extends Component { }
+class CP_NotifierMotor extends Component { }
+class CP_StartMoving extends Component { }
+class CP_NotifierArm extends Component { }
+class CP_VehicleTimer extends Component { }
+class CP_FactoryAutomationSystem extends Component { }
 
 class SysADLArchitecture extends Model {
   constructor(){
     super("SysADLArchitecture");
-    this.FactoryAutomationSystem = new FactoryAutomationSystem("FactoryAutomationSystem", { sysadlDefinition: "FactoryAutomationSystem" });
+    this.FactoryAutomationSystem = new CP_FactoryAutomationSystem("FactoryAutomationSystem", { sysadlDefinition: "FactoryAutomationSystem" });
     this.addComponent(this.FactoryAutomationSystem);
-    this.FactoryAutomationSystem.agvs = new AGVSystem("agvs", { sysadlDefinition: "AGVSystem" });
+    this.FactoryAutomationSystem.agvs = new CP_AGVSystem("agvs", { sysadlDefinition: "AGVSystem" });
     this.FactoryAutomationSystem.addComponent(this.FactoryAutomationSystem.agvs);
-    this.FactoryAutomationSystem.ds = new DisplaySystem("ds", { isBoundary: true, sysadlDefinition: "DisplaySystem" });
+    this.FactoryAutomationSystem.ds = new CP_DisplaySystem("ds", { isBoundary: true, sysadlDefinition: "DisplaySystem" });
     this.FactoryAutomationSystem.addComponent(this.FactoryAutomationSystem.ds);
-    this.FactoryAutomationSystem.ss = new SupervisorySystem("ss", { isBoundary: true, sysadlDefinition: "SupervisorySystem" });
+    this.FactoryAutomationSystem.ss = new CP_SupervisorySystem("ss", { isBoundary: true, sysadlDefinition: "SupervisorySystem" });
     this.FactoryAutomationSystem.addComponent(this.FactoryAutomationSystem.ss);
-    this.FactoryAutomationSystem.agvs.as = new ArrivalSensor("as", { isBoundary: true, sysadlDefinition: "ArrivalSensor" });
+    this.FactoryAutomationSystem.agvs.as = new CP_ArrivalSensor("as", { isBoundary: true, sysadlDefinition: "ArrivalSensor" });
     this.FactoryAutomationSystem.agvs.addComponent(this.FactoryAutomationSystem.agvs.as);
-    this.FactoryAutomationSystem.agvs.m = new Motor("m", { isBoundary: true, sysadlDefinition: "Motor" });
+    this.FactoryAutomationSystem.agvs.m = new CP_Motor("m", { isBoundary: true, sysadlDefinition: "Motor" });
     this.FactoryAutomationSystem.agvs.addComponent(this.FactoryAutomationSystem.agvs.m);
-    this.FactoryAutomationSystem.agvs.ra = new RobotArm("ra", { isBoundary: true, sysadlDefinition: "RobotArm" });
+    this.FactoryAutomationSystem.agvs.ra = new CP_RobotArm("ra", { isBoundary: true, sysadlDefinition: "RobotArm" });
     this.FactoryAutomationSystem.agvs.addComponent(this.FactoryAutomationSystem.agvs.ra);
-    this.FactoryAutomationSystem.agvs.vc = new VehicleControl("vc", { sysadlDefinition: "VehicleControl" });
+    this.FactoryAutomationSystem.agvs.vc = new CP_VehicleControl("vc", { sysadlDefinition: "VehicleControl" });
     this.FactoryAutomationSystem.agvs.addComponent(this.FactoryAutomationSystem.agvs.vc);
-    this.FactoryAutomationSystem.agvs.vc.ca = new ControlArm("ca", { sysadlDefinition: "ControlArm" });
+    this.FactoryAutomationSystem.agvs.vc.ca = new CP_ControlArm("ca", { sysadlDefinition: "ControlArm" });
     this.FactoryAutomationSystem.agvs.vc.addComponent(this.FactoryAutomationSystem.agvs.vc.ca);
-    this.FactoryAutomationSystem.agvs.vc.cs = new CheckStation("cs", { sysadlDefinition: "CheckStation" });
+    this.FactoryAutomationSystem.agvs.vc.cs = new CP_CheckStation("cs", { sysadlDefinition: "CheckStation" });
     this.FactoryAutomationSystem.agvs.vc.addComponent(this.FactoryAutomationSystem.agvs.vc.cs);
-    this.FactoryAutomationSystem.agvs.vc.na = new NotifierArm("na", { sysadlDefinition: "NotifierArm" });
+    this.FactoryAutomationSystem.agvs.vc.na = new CP_NotifierArm("na", { sysadlDefinition: "NotifierArm" });
     this.FactoryAutomationSystem.agvs.vc.addComponent(this.FactoryAutomationSystem.agvs.vc.na);
-    this.FactoryAutomationSystem.agvs.vc.nm = new NotifierMotor("nm", { sysadlDefinition: "NotifierMotor" });
+    this.FactoryAutomationSystem.agvs.vc.nm = new CP_NotifierMotor("nm", { sysadlDefinition: "NotifierMotor" });
     this.FactoryAutomationSystem.agvs.vc.addComponent(this.FactoryAutomationSystem.agvs.vc.nm);
-    this.FactoryAutomationSystem.agvs.vc.sm = new StartMoving("sm", { sysadlDefinition: "StartMoving" });
+    this.FactoryAutomationSystem.agvs.vc.sm = new CP_StartMoving("sm", { sysadlDefinition: "StartMoving" });
     this.FactoryAutomationSystem.agvs.vc.addComponent(this.FactoryAutomationSystem.agvs.vc.sm);
-    this.FactoryAutomationSystem.agvs.vc.vt = new VehicleTimer("vt", { sysadlDefinition: "VehicleTimer" });
+    this.FactoryAutomationSystem.agvs.vc.vt = new CP_VehicleTimer("vt", { sysadlDefinition: "VehicleTimer" });
     this.FactoryAutomationSystem.agvs.vc.addComponent(this.FactoryAutomationSystem.agvs.vc.vt);
 
     this.FactoryAutomationSystem.ss.addPort(new Port("in_outData", "in", { owner: "ss" }));
@@ -136,18 +136,18 @@ class SysADLArchitecture extends Model {
     this.addExecutableSafe("SysADLArchitecture.ControlArmEX", "executable def ControlArmEX ( in statusMotor : NotificationFromMotor, in cmd : CommandToArm) : out CommandToArm {\n\t\tif(statusMotor == NotificationFromMotor::stopped)\n\t\t\treturn cmd;\n\t\telse\n\t\t\treturn CommandToArm::idle;\n\t}", []);
     this.addExecutableSafe("SysADLArchitecture.NotifierArmEX", "executable def NotifierArmEX ( in statusArm : NotificationFromArm) : \n\tout\tNotificationToSupervisory {\n\t\treturn NotificationToSupervisory::arrived;\n\t}", []);
     this.addExecutableSafe("SysADLArchitecture.VehicleTimerEX", "executable def VehicleTimerEX ( in location : Location, in cmd : CommandToArm, \n\t\tin destination : Location) : out Status {\n\t\t\n\t\tlet s : Status;\n\t\ts->destination = destination;\n\t\ts->location = location;\n\t\ts->command = cmd;\n\t\t\n\t\treturn s;\n\t}", []);
-    this.addExecutableSafe("SysADLArchitecture.p3ok", "executable CompareStationsEX to CompareStationsAN", []);
-    this.addExecutableSafe("SysADLArchitecture.u1jv", "executable ControlArmEX to ControlArmAN", []);
-    this.addExecutableSafe("SysADLArchitecture.7kiy", "executable NotifierArmEX to NotifierArmAN", []);
-    this.addExecutableSafe("SysADLArchitecture.5qam", "executable NotifyAGVFromMotorEX to NotifyAGVFromMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.1etz", "executable NotifySupervisoryFromMotorEX to NotifySupervisoryFromMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.u2ms", "executable PassedMotorEX to PassedMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.m6wd", "executable SendCommandEX to SendCommandAN", []);
-    this.addExecutableSafe("SysADLArchitecture.l5sw", "executable SendCurrentLocationEX to SendCurrentLocationAN", []);
-    this.addExecutableSafe("SysADLArchitecture.64k5", "executable SendDestinationEX to SendDestinationAN", []);
-    this.addExecutableSafe("SysADLArchitecture.bz3a", "executable SendStartMotorEX to SendStartMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.kua3", "executable StopMotorEX to StopMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.wlb4", "executable VehicleTimerEX to VehicleTimerAN", []);
+    this.addExecutableSafe("SysADLArchitecture.rk9e", "executable CompareStationsEX to CompareStationsAN", []);
+    this.addExecutableSafe("SysADLArchitecture.itz9", "executable ControlArmEX to ControlArmAN", []);
+    this.addExecutableSafe("SysADLArchitecture.lr3s", "executable NotifierArmEX to NotifierArmAN", []);
+    this.addExecutableSafe("SysADLArchitecture.v50b", "executable NotifyAGVFromMotorEX to NotifyAGVFromMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.nb6i", "executable NotifySupervisoryFromMotorEX to NotifySupervisoryFromMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.926h", "executable PassedMotorEX to PassedMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.r7fg", "executable SendCommandEX to SendCommandAN", []);
+    this.addExecutableSafe("SysADLArchitecture.1w2w", "executable SendCurrentLocationEX to SendCurrentLocationAN", []);
+    this.addExecutableSafe("SysADLArchitecture.37ws", "executable SendDestinationEX to SendDestinationAN", []);
+    this.addExecutableSafe("SysADLArchitecture.weaz", "executable SendStartMotorEX to SendStartMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.37gx", "executable StopMotorEX to StopMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.gvvr", "executable VehicleTimerEX to VehicleTimerAN", []);
     const act_StartMovingAC_sm = new Activity("StartMovingAC", { component: "sm", inputPorts: ["move"] });
     act_StartMovingAC_sm.addAction(new Action("SendStartMotorAN", [], "SendStartMotorEX"));
     act_StartMovingAC_sm.addAction(new Action("SendCommandAN", [], "SendCommandEX"));
@@ -305,4 +305,4 @@ class SysADLArchitecture extends Model {
 
 const __portAliases = {};
 function createModel(){ return new SysADLArchitecture(); }
-module.exports = { createModel, SysADLArchitecture, __portAliases, NotificationToSupervisory, NotificationFromArm, CommandToArm, NotificationFromMotor, CommandToMotor, Status, Location, VehicleData };
+module.exports = { createModel, SysADLArchitecture, __portAliases, EN_NotificationToSupervisory, EN_NotificationFromArm, EN_CommandToArm, EN_NotificationFromMotor, EN_CommandToMotor, DT_Status, DT_Location, DT_VehicleData };

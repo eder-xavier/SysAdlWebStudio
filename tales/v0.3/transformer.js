@@ -58,7 +58,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   // Generate type classes using the new auto-registration system
   function generateTypeClasses(embeddedTypes) {
     const classLines = [];
-    const t = embeddedTypes && typeof embeddedTypes === 'object' ? embeddedTypes : { datatypes: {}, valueTypes: {}, enumerations: {}, dimensions: {}, units: {} };
+    const t = embeddedTypes && typeof embeddedTypes === 'object' ? embeddedTypes : { datatypes: {}, valueTypes: {}, enumerations: {}, dimensions: {}, units: {}, pins: {}, constraints: {}, databuffers: {}, requirements: {} };
 
     // Define primitive types that are already imported from SysADLBase
     const primitiveTypes = new Set(['Int', 'Boolean', 'String', 'Real', 'Void']);
@@ -66,17 +66,20 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     // Generate dimensions first (they may be referenced by units and value types)
     for (const [name, info] of Object.entries(t.dimensions || {})) {
       if (!name) continue;
-      classLines.push(`const ${name} = dimension('${name}');`);
+      const prefixedName = `DM_${name}`;
+      classLines.push(`const ${prefixedName} = dimension('${name}');`);
     }
 
     // Generate units (may reference dimensions)
     for (const [name, info] of Object.entries(t.units || {})) {
       if (!name) continue;
+      const prefixedName = `UN_${name}`;
       const dimensionRef = info.dimension || null;
-      if (dimensionRef) {
-        classLines.push(`const ${name} = unit('${name}', { dimension: ${dimensionRef} });`);
+      const prefixedDimensionRef = dimensionRef ? `DM_${dimensionRef}` : null;
+      if (prefixedDimensionRef) {
+        classLines.push(`const ${prefixedName} = unit('${name}', { dimension: ${prefixedDimensionRef} });`);
       } else {
-        classLines.push(`const ${name} = unit('${name}');`);
+        classLines.push(`const ${prefixedName} = unit('${name}');`);
       }
     }
 
@@ -89,57 +92,105 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
         continue;
       }
       
+      const prefixedName = `VT_${name}`;
       const superType = info.extends || null;
       const unitRef = info.unit || null;
       const dimensionRef = info.dimension || null;
 
-      // Build config object
+      // Build config object with prefixed references
       const configParts = [];
       
       if (superType) {
-        configParts.push(`extends: ${superType}`);
+        const prefixedSuperType = primitiveTypes.has(superType) ? superType : `VT_${superType}`;
+        configParts.push(`extends: ${prefixedSuperType}`);
       }
       
       if (unitRef) {
-        configParts.push(`unit: ${unitRef}`);
+        configParts.push(`unit: UN_${unitRef}`);
       }
       
       if (dimensionRef) {
-        configParts.push(`dimension: ${dimensionRef}`);
+        configParts.push(`dimension: DM_${dimensionRef}`);
       }
 
       const config = configParts.length > 0 ? `{ ${configParts.join(', ')} }` : '{}';
-      classLines.push(`const ${name} = valueType('${name}', ${config});`);
+      classLines.push(`const ${prefixedName} = valueType('${name}', ${config});`);
     }
 
-    // Generate enumerations (unchanged)
+    // Generate enumerations
     for (const [name, literals] of Object.entries(t.enumerations || {})) {
       if (!name || !Array.isArray(literals)) continue;
-      const enumCode = `const ${name} = new Enum(${literals.map(lit => `"${lit}"`).join(', ')});`;
+      const prefixedName = `EN_${name}`;
+      const enumCode = `const ${prefixedName} = new Enum(${literals.map(lit => `"${lit}"`).join(', ')});`;
       classLines.push(enumCode);
     }
 
     // Generate datatypes using new factory function
     for (const [name, info] of Object.entries(t.datatypes || {})) {
       if (!name) continue;
+      const prefixedName = `DT_${name}`;
       const attributes = info.attributes || [];
 
-      // Build attributes object with type references
+      // Build attributes object with prefixed type references
       const attrParts = [];
       for (const attr of attributes) {
         if (!attr || !attr.name) continue;
         const attrName = attr.name;
         const attrType = attr.type;
         if (attrType) {
-          // Use direct reference to the type (assumes it was defined earlier)
-          attrParts.push(`${attrName}: ${attrType}`);
+          // Apply appropriate prefix based on type, keep primitives unchanged
+          let prefixedAttrType = attrType;
+          if (!primitiveTypes.has(attrType)) {
+            // Try to determine prefix based on context or use DT_ as default
+            if (t.enumerations && t.enumerations[attrType]) {
+              prefixedAttrType = `EN_${attrType}`;
+            } else if (t.valueTypes && t.valueTypes[attrType]) {
+              prefixedAttrType = `VT_${attrType}`;
+            } else if (t.dimensions && t.dimensions[attrType]) {
+              prefixedAttrType = `DM_${attrType}`;
+            } else if (t.units && t.units[attrType]) {
+              prefixedAttrType = `UN_${attrType}`;
+            } else {
+              // Default to datatype prefix
+              prefixedAttrType = `DT_${attrType}`;
+            }
+          }
+          attrParts.push(`${attrName}: ${prefixedAttrType}`);
         } else {
           attrParts.push(`${attrName}: null`);
         }
       }
 
       const attributesObj = attrParts.length > 0 ? `{ ${attrParts.join(', ')} }` : '{}';
-      classLines.push(`const ${name} = dataType('${name}', ${attributesObj});`);
+      classLines.push(`const ${prefixedName} = dataType('${name}', ${attributesObj});`);
+    }
+
+    // Generate pins
+    for (const [name, info] of Object.entries(t.pins || {})) {
+      if (!name) continue;
+      const prefixedName = `PI_${name}`;
+      classLines.push(`const ${prefixedName} = /* Pin implementation */ null; // TODO: Implement Pin factory`);
+    }
+
+    // Generate constraints
+    for (const [name, info] of Object.entries(t.constraints || {})) {
+      if (!name) continue;
+      const prefixedName = `CT_${name}`;
+      classLines.push(`const ${prefixedName} = /* Constraint implementation */ null; // TODO: Implement Constraint factory`);
+    }
+
+    // Generate databuffers
+    for (const [name, info] of Object.entries(t.databuffers || {})) {
+      if (!name) continue;
+      const prefixedName = `DB_${name}`;
+      classLines.push(`const ${prefixedName} = /* DataBuffer implementation */ null; // TODO: Implement DataBuffer factory`);
+    }
+
+    // Generate requirements
+    for (const [name, info] of Object.entries(t.requirements || {})) {
+      if (!name) continue;
+      const prefixedName = `RQ_${name}`;
+      classLines.push(`const ${prefixedName} = /* Requirement implementation */ null; // TODO: Implement Requirement factory`);
     }
 
     return classLines.join('\n');
@@ -174,11 +225,12 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   // If the constructor would be a no-op that only calls super(name, opts), omit it and let
   // JavaScript inheritance provide the default behavior.
   let cls;
+  const prefixedClassName = 'CP_' + sanitizeId(String(t));
   if (isBoundaryFlag) {
     const ctor = 'constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); }';
-    cls = 'class ' + sanitizeId(String(t)) + ' extends Component { ' + ctor + ' }';
+    cls = 'class ' + prefixedClassName + ' extends Component { ' + ctor + ' }';
   } else {
-    cls = 'class ' + sanitizeId(String(t)) + ' extends Component { }';
+    cls = 'class ' + prefixedClassName + ' extends Component { }';
   }
     lines.push(cls);
   }
@@ -202,7 +254,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   // determine opts for root def if available
   const rootIsBoundary = (compDefMapArg && compDefMapArg[String(rdef)] && !!compDefMapArg[String(rdef)].isBoundary);
   const rootOpts = rootIsBoundary ? `{ isBoundary: true, sysadlDefinition: ${JSON.stringify(String(rdef))} }` : `{ sysadlDefinition: ${JSON.stringify(String(rdef))} }`;
-  lines.push(`    this.${prop} = new ${sanitizeId(String(rdef))}(${JSON.stringify(String(rdef))}, ${rootOpts});`);
+  lines.push(`    this.${prop} = new CP_${sanitizeId(String(rdef))}(${JSON.stringify(String(rdef))}, ${rootOpts});`);
   lines.push(`    this.addComponent(this.${prop});`);
     }
   }
@@ -242,14 +294,14 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   const instDef = (compInstanceDef && compInstanceDef[iname]) ? compInstanceDef[iname] : null;
   const instIsBoundary = (instDef && compDefMapArg && compDefMapArg[String(instDef)] && !!compDefMapArg[String(instDef)].isBoundary);
   const instOpts = instIsBoundary ? `{ isBoundary: true, sysadlDefinition: ${JSON.stringify(String(instDef))} }` : `{ sysadlDefinition: ${instDef ? JSON.stringify(String(instDef)) : 'null'} }`;
-  lines.push(`    ${parentPath}.${iname} = new ${typeCls}(${JSON.stringify(String(iname))}, ${instOpts});`);
+  lines.push(`    ${parentPath}.${iname} = new CP_${typeCls}(${JSON.stringify(String(iname))}, ${instOpts});`);
   lines.push(`    ${parentPath}.addComponent(${parentPath}.${iname});`);
     } else {
       // fallback to previous behavior: top-level instance
   const instDef = (compInstanceDef && compInstanceDef[iname]) ? compInstanceDef[iname] : null;
   const instIsBoundary = (instDef && compDefMapArg && compDefMapArg[String(instDef)] && !!compDefMapArg[String(instDef)].isBoundary);
   const instOpts = instIsBoundary ? `{ isBoundary: true, sysadlDefinition: ${JSON.stringify(String(instDef))} }` : `{ sysadlDefinition: ${instDef ? JSON.stringify(String(instDef)) : 'null'} }`;
-  lines.push(`    this.${iname} = new ${typeCls}(${JSON.stringify(String(iname))}, ${instOpts});`);
+  lines.push(`    this.${iname} = new CP_${typeCls}(${JSON.stringify(String(iname))}, ${instOpts});`);
   lines.push(`    this.addComponent(this.${iname});`);
     }
   }
@@ -700,13 +752,44 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   // Define primitive types that are already available in SysADLBase
   const primitiveTypes = new Set(['Int', 'Boolean', 'String', 'Real', 'Void']);
   
-  // Filter out primitive types from exports
-  const filteredValueTypes = Object.keys(embeddedTypes.valueTypes || {}).filter(name => !primitiveTypes.has(name));
+  // Create arrays of prefixed names for exports
+  const filteredValueTypes = Object.keys(embeddedTypes.valueTypes || {})
+    .filter(name => !primitiveTypes.has(name))
+    .map(name => `VT_${name}`);
+    
+  const prefixedEnumerations = Object.keys(embeddedTypes.enumerations || {})
+    .map(name => `EN_${name}`);
+    
+  const prefixedDatatypes = Object.keys(embeddedTypes.datatypes || {})
+    .map(name => `DT_${name}`);
+    
+  const prefixedDimensions = Object.keys(embeddedTypes.dimensions || {})
+    .map(name => `DM_${name}`);
+    
+  const prefixedUnits = Object.keys(embeddedTypes.units || {})
+    .map(name => `UN_${name}`);
+    
+  const prefixedPins = Object.keys(embeddedTypes.pins || {})
+    .map(name => `PI_${name}`);
+    
+  const prefixedConstraints = Object.keys(embeddedTypes.constraints || {})
+    .map(name => `CT_${name}`);
+    
+  const prefixedDatabuffers = Object.keys(embeddedTypes.databuffers || {})
+    .map(name => `DB_${name}`);
+    
+  const prefixedRequirements = Object.keys(embeddedTypes.requirements || {})
+    .map(name => `RQ_${name}`);
+  
   const allExportedTypes = filteredValueTypes
-    .concat(Object.keys(embeddedTypes.enumerations || {}))
-    .concat(Object.keys(embeddedTypes.datatypes || {}))
-    .concat(Object.keys(embeddedTypes.dimensions || {}))
-    .concat(Object.keys(embeddedTypes.units || {}));
+    .concat(prefixedEnumerations)
+    .concat(prefixedDatatypes)
+    .concat(prefixedDimensions)
+    .concat(prefixedUnits)
+    .concat(prefixedPins)
+    .concat(prefixedConstraints)
+    .concat(prefixedDatabuffers)
+    .concat(prefixedRequirements);
   
   lines.push('module.exports = { createModel, ' + sanitizeId(modelName) + ', __portAliases' + (allExportedTypes.length > 0 ? ', ' + allExportedTypes.map(sanitizeId).join(', ') : '') + ' };');
   // Sanity check: fail-fast if any emitted line attempts to initialize an owner-level

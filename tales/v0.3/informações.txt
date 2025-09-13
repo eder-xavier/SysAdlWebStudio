@@ -1,0 +1,20 @@
+Prefixos utilizados para separar os contextos/Namespaces
+
+Prefixo	Contexto	    Exemplo                     Exceções	
+DT_	    DataType	    DT_AirConditioner           -
+EN_	    Enum	        EN_InfraredCode             -
+VT_	    ValueType	    VT_temperature              Tipos primitivos (Int, Boolean, String, Real, Void)	
+DM_ 	Dimension	    DM_Temperature              -
+UN_	    Unit	        UN_Celsius                  -
+CP_	    Component	    CP_AirConditioner           -
+PT_	    Port	        PT_PortName                 -
+CN_	    Connector	    CN_ConnectorName            -
+AC_	    Activity	    AC_RaspberryControllerAC    -
+AN_	    Action	        AN_ActionName               -
+EX_	    Executable	    EX_ExecutableName           -
+PI_     Pins            PI_                         -
+CT_     Constraints     CT_                         -
+DB_     DataBuffer      DB_                         -
+RQ_     Requirements    RQ_                         -
+
+

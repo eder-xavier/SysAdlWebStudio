@@ -1,84 +1,84 @@
 const { Model, Component, Port, CompositePort, Connector, Activity, Action, createExecutableFromExpression, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit } = require('../SysADLBase');
 
-const InfraredCode = new Enum("increase", "decrease", "turn_on", "turn_off");
-const TypeSensor = new Enum("temperature", "humidity", "presence");
-const DataSensor = dataType('DataSensor', { id: String, value: String, typeSensor: TypeSensor });
-const RestFulRaspeberry = dataType('RestFulRaspeberry', { ip: String, port: String, path: String, i: Intervention, m: Measurement });
-const Sensor = dataType('Sensor', { room: String, type_sensor: TypeSensor, id: String });
-const Measurement = dataType('Measurement', { value: String, schedule: Schedule, sensor: Sensor });
-const Schedule = dataType('Schedule', { timestamp: Int });
-const Location = dataType('Location', { latitude: Real, longitude: Real });
-const Building = dataType('Building', { id: String, location: Location });
-const Room = dataType('Room', { id: String, building: String });
-const AirConditioner = dataType('AirConditioner', { room: String, id: String });
-const ContextInformation = dataType('ContextInformation', { sensor: Sensor, air_conditioner: AirConditioner, room: Room, building: Building });
-const UpdateDB = dataType('UpdateDB', { idAirCond: String, currentTime: Schedule, actionTemp: InfraredCode });
-const FrameList = dataType('FrameList', {});
-const Intervention = dataType('Intervention', { icAirCond: InfraredCode, airCond: AirConditioner, schedule: Schedule });
+const EN_InfraredCode = new Enum("increase", "decrease", "turn_on", "turn_off");
+const EN_TypeSensor = new Enum("temperature", "humidity", "presence");
+const DT_DataSensor = dataType('DataSensor', { id: String, value: String, typeSensor: EN_TypeSensor });
+const DT_RestFulRaspeberry = dataType('RestFulRaspeberry', { ip: String, port: String, path: String, i: DT_Intervention, m: DT_Measurement });
+const DT_Sensor = dataType('Sensor', { room: String, type_sensor: EN_TypeSensor, id: String });
+const DT_Measurement = dataType('Measurement', { value: String, schedule: DT_Schedule, sensor: DT_Sensor });
+const DT_Schedule = dataType('Schedule', { timestamp: Int });
+const DT_Location = dataType('Location', { latitude: Real, longitude: Real });
+const DT_Building = dataType('Building', { id: String, location: DT_Location });
+const DT_Room = dataType('Room', { id: String, building: String });
+const DT_AirConditioner = dataType('AirConditioner', { room: String, id: String });
+const DT_ContextInformation = dataType('ContextInformation', { sensor: DT_Sensor, air_conditioner: DT_AirConditioner, room: DT_Room, building: DT_Building });
+const DT_UpdateDB = dataType('UpdateDB', { idAirCond: String, currentTime: DT_Schedule, actionTemp: EN_InfraredCode });
+const DT_FrameList = dataType('FrameList', {});
+const DT_Intervention = dataType('Intervention', { icAirCond: EN_InfraredCode, airCond: DT_AirConditioner, schedule: DT_Schedule });
 
-class SmartPlaceWeb extends Component { }
-class RoomReservationSystem extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class OrionContextBroker extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class TemperatureAndHumiditySensor extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class PresenceSensor extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class DB_PostgreSQL extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class AirConditioner extends Component { }
-class Led extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class Raspberry extends Component { }
-class Camera extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class CamMonitor extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class TemperatureController extends Component { }
-class DB_SQLite extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class Fotosensor extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class AirConditionerController extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class RegistrationController extends Component { }
-class ReportGenerator extends Component { }
-class GraphicsGenerator extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
-class HistoricController extends Component { }
-class SmartPlace extends Component { }
+class CP_SmartPlaceWeb extends Component { }
+class CP_RoomReservationSystem extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
+class CP_OrionContextBroker extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
+class CP_TemperatureAndHumiditySensor extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
+class CP_PresenceSensor extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
+class CP_DB_PostgreSQL extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
+class CP_AirConditioner extends Component { }
+class CP_Led extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
+class CP_Raspberry extends Component { }
+class CP_Camera extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
+class CP_CamMonitor extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
+class CP_TemperatureController extends Component { }
+class CP_DB_SQLite extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
+class CP_Fotosensor extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
+class CP_AirConditionerController extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
+class CP_RegistrationController extends Component { }
+class CP_ReportGenerator extends Component { }
+class CP_GraphicsGenerator extends Component { constructor(name, opts={}){ super(name, { ...opts, isBoundary: true }); } }
+class CP_HistoricController extends Component { }
+class CP_SmartPlace extends Component { }
 
 class SysADLArchitecture extends Model {
   constructor(){
     super("SysADLArchitecture");
-    this.SmartPlace = new SmartPlace("SmartPlace", { sysadlDefinition: "SmartPlace" });
+    this.SmartPlace = new CP_SmartPlace("SmartPlace", { sysadlDefinition: "SmartPlace" });
     this.addComponent(this.SmartPlace);
-    this.SmartPlace.ac = new AirConditioner("ac", { sysadlDefinition: "AirConditioner" });
+    this.SmartPlace.ac = new CP_AirConditioner("ac", { sysadlDefinition: "AirConditioner" });
     this.SmartPlace.addComponent(this.SmartPlace.ac);
-    this.SmartPlace.Camera = new Camera("Camera", { isBoundary: true, sysadlDefinition: "Camera" });
+    this.SmartPlace.Camera = new CP_Camera("Camera", { isBoundary: true, sysadlDefinition: "Camera" });
     this.SmartPlace.addComponent(this.SmartPlace.Camera);
-    this.SmartPlace.Led = new Led("Led", { isBoundary: true, sysadlDefinition: "Led" });
+    this.SmartPlace.Led = new CP_Led("Led", { isBoundary: true, sysadlDefinition: "Led" });
     this.SmartPlace.addComponent(this.SmartPlace.Led);
-    this.SmartPlace.ocb = new OrionContextBroker("ocb", { isBoundary: true, sysadlDefinition: "OrionContextBroker" });
+    this.SmartPlace.ocb = new CP_OrionContextBroker("ocb", { isBoundary: true, sysadlDefinition: "OrionContextBroker" });
     this.SmartPlace.addComponent(this.SmartPlace.ocb);
-    this.SmartPlace.ps = new PresenceSensor("ps", { isBoundary: true, sysadlDefinition: "PresenceSensor" });
+    this.SmartPlace.ps = new CP_PresenceSensor("ps", { isBoundary: true, sysadlDefinition: "PresenceSensor" });
     this.SmartPlace.addComponent(this.SmartPlace.ps);
-    this.SmartPlace.psql = new DB_PostgreSQL("psql", { isBoundary: true, sysadlDefinition: "DB_PostgreSQL" });
+    this.SmartPlace.psql = new CP_DB_PostgreSQL("psql", { isBoundary: true, sysadlDefinition: "DB_PostgreSQL" });
     this.SmartPlace.addComponent(this.SmartPlace.psql);
-    this.SmartPlace.Raspberry = new Raspberry("Raspberry", { sysadlDefinition: "Raspberry" });
+    this.SmartPlace.Raspberry = new CP_Raspberry("Raspberry", { sysadlDefinition: "Raspberry" });
     this.SmartPlace.addComponent(this.SmartPlace.Raspberry);
-    this.SmartPlace.rrs = new RoomReservationSystem("rrs", { isBoundary: true, sysadlDefinition: "RoomReservationSystem" });
+    this.SmartPlace.rrs = new CP_RoomReservationSystem("rrs", { isBoundary: true, sysadlDefinition: "RoomReservationSystem" });
     this.SmartPlace.addComponent(this.SmartPlace.rrs);
-    this.SmartPlace.spw = new SmartPlaceWeb("spw", { sysadlDefinition: "SmartPlaceWeb" });
+    this.SmartPlace.spw = new CP_SmartPlaceWeb("spw", { sysadlDefinition: "SmartPlaceWeb" });
     this.SmartPlace.addComponent(this.SmartPlace.spw);
-    this.SmartPlace.ths = new TemperatureAndHumiditySensor("ths", { isBoundary: true, sysadlDefinition: "TemperatureAndHumiditySensor" });
+    this.SmartPlace.ths = new CP_TemperatureAndHumiditySensor("ths", { isBoundary: true, sysadlDefinition: "TemperatureAndHumiditySensor" });
     this.SmartPlace.addComponent(this.SmartPlace.ths);
-    this.SmartPlace.ac.acc = new AirConditionerController("acc", { isBoundary: true, sysadlDefinition: "AirConditionerController" });
+    this.SmartPlace.ac.acc = new CP_AirConditionerController("acc", { isBoundary: true, sysadlDefinition: "AirConditionerController" });
     this.SmartPlace.ac.addComponent(this.SmartPlace.ac.acc);
-    this.SmartPlace.Raspberry.cm = new CamMonitor("cm", { isBoundary: true, sysadlDefinition: "CamMonitor" });
+    this.SmartPlace.Raspberry.cm = new CP_CamMonitor("cm", { isBoundary: true, sysadlDefinition: "CamMonitor" });
     this.SmartPlace.Raspberry.addComponent(this.SmartPlace.Raspberry.cm);
-    this.SmartPlace.ac.f = new Fotosensor("f", { isBoundary: true, sysadlDefinition: "Fotosensor" });
+    this.SmartPlace.ac.f = new CP_Fotosensor("f", { isBoundary: true, sysadlDefinition: "Fotosensor" });
     this.SmartPlace.ac.addComponent(this.SmartPlace.ac.f);
-    this.SmartPlace.spw.gg = new GraphicsGenerator("gg", { isBoundary: true, sysadlDefinition: "GraphicsGenerator" });
+    this.SmartPlace.spw.gg = new CP_GraphicsGenerator("gg", { isBoundary: true, sysadlDefinition: "GraphicsGenerator" });
     this.SmartPlace.spw.addComponent(this.SmartPlace.spw.gg);
-    this.SmartPlace.spw.hc = new HistoricController("hc", { sysadlDefinition: "HistoricController" });
+    this.SmartPlace.spw.hc = new CP_HistoricController("hc", { sysadlDefinition: "HistoricController" });
     this.SmartPlace.spw.addComponent(this.SmartPlace.spw.hc);
-    this.SmartPlace.spw.rc = new RegistrationController("rc", { sysadlDefinition: "RegistrationController" });
+    this.SmartPlace.spw.rc = new CP_RegistrationController("rc", { sysadlDefinition: "RegistrationController" });
     this.SmartPlace.spw.addComponent(this.SmartPlace.spw.rc);
-    this.SmartPlace.spw.rg = new ReportGenerator("rg", { sysadlDefinition: "ReportGenerator" });
+    this.SmartPlace.spw.rg = new CP_ReportGenerator("rg", { sysadlDefinition: "ReportGenerator" });
     this.SmartPlace.spw.addComponent(this.SmartPlace.spw.rg);
-    this.SmartPlace.Raspberry.sqlite = new DB_SQLite("sqlite", { isBoundary: true, sysadlDefinition: "DB_SQLite" });
+    this.SmartPlace.Raspberry.sqlite = new CP_DB_SQLite("sqlite", { isBoundary: true, sysadlDefinition: "DB_SQLite" });
     this.SmartPlace.Raspberry.addComponent(this.SmartPlace.Raspberry.sqlite);
-    this.SmartPlace.Raspberry.tc = new TemperatureController("tc", { sysadlDefinition: "TemperatureController" });
+    this.SmartPlace.Raspberry.tc = new CP_TemperatureController("tc", { sysadlDefinition: "TemperatureController" });
     this.SmartPlace.Raspberry.addComponent(this.SmartPlace.Raspberry.tc);
 
     this.SmartPlace.spw.addPort(new Port("co", "out", { owner: "spw" }));
@@ -347,4 +347,4 @@ class SysADLArchitecture extends Model {
 
 const __portAliases = {};
 function createModel(){ return new SysADLArchitecture(); }
-module.exports = { createModel, SysADLArchitecture, __portAliases, InfraredCode, TypeSensor, DataSensor, RestFulRaspeberry, Sensor, Measurement, Schedule, Location, Building, Room, AirConditioner, ContextInformation, UpdateDB, FrameList, Intervention };
+module.exports = { createModel, SysADLArchitecture, __portAliases, EN_InfraredCode, EN_TypeSensor, DT_DataSensor, DT_RestFulRaspeberry, DT_Sensor, DT_Measurement, DT_Schedule, DT_Location, DT_Building, DT_Room, DT_AirConditioner, DT_ContextInformation, DT_UpdateDB, DT_FrameList, DT_Intervention };
