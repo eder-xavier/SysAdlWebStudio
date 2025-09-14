@@ -180,9 +180,13 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
       classLines.push(enumCode);
     }
 
-    // Generate datatypes using new factory function
-    for (const [name, info] of Object.entries(t.datatypes || {})) {
+    // Generate datatypes using new factory function with dependency ordering
+    const datatypeNames = Object.keys(t.datatypes || {});
+    const orderedDatatypes = orderDatatypesByDependencies(t.datatypes, datatypeNames);
+    
+    for (const name of orderedDatatypes) {
       if (!name) continue;
+      const info = t.datatypes[name];
       const prefixedName = `DT_${name}`;
       const attributes = info.attributes || [];
 
@@ -365,10 +369,26 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
             const portType = port.definition || port.type || null;
             const portTypeStr = portType ? (portType.name || portType.id || String(portType)) : null;
             
+            // Try to extract direction from port definition
+            let direction = null;
+            if (port.direction) {
+              direction = port.direction;
+            } else if (portType && portDefMapArg) {
+              // Look up direction from port definition
+              const portDef = portDefMapArg[String(portTypeStr)];
+              if (portDef && (portDef.flow || portDef.flowProperties)) {
+                const flow = String(portDef.flow || portDef.flowProperties).toLowerCase();
+                if (flow.includes('inout')) direction = 'inout';
+                else if (flow.includes('out')) direction = 'out';
+                else if (flow.includes('in')) direction = 'in';
+              }
+            }
+            
             if (portName && portTypeStr) {
               ports.push({
                 name: portName,
-                type: portTypeStr
+                type: portTypeStr,
+                direction: direction
               });
             }
           }
@@ -405,7 +425,12 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
         ctorLines.push('    // Add ports from component definition');
         for (const port of compPorts) {
           const portTypeClass = `PT_${port.type}`;
-          ctorLines.push(`    this.addPort(new ${portTypeClass}("${port.name}", { owner: name }));`);
+          // Include direction if available, otherwise let the PT_ class determine it
+          if (port.direction) {
+            ctorLines.push(`    this.addPort(new ${portTypeClass}("${port.name}", "${port.direction}", { owner: name }));`);
+          } else {
+            ctorLines.push(`    this.addPort(new ${portTypeClass}("${port.name}", { owner: name }));`);
+          }
         }
       }
       
@@ -510,6 +535,21 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   // emit ports (attach to component instances)
   // track emitted ports to avoid duplicate lines when portUses and activity ensures overlap
   const __emittedPorts = new Set();
+  
+  // Helper: check if component already has ports defined in constructor through ComponentDef
+  function componentHasDefinedPorts(ownerName) {
+    try {
+      const defName = compInstanceDef[ownerName];
+      if (!defName) return false;
+      const compDefNode = compDefMapArg ? compDefMapArg[String(defName)] : null;
+      if (!compDefNode) return false;
+      const ports = extractComponentDefPorts(compDefNode);
+      return ports.length > 0;
+    } catch(e) {
+      return false;
+    }
+  }
+  
   try { if (DBG) { dbg('[DBG] sample portDefMap keys:', Object.keys(portDefMap).slice(0,20)); dbg('[DBG] sample portDef entry for CTempIPT:', portDefMap['CTempIPT']); } } catch(e){}
   // helper: resolve port direction from PortDef.flow by following instance -> componentDef -> portDef
   function resolvePortDirectionFor(ownerName, portName) {
@@ -643,6 +683,12 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     const pname = pu && (pu.name || pu.id || (pu.id && pu.id.name)) ? (pu.name || (pu.id && pu.id.name) || pu.id) : null;
     const owner = pu && pu._ownerComponent ? pu._ownerComponent : (pu.owner || null);
     if (!pname || !owner) continue;
+    
+    // Skip port generation if component already has ports defined in constructor
+    if (componentHasDefinedPorts(owner)) {
+      continue;
+    }
+    
   const ownerExpr = instancePathMap[owner] || `this.${owner}`;
   // detect composite port declarations: pu may have children in pu.ports or pu.members
   const hasChildren = Array.isArray(pu.ports) && pu.ports.length || Array.isArray(pu.members) && pu.members.length;
@@ -687,6 +733,12 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
         const comp = a && a.descriptor && a.descriptor.component;
         const inputPorts = (a && a.descriptor && Array.isArray(a.descriptor.inputPorts)) ? a.descriptor.inputPorts : [];
         if (!comp || !inputPorts.length) continue;
+        
+        // Skip port generation if component already has ports defined in constructor
+        if (componentHasDefinedPorts(comp)) {
+          continue;
+        }
+        
   const ownerExpr = instancePathMap[comp] || `this.${comp}`;
           for (const ip of inputPorts) {
                   const ipKey = `${comp}::${ip}`;
@@ -2970,6 +3022,69 @@ async function main() {
   const outFile = path.join(outDir, path.basename(input, path.extname(input)) + '.js');
   fs.writeFileSync(outFile, moduleCode, 'utf8');
   console.log('Generated', outFile);
+}
+
+// Helper function to order datatypes by dependencies using topological sort
+function orderDatatypesByDependencies(datatypes, names) {
+  if (!datatypes || !names) return [];
+  
+  // Build dependency graph
+  const dependencies = {};
+  const dependents = {};
+  
+  for (const name of names) {
+    dependencies[name] = new Set();
+    dependents[name] = new Set();
+  }
+  
+  // Analyze dependencies
+  for (const name of names) {
+    const info = datatypes[name];
+    if (info && info.attributes) {
+      for (const attr of info.attributes) {
+        if (attr && attr.type && names.includes(attr.type)) {
+          // name depends on attr.type
+          dependencies[name].add(attr.type);
+          dependents[attr.type].add(name);
+        }
+      }
+    }
+  }
+  
+  // Topological sort using Kahn's algorithm
+  const result = [];
+  const queue = [];
+  const inDegree = {};
+  
+  // Initialize in-degree count
+  for (const name of names) {
+    inDegree[name] = dependencies[name].size;
+    if (inDegree[name] === 0) {
+      queue.push(name);
+    }
+  }
+  
+  // Process queue
+  while (queue.length > 0) {
+    const current = queue.shift();
+    result.push(current);
+    
+    // Update dependent nodes
+    for (const dependent of dependents[current]) {
+      inDegree[dependent]--;
+      if (inDegree[dependent] === 0) {
+        queue.push(dependent);
+      }
+    }
+  }
+  
+  // Check for circular dependencies
+  if (result.length !== names.length) {
+    console.warn('Circular dependencies detected in datatypes, using original order');
+    return names;
+  }
+  
+  return result;
 }
 
 main().catch(e => { console.error(e); process.exit(1); });

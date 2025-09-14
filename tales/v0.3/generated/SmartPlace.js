@@ -4,18 +4,18 @@ const { Model, Component, Port, SimplePort, CompositePort, Connector, Activity, 
 const EN_InfraredCode = new Enum("increase", "decrease", "turn_on", "turn_off");
 const EN_TypeSensor = new Enum("temperature", "humidity", "presence");
 const DT_DataSensor = dataType('DataSensor', { id: String, value: String, typeSensor: EN_TypeSensor });
-const DT_RestFulRaspeberry = dataType('RestFulRaspeberry', { ip: String, port: String, path: String, i: DT_Intervention, m: DT_Measurement });
 const DT_Sensor = dataType('Sensor', { room: String, type_sensor: EN_TypeSensor, id: String });
-const DT_Measurement = dataType('Measurement', { value: String, schedule: DT_Schedule, sensor: DT_Sensor });
 const DT_Schedule = dataType('Schedule', { timestamp: Int });
 const DT_Location = dataType('Location', { latitude: Real, longitude: Real });
-const DT_Building = dataType('Building', { id: String, location: DT_Location });
 const DT_Room = dataType('Room', { id: String, building: String });
 const DT_AirConditioner = dataType('AirConditioner', { room: String, id: String });
-const DT_ContextInformation = dataType('ContextInformation', { sensor: DT_Sensor, air_conditioner: DT_AirConditioner, room: DT_Room, building: DT_Building });
-const DT_UpdateDB = dataType('UpdateDB', { idAirCond: String, currentTime: DT_Schedule, actionTemp: EN_InfraredCode });
 const DT_FrameList = dataType('FrameList', {});
+const DT_Measurement = dataType('Measurement', { value: String, schedule: DT_Schedule, sensor: DT_Sensor });
+const DT_UpdateDB = dataType('UpdateDB', { idAirCond: String, currentTime: DT_Schedule, actionTemp: EN_InfraredCode });
+const DT_Building = dataType('Building', { id: String, location: DT_Location });
 const DT_Intervention = dataType('Intervention', { icAirCond: EN_InfraredCode, airCond: DT_AirConditioner, schedule: DT_Schedule });
+const DT_ContextInformation = dataType('ContextInformation', { sensor: DT_Sensor, air_conditioner: DT_AirConditioner, room: DT_Room, building: DT_Building });
+const DT_RestFulRaspeberry = dataType('RestFulRaspeberry', { ip: String, port: String, path: String, i: DT_Intervention, m: DT_Measurement });
 
 // Ports
 class PT_ValueOPT extends SimplePort {
@@ -192,10 +192,10 @@ class CP_SmartPlaceWeb extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_ContextInformationOPT("co", { owner: name }));
-      this.addPort(new PT_RestfulRaspberryIPT("rr", { owner: name }));
+      this.addPort(new PT_ContextInformationOPT("co", "out", { owner: name }));
+      this.addPort(new PT_RestfulRaspberryIPT("rr", "in", { owner: name }));
       this.addPort(new PT_DataBaseO2I("db", { owner: name }));
-      this.addPort(new PT_UpdateOPT("u", { owner: name }));
+      this.addPort(new PT_UpdateOPT("u", "out", { owner: name }));
       this.addPort(new PT_ContextO2I("ctx", { owner: name }));
     }
 }
@@ -210,7 +210,7 @@ class CP_OrionContextBroker extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_ContextInformationIPT("ci", { owner: name }));
+      this.addPort(new PT_ContextInformationIPT("ci", "in", { owner: name }));
       this.addPort(new PT_ContextI2O("ctx", { owner: name }));
     }
 }
@@ -218,14 +218,14 @@ class CP_TemperatureAndHumiditySensor extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_ValueOPT("temperature", { owner: name }));
+      this.addPort(new PT_ValueOPT("temperature", "out", { owner: name }));
     }
 }
 class CP_PresenceSensor extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_ValueOPT("presence", { owner: name }));
+      this.addPort(new PT_ValueOPT("presence", "out", { owner: name }));
     }
 }
 class CP_DB_PostgreSQL extends Component {
@@ -233,61 +233,61 @@ class CP_DB_PostgreSQL extends Component {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
       this.addPort(new PT_DataBaseI2O("db", { owner: name }));
-      this.addPort(new PT_UpdateIPT("u", { owner: name }));
+      this.addPort(new PT_UpdateIPT("u", "in", { owner: name }));
     }
 }
 class CP_AirConditioner extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_InfraredSignalIPT("is", { owner: name }));
+      this.addPort(new PT_InfraredSignalIPT("is", "in", { owner: name }));
     }
 }
 class CP_Led extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_CommandIPT("c", { owner: name }));
-      this.addPort(new PT_InfraredSignalOPT("is", { owner: name }));
+      this.addPort(new PT_CommandIPT("c", "in", { owner: name }));
+      this.addPort(new PT_InfraredSignalOPT("is", "out", { owner: name }));
     }
 }
 class CP_Raspberry extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_CommandOPT("c", { owner: name }));
+      this.addPort(new PT_CommandOPT("c", "out", { owner: name }));
       this.addPort(new PT_ReservationInformationO2I("ri", { owner: name }));
-      this.addPort(new PT_FrameListIPT("f", { owner: name }));
-      this.addPort(new PT_ValueIPT("temperature", { owner: name }));
-      this.addPort(new PT_ValueIPT("presence", { owner: name }));
-      this.addPort(new PT_RestfulRaspberryOPT("rr", { owner: name }));
+      this.addPort(new PT_FrameListIPT("f", "in", { owner: name }));
+      this.addPort(new PT_ValueIPT("temperature", "in", { owner: name }));
+      this.addPort(new PT_ValueIPT("presence", "in", { owner: name }));
+      this.addPort(new PT_RestfulRaspberryOPT("rr", "out", { owner: name }));
     }
 }
 class CP_Camera extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_FrameListOPT("f", { owner: name }));
+      this.addPort(new PT_FrameListOPT("f", "out", { owner: name }));
     }
 }
 class CP_CamMonitor extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_FrameListIPT("f", { owner: name }));
-      this.addPort(new PT_ValueOPT("numPeople", { owner: name }));
+      this.addPort(new PT_FrameListIPT("f", "in", { owner: name }));
+      this.addPort(new PT_ValueOPT("numPeople", "out", { owner: name }));
     }
 }
 class CP_TemperatureController extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_ValueIPT("presence", { owner: name }));
-      this.addPort(new PT_RestfulRaspberryOPT("rrasp", { owner: name }));
+      this.addPort(new PT_ValueIPT("presence", "in", { owner: name }));
+      this.addPort(new PT_RestfulRaspberryOPT("rrasp", "out", { owner: name }));
       this.addPort(new PT_ReservationInformationO2I("ri", { owner: name }));
-      this.addPort(new PT_ValueIPT("temperature", { owner: name }));
-      this.addPort(new PT_ValueIPT("numPeople", { owner: name }));
-      this.addPort(new PT_CommandOPT("c", { owner: name }));
+      this.addPort(new PT_ValueIPT("temperature", "in", { owner: name }));
+      this.addPort(new PT_ValueIPT("numPeople", "in", { owner: name }));
+      this.addPort(new PT_CommandOPT("c", "out", { owner: name }));
     }
 }
 class CP_DB_SQLite extends Component {
@@ -295,37 +295,37 @@ class CP_DB_SQLite extends Component {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
       this.addPort(new PT_ReservationInformationI2O("ri", { owner: name }));
-      this.addPort(new PT_ReservationResponseIPT("rresp", { owner: name }));
+      this.addPort(new PT_ReservationResponseIPT("rresp", "in", { owner: name }));
     }
 }
 class CP_Fotosensor extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_UndefinedOPT("u", { owner: name }));
-      this.addPort(new PT_InfraredSignalIPT("is", { owner: name }));
+      this.addPort(new PT_UndefinedOPT("u", "out", { owner: name }));
+      this.addPort(new PT_InfraredSignalIPT("is", "in", { owner: name }));
     }
 }
 class CP_AirConditionerController extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_UndefinedIPT("u", { owner: name }));
+      this.addPort(new PT_UndefinedIPT("u", "in", { owner: name }));
     }
 }
 class CP_RegistrationController extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_ContextInformationOPT("ci", { owner: name }));
-      this.addPort(new PT_ContextInformationIPT("regUi", { owner: name }));
+      this.addPort(new PT_ContextInformationOPT("ci", "out", { owner: name }));
+      this.addPort(new PT_ContextInformationIPT("regUi", "in", { owner: name }));
     }
 }
 class CP_ReportGenerator extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_ContextInformationIPT("a", { owner: name }));
+      this.addPort(new PT_ContextInformationIPT("a", "in", { owner: name }));
     }
 }
 class CP_GraphicsGenerator extends Component {
@@ -340,8 +340,8 @@ class CP_HistoricController extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_RestfulRaspberryIPT("rr", { owner: name }));
-      this.addPort(new PT_UpdateOPT("u", { owner: name }));
+      this.addPort(new PT_RestfulRaspberryIPT("rr", "in", { owner: name }));
+      this.addPort(new PT_UpdateOPT("u", "out", { owner: name }));
       this.addPort(new PT_ContextO2I("ctx", { owner: name }));
     }
 }
@@ -391,69 +391,6 @@ class SysADLArchitecture extends Model {
     this.SmartPlace.Raspberry.tc = new CP_TemperatureController("tc", { sysadlDefinition: "TemperatureController" });
     this.SmartPlace.Raspberry.addComponent(this.SmartPlace.Raspberry.tc);
 
-    this.SmartPlace.spw.addPort(new PT_ContextInformationOPT("co", "out", { owner: "spw" }));
-    this.SmartPlace.spw.addPort(new PT_RestfulRaspberryIPT("rr", "in", { owner: "spw" }));
-    this.SmartPlace.spw.addPort(new PT_DataBaseO2I("db", "in", { owner: "spw" }));
-    this.SmartPlace.spw.addPort(new PT_UpdateOPT("u", "out", { owner: "spw" }));
-    this.SmartPlace.spw.addPort(new PT_ContextO2I("ctx", "in", { owner: "spw" }));
-    this.SmartPlace.spw.addPort(new PT_ContextInformationOPT("ciRc", "out", { owner: "spw" }));
-    this.SmartPlace.spw.addPort(new PT_ContextInformationIPT("regUi", "in", { owner: "spw" }));
-    this.SmartPlace.spw.addPort(new PT_ContextO2I("a", "in", { owner: "spw" }));
-    this.SmartPlace.spw.addPort(new PT_DataBaseO2I("dbGg", "in", { owner: "spw" }));
-    this.SmartPlace.spw.addPort(new PT_ContextO2I("ctxGg", "in", { owner: "spw" }));
-    this.SmartPlace.spw.addPort(new PT_RestfulRaspberryIPT("rrHc", "in", { owner: "spw" }));
-    this.SmartPlace.spw.addPort(new PT_UpdateOPT("uHc", "out", { owner: "spw" }));
-    this.SmartPlace.spw.addPort(new PT_ContextO2I("ctxHc", "in", { owner: "spw" }));
-    this.SmartPlace.rrs.addPort(new PT_ReservationInformationI2O("ri", "in", { owner: "rrs" }));
-    this.SmartPlace.ocb.addPort(new PT_ContextInformationIPT("ci", "in", { owner: "ocb" }));
-    this.SmartPlace.ocb.addPort(new PT_ContextI2O("ctx", "in", { owner: "ocb" }));
-    this.SmartPlace.ths.addPort(new PT_ValueOPT("temperature", "out", { owner: "ths" }));
-    this.SmartPlace.ps.addPort(new PT_ValueOPT("presence", "out", { owner: "ps" }));
-    this.SmartPlace.psql.addPort(new PT_DataBaseI2O("db", "in", { owner: "psql" }));
-    this.SmartPlace.psql.addPort(new PT_UpdateIPT("u", "in", { owner: "psql" }));
-    this.SmartPlace.ac.addPort(new PT_InfraredSignalIPT("is", "in", { owner: "ac" }));
-    this.SmartPlace.ac.addPort(new PT_UndefinedOPT("uF", "out", { owner: "ac" }));
-    this.SmartPlace.ac.addPort(new PT_InfraredSignalIPT("isF", "in", { owner: "ac" }));
-    this.SmartPlace.ac.addPort(new PT_UndefinedIPT("uAcc", "in", { owner: "ac" }));
-    this.SmartPlace.Led.addPort(new PT_CommandIPT("c", "in", { owner: "Led" }));
-    this.SmartPlace.Led.addPort(new PT_InfraredSignalOPT("is", "out", { owner: "Led" }));
-    this.SmartPlace.Raspberry.addPort(new PT_CommandOPT("c", "out", { owner: "Raspberry" }));
-    this.SmartPlace.Raspberry.addPort(new PT_ReservationInformationO2I("ri", "in", { owner: "Raspberry" }));
-    this.SmartPlace.Raspberry.addPort(new PT_FrameListIPT("f", "in", { owner: "Raspberry" }));
-    this.SmartPlace.Raspberry.addPort(new PT_ValueIPT("temperature", "in", { owner: "Raspberry" }));
-    this.SmartPlace.Raspberry.addPort(new PT_ValueIPT("presence", "in", { owner: "Raspberry" }));
-    this.SmartPlace.Raspberry.addPort(new PT_RestfulRaspberryOPT("rr", "out", { owner: "Raspberry" }));
-    this.SmartPlace.Raspberry.addPort(new PT_FrameListIPT("fCm", "in", { owner: "Raspberry" }));
-    this.SmartPlace.Raspberry.addPort(new PT_ValueOPT("numPeopleCm", "out", { owner: "Raspberry" }));
-    this.SmartPlace.Raspberry.addPort(new PT_ValueIPT("presenceTc", "in", { owner: "Raspberry" }));
-    this.SmartPlace.Raspberry.addPort(new PT_RestfulRaspberryOPT("rraspTc", "out", { owner: "Raspberry" }));
-    this.SmartPlace.Raspberry.addPort(new PT_ReservationInformationO2I("riTc", "in", { owner: "Raspberry" }));
-    this.SmartPlace.Raspberry.addPort(new PT_ValueIPT("temperatureTc", "in", { owner: "Raspberry" }));
-    this.SmartPlace.Raspberry.addPort(new PT_ValueIPT("numPeopleTc", "in", { owner: "Raspberry" }));
-    this.SmartPlace.Raspberry.addPort(new PT_CommandOPT("cTc", "out", { owner: "Raspberry" }));
-    this.SmartPlace.Raspberry.addPort(new PT_ReservationResponseIPT("rresp", "in", { owner: "Raspberry" }));
-    this.SmartPlace.Camera.addPort(new PT_FrameListOPT("f", "out", { owner: "Camera" }));
-    this.SmartPlace.Raspberry.cm.addPort(new PT_FrameListIPT("f", "in", { owner: "cm" }));
-    this.SmartPlace.Raspberry.cm.addPort(new PT_ValueOPT("numPeople", "out", { owner: "cm" }));
-    this.SmartPlace.Raspberry.tc.addPort(new PT_ValueIPT("presence", "in", { owner: "tc" }));
-    this.SmartPlace.Raspberry.tc.addPort(new PT_RestfulRaspberryOPT("rrasp", "out", { owner: "tc" }));
-    this.SmartPlace.Raspberry.tc.addPort(new PT_ReservationInformationO2I("ri", "in", { owner: "tc" }));
-    this.SmartPlace.Raspberry.tc.addPort(new PT_ValueIPT("temperature", "in", { owner: "tc" }));
-    this.SmartPlace.Raspberry.tc.addPort(new PT_ValueIPT("numPeople", "in", { owner: "tc" }));
-    this.SmartPlace.Raspberry.tc.addPort(new PT_CommandOPT("c", "out", { owner: "tc" }));
-    this.SmartPlace.Raspberry.sqlite.addPort(new PT_ReservationInformationI2O("ri", "in", { owner: "sqlite" }));
-    this.SmartPlace.Raspberry.sqlite.addPort(new PT_ReservationResponseIPT("rresp", "in", { owner: "sqlite" }));
-    this.SmartPlace.ac.f.addPort(new PT_UndefinedOPT("u", "out", { owner: "f" }));
-    this.SmartPlace.ac.f.addPort(new PT_InfraredSignalIPT("is", "in", { owner: "f" }));
-    this.SmartPlace.ac.acc.addPort(new PT_UndefinedIPT("u", "in", { owner: "acc" }));
-    this.SmartPlace.spw.rc.addPort(new PT_ContextInformationOPT("ci", "out", { owner: "rc" }));
-    this.SmartPlace.spw.rc.addPort(new PT_ContextInformationIPT("regUi", "in", { owner: "rc" }));
-    this.SmartPlace.spw.rg.addPort(new PT_ContextInformationIPT("a", "in", { owner: "rg" }));
-    this.SmartPlace.spw.gg.addPort(new PT_DataBaseO2I("db", "in", { owner: "gg" }));
-    this.SmartPlace.spw.gg.addPort(new PT_ContextO2I("ctx", "in", { owner: "gg" }));
-    this.SmartPlace.spw.hc.addPort(new PT_RestfulRaspberryIPT("rr", "in", { owner: "hc" }));
-    this.SmartPlace.spw.hc.addPort(new PT_UpdateOPT("u", "out", { owner: "hc" }));
-    this.SmartPlace.spw.hc.addPort(new PT_ContextO2I("ctx", "in", { owner: "hc" }));
     const act_RaspberryControllerAC_spw = new Activity("RaspberryControllerAC", { component: "spw", inputPorts: ["u"] });
     this.registerActivity("RaspberryControllerAC::spw", act_RaspberryControllerAC_spw);
     const act_RaspberryControllerAC_rrs = new Activity("RaspberryControllerAC", { component: "rrs", inputPorts: ["ri"] });
