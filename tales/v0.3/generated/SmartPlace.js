@@ -8,137 +8,137 @@ const DT_Sensor = dataType('Sensor', { room: String, type_sensor: EN_TypeSensor,
 const DT_Schedule = dataType('Schedule', { timestamp: Int });
 const DT_Location = dataType('Location', { latitude: Real, longitude: Real });
 const DT_Room = dataType('Room', { id: String, building: String });
-const DT_AirConditioner = dataType('AirConditioner', { room: String, id: String });
+const DT_SmartPlaceComponents_AirConditioner = dataType('AirConditioner', { room: String, id: String });
 const DT_FrameList = dataType('FrameList', {});
 const DT_Measurement = dataType('Measurement', { value: String, schedule: DT_Schedule, sensor: DT_Sensor });
 const DT_UpdateDB = dataType('UpdateDB', { idAirCond: String, currentTime: DT_Schedule, actionTemp: EN_InfraredCode });
 const DT_Building = dataType('Building', { id: String, location: DT_Location });
-const DT_Intervention = dataType('Intervention', { icAirCond: EN_InfraredCode, airCond: DT_AirConditioner, schedule: DT_Schedule });
-const DT_ContextInformation = dataType('ContextInformation', { sensor: DT_Sensor, air_conditioner: DT_AirConditioner, room: DT_Room, building: DT_Building });
+const DT_Intervention = dataType('Intervention', { icAirCond: EN_InfraredCode, airCond: DT_SmartPlaceComponents_AirConditioner, schedule: DT_Schedule });
+const DT_ContextInformation = dataType('ContextInformation', { sensor: DT_Sensor, air_conditioner: DT_SmartPlaceComponents_AirConditioner, room: DT_Room, building: DT_Building });
 const DT_RestFulRaspeberry = dataType('RestFulRaspeberry', { ip: String, port: String, path: String, i: DT_Intervention, m: DT_Measurement });
 
 // Ports
-class PT_ValueOPT extends SimplePort {
+class PT_SmartPlacePorts_ValueOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "Int" }, ...opts });
   }
 }
-class PT_ValueIPT extends SimplePort {
+class PT_SmartPlacePorts_ValueIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "Int" }, ...opts });
   }
 }
-class PT_ReservationResponseIPT extends SimplePort {
+class PT_SmartPlacePorts_ReservationResponseIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "Boolean" }, ...opts });
   }
 }
-class PT_ReservationResponseOPT extends SimplePort {
+class PT_SmartPlacePorts_ReservationResponseOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "Boolean" }, ...opts });
   }
 }
-class PT_RequestOPT extends SimplePort {
+class PT_SmartPlacePorts_RequestOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "String" }, ...opts });
   }
 }
-class PT_RequestIPT extends SimplePort {
+class PT_SmartPlacePorts_RequestIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "String" }, ...opts });
   }
 }
-class PT_InfraredSignalIPT extends SimplePort {
+class PT_SmartPlacePorts_InfraredSignalIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "Void" }, ...opts });
   }
 }
-class PT_InfraredSignalOPT extends SimplePort {
+class PT_SmartPlacePorts_InfraredSignalOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "Void" }, ...opts });
   }
 }
-class PT_ContextInformationOPT extends SimplePort {
+class PT_SmartPlacePorts_ContextInformationOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "ContextInformation" }, ...opts });
   }
 }
-class PT_ContextInformationIPT extends SimplePort {
+class PT_SmartPlacePorts_ContextInformationIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "ContextInformation" }, ...opts });
   }
 }
-class PT_UndefinedOPT extends SimplePort {
+class PT_SmartPlacePorts_UndefinedOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "Void" }, ...opts });
   }
 }
-class PT_UndefinedIPT extends SimplePort {
+class PT_SmartPlacePorts_UndefinedIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "Void" }, ...opts });
   }
 }
-class PT_CommandIPT extends SimplePort {
+class PT_SmartPlacePorts_CommandIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "InfraredCode" }, ...opts });
   }
 }
-class PT_CommandOPT extends SimplePort {
+class PT_SmartPlacePorts_CommandOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "InfraredCode" }, ...opts });
   }
 }
-class PT_RestfulRaspberryIPT extends SimplePort {
+class PT_SmartPlacePorts_RestfulRaspberryIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "RestFulRaspeberry" }, ...opts });
   }
 }
-class PT_RestfulRaspberryOPT extends SimplePort {
+class PT_SmartPlacePorts_RestfulRaspberryOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "RestFulRaspeberry" }, ...opts });
   }
 }
-class PT_DataBaseRespOPT extends SimplePort {
+class PT_SmartPlacePorts_DataBaseRespOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "String" }, ...opts });
   }
 }
-class PT_DataBaseRespIPT extends SimplePort {
+class PT_SmartPlacePorts_DataBaseRespIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "String" }, ...opts });
   }
 }
-class PT_ScheduleOPT extends SimplePort {
+class PT_SmartPlacePorts_ScheduleOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "Schedule" }, ...opts });
   }
 }
-class PT_ScheduleIPT extends SimplePort {
+class PT_SmartPlacePorts_ScheduleIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "Schedule" }, ...opts });
   }
 }
-class PT_UpdateIPT extends SimplePort {
+class PT_SmartPlacePorts_UpdateIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "UpdateDB" }, ...opts });
   }
 }
-class PT_UpdateOPT extends SimplePort {
+class PT_SmartPlacePorts_UpdateOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "UpdateDB" }, ...opts });
   }
 }
-class PT_FrameListIPT extends SimplePort {
+class PT_SmartPlacePorts_FrameListIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "FrameList" }, ...opts });
   }
 }
-class PT_FrameListOPT extends SimplePort {
+class PT_SmartPlacePorts_FrameListOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "FrameList" }, ...opts });
   }
 }
-class PT_DataBaseO2I extends CompositePort {
+class PT_SmartPlacePorts_DataBaseO2I extends CompositePort {
   constructor(name, opts = {}) {
     super(name, 'composite', opts);
     // Add sub-ports
@@ -146,7 +146,7 @@ class PT_DataBaseO2I extends CompositePort {
     this.addSubPort("respIDB", new SimplePort("respIDB", "in", { ...{ expectedType: "DataBaseRespIPT" }, owner: this.owner }));
   }
 }
-class PT_DataBaseI2O extends CompositePort {
+class PT_SmartPlacePorts_DataBaseI2O extends CompositePort {
   constructor(name, opts = {}) {
     super(name, 'composite', opts);
     // Add sub-ports
@@ -154,7 +154,7 @@ class PT_DataBaseI2O extends CompositePort {
     this.addSubPort("respODB", new SimplePort("respODB", "in", { ...{ expectedType: "DataBaseRespOPT" }, owner: this.owner }));
   }
 }
-class PT_ReservationInformationO2I extends CompositePort {
+class PT_SmartPlacePorts_ReservationInformationO2I extends CompositePort {
   constructor(name, opts = {}) {
     super(name, 'composite', opts);
     // Add sub-ports
@@ -162,7 +162,7 @@ class PT_ReservationInformationO2I extends CompositePort {
     this.addSubPort("respIRI", new SimplePort("respIRI", "in", { ...{ expectedType: "ReservationResponseIPT" }, owner: this.owner }));
   }
 }
-class PT_ReservationInformationI2O extends CompositePort {
+class PT_SmartPlacePorts_ReservationInformationI2O extends CompositePort {
   constructor(name, opts = {}) {
     super(name, 'composite', opts);
     // Add sub-ports
@@ -170,7 +170,7 @@ class PT_ReservationInformationI2O extends CompositePort {
     this.addSubPort("respORI", new SimplePort("respORI", "in", { ...{ expectedType: "ReservationResponseOPT" }, owner: this.owner }));
   }
 }
-class PT_ContextO2I extends CompositePort {
+class PT_SmartPlacePorts_ContextO2I extends CompositePort {
   constructor(name, opts = {}) {
     super(name, 'composite', opts);
     // Add sub-ports
@@ -178,7 +178,7 @@ class PT_ContextO2I extends CompositePort {
     this.addSubPort("respIC", new SimplePort("respIC", "in", { ...{ expectedType: "ContextInformationIPT" }, owner: this.owner }));
   }
 }
-class PT_ContextI2O extends CompositePort {
+class PT_SmartPlacePorts_ContextI2O extends CompositePort {
   constructor(name, opts = {}) {
     super(name, 'composite', opts);
     // Add sub-ports
@@ -188,85 +188,85 @@ class PT_ContextI2O extends CompositePort {
 }
 
 // Connectors
-class CN_UndefinedCN extends Connector {
+class CN_SmartPlaceConnectors_UndefinedCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
     // Flows: Flow from undO to undefined
   }
 }
-class CN_SendValueCN extends Connector {
+class CN_SmartPlaceConnectors_SendValueCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
     // Flows: Flow from vO to undefined
   }
 }
-class CN_InfraCodeCN extends Connector {
+class CN_SmartPlaceConnectors_InfraCodeCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
     // Flows: Flow from cmdO to undefined
   }
 }
-class CN_CmdRestfulCN extends Connector {
+class CN_SmartPlaceConnectors_CmdRestfulCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
     // Flows: Flow from restO to undefined
   }
 }
-class CN_SendReservationInfoCN extends Connector {
+class CN_SmartPlaceConnectors_SendReservationInfoCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
     // Flows: Flow from rRespO to undefined
   }
 }
-class CN_RequestCN extends Connector {
+class CN_SmartPlaceConnectors_RequestCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
     // Flows: Flow from rReqO to undefined
   }
 }
-class CN_SendContextCN extends Connector {
+class CN_SmartPlaceConnectors_SendContextCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
     // Flows: Flow from ciO to undefined
   }
 }
-class CN_InfraredSignalCN extends Connector {
+class CN_SmartPlaceConnectors_InfraredSignalCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
     // Flows: Flow from isO to undefined
   }
 }
-class CN_ReservationCN extends Connector {
+class CN_SmartPlaceConnectors_ReservationCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
     // Flows: 
   }
 }
-class CN_QueryDataBaseCN extends Connector {
+class CN_SmartPlaceConnectors_QueryDataBaseCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
     // Flows: 
   }
 }
-class CN_SendPostgreSQLInfoCN extends Connector {
+class CN_SmartPlaceConnectors_SendPostgreSQLInfoCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
     // Flows: Flow from psqlO to undefined
   }
 }
-class CN_ScheduleCN extends Connector {
+class CN_SmartPlaceConnectors_ScheduleCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
     // Flows: Flow from dO to undefined
   }
 }
-class CN_FrameListCN extends Connector {
+class CN_SmartPlaceConnectors_FrameListCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
     // Flows: Flow from fO to undefined
   }
 }
-class CN_ContextCN extends Connector {
+class CN_SmartPlaceConnectors_ContextCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
     // Flows: 
@@ -274,207 +274,207 @@ class CN_ContextCN extends Connector {
 }
 
 // Components
-class CP_SmartPlaceWeb extends Component {
+class CP_SmartPlaceComponents_SmartPlaceWeb extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_ContextInformationOPT("co", "out", { owner: name }));
-      this.addPort(new PT_RestfulRaspberryIPT("rr", "in", { owner: name }));
-      this.addPort(new PT_DataBaseO2I("db", { owner: name }));
-      this.addPort(new PT_UpdateOPT("u", "out", { owner: name }));
-      this.addPort(new PT_ContextO2I("ctx", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ContextInformationOPT("co", "out", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_RestfulRaspberryIPT("rr", "in", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_DataBaseO2I("db", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_UpdateOPT("u", "out", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ContextO2I("ctx", { owner: name }));
     }
 }
-class CP_RoomReservationSystem extends Component {
+class CP_SmartPlaceComponents_RoomReservationSystem extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_ReservationInformationI2O("ri", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ReservationInformationI2O("ri", { owner: name }));
     }
 }
-class CP_OrionContextBroker extends Component {
+class CP_SmartPlaceComponents_OrionContextBroker extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_ContextInformationIPT("ci", "in", { owner: name }));
-      this.addPort(new PT_ContextI2O("ctx", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ContextInformationIPT("ci", "in", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ContextI2O("ctx", { owner: name }));
     }
 }
-class CP_TemperatureAndHumiditySensor extends Component {
+class CP_SmartPlaceComponents_TemperatureAndHumiditySensor extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_ValueOPT("temperature", "out", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ValueOPT("temperature", "out", { owner: name }));
     }
 }
-class CP_PresenceSensor extends Component {
+class CP_SmartPlaceComponents_PresenceSensor extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_ValueOPT("presence", "out", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ValueOPT("presence", "out", { owner: name }));
     }
 }
-class CP_DB_PostgreSQL extends Component {
+class CP_SmartPlaceComponents_DB_PostgreSQL extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_DataBaseI2O("db", { owner: name }));
-      this.addPort(new PT_UpdateIPT("u", "in", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_DataBaseI2O("db", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_UpdateIPT("u", "in", { owner: name }));
     }
 }
-class CP_AirConditioner extends Component {
+class CP_SmartPlaceComponents_AirConditioner extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_InfraredSignalIPT("is", "in", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_InfraredSignalIPT("is", "in", { owner: name }));
     }
 }
-class CP_Led extends Component {
+class CP_SmartPlaceComponents_Led extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_CommandIPT("c", "in", { owner: name }));
-      this.addPort(new PT_InfraredSignalOPT("is", "out", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_CommandIPT("c", "in", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_InfraredSignalOPT("is", "out", { owner: name }));
     }
 }
-class CP_Raspberry extends Component {
+class CP_SmartPlaceComponents_Raspberry extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_CommandOPT("c", "out", { owner: name }));
-      this.addPort(new PT_ReservationInformationO2I("ri", { owner: name }));
-      this.addPort(new PT_FrameListIPT("f", "in", { owner: name }));
-      this.addPort(new PT_ValueIPT("temperature", "in", { owner: name }));
-      this.addPort(new PT_ValueIPT("presence", "in", { owner: name }));
-      this.addPort(new PT_RestfulRaspberryOPT("rr", "out", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_CommandOPT("c", "out", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ReservationInformationO2I("ri", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_FrameListIPT("f", "in", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ValueIPT("temperature", "in", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ValueIPT("presence", "in", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_RestfulRaspberryOPT("rr", "out", { owner: name }));
     }
 }
-class CP_Camera extends Component {
+class CP_SmartPlaceComponents_Camera extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_FrameListOPT("f", "out", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_FrameListOPT("f", "out", { owner: name }));
     }
 }
-class CP_CamMonitor extends Component {
+class CP_SmartPlaceComponents_CamMonitor extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_FrameListIPT("f", "in", { owner: name }));
-      this.addPort(new PT_ValueOPT("numPeople", "out", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_FrameListIPT("f", "in", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ValueOPT("numPeople", "out", { owner: name }));
     }
 }
-class CP_TemperatureController extends Component {
+class CP_SmartPlaceComponents_TemperatureController extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_ValueIPT("presence", "in", { owner: name }));
-      this.addPort(new PT_RestfulRaspberryOPT("rrasp", "out", { owner: name }));
-      this.addPort(new PT_ReservationInformationO2I("ri", { owner: name }));
-      this.addPort(new PT_ValueIPT("temperature", "in", { owner: name }));
-      this.addPort(new PT_ValueIPT("numPeople", "in", { owner: name }));
-      this.addPort(new PT_CommandOPT("c", "out", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ValueIPT("presence", "in", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_RestfulRaspberryOPT("rrasp", "out", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ReservationInformationO2I("ri", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ValueIPT("temperature", "in", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ValueIPT("numPeople", "in", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_CommandOPT("c", "out", { owner: name }));
     }
 }
-class CP_DB_SQLite extends Component {
+class CP_SmartPlaceComponents_DB_SQLite extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_ReservationInformationI2O("ri", { owner: name }));
-      this.addPort(new PT_ReservationResponseIPT("rresp", "in", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ReservationInformationI2O("ri", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ReservationResponseIPT("rresp", "in", { owner: name }));
     }
 }
-class CP_Fotosensor extends Component {
+class CP_SmartPlaceComponents_Fotosensor extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_UndefinedOPT("u", "out", { owner: name }));
-      this.addPort(new PT_InfraredSignalIPT("is", "in", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_UndefinedOPT("u", "out", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_InfraredSignalIPT("is", "in", { owner: name }));
     }
 }
-class CP_AirConditionerController extends Component {
+class CP_SmartPlaceComponents_AirConditionerController extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_UndefinedIPT("u", "in", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_UndefinedIPT("u", "in", { owner: name }));
     }
 }
-class CP_RegistrationController extends Component {
+class CP_SmartPlaceComponents_RegistrationController extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_ContextInformationOPT("ci", "out", { owner: name }));
-      this.addPort(new PT_ContextInformationIPT("regUi", "in", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ContextInformationOPT("ci", "out", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ContextInformationIPT("regUi", "in", { owner: name }));
     }
 }
-class CP_ReportGenerator extends Component {
+class CP_SmartPlaceComponents_ReportGenerator extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_ContextInformationIPT("a", "in", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ContextInformationIPT("a", "in", { owner: name }));
     }
 }
-class CP_GraphicsGenerator extends Component {
+class CP_SmartPlaceComponents_GraphicsGenerator extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_DataBaseO2I("db", { owner: name }));
-      this.addPort(new PT_ContextO2I("ctx", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_DataBaseO2I("db", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ContextO2I("ctx", { owner: name }));
     }
 }
-class CP_HistoricController extends Component {
+class CP_SmartPlaceComponents_HistoricController extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_RestfulRaspberryIPT("rr", "in", { owner: name }));
-      this.addPort(new PT_UpdateOPT("u", "out", { owner: name }));
-      this.addPort(new PT_ContextO2I("ctx", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_RestfulRaspberryIPT("rr", "in", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_UpdateOPT("u", "out", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ContextO2I("ctx", { owner: name }));
     }
 }
-class CP_SmartPlace extends Component { }
+class CP_SmartPlaceComponents_SmartPlace extends Component { }
 
 class SysADLArchitecture extends Model {
   constructor(){
     super("SysADLArchitecture");
-    this.SmartPlace = new CP_SmartPlace("SmartPlace", { sysadlDefinition: "SmartPlace" });
+    this.SmartPlace = new CP_SmartPlaceComponents_SmartPlace("SmartPlace", { sysadlDefinition: "SmartPlace" });
     this.addComponent(this.SmartPlace);
-    this.SmartPlace.ac = new CP_AirConditioner("ac", { sysadlDefinition: "AirConditioner" });
+    this.SmartPlace.ac = new CP_SmartPlaceComponents_AirConditioner("ac", { sysadlDefinition: "AirConditioner" });
     this.SmartPlace.addComponent(this.SmartPlace.ac);
-    this.SmartPlace.Camera = new CP_Camera("Camera", { isBoundary: true, sysadlDefinition: "Camera" });
+    this.SmartPlace.Camera = new CP_SmartPlaceComponents_Camera("Camera", { isBoundary: true, sysadlDefinition: "Camera" });
     this.SmartPlace.addComponent(this.SmartPlace.Camera);
-    this.SmartPlace.Led = new CP_Led("Led", { isBoundary: true, sysadlDefinition: "Led" });
+    this.SmartPlace.Led = new CP_SmartPlaceComponents_Led("Led", { isBoundary: true, sysadlDefinition: "Led" });
     this.SmartPlace.addComponent(this.SmartPlace.Led);
-    this.SmartPlace.ocb = new CP_OrionContextBroker("ocb", { isBoundary: true, sysadlDefinition: "OrionContextBroker" });
+    this.SmartPlace.ocb = new CP_SmartPlaceComponents_OrionContextBroker("ocb", { isBoundary: true, sysadlDefinition: "OrionContextBroker" });
     this.SmartPlace.addComponent(this.SmartPlace.ocb);
-    this.SmartPlace.ps = new CP_PresenceSensor("ps", { isBoundary: true, sysadlDefinition: "PresenceSensor" });
+    this.SmartPlace.ps = new CP_SmartPlaceComponents_PresenceSensor("ps", { isBoundary: true, sysadlDefinition: "PresenceSensor" });
     this.SmartPlace.addComponent(this.SmartPlace.ps);
-    this.SmartPlace.psql = new CP_DB_PostgreSQL("psql", { isBoundary: true, sysadlDefinition: "DB_PostgreSQL" });
+    this.SmartPlace.psql = new CP_SmartPlaceComponents_DB_PostgreSQL("psql", { isBoundary: true, sysadlDefinition: "DB_PostgreSQL" });
     this.SmartPlace.addComponent(this.SmartPlace.psql);
-    this.SmartPlace.Raspberry = new CP_Raspberry("Raspberry", { sysadlDefinition: "Raspberry" });
+    this.SmartPlace.Raspberry = new CP_SmartPlaceComponents_Raspberry("Raspberry", { sysadlDefinition: "Raspberry" });
     this.SmartPlace.addComponent(this.SmartPlace.Raspberry);
-    this.SmartPlace.rrs = new CP_RoomReservationSystem("rrs", { isBoundary: true, sysadlDefinition: "RoomReservationSystem" });
+    this.SmartPlace.rrs = new CP_SmartPlaceComponents_RoomReservationSystem("rrs", { isBoundary: true, sysadlDefinition: "RoomReservationSystem" });
     this.SmartPlace.addComponent(this.SmartPlace.rrs);
-    this.SmartPlace.spw = new CP_SmartPlaceWeb("spw", { sysadlDefinition: "SmartPlaceWeb" });
+    this.SmartPlace.spw = new CP_SmartPlaceComponents_SmartPlaceWeb("spw", { sysadlDefinition: "SmartPlaceWeb" });
     this.SmartPlace.addComponent(this.SmartPlace.spw);
-    this.SmartPlace.ths = new CP_TemperatureAndHumiditySensor("ths", { isBoundary: true, sysadlDefinition: "TemperatureAndHumiditySensor" });
+    this.SmartPlace.ths = new CP_SmartPlaceComponents_TemperatureAndHumiditySensor("ths", { isBoundary: true, sysadlDefinition: "TemperatureAndHumiditySensor" });
     this.SmartPlace.addComponent(this.SmartPlace.ths);
-    this.SmartPlace.ac.acc = new CP_AirConditionerController("acc", { isBoundary: true, sysadlDefinition: "AirConditionerController" });
+    this.SmartPlace.ac.acc = new CP_SmartPlaceComponents_AirConditionerController("acc", { isBoundary: true, sysadlDefinition: "AirConditionerController" });
     this.SmartPlace.ac.addComponent(this.SmartPlace.ac.acc);
-    this.SmartPlace.Raspberry.cm = new CP_CamMonitor("cm", { isBoundary: true, sysadlDefinition: "CamMonitor" });
+    this.SmartPlace.Raspberry.cm = new CP_SmartPlaceComponents_CamMonitor("cm", { isBoundary: true, sysadlDefinition: "CamMonitor" });
     this.SmartPlace.Raspberry.addComponent(this.SmartPlace.Raspberry.cm);
-    this.SmartPlace.ac.f = new CP_Fotosensor("f", { isBoundary: true, sysadlDefinition: "Fotosensor" });
+    this.SmartPlace.ac.f = new CP_SmartPlaceComponents_Fotosensor("f", { isBoundary: true, sysadlDefinition: "Fotosensor" });
     this.SmartPlace.ac.addComponent(this.SmartPlace.ac.f);
-    this.SmartPlace.spw.gg = new CP_GraphicsGenerator("gg", { isBoundary: true, sysadlDefinition: "GraphicsGenerator" });
+    this.SmartPlace.spw.gg = new CP_SmartPlaceComponents_GraphicsGenerator("gg", { isBoundary: true, sysadlDefinition: "GraphicsGenerator" });
     this.SmartPlace.spw.addComponent(this.SmartPlace.spw.gg);
-    this.SmartPlace.spw.hc = new CP_HistoricController("hc", { sysadlDefinition: "HistoricController" });
+    this.SmartPlace.spw.hc = new CP_SmartPlaceComponents_HistoricController("hc", { sysadlDefinition: "HistoricController" });
     this.SmartPlace.spw.addComponent(this.SmartPlace.spw.hc);
-    this.SmartPlace.spw.rc = new CP_RegistrationController("rc", { sysadlDefinition: "RegistrationController" });
+    this.SmartPlace.spw.rc = new CP_SmartPlaceComponents_RegistrationController("rc", { sysadlDefinition: "RegistrationController" });
     this.SmartPlace.spw.addComponent(this.SmartPlace.spw.rc);
-    this.SmartPlace.spw.rg = new CP_ReportGenerator("rg", { sysadlDefinition: "ReportGenerator" });
+    this.SmartPlace.spw.rg = new CP_SmartPlaceComponents_ReportGenerator("rg", { sysadlDefinition: "ReportGenerator" });
     this.SmartPlace.spw.addComponent(this.SmartPlace.spw.rg);
-    this.SmartPlace.Raspberry.sqlite = new CP_DB_SQLite("sqlite", { isBoundary: true, sysadlDefinition: "DB_SQLite" });
+    this.SmartPlace.Raspberry.sqlite = new CP_SmartPlaceComponents_DB_SQLite("sqlite", { isBoundary: true, sysadlDefinition: "DB_SQLite" });
     this.SmartPlace.Raspberry.addComponent(this.SmartPlace.Raspberry.sqlite);
-    this.SmartPlace.Raspberry.tc = new CP_TemperatureController("tc", { sysadlDefinition: "TemperatureController" });
+    this.SmartPlace.Raspberry.tc = new CP_SmartPlaceComponents_TemperatureController("tc", { sysadlDefinition: "TemperatureController" });
     this.SmartPlace.Raspberry.addComponent(this.SmartPlace.Raspberry.tc);
 
     const act_RaspberryControllerAC_spw = new Activity("RaspberryControllerAC", { component: "spw", inputPorts: ["u"] });
@@ -555,43 +555,43 @@ class SysADLArchitecture extends Model {
     this.registerActivity("UpdateContextSensorsAC::gg", act_UpdateContextSensorsAC_gg);
     const act_UpdateContextSensorsAC_hc = new Activity("UpdateContextSensorsAC", { component: "hc", inputPorts: ["rr"] });
     this.registerActivity("UpdateContextSensorsAC::hc", act_UpdateContextSensorsAC_hc);
-    const CN_qdb_1 = new CN_QueryDataBaseCN("qdb");
+    const CN_qdb_1 = new CN_SmartPlaceConnectors_QueryDataBaseCN("qdb");
     this.addConnector(CN_qdb_1);
-    const CN_spsqli_4 = new CN_SendPostgreSQLInfoCN("spsqli");
+    const CN_spsqli_4 = new CN_SmartPlaceConnectors_SendPostgreSQLInfoCN("spsqli");
     this.addConnector(CN_spsqli_4);
-    const CN_ci1_7 = new CN_SendContextCN("ci1");
+    const CN_ci1_7 = new CN_SmartPlaceConnectors_SendContextCN("ci1");
     this.addConnector(CN_ci1_7);
-    const CN_c_10 = new CN_ContextCN("c");
+    const CN_c_10 = new CN_SmartPlaceConnectors_ContextCN("c");
     this.addConnector(CN_c_10);
-    const CN_cr_13 = new CN_CmdRestfulCN("cr");
+    const CN_cr_13 = new CN_SmartPlaceConnectors_CmdRestfulCN("cr");
     this.addConnector(CN_cr_13);
-    const CN_sendPresence_16 = new CN_SendValueCN("sendPresence");
+    const CN_sendPresence_16 = new CN_SmartPlaceConnectors_SendValueCN("sendPresence");
     this.addConnector(CN_sendPresence_16);
-    const CN_fl_19 = new CN_FrameListCN("fl");
+    const CN_fl_19 = new CN_SmartPlaceConnectors_FrameListCN("fl");
     this.addConnector(CN_fl_19);
-    const CN_sendTempHumi_22 = new CN_SendValueCN("sendTempHumi");
+    const CN_sendTempHumi_22 = new CN_SmartPlaceConnectors_SendValueCN("sendTempHumi");
     this.addConnector(CN_sendTempHumi_22);
-    const CN_rn_25 = new CN_ReservationCN("rn");
+    const CN_rn_25 = new CN_SmartPlaceConnectors_ReservationCN("rn");
     this.addConnector(CN_rn_25);
-    const CN_ic_28 = new CN_InfraCodeCN("ic");
-    this.addConnector(CN_ic_28);
-    const CN_is_31 = new CN_InfraredSignalCN("is");
+    const CN_SmartPlaceComponents_ic_28 = new CN_SmartPlaceConnectors_InfraCodeCN("ic");
+    this.addConnector(CN_SmartPlaceComponents_ic_28);
+    const CN_is_31 = new CN_SmartPlaceConnectors_InfraredSignalCN("is");
     this.addConnector(CN_is_31);
-    const CN_countPeople_34 = new CN_SendValueCN("countPeople");
+    const CN_countPeople_34 = new CN_SmartPlaceConnectors_SendValueCN("countPeople");
     this.addConnector(CN_countPeople_34);
-    const CN_rn_37 = new CN_ReservationCN("rn");
+    const CN_rn_37 = new CN_SmartPlaceConnectors_ReservationCN("rn");
     this.addConnector(CN_rn_37);
-    const CN_u_40 = new CN_UndefinedCN("u");
-    this.addConnector(CN_u_40);
-    const CN_u_43 = new CN_UndefinedCN("u");
-    this.addConnector(CN_u_43);
-    const CN_countPeople_46 = new CN_SendValueCN("countPeople");
+    const CN_SmartPlaceComponents_u_40 = new CN_SmartPlaceConnectors_UndefinedCN("u");
+    this.addConnector(CN_SmartPlaceComponents_u_40);
+    const CN_SmartPlaceComponents_u_43 = new CN_SmartPlaceConnectors_UndefinedCN("u");
+    this.addConnector(CN_SmartPlaceComponents_u_43);
+    const CN_countPeople_46 = new CN_SmartPlaceConnectors_SendValueCN("countPeople");
     this.addConnector(CN_countPeople_46);
-    const CN_rn_49 = new CN_ReservationCN("rn");
+    const CN_rn_49 = new CN_SmartPlaceConnectors_ReservationCN("rn");
     this.addConnector(CN_rn_49);
   }
 }
 
 const __portAliases = {};
 function createModel(){ return new SysADLArchitecture(); }
-module.exports = { createModel, SysADLArchitecture, __portAliases, EN_InfraredCode, EN_TypeSensor, DT_DataSensor, DT_RestFulRaspeberry, DT_Sensor, DT_Measurement, DT_Schedule, DT_Location, DT_Building, DT_Room, DT_AirConditioner, DT_ContextInformation, DT_UpdateDB, DT_FrameList, DT_Intervention, PT_ValueOPT, PT_ValueIPT, PT_ReservationResponseIPT, PT_ReservationResponseOPT, PT_RequestOPT, PT_RequestIPT, PT_InfraredSignalIPT, PT_InfraredSignalOPT, PT_ContextInformationOPT, PT_ContextInformationIPT, PT_UndefinedOPT, PT_UndefinedIPT, PT_CommandIPT, PT_CommandOPT, PT_RestfulRaspberryIPT, PT_RestfulRaspberryOPT, PT_DataBaseRespOPT, PT_DataBaseRespIPT, PT_ScheduleOPT, PT_ScheduleIPT, PT_UpdateIPT, PT_UpdateOPT, PT_FrameListIPT, PT_FrameListOPT, PT_DataBaseO2I, PT_DataBaseI2O, PT_ReservationInformationO2I, PT_ReservationInformationI2O, PT_ContextO2I, PT_ContextI2O };
+module.exports = { createModel, SysADLArchitecture, __portAliases, EN_InfraredCode, EN_TypeSensor, DT_DataSensor, DT_RestFulRaspeberry, DT_Sensor, DT_Measurement, DT_Schedule, DT_Location, DT_Building, DT_Room, DT_SmartPlaceComponents_AirConditioner, DT_ContextInformation, DT_UpdateDB, DT_FrameList, DT_Intervention, PT_SmartPlacePorts_ValueOPT, PT_SmartPlacePorts_ValueIPT, PT_SmartPlacePorts_ReservationResponseIPT, PT_SmartPlacePorts_ReservationResponseOPT, PT_SmartPlacePorts_RequestOPT, PT_SmartPlacePorts_RequestIPT, PT_SmartPlacePorts_InfraredSignalIPT, PT_SmartPlacePorts_InfraredSignalOPT, PT_SmartPlacePorts_ContextInformationOPT, PT_SmartPlacePorts_ContextInformationIPT, PT_SmartPlacePorts_UndefinedOPT, PT_SmartPlacePorts_UndefinedIPT, PT_SmartPlacePorts_CommandIPT, PT_SmartPlacePorts_CommandOPT, PT_SmartPlacePorts_RestfulRaspberryIPT, PT_SmartPlacePorts_RestfulRaspberryOPT, PT_SmartPlacePorts_DataBaseRespOPT, PT_SmartPlacePorts_DataBaseRespIPT, PT_SmartPlacePorts_ScheduleOPT, PT_SmartPlacePorts_ScheduleIPT, PT_SmartPlacePorts_UpdateIPT, PT_SmartPlacePorts_UpdateOPT, PT_SmartPlacePorts_FrameListIPT, PT_SmartPlacePorts_FrameListOPT, PT_SmartPlacePorts_DataBaseO2I, PT_SmartPlacePorts_DataBaseI2O, PT_SmartPlacePorts_ReservationInformationO2I, PT_SmartPlacePorts_ReservationInformationI2O, PT_SmartPlacePorts_ContextO2I, PT_SmartPlacePorts_ContextI2O };

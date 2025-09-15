@@ -1,72 +1,72 @@
 const { Model, Component, Port, SimplePort, CompositePort, Connector, Activity, Action, createExecutableFromExpression, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit } = require('../SysADLBase');
 
 // Types
-const DM_Temperature = dimension('Temperature');
-const UN_Celsius = unit('Celsius');
-const UN_Fahrenheit = unit('Fahrenheit');
-const VT_temperature = valueType('temperature', { extends: Real, dimension: DM_Temperature });
-const VT_FahrenheitTemperature = valueType('FahrenheitTemperature', { extends: VT_temperature, unit: UN_Fahrenheit, dimension: DM_Temperature });
-const VT_CelsiusTemperature = valueType('CelsiusTemperature', { extends: VT_temperature, unit: UN_Celsius, dimension: DM_Temperature });
-const EN_Command = new Enum("On", "Off");
-const DT_Commands = dataType('Commands', { heater: EN_Command, cooler: EN_Command });
+const DM_types_Temperature = dimension('Temperature');
+const UN_types_Celsius = unit('Celsius');
+const UN_types_Fahrenheit = unit('Fahrenheit');
+const VT_types_temperature = valueType('temperature', { extends: Real, dimension: DM_types_Temperature });
+const VT_types_FahrenheitTemperature = valueType('FahrenheitTemperature', { extends: VT_types_temperature, unit: UN_types_Fahrenheit, dimension: DM_types_Temperature });
+const VT_types_CelsiusTemperature = valueType('CelsiusTemperature', { extends: VT_types_temperature, unit: UN_types_Celsius, dimension: DM_types_Temperature });
+const EN_types_Command = new Enum("On", "Off");
+const DT_types_Commands = dataType('Commands', { heater: EN_types_Command, cooler: EN_types_Command });
 
 // Ports
-class PT_FTemperatureOPT extends SimplePort {
+class PT_Ports_FTemperatureOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "FahrenheitTemperature" }, ...opts });
   }
 }
-class PT_PresenceIPT extends SimplePort {
+class PT_Ports_PresenceIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "Boolean" }, ...opts });
   }
 }
-class PT_PresenceOPT extends SimplePort {
+class PT_Ports_PresenceOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "Boolean" }, ...opts });
   }
 }
-class PT_CTemperatureIPT extends SimplePort {
+class PT_Ports_CTemperatureIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "CelsiusTemperature" }, ...opts });
   }
 }
-class PT_CommandIPT extends SimplePort {
+class PT_Ports_CommandIPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "in", { ...{ expectedType: "Command" }, ...opts });
   }
 }
-class PT_CommandOPT extends SimplePort {
+class PT_Ports_CommandOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "Command" }, ...opts });
   }
 }
-class PT_CTemperatureOPT extends SimplePort {
+class PT_Ports_CTemperatureOPT extends SimplePort {
   constructor(name, opts = {}) {
     super(name, "out", { ...{ expectedType: "CelsiusTemperature" }, ...opts });
   }
 }
 
 // Connectors
-class CN_FahrenheitToCelsiusCN extends Connector {
+class CN_Connectors_FahrenheitToCelsiusCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
     // Flows: Flow from Ft to undefined
   }
 }
-class CN_PresenceCN extends Connector {
+class CN_Connectors_PresenceCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
     // Flows: Flow from pOut to undefined
   }
 }
-class CN_CommandCN extends Connector {
+class CN_Connectors_CommandCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
     // Flows: Flow from commandOut to undefined
   }
 }
-class CN_CTemperatureCN extends Connector {
+class CN_Connectors_CTemperatureCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
     // Flows: Flow from CtOut to undefined
@@ -74,107 +74,107 @@ class CN_CTemperatureCN extends Connector {
 }
 
 // Components
-class CP_TemperatureSensorCP extends Component {
+class CP_Components_TemperatureSensorCP extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_FTemperatureOPT("current", "out", { owner: name }));
+      this.addPort(new PT_Ports_FTemperatureOPT("current", "out", { owner: name }));
     }
 }
-class CP_PresenceSensorCP extends Component {
+class CP_Components_PresenceSensorCP extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_PresenceOPT("detected", "out", { owner: name }));
+      this.addPort(new PT_Ports_PresenceOPT("detected", "out", { owner: name }));
     }
 }
-class CP_UserInterfaceCP extends Component {
+class CP_Components_UserInterfaceCP extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_CTemperatureOPT("desired", "out", { owner: name }));
+      this.addPort(new PT_Ports_CTemperatureOPT("desired", "out", { owner: name }));
     }
 }
-class CP_CoolerCP extends Component {
+class CP_Components_CoolerCP extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_CommandIPT("controllerC", "in", { owner: name }));
+      this.addPort(new PT_Ports_CommandIPT("controllerC", "in", { owner: name }));
     }
 }
-class CP_HeaterCP extends Component {
+class CP_Components_HeaterCP extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_CommandIPT("controllerH", "in", { owner: name }));
+      this.addPort(new PT_Ports_CommandIPT("controllerH", "in", { owner: name }));
     }
 }
-class CP_RoomTemperatureControllerCP extends Component {
+class CP_Components_RoomTemperatureControllerCP extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_PresenceIPT("detectedRTC", "in", { owner: name }));
-      this.addPort(new PT_CTemperatureIPT("localtemp1", "in", { owner: name }));
-      this.addPort(new PT_CTemperatureIPT("localTemp2", "in", { owner: name }));
-      this.addPort(new PT_CTemperatureIPT("userTempRTC", "in", { owner: name }));
-      this.addPort(new PT_CommandOPT("heatingRTC", "out", { owner: name }));
-      this.addPort(new PT_CommandOPT("coolingRTC", "out", { owner: name }));
+      this.addPort(new PT_Ports_PresenceIPT("detectedRTC", "in", { owner: name }));
+      this.addPort(new PT_Ports_CTemperatureIPT("localtemp1", "in", { owner: name }));
+      this.addPort(new PT_Ports_CTemperatureIPT("localTemp2", "in", { owner: name }));
+      this.addPort(new PT_Ports_CTemperatureIPT("userTempRTC", "in", { owner: name }));
+      this.addPort(new PT_Ports_CommandOPT("heatingRTC", "out", { owner: name }));
+      this.addPort(new PT_Ports_CommandOPT("coolingRTC", "out", { owner: name }));
     }
 }
-class CP_SensorsMonitorCP extends Component {
+class CP_Components_SensorsMonitorCP extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_CTemperatureIPT("s1", "in", { owner: name }));
-      this.addPort(new PT_CTemperatureIPT("s2", "in", { owner: name }));
-      this.addPort(new PT_CTemperatureOPT("average", "out", { owner: name }));
+      this.addPort(new PT_Ports_CTemperatureIPT("s1", "in", { owner: name }));
+      this.addPort(new PT_Ports_CTemperatureIPT("s2", "in", { owner: name }));
+      this.addPort(new PT_Ports_CTemperatureOPT("average", "out", { owner: name }));
     }
 }
-class CP_CommanderCP extends Component {
+class CP_Components_CommanderCP extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_CTemperatureIPT("target2", "in", { owner: name }));
-      this.addPort(new PT_CTemperatureIPT("average2", "in", { owner: name }));
-      this.addPort(new PT_CommandOPT("heating", "out", { owner: name }));
-      this.addPort(new PT_CommandOPT("cooling", "out", { owner: name }));
+      this.addPort(new PT_Ports_CTemperatureIPT("target2", "in", { owner: name }));
+      this.addPort(new PT_Ports_CTemperatureIPT("average2", "in", { owner: name }));
+      this.addPort(new PT_Ports_CommandOPT("heating", "out", { owner: name }));
+      this.addPort(new PT_Ports_CommandOPT("cooling", "out", { owner: name }));
     }
 }
-class CP_PresenceCheckerCP extends Component {
+class CP_Components_PresenceCheckerCP extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_PresenceIPT("detected", "in", { owner: name }));
-      this.addPort(new PT_CTemperatureIPT("userTemp", "in", { owner: name }));
-      this.addPort(new PT_CTemperatureOPT("target", "out", { owner: name }));
+      this.addPort(new PT_Ports_PresenceIPT("detected", "in", { owner: name }));
+      this.addPort(new PT_Ports_CTemperatureIPT("userTemp", "in", { owner: name }));
+      this.addPort(new PT_Ports_CTemperatureOPT("target", "out", { owner: name }));
     }
 }
-class CP_RTCSystemCFD extends Component { }
+class CP_Components_RTCSystemCFD extends Component { }
 
 class SysADLModel extends Model {
   constructor(){
     super("SysADLModel");
-    this.RTCSystemCFD = new CP_RTCSystemCFD("RTCSystemCFD", { sysadlDefinition: "RTCSystemCFD" });
+    this.RTCSystemCFD = new CP_Components_RTCSystemCFD("RTCSystemCFD", { sysadlDefinition: "RTCSystemCFD" });
     this.addComponent(this.RTCSystemCFD);
-    this.RTCSystemCFD.a1 = new CP_HeaterCP("a1", { isBoundary: true, sysadlDefinition: "HeaterCP" });
+    this.RTCSystemCFD.a1 = new CP_Components_HeaterCP("a1", { isBoundary: true, sysadlDefinition: "HeaterCP" });
     this.RTCSystemCFD.addComponent(this.RTCSystemCFD.a1);
-    this.RTCSystemCFD.a2 = new CP_CoolerCP("a2", { isBoundary: true, sysadlDefinition: "CoolerCP" });
+    this.RTCSystemCFD.a2 = new CP_Components_CoolerCP("a2", { isBoundary: true, sysadlDefinition: "CoolerCP" });
     this.RTCSystemCFD.addComponent(this.RTCSystemCFD.a2);
-    this.RTCSystemCFD.rtc = new CP_RoomTemperatureControllerCP("rtc", { sysadlDefinition: "RoomTemperatureControllerCP" });
+    this.RTCSystemCFD.rtc = new CP_Components_RoomTemperatureControllerCP("rtc", { sysadlDefinition: "RoomTemperatureControllerCP" });
     this.RTCSystemCFD.addComponent(this.RTCSystemCFD.rtc);
-    this.RTCSystemCFD.s1 = new CP_TemperatureSensorCP("s1", { isBoundary: true, sysadlDefinition: "TemperatureSensorCP" });
+    this.RTCSystemCFD.s1 = new CP_Components_TemperatureSensorCP("s1", { isBoundary: true, sysadlDefinition: "TemperatureSensorCP" });
     this.RTCSystemCFD.addComponent(this.RTCSystemCFD.s1);
-    this.RTCSystemCFD.s2 = new CP_TemperatureSensorCP("s2", { isBoundary: true, sysadlDefinition: "TemperatureSensorCP" });
+    this.RTCSystemCFD.s2 = new CP_Components_TemperatureSensorCP("s2", { isBoundary: true, sysadlDefinition: "TemperatureSensorCP" });
     this.RTCSystemCFD.addComponent(this.RTCSystemCFD.s2);
-    this.RTCSystemCFD.s3 = new CP_PresenceSensorCP("s3", { isBoundary: true, sysadlDefinition: "PresenceSensorCP" });
+    this.RTCSystemCFD.s3 = new CP_Components_PresenceSensorCP("s3", { isBoundary: true, sysadlDefinition: "PresenceSensorCP" });
     this.RTCSystemCFD.addComponent(this.RTCSystemCFD.s3);
-    this.RTCSystemCFD.ui = new CP_UserInterfaceCP("ui", { isBoundary: true, sysadlDefinition: "UserInterfaceCP" });
+    this.RTCSystemCFD.ui = new CP_Components_UserInterfaceCP("ui", { isBoundary: true, sysadlDefinition: "UserInterfaceCP" });
     this.RTCSystemCFD.addComponent(this.RTCSystemCFD.ui);
-    this.RTCSystemCFD.rtc.cm = new CP_CommanderCP("cm", { sysadlDefinition: "CommanderCP" });
+    this.RTCSystemCFD.rtc.cm = new CP_Components_CommanderCP("cm", { sysadlDefinition: "CommanderCP" });
     this.RTCSystemCFD.rtc.addComponent(this.RTCSystemCFD.rtc.cm);
-    this.RTCSystemCFD.rtc.pc = new CP_PresenceCheckerCP("pc", { sysadlDefinition: "PresenceCheckerCP" });
+    this.RTCSystemCFD.rtc.pc = new CP_Components_PresenceCheckerCP("pc", { sysadlDefinition: "PresenceCheckerCP" });
     this.RTCSystemCFD.rtc.addComponent(this.RTCSystemCFD.rtc.pc);
-    this.RTCSystemCFD.rtc.sm = new CP_SensorsMonitorCP("sm", { sysadlDefinition: "SensorsMonitorCP" });
+    this.RTCSystemCFD.rtc.sm = new CP_Components_SensorsMonitorCP("sm", { sysadlDefinition: "SensorsMonitorCP" });
     this.RTCSystemCFD.rtc.addComponent(this.RTCSystemCFD.rtc.sm);
 
     this.addExecutableSafe("SysADLModel.CommandCoolerEx", "executable def CommandCoolerEx(in cmds:Commands): out Command{return cmds->cooler ; }", []);
@@ -183,12 +183,12 @@ class SysADLModel extends Model {
     this.addExecutableSafe("SysADLModel.CalculateAverageTemperatureEx", "executable def CalculateAverageTemperatureEx(in temp1:CelsiusTemperature,in temp2:CelsiusTemperature):out CelsiusTemperature{return (temp1 + temp2)/2 ; }", []);
     this.addExecutableSafe("SysADLModel.CheckPresenceToSetTemperature", "executable def CheckPresenceToSetTemperature(in presence:Boolean, in userTemp:CelsiusTemperature):out CelsiusTemperature{if(presence == true) return userTemp; else return 2; }", []);
     this.addExecutableSafe("SysADLModel.CompareTemperatureEx", "executable def CompareTemperatureEx(in target:CelsiusTemperature, in average:CelsiusTemperature):out Commands{let heater:Command = types.Command::Off; let cooler:Command = types.Command::Off; if(average > target) {heater = types.Command::Off; cooler = types.Command::On ; } else {heater = types.Command::On; cooler = types.Command::Off ;} }", []);
-    this.addExecutableSafe("SysADLModel.gorq", "executable FahrenheitToCelsiusEx to FahrenheitToCelsiusAN", []);
-    this.addExecutableSafe("SysADLModel.wx1x", "executable CompareTemperatureEx to CompareTemperatureAN", []);
-    this.addExecutableSafe("SysADLModel.prt3", "executable CommandHeaterEx to CommandHeaterAN", []);
-    this.addExecutableSafe("SysADLModel.ur6y", "executable CommandCoolerEx to CommandCoolerAN", []);
-    this.addExecutableSafe("SysADLModel.3wdl", "executable CheckPresenceToSetTemperature to CheckPeresenceToSetTemperatureAN", []);
-    this.addExecutableSafe("SysADLModel.b8um", "executable CalculateAverageTemperatureEx to CalculateAverageTemperatureAN", []);
+    this.addExecutableSafe("SysADLModel.veyz", "executable FahrenheitToCelsiusEx to FahrenheitToCelsiusAN", []);
+    this.addExecutableSafe("SysADLModel.8j0w", "executable CompareTemperatureEx to CompareTemperatureAN", []);
+    this.addExecutableSafe("SysADLModel.orcr", "executable CommandHeaterEx to CommandHeaterAN", []);
+    this.addExecutableSafe("SysADLModel.hn3o", "executable CommandCoolerEx to CommandCoolerAN", []);
+    this.addExecutableSafe("SysADLModel.0cbv", "executable CheckPresenceToSetTemperature to CheckPeresenceToSetTemperatureAN", []);
+    this.addExecutableSafe("SysADLModel.1gs6", "executable CalculateAverageTemperatureEx to CalculateAverageTemperatureAN", []);
     const act_CalculateAverageTemperatureAC_s1 = new Activity("CalculateAverageTemperatureAC", { component: "s1", inputPorts: ["current"] });
     act_CalculateAverageTemperatureAC_s1.addAction(new Action("CalculateAverageTemperatureAN", [], "CalculateAverageTemperatureEx"));
     this.registerActivity("CalculateAverageTemperatureAC::s1", act_CalculateAverageTemperatureAC_s1);
@@ -329,29 +329,29 @@ class SysADLModel extends Model {
     const act_FahrenheitToCelsiusAC_pc = new Activity("FahrenheitToCelsiusAC", { component: "pc", inputPorts: ["detected"] });
     act_FahrenheitToCelsiusAC_pc.addAction(new Action("FahrenheitToCelsiusAN", [], "FahrenheitToCelsiusEx"));
     this.registerActivity("FahrenheitToCelsiusAC::pc", act_FahrenheitToCelsiusAC_pc);
-    const CN_c1_1 = new CN_FahrenheitToCelsiusCN("c1");
+    const CN_c1_1 = new CN_Connectors_FahrenheitToCelsiusCN("c1");
     this.addConnector(CN_c1_1);
-    const CN_uc_4 = new CN_CTemperatureCN("uc");
+    const CN_uc_4 = new CN_Connectors_CTemperatureCN("uc");
     this.addConnector(CN_uc_4);
-    const CN_cc2_7 = new CN_CommandCN("cc2");
+    const CN_cc2_7 = new CN_Connectors_CommandCN("cc2");
     this.addConnector(CN_cc2_7);
-    const CN_pc_10 = new CN_PresenceCN("pc");
+    const CN_pc_10 = new CN_Connectors_PresenceCN("pc");
     this.addConnector(CN_pc_10);
-    const CN_c2_13 = new CN_FahrenheitToCelsiusCN("c2");
+    const CN_c2_13 = new CN_Connectors_FahrenheitToCelsiusCN("c2");
     this.addConnector(CN_c2_13);
-    const CN_cc1_16 = new CN_CommandCN("cc1");
+    const CN_cc1_16 = new CN_Connectors_CommandCN("cc1");
     this.addConnector(CN_cc1_16);
-    const CN_target_19 = new CN_CTemperatureCN("target");
-    this.addConnector(CN_target_19);
-    const CN_average_22 = new CN_CTemperatureCN("average");
-    this.addConnector(CN_average_22);
-    const CN_target_25 = new CN_CTemperatureCN("target");
-    this.addConnector(CN_target_25);
-    const CN_average_28 = new CN_CTemperatureCN("average");
-    this.addConnector(CN_average_28);
+    const CN_Components_target_19 = new CN_Connectors_CTemperatureCN("target");
+    this.addConnector(CN_Components_target_19);
+    const CN_Components_average_22 = new CN_Connectors_CTemperatureCN("average");
+    this.addConnector(CN_Components_average_22);
+    const CN_Components_target_25 = new CN_Connectors_CTemperatureCN("target");
+    this.addConnector(CN_Components_target_25);
+    const CN_Components_average_28 = new CN_Connectors_CTemperatureCN("average");
+    this.addConnector(CN_Components_average_28);
   }
 }
 
 const __portAliases = {};
 function createModel(){ return new SysADLModel(); }
-module.exports = { createModel, SysADLModel, __portAliases, VT_temperature, VT_FahrenheitTemperature, VT_CelsiusTemperature, EN_Command, DT_Commands, DM_Temperature, UN_Celsius, UN_Fahrenheit, PT_FTemperatureOPT, PT_PresenceIPT, PT_PresenceOPT, PT_CTemperatureIPT, PT_CommandIPT, PT_CommandOPT, PT_CTemperatureOPT };
+module.exports = { createModel, SysADLModel, __portAliases, VT_types_temperature, VT_types_FahrenheitTemperature, VT_types_CelsiusTemperature, EN_types_Command, DT_types_Commands, DM_types_Temperature, UN_types_Celsius, UN_types_Fahrenheit, PT_Ports_FTemperatureOPT, PT_Ports_PresenceIPT, PT_Ports_PresenceOPT, PT_Ports_CTemperatureIPT, PT_Ports_CommandIPT, PT_Ports_CommandOPT, PT_Ports_CTemperatureOPT };

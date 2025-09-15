@@ -47,13 +47,24 @@ function collectPortUses(configNode) {
   return uses;
 }
 
-function generateClassModule(modelName, compUses, portUses, connectorBindings, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, portAliasMap, compDefMapArg, portDefMapArg, embeddedTypes, connectorDefMap = {}) {
+function generateClassModule(modelName, compUses, portUses, connectorBindings, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, portAliasMap, compDefMapArg, portDefMapArg, embeddedTypes, connectorDefMap = {}, packageMap = {}) {
   const lines = [];
   // runtime imports for generated module
   lines.push("const { Model, Component, Port, SimplePort, CompositePort, Connector, Activity, Action, createExecutableFromExpression, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit } = require('../SysADLBase');");
   
   // Add blank line after imports
   lines.push("");
+  
+  // Helper function to generate package-aware prefixes
+  function getPackagePrefix(elementName, defaultPrefix) {
+    const packageName = packageMap[elementName];
+    if (packageName && packageName !== 'SysADL.types') {
+      // Clean package name by removing dots and making it safe for JavaScript
+      const cleanPackageName = packageName.replace(/[^a-zA-Z0-9]/g, '_');
+      return `${defaultPrefix}_${cleanPackageName}_`;
+    }
+    return `${defaultPrefix}_`;
+  }
   
   // Helper function to determine the port class to use (PT_ class if available, otherwise Port)
   function getPortClass(portName, isComposite = false, portUse = null) {
@@ -70,14 +81,14 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
                         portUse._portDefName || null;
         
         if (portType && embeddedTypes && embeddedTypes.ports && embeddedTypes.ports[portType]) {
-          return `PT_${portType}`;
+          return getPackagePrefix(portType, 'PT') + portType;
         }
         
         // Check if portUse has a _portDefNode reference
         if (portUse._portDefNode && portUse._portDefNode.name) {
           const defName = portUse._portDefNode.name;
           if (embeddedTypes && embeddedTypes.ports && embeddedTypes.ports[defName]) {
-            return `PT_${defName}`;
+            return getPackagePrefix(defName, 'PT') + defName;
           }
         }
       } catch(e) { /* ignore */ }
@@ -85,13 +96,13 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     
     // Check if there's a port definition that matches this port name directly
     if (embeddedTypes && embeddedTypes.ports && embeddedTypes.ports[portName]) {
-      return `PT_${portName}`;
+      return getPackagePrefix(portName, 'PT') + portName;
     }
     
     // Check if we can find a port definition by scanning portDefMap
     try {
       if (typeof portDefMapArg !== 'undefined' && portDefMapArg && portDefMapArg[portName]) {
-        return `PT_${portName}`;
+        return getPackagePrefix(portName, 'PT') + portName;
       }
     } catch(e) { /* ignore */ }
     
@@ -121,16 +132,16 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     // Generate dimensions first (they may be referenced by units and value types)
     for (const [name, info] of Object.entries(t.dimensions || {})) {
       if (!name) continue;
-      const prefixedName = `DM_${name}`;
+      const prefixedName = getPackagePrefix(name, 'DM') + name;
       classLines.push(`const ${prefixedName} = dimension('${name}');`);
     }
 
     // Generate units (may reference dimensions)
     for (const [name, info] of Object.entries(t.units || {})) {
       if (!name) continue;
-      const prefixedName = `UN_${name}`;
+      const prefixedName = getPackagePrefix(name, 'UN') + name;
       const dimensionRef = info.dimension || null;
-      const prefixedDimensionRef = dimensionRef ? `DM_${dimensionRef}` : null;
+      const prefixedDimensionRef = dimensionRef ? (getPackagePrefix(dimensionRef, 'DM') + dimensionRef) : null;
       if (prefixedDimensionRef) {
         classLines.push(`const ${prefixedName} = unit('${name}', { dimension: ${prefixedDimensionRef} });`);
       } else {
@@ -147,7 +158,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
         continue;
       }
       
-      const prefixedName = `VT_${name}`;
+      const prefixedName = getPackagePrefix(name, 'VT') + name;
       const superType = info.extends || null;
       const unitRef = info.unit || null;
       const dimensionRef = info.dimension || null;
@@ -156,16 +167,16 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
       const configParts = [];
       
       if (superType) {
-        const prefixedSuperType = primitiveTypes.has(superType) ? superType : `VT_${superType}`;
+        const prefixedSuperType = primitiveTypes.has(superType) ? superType : (getPackagePrefix(superType, 'VT') + superType);
         configParts.push(`extends: ${prefixedSuperType}`);
       }
       
       if (unitRef) {
-        configParts.push(`unit: UN_${unitRef}`);
+        configParts.push(`unit: ${getPackagePrefix(unitRef, 'UN') + unitRef}`);
       }
       
       if (dimensionRef) {
-        configParts.push(`dimension: DM_${dimensionRef}`);
+        configParts.push(`dimension: ${getPackagePrefix(dimensionRef, 'DM') + dimensionRef}`);
       }
 
       const config = configParts.length > 0 ? `{ ${configParts.join(', ')} }` : '{}';
@@ -175,7 +186,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     // Generate enumerations
     for (const [name, literals] of Object.entries(t.enumerations || {})) {
       if (!name || !Array.isArray(literals)) continue;
-      const prefixedName = `EN_${name}`;
+      const prefixedName = getPackagePrefix(name, 'EN') + name;
       const enumCode = `const ${prefixedName} = new Enum(${literals.map(lit => `"${lit}"`).join(', ')});`;
       classLines.push(enumCode);
     }
@@ -187,7 +198,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     for (const name of orderedDatatypes) {
       if (!name) continue;
       const info = t.datatypes[name];
-      const prefixedName = `DT_${name}`;
+      const prefixedName = getPackagePrefix(name, 'DT') + name;
       const attributes = info.attributes || [];
 
       // Build attributes object with prefixed type references
@@ -202,16 +213,16 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
           if (!primitiveTypes.has(attrType)) {
             // Try to determine prefix based on context or use DT_ as default
             if (t.enumerations && t.enumerations[attrType]) {
-              prefixedAttrType = `EN_${attrType}`;
+              prefixedAttrType = getPackagePrefix(attrType, 'EN') + attrType;
             } else if (t.valueTypes && t.valueTypes[attrType]) {
-              prefixedAttrType = `VT_${attrType}`;
+              prefixedAttrType = getPackagePrefix(attrType, 'VT') + attrType;
             } else if (t.dimensions && t.dimensions[attrType]) {
-              prefixedAttrType = `DM_${attrType}`;
+              prefixedAttrType = getPackagePrefix(attrType, 'DM') + attrType;
             } else if (t.units && t.units[attrType]) {
-              prefixedAttrType = `UN_${attrType}`;
+              prefixedAttrType = getPackagePrefix(attrType, 'UN') + attrType;
             } else {
               // Default to datatype prefix
-              prefixedAttrType = `DT_${attrType}`;
+              prefixedAttrType = getPackagePrefix(attrType, 'DT') + attrType;
             }
           }
           attrParts.push(`${attrName}: ${prefixedAttrType}`);
@@ -227,28 +238,28 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     // Generate pins
     for (const [name, info] of Object.entries(t.pins || {})) {
       if (!name) continue;
-      const prefixedName = `PI_${name}`;
+      const prefixedName = getPackagePrefix(name, 'PI') + name;
       classLines.push(`const ${prefixedName} = /* Pin implementation */ null; // TODO: Implement Pin factory`);
     }
 
     // Generate constraints
     for (const [name, info] of Object.entries(t.constraints || {})) {
       if (!name) continue;
-      const prefixedName = `CT_${name}`;
+      const prefixedName = getPackagePrefix(name, 'CT') + name;
       classLines.push(`const ${prefixedName} = /* Constraint implementation */ null; // TODO: Implement Constraint factory`);
     }
 
     // Generate databuffers
     for (const [name, info] of Object.entries(t.databuffers || {})) {
       if (!name) continue;
-      const prefixedName = `DB_${name}`;
+      const prefixedName = getPackagePrefix(name, 'DB') + name;
       classLines.push(`const ${prefixedName} = /* DataBuffer implementation */ null; // TODO: Implement DataBuffer factory`);
     }
 
     // Generate requirements
     for (const [name, info] of Object.entries(t.requirements || {})) {
       if (!name) continue;
-      const prefixedName = `RQ_${name}`;
+      const prefixedName = getPackagePrefix(name, 'RQ') + name;
       classLines.push(`const ${prefixedName} = /* Requirement implementation */ null; // TODO: Implement Requirement factory`);
     }
 
@@ -261,7 +272,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     // Generate port classes
     for (const [name, info] of Object.entries(t.ports || {})) {
       if (!name) continue;
-      const prefixedName = `PT_${name}`;
+      const prefixedName = getPackagePrefix(name, 'PT') + name;
       
       // Determine if this is a composite port
       const isComposite = info.isComposite || 
@@ -323,7 +334,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
       // Generate connector classes based on connector definitions
       for (const [name, connDef] of Object.entries(connectorDefMap)) {
         if (!name) continue;
-        const prefixedName = `CN_${name}`;
+        const prefixedName = getPackagePrefix(name, 'CN') + name;
         
         classLines.push(`class ${prefixedName} extends Connector {`);
         classLines.push(`  constructor(name, opts = {}) {`);
@@ -438,7 +449,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     const compDefNode = (typeof compDefMapArg !== 'undefined' && compDefMapArg) ? compDefMapArg[String(t)] : null;
     const compPorts = extractComponentDefPorts(compDefNode);
     
-    const prefixedClassName = 'CP_' + sanitizeId(String(t));
+    const prefixedClassName = getPackagePrefix(t, 'CP') + sanitizeId(String(t));
     
     // Always generate constructor if we have ports or need boundary flag
     if (compPorts.length > 0 || isBoundaryFlag) {
@@ -454,7 +465,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
       if (compPorts.length > 0) {
         ctorLines.push('    // Add ports from component definition');
         for (const port of compPorts) {
-          const portTypeClass = `PT_${port.type}`;
+          const portTypeClass = getPackagePrefix(port.type, 'PT') + port.type;
           // Include direction if available, otherwise let the PT_ class determine it
           if (port.direction) {
             ctorLines.push(`    this.addPort(new ${portTypeClass}("${port.name}", "${port.direction}", { owner: name }));`);
@@ -495,7 +506,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   // determine opts for root def if available
   const rootIsBoundary = (compDefMapArg && compDefMapArg[String(rdef)] && !!compDefMapArg[String(rdef)].isBoundary);
   const rootOpts = rootIsBoundary ? `{ isBoundary: true, sysadlDefinition: ${JSON.stringify(String(rdef))} }` : `{ sysadlDefinition: ${JSON.stringify(String(rdef))} }`;
-  lines.push(`    this.${prop} = new CP_${sanitizeId(String(rdef))}(${JSON.stringify(String(rdef))}, ${rootOpts});`);
+  lines.push(`    this.${prop} = new ${getPackagePrefix(rdef, 'CP') + sanitizeId(String(rdef))}(${JSON.stringify(String(rdef))}, ${rootOpts});`);
   lines.push(`    this.addComponent(this.${prop});`);
     }
   }
@@ -535,14 +546,14 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   const instDef = (compInstanceDef && compInstanceDef[iname]) ? compInstanceDef[iname] : null;
   const instIsBoundary = (instDef && compDefMapArg && compDefMapArg[String(instDef)] && !!compDefMapArg[String(instDef)].isBoundary);
   const instOpts = instIsBoundary ? `{ isBoundary: true, sysadlDefinition: ${JSON.stringify(String(instDef))} }` : `{ sysadlDefinition: ${instDef ? JSON.stringify(String(instDef)) : 'null'} }`;
-  lines.push(`    ${parentPath}.${iname} = new CP_${typeCls}(${JSON.stringify(String(iname))}, ${instOpts});`);
+  lines.push(`    ${parentPath}.${iname} = new ${getPackagePrefix(typeCls, 'CP') + typeCls}(${JSON.stringify(String(iname))}, ${instOpts});`);
   lines.push(`    ${parentPath}.addComponent(${parentPath}.${iname});`);
     } else {
       // fallback to previous behavior: top-level instance
   const instDef = (compInstanceDef && compInstanceDef[iname]) ? compInstanceDef[iname] : null;
   const instIsBoundary = (instDef && compDefMapArg && compDefMapArg[String(instDef)] && !!compDefMapArg[String(instDef)].isBoundary);
   const instOpts = instIsBoundary ? `{ isBoundary: true, sysadlDefinition: ${JSON.stringify(String(instDef))} }` : `{ sysadlDefinition: ${instDef ? JSON.stringify(String(instDef)) : 'null'} }`;
-  lines.push(`    this.${iname} = new CP_${typeCls}(${JSON.stringify(String(iname))}, ${instOpts});`);
+  lines.push(`    this.${iname} = new ${getPackagePrefix(typeCls, 'CP') + typeCls}(${JSON.stringify(String(iname))}, ${instOpts});`);
   lines.push(`    this.addComponent(this.${iname});`);
     }
   }
@@ -832,7 +843,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
       const cname = cb.name || ('connector_' + Math.random().toString(36).slice(2,6));
       // Use simple name with UID to avoid duplicates
       const uid = cb && cb._uid ? '_' + String(cb._uid) : '';
-      const varName = 'CN_' + sanitizeId(String(cname)) + uid;
+      const varName = getPackagePrefix(cname, 'CN') + sanitizeId(String(cname)) + uid;
   // build a simple signature from participants/bindings to detect duplicate connectors (owner::port sorted)
   try {
     const __partsForSig = [];
@@ -855,7 +866,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   } catch(e){}
   // Determine the connector class to use based on definition
   const connectorDef = cb.definition || null;
-  const connectorClass = connectorDef ? `CN_${connectorDef}` : 'Connector';
+  const connectorClass = connectorDef ? (getPackagePrefix(connectorDef, 'CN') + connectorDef) : 'Connector';
   
   lines.push(`    const ${varName} = new ${connectorClass}(${JSON.stringify(cname)});`);
   // track endpoints already emitted for this connector to avoid duplicate __attachEndpoint calls
@@ -1046,34 +1057,34 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   // Create arrays of prefixed names for exports
   const filteredValueTypes = Object.keys(embeddedTypes.valueTypes || {})
     .filter(name => !primitiveTypes.has(name))
-    .map(name => `VT_${name}`);
+    .map(name => getPackagePrefix(name, 'VT') + name);
     
   const prefixedEnumerations = Object.keys(embeddedTypes.enumerations || {})
-    .map(name => `EN_${name}`);
+    .map(name => getPackagePrefix(name, 'EN') + name);
     
   const prefixedDatatypes = Object.keys(embeddedTypes.datatypes || {})
-    .map(name => `DT_${name}`);
+    .map(name => getPackagePrefix(name, 'DT') + name);
     
   const prefixedDimensions = Object.keys(embeddedTypes.dimensions || {})
-    .map(name => `DM_${name}`);
+    .map(name => getPackagePrefix(name, 'DM') + name);
     
   const prefixedUnits = Object.keys(embeddedTypes.units || {})
-    .map(name => `UN_${name}`);
+    .map(name => getPackagePrefix(name, 'UN') + name);
     
   const prefixedPins = Object.keys(embeddedTypes.pins || {})
-    .map(name => `PI_${name}`);
+    .map(name => getPackagePrefix(name, 'PI') + name);
     
   const prefixedConstraints = Object.keys(embeddedTypes.constraints || {})
-    .map(name => `CT_${name}`);
+    .map(name => getPackagePrefix(name, 'CT') + name);
     
   const prefixedDatabuffers = Object.keys(embeddedTypes.databuffers || {})
-    .map(name => `DB_${name}`);
+    .map(name => getPackagePrefix(name, 'DB') + name);
     
   const prefixedRequirements = Object.keys(embeddedTypes.requirements || {})
-    .map(name => `RQ_${name}`);
+    .map(name => getPackagePrefix(name, 'RQ') + name);
     
   const prefixedPorts = Object.keys(embeddedTypes.ports || {})
-    .map(name => `PT_${name}`);
+    .map(name => getPackagePrefix(name, 'PT') + name);
   
   const allExportedTypes = filteredValueTypes
     .concat(prefixedEnumerations)
@@ -1142,6 +1153,96 @@ async function main() {
   // collect port definitions (port def nodes) so we can expand participant port sets for connector definitions
   const portDefMap = {};
   traverse(ast, n => { if (n && (n.type === 'PortDef' || /PortDef/i.test(n.type) || (n.type && /port\s+def/i.test(String(n.type))))) { const nm = n.name || (n.id && n.id.name) || n.id || null; if (nm) portDefMap[nm] = n; } });
+
+  // collect packages and map elements to their packages
+  const packageMap = {}; // element name -> package name
+  const packageDefMap = {}; // package name -> package node
+  
+  function collectPackageElements(node, packageName) {
+    if (!node || typeof node !== 'object') return;
+    
+    // Map different types of elements to their package
+    if (node.type === 'ComponentDef' || /ComponentDef/i.test(node.type) || node.type === 'Component') {
+      const nm = node.name || (node.id && node.id.name) || node.id || null;
+      if (nm) packageMap[nm] = packageName;
+    }
+    if (node.type === 'PortDef' || /PortDef/i.test(node.type) || node.type === 'Port') {
+      const nm = node.name || (node.id && node.id.name) || node.id || null;
+      if (nm) packageMap[nm] = packageName;
+    }
+    if (node.type === 'ConnectorDef' || /ConnectorDef/i.test(node.type) || node.type === 'Connector') {
+      const nm = node.name || (node.id && node.id.name) || node.id || null;
+      if (nm) packageMap[nm] = packageName;
+    }
+    if (node.type === 'DataTypeDef' || /DataTypeDef/i.test(node.type) || node.type === 'DataType') {
+      const nm = node.name || (node.id && node.id.name) || node.id || null;
+      if (nm) packageMap[nm] = packageName;
+    }
+    if (node.type === 'ValueType' || /ValueType/i.test(node.type) || node.type === 'ValueTypeDef') {
+      const nm = node.name || (node.id && node.id.name) || node.id || null;
+      if (nm) packageMap[nm] = packageName;
+    }
+    if (node.type === 'Enumeration' || /Enumeration/i.test(node.type) || node.type === 'Enum' || node.type === 'EnumDef') {
+      const nm = node.name || (node.id && node.id.name) || node.id || null;
+      if (nm) packageMap[nm] = packageName;
+    }
+    if (node.type === 'Dimension' || /Dimension/i.test(node.type) || node.type === 'DimensionDef') {
+      const nm = node.name || (node.id && node.id.name) || node.id || null;
+      if (nm) packageMap[nm] = packageName;
+    }
+    if (node.type === 'Unit' || /Unit/i.test(node.type) || node.type === 'UnitDef') {
+      const nm = node.name || (node.id && node.id.name) || node.id || null;
+      if (nm) packageMap[nm] = packageName;
+    }
+    if (node.type === 'Activity' || /Activity/i.test(node.type) || node.type === 'ActivityDef') {
+      const nm = node.name || (node.id && node.id.name) || node.id || null;
+      if (nm) packageMap[nm] = packageName;
+    }
+    if (node.type === 'Action' || /Action/i.test(node.type) || node.type === 'ActionDef') {
+      const nm = node.name || (node.id && node.id.name) || node.id || null;
+      if (nm) packageMap[nm] = packageName;
+    }
+    if (node.type === 'Executable' || /Executable/i.test(node.type) || node.type === 'ExecutableDef') {
+      const nm = node.name || (node.id && node.id.name) || node.id || null;
+      if (nm) packageMap[nm] = packageName;
+    }
+    if (node.type === 'Pin' || /Pin/i.test(node.type) || node.type === 'PinDef') {
+      const nm = node.name || (node.id && node.id.name) || node.id || null;
+      if (nm) packageMap[nm] = packageName;
+    }
+    if (node.type === 'Constraint' || /Constraint/i.test(node.type) || node.type === 'ConstraintDef') {
+      const nm = node.name || (node.id && node.id.name) || node.id || null;
+      if (nm) packageMap[nm] = packageName;
+    }
+    if (node.type === 'DataBuffer' || /DataBuffer/i.test(node.type) || node.type === 'DataBufferDef') {
+      const nm = node.name || (node.id && node.id.name) || node.id || null;
+      if (nm) packageMap[nm] = packageName;
+    }
+    if (node.type === 'Requirement' || /Requirement/i.test(node.type) || node.type === 'RequirementDef') {
+      const nm = node.name || (node.id && node.id.name) || node.id || null;
+      if (nm) packageMap[nm] = packageName;
+    }
+    
+    // Recursively process children
+    for (const key in node) {
+      if (Array.isArray(node[key])) {
+        node[key].forEach(child => collectPackageElements(child, packageName));
+      } else if (node[key] && typeof node[key] === 'object') {
+        collectPackageElements(node[key], packageName);
+      }
+    }
+  }
+
+  traverse(ast, n => {
+    if (n && (n.type === 'Package' || /Package/i.test(n.type))) {
+      const packageName = n.name || (n.id && n.id.name) || n.id || null;
+      if (packageName) {
+        packageDefMap[packageName] = n;
+        // Collect all elements within this package
+        collectPackageElements(n, packageName);
+      }
+    }
+  });
 
   // collect SysADL types to embed
   function qnameToString(x){ try{ if(!x) return null; if(typeof x==='string') return x; if (x.name) return x.name; if (x.id && x.id.name) return x.id.name; if (Array.isArray(x.parts)) return x.parts.join('.'); }catch(e){} return null; }
@@ -3145,7 +3246,7 @@ async function main() {
     }
   } catch(e) {}
 
-  let moduleCode = generateClassModule(outModelName, compUses, portUses, connectorDescriptors, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, portAliasMap, compDefMap, portDefMap, embeddedTypes, connectorDefMap);
+  let moduleCode = generateClassModule(outModelName, compUses, portUses, connectorDescriptors, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, portAliasMap, compDefMap, portDefMap, embeddedTypes, connectorDefMap, packageMap);
   // remove JS comments (block and line) to ensure generator does not emit comments
   try {
     moduleCode = moduleCode.replace(/\/\*[\s\S]*?\*\//g, ''); // remove /* ... */
