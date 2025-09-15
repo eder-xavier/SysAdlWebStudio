@@ -47,7 +47,7 @@ function collectPortUses(configNode) {
   return uses;
 }
 
-function generateClassModule(modelName, compUses, portUses, connectorBindings, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, portAliasMap, compDefMapArg, portDefMapArg, embeddedTypes) {
+function generateClassModule(modelName, compUses, portUses, connectorBindings, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, portAliasMap, compDefMapArg, portDefMapArg, embeddedTypes, connectorDefMap = {}) {
   const lines = [];
   // runtime imports for generated module
   lines.push("const { Model, Component, Port, SimplePort, CompositePort, Connector, Activity, Action, createExecutableFromExpression, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit } = require('../SysADLBase');");
@@ -100,7 +100,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   }
   
   // Generate type classes using the new auto-registration system
-  function generateTypeClasses(embeddedTypes) {
+  function generateTypeClasses(embeddedTypes, connectorDefMap) {
     const classLines = [];
     const t = embeddedTypes && typeof embeddedTypes === 'object' ? embeddedTypes : { datatypes: {}, valueTypes: {}, enumerations: {}, dimensions: {}, units: {}, pins: {}, constraints: {}, databuffers: {}, requirements: {}, ports: {} };
 
@@ -315,12 +315,42 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
       classLines.push(`}`);
     }
 
+    // Add blank line before connector classes
+    if (connectorDefMap && Object.keys(connectorDefMap).length > 0) {
+      classLines.push('');
+      classLines.push('// Connectors');
+      
+      // Generate connector classes based on connector definitions
+      for (const [name, connDef] of Object.entries(connectorDefMap)) {
+        if (!name) continue;
+        const prefixedName = `CN_${name}`;
+        
+        classLines.push(`class ${prefixedName} extends Connector {`);
+        classLines.push(`  constructor(name, opts = {}) {`);
+        classLines.push(`    super(name, opts);`);
+        
+        // Add participants information as comment
+        if (connDef.participants && Array.isArray(connDef.participants)) {
+          classLines.push(`    // Participants: ${connDef.participants.map(p => `${p.name || p.id}: ${p.type || p.portType || p.definition}`).join(', ')}`);
+        }
+        
+        // Add flows information as comment  
+        if (connDef.flows && Array.isArray(connDef.flows)) {
+          classLines.push(`    // Flows: ${connDef.flows.map(f => `${f.type || 'data'} from ${f.from || f.source} to ${f.to || f.target}`).join(', ')}`);
+        }
+        
+        classLines.push(`  }`);
+        classLines.push(`}`);
+      }
+    }
+
     return classLines.join('\n');
   }
   
   // Generate type classes
   try {
-    const typeClasses = generateTypeClasses(embeddedTypes);
+    // Pass the actual connectorDefMap passed as parameter
+    const typeClasses = generateTypeClasses(embeddedTypes, connectorDefMap);
     if (typeClasses.trim()) {
       lines.push(typeClasses);
     }
@@ -789,12 +819,20 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   const unresolvedBindings = [];
   // emit connectors (use normalized connectorDescriptors so we have participants/bindings resolved)
   if (Array.isArray(connectorDescriptors) && connectorDescriptors.length) {
+    // Filter to include only connectors defined in the SysADL (c1, c2, c3, etc)
+    const filteredConnectors = connectorDescriptors.filter(cb => {
+      const cname = cb.name || ('connector_' + Math.random().toString(36).slice(2,6));
+      // Include only connectors with recognizable names (c1, c2, c3, etc) or proper naming pattern
+      return /^c\d+$/.test(cname) || (cb.name && cb.name.length > 0 && !cname.includes('connector_'));
+    });
+    
     // avoid emitting multiple connectors that resolve to the same concrete endpoint set
     const __connectorSigsEmitted = new Set();
-    for (const cb of connectorDescriptors) {
+    for (const cb of filteredConnectors) {
       const cname = cb.name || ('connector_' + Math.random().toString(36).slice(2,6));
+      // Use simple name with UID to avoid duplicates
       const uid = cb && cb._uid ? '_' + String(cb._uid) : '';
-      const varName = 'conn_' + sanitizeId(String(cname)) + uid;
+      const varName = 'CN_' + sanitizeId(String(cname)) + uid;
   // build a simple signature from participants/bindings to detect duplicate connectors (owner::port sorted)
   try {
     const __partsForSig = [];
@@ -815,9 +853,19 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     if (__sig && __connectorSigsEmitted.has(__sig)) continue;
     if (__sig) __connectorSigsEmitted.add(__sig);
   } catch(e){}
-  lines.push(`    const ${varName} = new Connector(${JSON.stringify(cname)});`);
+  // Determine the connector class to use based on definition
+  const connectorDef = cb.definition || null;
+  const connectorClass = connectorDef ? `CN_${connectorDef}` : 'Connector';
+  
+  lines.push(`    const ${varName} = new ${connectorClass}(${JSON.stringify(cname)});`);
   // track endpoints already emitted for this connector to avoid duplicate __attachEndpoint calls
-  lines.push(`    const ${varName}__seen = new Set();`);
+  let needsSeenSet = false;
+  // Check if we need the seen set (only if there are participants that will use it)
+  if ((Array.isArray(cb.participants) && cb.participants.length) || 
+      (Array.isArray(cb.bindings) && cb.bindings.length)) {
+    needsSeenSet = true;
+    lines.push(`    const ${varName}__seen = new Set();`);
+  }
   // generator-time dedupe: avoid emitting identical attach lines multiple times
   const emittedConnEndpointsLocal = new Set();
       // attach participants if present (resolved earlier)
@@ -883,6 +931,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
           } else if (robj && (!robj.owner || !robj.port)) unresolvedBindings.push({ connector: cname, reason: 'unresolved object right', entry: robj });
         }
       }
+      // Add connector to the model (connectors are typically model-level)
       lines.push(`    this.addConnector(${varName});`);
     }
   }
@@ -1328,11 +1377,67 @@ async function main() {
     }
   } catch(e){}
 
-  // Normalize connectorBindings into descriptors we can emit
-  // NOTE: we perform normalization here after compPortsMap_main is available so we can
-  // resolve unqualified port names to component instances and produce concrete participants.
-  const connectorDescriptors = [];
-  let connectorCounter = 0;
+  // Helper to resolve binding sides (temp1, s1) to actual component.port references
+  function resolveBindingSide(side, connectorDef, compDefMap) {
+    try {
+      if (!side) return null;
+      
+      // Extract binding target name
+      let targetName = null;
+      if (typeof side === 'string') {
+        targetName = side;
+      } else if (side.name) {
+        targetName = side.name;
+      } else if (side.id) {
+        targetName = side.id.name || side.id;
+      }
+      
+      if (!targetName) return null;
+      
+      // Check if this is a participant role in the connector definition
+      if (connectorDef && Array.isArray(connectorDef.participants)) {
+        for (const participant of connectorDef.participants) {
+          const roleName = participant.name || participant.id || null;
+          const roleType = participant.type || participant.portType || participant.definition || null;
+          
+          if (roleName === targetName && roleType) {
+            // This is a participant role, map to default port based on type
+            const portTypeName = typeof roleType === 'string' ? roleType : roleType.name || roleType;
+            
+            // Map common port types to default port names
+            const portMapping = {
+              'FTempOPT': 'current',
+              'CTempIPT': 's1', // for input roles
+              'CTempOPT': 'average'
+            };
+            
+            const defaultPort = portMapping[portTypeName] || 'current';
+            
+            // Return as participant role for later resolution
+            return { 
+              type: 'participant',
+              role: targetName, 
+              portType: portTypeName,
+              defaultPort: defaultPort
+            };
+          }
+        }
+      }
+      
+      // Not a participant role, assume it's a component instance
+      return { 
+        type: 'component',
+        component: targetName, 
+        port: 'current' // default port
+      };
+    } catch(e) {
+      console.warn('Error resolving binding side:', side, e.message);
+      return null;
+    }
+  }
+
+  // LEGACY: Keep existing connector processing as fallback for complex cases
+  let legacyConnectorCounter = 1000; // Use different counter to avoid conflicts
   try {
     // build a lightweight comp->set(port) map (local) from collected compUses and portUses
     const localCompPorts = {};
@@ -1551,13 +1656,18 @@ async function main() {
       const nameHint = node.name || (node.definition && node.definition.name) || null;
       const bindings = [];
       const explicitParts = [];
+      
+      // Extract the connector definition name first
+      const defName = node.definition && (node.definition.name || node.definition) ? (node.definition.name || node.definition) : null;
+      
         // If this connector use references a connector definition, capture its participants/flows
           let referencedConnectorDef = null;
           let localScopeMap = null;
         try {
-          const defName = node.definition && (node.definition.name || node.definition) ? (node.definition.name || node.definition) : null;
           if (defName && connectorDefMap[defName]) referencedConnectorDef = connectorDefMap[defName];
         } catch(e){}
+
+        // Process connector using legacy system
 
         // build a local scope map from referenced connector def participants: role -> Set(portNames)
         try {
@@ -2185,7 +2295,7 @@ async function main() {
         } catch(e){}
       }
 
-  const descObj = { name: cname, participants: parts, bindings: resolved, _uid: ++connectorCounter, _node: node };
+  const descObj = { name: cname, participants: parts, bindings: resolved, _uid: ++legacyConnectorCounter, _node: node, definition: defName };
   connectorDescriptors.push(descObj);
     }
   } catch(e) { /* ignore */ }
@@ -2444,6 +2554,29 @@ async function main() {
     }
   } catch(e){}
   try { dbg('[DBG] compPortsMap_main keys:', Object.keys(compPortsMap_main).slice(0,40).map(k=>({k,ports:Array.from(compPortsMap_main[k]||[])}))); } catch(e){}
+  
+  // Normalize connectorBindings into connectorDescriptors for processing
+  const connectorDescriptors = [];
+  let connectorCounter = 0;
+  try {
+    for (const cb of connectorBindings) {
+      try {
+        const node = cb.node || {};
+        const cname = node.name || ('connector_' + Math.random().toString(36).slice(2,6));
+        // Extract connector definition
+        const defName = node.definition && (node.definition.name || node.definition) ? (node.definition.name || node.definition) : null;
+        connectorDescriptors.push({
+          name: cname,
+          _node: node,
+          bindings: [],
+          participants: [],
+          _uid: ++connectorCounter,
+          definition: defName
+        });
+      } catch(e) {}
+    }
+  } catch(e) {}
+  
   // second-pass: re-process connectorBindings using compPortsMap_main to qualify unqualified ports
   try {
     // AGGRESSIVE PASS: for any connectorDescriptor binding side still unresolved, prefer
@@ -3012,7 +3145,7 @@ async function main() {
     }
   } catch(e) {}
 
-  let moduleCode = generateClassModule(outModelName, compUses, portUses, connectorDescriptors, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, portAliasMap, compDefMap, portDefMap, embeddedTypes);
+  let moduleCode = generateClassModule(outModelName, compUses, portUses, connectorDescriptors, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, portAliasMap, compDefMap, portDefMap, embeddedTypes, connectorDefMap);
   // remove JS comments (block and line) to ensure generator does not emit comments
   try {
     moduleCode = moduleCode.replace(/\/\*[\s\S]*?\*\//g, ''); // remove /* ... */

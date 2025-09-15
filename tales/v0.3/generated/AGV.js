@@ -108,6 +108,62 @@ class PT_ISupervisorySystem extends CompositePort {
   }
 }
 
+// Connectors
+class CN_notifySupervisory extends Connector {
+  constructor(name, opts = {}) {
+    super(name, opts);
+    // Flows: Flow from nsOPT to undefined
+  }
+}
+class CN_sendVehicleData extends Connector {
+  constructor(name, opts = {}) {
+    super(name, opts);
+    // Flows: Flow from vdOPT to undefined
+  }
+}
+class CN_notificationMotor extends Connector {
+  constructor(name, opts = {}) {
+    super(name, opts);
+    // Flows: Flow from nmOPT to undefined
+  }
+}
+class CN_commandArm extends Connector {
+  constructor(name, opts = {}) {
+    super(name, opts);
+    // Flows: Flow from caOPT to undefined
+  }
+}
+class CN_notificationArm extends Connector {
+  constructor(name, opts = {}) {
+    super(name, opts);
+    // Flows: Flow from naOPT to undefined
+  }
+}
+class CN_commandMotor extends Connector {
+  constructor(name, opts = {}) {
+    super(name, opts);
+    // Flows: Flow from cmOPT to undefined
+  }
+}
+class CN_interactionAGVAndSupervisory extends Connector {
+  constructor(name, opts = {}) {
+    super(name, opts);
+    // Flows: 
+  }
+}
+class CN_locationVehicle extends Connector {
+  constructor(name, opts = {}) {
+    super(name, opts);
+    // Flows: Flow from lOPT to undefined
+  }
+}
+class CN_status extends Connector {
+  constructor(name, opts = {}) {
+    super(name, opts);
+    // Flows: Flow from sOPT to undefined
+  }
+}
+
 // Components
 class CP_SupervisorySystem extends Component {
   constructor(name, opts={}) {
@@ -271,18 +327,18 @@ class SysADLArchitecture extends Model {
     this.addExecutableSafe("SysADLArchitecture.ControlArmEX", "executable def ControlArmEX ( in statusMotor : NotificationFromMotor, in cmd : CommandToArm) : out CommandToArm {\n\t\tif(statusMotor == NotificationFromMotor::stopped)\n\t\t\treturn cmd;\n\t\telse\n\t\t\treturn CommandToArm::idle;\n\t}", []);
     this.addExecutableSafe("SysADLArchitecture.NotifierArmEX", "executable def NotifierArmEX ( in statusArm : NotificationFromArm) : \n\tout\tNotificationToSupervisory {\n\t\treturn NotificationToSupervisory::arrived;\n\t}", []);
     this.addExecutableSafe("SysADLArchitecture.VehicleTimerEX", "executable def VehicleTimerEX ( in location : Location, in cmd : CommandToArm, \n\t\tin destination : Location) : out Status {\n\t\t\n\t\tlet s : Status;\n\t\ts->destination = destination;\n\t\ts->location = location;\n\t\ts->command = cmd;\n\t\t\n\t\treturn s;\n\t}", []);
-    this.addExecutableSafe("SysADLArchitecture.eg9f", "executable CompareStationsEX to CompareStationsAN", []);
-    this.addExecutableSafe("SysADLArchitecture.itlb", "executable ControlArmEX to ControlArmAN", []);
-    this.addExecutableSafe("SysADLArchitecture.aegr", "executable NotifierArmEX to NotifierArmAN", []);
-    this.addExecutableSafe("SysADLArchitecture.kmgw", "executable NotifyAGVFromMotorEX to NotifyAGVFromMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.zkoc", "executable NotifySupervisoryFromMotorEX to NotifySupervisoryFromMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.8mg8", "executable PassedMotorEX to PassedMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.hv5i", "executable SendCommandEX to SendCommandAN", []);
-    this.addExecutableSafe("SysADLArchitecture.37g1", "executable SendCurrentLocationEX to SendCurrentLocationAN", []);
-    this.addExecutableSafe("SysADLArchitecture.pmz6", "executable SendDestinationEX to SendDestinationAN", []);
-    this.addExecutableSafe("SysADLArchitecture.v2tx", "executable SendStartMotorEX to SendStartMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.m96d", "executable StopMotorEX to StopMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.5p6f", "executable VehicleTimerEX to VehicleTimerAN", []);
+    this.addExecutableSafe("SysADLArchitecture.1wfj", "executable CompareStationsEX to CompareStationsAN", []);
+    this.addExecutableSafe("SysADLArchitecture.52jd", "executable ControlArmEX to ControlArmAN", []);
+    this.addExecutableSafe("SysADLArchitecture.2xek", "executable NotifierArmEX to NotifierArmAN", []);
+    this.addExecutableSafe("SysADLArchitecture.5oc7", "executable NotifyAGVFromMotorEX to NotifyAGVFromMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.eqd9", "executable NotifySupervisoryFromMotorEX to NotifySupervisoryFromMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.clw6", "executable PassedMotorEX to PassedMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.1frj", "executable SendCommandEX to SendCommandAN", []);
+    this.addExecutableSafe("SysADLArchitecture.cy8y", "executable SendCurrentLocationEX to SendCurrentLocationAN", []);
+    this.addExecutableSafe("SysADLArchitecture.p39a", "executable SendDestinationEX to SendDestinationAN", []);
+    this.addExecutableSafe("SysADLArchitecture.ra75", "executable SendStartMotorEX to SendStartMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.lryz", "executable StopMotorEX to StopMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.j5ax", "executable VehicleTimerEX to VehicleTimerAN", []);
     const act_StartMovingAC_sm = new Activity("StartMovingAC", { component: "sm", inputPorts: ["move"] });
     act_StartMovingAC_sm.addAction(new Action("SendStartMotorAN", [], "SendStartMotorEX"));
     act_StartMovingAC_sm.addAction(new Action("SendCommandAN", [], "SendCommandEX"));
@@ -307,134 +363,58 @@ class SysADLArchitecture extends Model {
     const act_VehicleTimerAC_vt = new Activity("VehicleTimerAC", { component: "vt", inputPorts: ["destination"] });
     act_VehicleTimerAC_vt.addAction(new Action("VehicleTimerAN", [], "VehicleTimerEX"));
     this.registerActivity("VehicleTimerAC::vt", act_VehicleTimerAC_vt);
-    const conn_dataExchange_1 = new Connector("dataExchange");
-    const conn_dataExchange_1__seen = new Set();
-    if(!conn_dataExchange_1__seen.has("ss::in_outData")) { this.attachEndpointSafe(conn_dataExchange_1, this.FactoryAutomationSystem.ss, "in_outData"); conn_dataExchange_1__seen.add("ss::in_outData"); }
-    this.addConnector(conn_dataExchange_1);
-    const conn_ss_in_outData__x_x_ss_in_outData__x_x_2 = new Connector("ss.in_outData__x.x_ss.in_outData__x.x");
-    const conn_ss_in_outData__x_x_ss_in_outData__x_x_2__seen = new Set();
-    if(!conn_ss_in_outData__x_x_ss_in_outData__x_x_2__seen.has("ss::in_outData")) { this.attachEndpointSafe(conn_ss_in_outData__x_x_ss_in_outData__x_x_2, this.FactoryAutomationSystem.ss, "in_outData"); conn_ss_in_outData__x_x_ss_in_outData__x_x_2__seen.add("ss::in_outData"); }
-    this.addConnector(conn_ss_in_outData__x_x_ss_in_outData__x_x_2);
-    const conn_updateStatus_4 = new Connector("updateStatus");
-    const conn_updateStatus_4__seen = new Set();
-    if(!conn_updateStatus_4__seen.has("ds::receiveStatus")) { this.attachEndpointSafe(conn_updateStatus_4, this.FactoryAutomationSystem.ds, "receiveStatus"); conn_updateStatus_4__seen.add("ds::receiveStatus"); }
-    this.addConnector(conn_updateStatus_4);
-    const conn_x_x__ds_receiveStatus_x_x__ds_receiveStatus_5 = new Connector("x.x__ds.receiveStatus_x.x__ds.receiveStatus");
-    const conn_x_x__ds_receiveStatus_x_x__ds_receiveStatus_5__seen = new Set();
-    if(!conn_x_x__ds_receiveStatus_x_x__ds_receiveStatus_5__seen.has("ds::receiveStatus")) { this.attachEndpointSafe(conn_x_x__ds_receiveStatus_x_x__ds_receiveStatus_5, this.FactoryAutomationSystem.ds, "receiveStatus"); conn_x_x__ds_receiveStatus_x_x__ds_receiveStatus_5__seen.add("ds::receiveStatus"); }
-    this.addConnector(conn_x_x__ds_receiveStatus_x_x__ds_receiveStatus_5);
-    const conn_arrived_7 = new Connector("arrived");
-    const conn_arrived_7__seen = new Set();
-    if(!conn_arrived_7__seen.has("agvs::arrivalDetected_out")) { this.attachEndpointSafe(conn_arrived_7, this.FactoryAutomationSystem.agvs, "arrivalDetected_out"); conn_arrived_7__seen.add("agvs::arrivalDetected_out"); }
-    if(!conn_arrived_7__seen.has("agvs::arrivalDetected_in")) { this.attachEndpointSafe(conn_arrived_7, this.FactoryAutomationSystem.agvs, "arrivalDetected_in"); conn_arrived_7__seen.add("agvs::arrivalDetected_in"); }
-    this.addConnector(conn_arrived_7);
-    const conn_arrivalDetected_out_arrivalDetected_out__arrivalDetected_in_arrivalDetected_in_arrivalDetected_out_arrivalDetected_out__arrivalDetected_in_arrivalDetected_in_8 = new Connector("arrivalDetected_out.arrivalDetected_out__arrivalDetected_in.arrivalDetected_in_arrivalDetected_out.arrivalDetected_out__arrivalDetected_in.arrivalDetected_in");
-    const conn_arrivalDetected_out_arrivalDetected_out__arrivalDetected_in_arrivalDetected_in_arrivalDetected_out_arrivalDetected_out__arrivalDetected_in_arrivalDetected_in_8__seen = new Set();
-    if(!conn_arrivalDetected_out_arrivalDetected_out__arrivalDetected_in_arrivalDetected_in_arrivalDetected_out_arrivalDetected_out__arrivalDetected_in_arrivalDetected_in_8__seen.has("agvs::arrivalDetected_out")) { this.attachEndpointSafe(conn_arrivalDetected_out_arrivalDetected_out__arrivalDetected_in_arrivalDetected_in_arrivalDetected_out_arrivalDetected_out__arrivalDetected_in_arrivalDetected_in_8, this.FactoryAutomationSystem.agvs, "arrivalDetected_out"); conn_arrivalDetected_out_arrivalDetected_out__arrivalDetected_in_arrivalDetected_in_arrivalDetected_out_arrivalDetected_out__arrivalDetected_in_arrivalDetected_in_8__seen.add("agvs::arrivalDetected_out"); }
-    if(!conn_arrivalDetected_out_arrivalDetected_out__arrivalDetected_in_arrivalDetected_in_arrivalDetected_out_arrivalDetected_out__arrivalDetected_in_arrivalDetected_in_8__seen.has("agvs::arrivalDetected_in")) { this.attachEndpointSafe(conn_arrivalDetected_out_arrivalDetected_out__arrivalDetected_in_arrivalDetected_in_arrivalDetected_out_arrivalDetected_out__arrivalDetected_in_arrivalDetected_in_8, this.FactoryAutomationSystem.agvs, "arrivalDetected_in"); conn_arrivalDetected_out_arrivalDetected_out__arrivalDetected_in_arrivalDetected_in_arrivalDetected_out_arrivalDetected_out__arrivalDetected_in_arrivalDetected_in_8__seen.add("agvs::arrivalDetected_in"); }
-    this.addConnector(conn_arrivalDetected_out_arrivalDetected_out__arrivalDetected_in_arrivalDetected_in_arrivalDetected_out_arrivalDetected_out__arrivalDetected_in_arrivalDetected_in_8);
-    const conn_ackArm_10 = new Connector("ackArm");
-    const conn_ackArm_10__seen = new Set();
-    if(!conn_ackArm_10__seen.has("ra::started")) { this.attachEndpointSafe(conn_ackArm_10, this.FactoryAutomationSystem.agvs.ra, "started"); conn_ackArm_10__seen.add("ra::started"); }
-    if(!conn_ackArm_10__seen.has("vc::startedArm")) { this.attachEndpointSafe(conn_ackArm_10, this.FactoryAutomationSystem.agvs.vc, "startedArm"); conn_ackArm_10__seen.add("vc::startedArm"); }
-    this.addConnector(conn_ackArm_10);
-    const conn_started_started__startedArm_startedArm_started_started__startedArm_startedArm_11 = new Connector("started.started__startedArm.startedArm_started.started__startedArm.startedArm");
-    const conn_started_started__startedArm_startedArm_started_started__startedArm_startedArm_11__seen = new Set();
-    if(!conn_started_started__startedArm_startedArm_started_started__startedArm_startedArm_11__seen.has("ra::started")) { this.attachEndpointSafe(conn_started_started__startedArm_startedArm_started_started__startedArm_startedArm_11, this.FactoryAutomationSystem.agvs.ra, "started"); conn_started_started__startedArm_startedArm_started_started__startedArm_startedArm_11__seen.add("ra::started"); }
-    if(!conn_started_started__startedArm_startedArm_started_started__startedArm_startedArm_11__seen.has("vc::startedArm")) { this.attachEndpointSafe(conn_started_started__startedArm_startedArm_started_started__startedArm_startedArm_11, this.FactoryAutomationSystem.agvs.vc, "startedArm"); conn_started_started__startedArm_startedArm_started_started__startedArm_startedArm_11__seen.add("vc::startedArm"); }
-    this.addConnector(conn_started_started__startedArm_startedArm_started_started__startedArm_startedArm_11);
-    const conn_cmdArm_13 = new Connector("cmdArm");
-    const conn_cmdArm_13__seen = new Set();
-    if(!conn_cmdArm_13__seen.has("ra::start")) { this.attachEndpointSafe(conn_cmdArm_13, this.FactoryAutomationSystem.agvs.ra, "start"); conn_cmdArm_13__seen.add("ra::start"); }
-    this.addConnector(conn_cmdArm_13);
-    const conn_x_x__ra_start_x_x__ra_start_14 = new Connector("x.x__ra.start_x.x__ra.start");
-    const conn_x_x__ra_start_x_x__ra_start_14__seen = new Set();
-    if(!conn_x_x__ra_start_x_x__ra_start_14__seen.has("ra::start")) { this.attachEndpointSafe(conn_x_x__ra_start_x_x__ra_start_14, this.FactoryAutomationSystem.agvs.ra, "start"); conn_x_x__ra_start_x_x__ra_start_14__seen.add("ra::start"); }
-    this.addConnector(conn_x_x__ra_start_x_x__ra_start_14);
-    const conn_ackMotor_16 = new Connector("ackMotor");
-    const conn_ackMotor_16__seen = new Set();
-    if(!conn_ackMotor_16__seen.has("agvs::started_stopped_out")) { this.attachEndpointSafe(conn_ackMotor_16, this.FactoryAutomationSystem.agvs, "started_stopped_out"); conn_ackMotor_16__seen.add("agvs::started_stopped_out"); }
-    if(!conn_ackMotor_16__seen.has("agvs::started_stopped_in")) { this.attachEndpointSafe(conn_ackMotor_16, this.FactoryAutomationSystem.agvs, "started_stopped_in"); conn_ackMotor_16__seen.add("agvs::started_stopped_in"); }
-    this.addConnector(conn_ackMotor_16);
-    const conn_started_stopped_out_started_stopped_out__started_stopped_in_started_stopped_in_started_stopped_out_started_stopped_out__started_stopped_in_started_stopped_in_17 = new Connector("started_stopped_out.started_stopped_out__started_stopped_in.started_stopped_in_started_stopped_out.started_stopped_out__started_stopped_in.started_stopped_in");
-    const conn_started_stopped_out_started_stopped_out__started_stopped_in_started_stopped_in_started_stopped_out_started_stopped_out__started_stopped_in_started_stopped_in_17__seen = new Set();
-    if(!conn_started_stopped_out_started_stopped_out__started_stopped_in_started_stopped_in_started_stopped_out_started_stopped_out__started_stopped_in_started_stopped_in_17__seen.has("agvs::started_stopped_out")) { this.attachEndpointSafe(conn_started_stopped_out_started_stopped_out__started_stopped_in_started_stopped_in_started_stopped_out_started_stopped_out__started_stopped_in_started_stopped_in_17, this.FactoryAutomationSystem.agvs, "started_stopped_out"); conn_started_stopped_out_started_stopped_out__started_stopped_in_started_stopped_in_started_stopped_out_started_stopped_out__started_stopped_in_started_stopped_in_17__seen.add("agvs::started_stopped_out"); }
-    if(!conn_started_stopped_out_started_stopped_out__started_stopped_in_started_stopped_in_started_stopped_out_started_stopped_out__started_stopped_in_started_stopped_in_17__seen.has("agvs::started_stopped_in")) { this.attachEndpointSafe(conn_started_stopped_out_started_stopped_out__started_stopped_in_started_stopped_in_started_stopped_out_started_stopped_out__started_stopped_in_started_stopped_in_17, this.FactoryAutomationSystem.agvs, "started_stopped_in"); conn_started_stopped_out_started_stopped_out__started_stopped_in_started_stopped_in_started_stopped_out_started_stopped_out__started_stopped_in_started_stopped_in_17__seen.add("agvs::started_stopped_in"); }
-    this.addConnector(conn_started_stopped_out_started_stopped_out__started_stopped_in_started_stopped_in_started_stopped_out_started_stopped_out__started_stopped_in_started_stopped_in_17);
-    const conn_cmdMotor_19 = new Connector("cmdMotor");
-    const conn_cmdMotor_19__seen = new Set();
-    if(!conn_cmdMotor_19__seen.has("m::start_stop_in")) { this.attachEndpointSafe(conn_cmdMotor_19, this.FactoryAutomationSystem.agvs.m, "start_stop_in"); conn_cmdMotor_19__seen.add("m::start_stop_in"); }
-    this.addConnector(conn_cmdMotor_19);
-    const conn_x_x__m_start_stop_in_x_x__m_start_stop_in_20 = new Connector("x.x__m.start_stop_in_x.x__m.start_stop_in");
-    const conn_x_x__m_start_stop_in_x_x__m_start_stop_in_20__seen = new Set();
-    if(!conn_x_x__m_start_stop_in_x_x__m_start_stop_in_20__seen.has("m::start_stop_in")) { this.attachEndpointSafe(conn_x_x__m_start_stop_in_x_x__m_start_stop_in_20, this.FactoryAutomationSystem.agvs.m, "start_stop_in"); conn_x_x__m_start_stop_in_x_x__m_start_stop_in_20__seen.add("m::start_stop_in"); }
-    this.addConnector(conn_x_x__m_start_stop_in_x_x__m_start_stop_in_20);
-    const conn_destinationStation2_22 = new Connector("destinationStation2");
-    const conn_destinationStation2_22__seen = new Set();
-    if(!conn_destinationStation2_22__seen.has("cs::destination")) { this.attachEndpointSafe(conn_destinationStation2_22, this.FactoryAutomationSystem.agvs.vc.cs, "destination"); conn_destinationStation2_22__seen.add("cs::destination"); }
-    if(!conn_destinationStation2_22__seen.has("vc::destination_vt")) { this.attachEndpointSafe(conn_destinationStation2_22, this.FactoryAutomationSystem.agvs.vc, "destination_vt"); conn_destinationStation2_22__seen.add("vc::destination_vt"); }
-    this.addConnector(conn_destinationStation2_22);
-    const conn_destination_destination__destination_vt_destination_vt_destination_destination__destination_vt_destination_vt_23 = new Connector("destination.destination__destination_vt.destination_vt_destination.destination__destination_vt.destination_vt");
-    const conn_destination_destination__destination_vt_destination_vt_destination_destination__destination_vt_destination_vt_23__seen = new Set();
-    if(!conn_destination_destination__destination_vt_destination_vt_destination_destination__destination_vt_destination_vt_23__seen.has("cs::destination")) { this.attachEndpointSafe(conn_destination_destination__destination_vt_destination_vt_destination_destination__destination_vt_destination_vt_23, this.FactoryAutomationSystem.agvs.vc.cs, "destination"); conn_destination_destination__destination_vt_destination_vt_destination_destination__destination_vt_destination_vt_23__seen.add("cs::destination"); }
-    if(!conn_destination_destination__destination_vt_destination_vt_destination_destination__destination_vt_destination_vt_23__seen.has("vc::destination_vt")) { this.attachEndpointSafe(conn_destination_destination__destination_vt_destination_vt_destination_destination__destination_vt_destination_vt_23, this.FactoryAutomationSystem.agvs.vc, "destination_vt"); conn_destination_destination__destination_vt_destination_vt_destination_destination__destination_vt_destination_vt_23__seen.add("vc::destination_vt"); }
-    this.addConnector(conn_destination_destination__destination_vt_destination_vt_destination_destination__destination_vt_destination_vt_23);
-    const conn_destinationStation_25 = new Connector("destinationStation");
-    const conn_destinationStation_25__seen = new Set();
-    if(!conn_destinationStation_25__seen.has("cs::destination")) { this.attachEndpointSafe(conn_destinationStation_25, this.FactoryAutomationSystem.agvs.vc.cs, "destination"); conn_destinationStation_25__seen.add("cs::destination"); }
-    if(!conn_destinationStation_25__seen.has("vc::destination_cs")) { this.attachEndpointSafe(conn_destinationStation_25, this.FactoryAutomationSystem.agvs.vc, "destination_cs"); conn_destinationStation_25__seen.add("vc::destination_cs"); }
-    this.addConnector(conn_destinationStation_25);
-    const conn_destination_destination__destination_cs_destination_cs_destination_destination__destination_cs_destination_cs_26 = new Connector("destination.destination__destination_cs.destination_cs_destination.destination__destination_cs.destination_cs");
-    const conn_destination_destination__destination_cs_destination_cs_destination_destination__destination_cs_destination_cs_26__seen = new Set();
-    if(!conn_destination_destination__destination_cs_destination_cs_destination_destination__destination_cs_destination_cs_26__seen.has("cs::destination")) { this.attachEndpointSafe(conn_destination_destination__destination_cs_destination_cs_destination_destination__destination_cs_destination_cs_26, this.FactoryAutomationSystem.agvs.vc.cs, "destination"); conn_destination_destination__destination_cs_destination_cs_destination_destination__destination_cs_destination_cs_26__seen.add("cs::destination"); }
-    if(!conn_destination_destination__destination_cs_destination_cs_destination_destination__destination_cs_destination_cs_26__seen.has("vc::destination_cs")) { this.attachEndpointSafe(conn_destination_destination__destination_cs_destination_cs_destination_destination__destination_cs_destination_cs_26, this.FactoryAutomationSystem.agvs.vc, "destination_cs"); conn_destination_destination__destination_cs_destination_cs_destination_destination__destination_cs_destination_cs_26__seen.add("vc::destination_cs"); }
-    this.addConnector(conn_destination_destination__destination_cs_destination_cs_destination_destination__destination_cs_destination_cs_26);
-    const conn_command_28 = new Connector("command");
-    const conn_command_28__seen = new Set();
-    if(!conn_command_28__seen.has("vc::cmd_sm")) { this.attachEndpointSafe(conn_command_28, this.FactoryAutomationSystem.agvs.vc, "cmd_sm"); conn_command_28__seen.add("vc::cmd_sm"); }
-    if(!conn_command_28__seen.has("ca::cmd")) { this.attachEndpointSafe(conn_command_28, this.FactoryAutomationSystem.agvs.vc.ca, "cmd"); conn_command_28__seen.add("ca::cmd"); }
-    this.addConnector(conn_command_28);
-    const conn_cmd_sm_cmd_sm__cmd_cmd_cmd_sm_cmd_sm__cmd_cmd_29 = new Connector("cmd_sm.cmd_sm__cmd.cmd_cmd_sm.cmd_sm__cmd.cmd");
-    const conn_cmd_sm_cmd_sm__cmd_cmd_cmd_sm_cmd_sm__cmd_cmd_29__seen = new Set();
-    if(!conn_cmd_sm_cmd_sm__cmd_cmd_cmd_sm_cmd_sm__cmd_cmd_29__seen.has("vc::cmd_sm")) { this.attachEndpointSafe(conn_cmd_sm_cmd_sm__cmd_cmd_cmd_sm_cmd_sm__cmd_cmd_29, this.FactoryAutomationSystem.agvs.vc, "cmd_sm"); conn_cmd_sm_cmd_sm__cmd_cmd_cmd_sm_cmd_sm__cmd_cmd_29__seen.add("vc::cmd_sm"); }
-    if(!conn_cmd_sm_cmd_sm__cmd_cmd_cmd_sm_cmd_sm__cmd_cmd_29__seen.has("ca::cmd")) { this.attachEndpointSafe(conn_cmd_sm_cmd_sm__cmd_cmd_cmd_sm_cmd_sm__cmd_cmd_29, this.FactoryAutomationSystem.agvs.vc.ca, "cmd"); conn_cmd_sm_cmd_sm__cmd_cmd_cmd_sm_cmd_sm__cmd_cmd_29__seen.add("ca::cmd"); }
-    this.addConnector(conn_cmd_sm_cmd_sm__cmd_cmd_cmd_sm_cmd_sm__cmd_cmd_29);
-    const conn_command2_31 = new Connector("command2");
-    const conn_command2_31__seen = new Set();
-    if(!conn_command2_31__seen.has("ca::cmd_ca")) { this.attachEndpointSafe(conn_command2_31, this.FactoryAutomationSystem.agvs.vc.ca, "cmd_ca"); conn_command2_31__seen.add("ca::cmd_ca"); }
-    this.addConnector(conn_command2_31);
-    const conn_x_x__ca_cmd_ca_x_x__ca_cmd_ca_32 = new Connector("x.x__ca.cmd_ca_x.x__ca.cmd_ca");
-    const conn_x_x__ca_cmd_ca_x_x__ca_cmd_ca_32__seen = new Set();
-    if(!conn_x_x__ca_cmd_ca_x_x__ca_cmd_ca_32__seen.has("ca::cmd_ca")) { this.attachEndpointSafe(conn_x_x__ca_cmd_ca_x_x__ca_cmd_ca_32, this.FactoryAutomationSystem.agvs.vc.ca, "cmd_ca"); conn_x_x__ca_cmd_ca_x_x__ca_cmd_ca_32__seen.add("ca::cmd_ca"); }
-    this.addConnector(conn_x_x__ca_cmd_ca_x_x__ca_cmd_ca_32);
-    const conn_currentLocation_34 = new Connector("currentLocation");
-    const conn_currentLocation_34__seen = new Set();
-    if(!conn_currentLocation_34__seen.has("vc::location_cs")) { this.attachEndpointSafe(conn_currentLocation_34, this.FactoryAutomationSystem.agvs.vc, "location_cs"); conn_currentLocation_34__seen.add("vc::location_cs"); }
-    if(!conn_currentLocation_34__seen.has("vc::location_vt")) { this.attachEndpointSafe(conn_currentLocation_34, this.FactoryAutomationSystem.agvs.vc, "location_vt"); conn_currentLocation_34__seen.add("vc::location_vt"); }
-    this.addConnector(conn_currentLocation_34);
-    const conn_location_cs_location_cs__location_vt_location_vt_location_cs_location_cs__location_vt_location_vt_35 = new Connector("location_cs.location_cs__location_vt.location_vt_location_cs.location_cs__location_vt.location_vt");
-    const conn_location_cs_location_cs__location_vt_location_vt_location_cs_location_cs__location_vt_location_vt_35__seen = new Set();
-    if(!conn_location_cs_location_cs__location_vt_location_vt_location_cs_location_cs__location_vt_location_vt_35__seen.has("vc::location_cs")) { this.attachEndpointSafe(conn_location_cs_location_cs__location_vt_location_vt_location_cs_location_cs__location_vt_location_vt_35, this.FactoryAutomationSystem.agvs.vc, "location_cs"); conn_location_cs_location_cs__location_vt_location_vt_location_cs_location_cs__location_vt_location_vt_35__seen.add("vc::location_cs"); }
-    if(!conn_location_cs_location_cs__location_vt_location_vt_location_cs_location_cs__location_vt_location_vt_35__seen.has("vc::location_vt")) { this.attachEndpointSafe(conn_location_cs_location_cs__location_vt_location_vt_location_cs_location_cs__location_vt_location_vt_35, this.FactoryAutomationSystem.agvs.vc, "location_vt"); conn_location_cs_location_cs__location_vt_location_vt_location_cs_location_cs__location_vt_location_vt_35__seen.add("vc::location_vt"); }
-    this.addConnector(conn_location_cs_location_cs__location_vt_location_vt_location_cs_location_cs__location_vt_location_vt_35);
-    const conn_sendNotificationMotor_37 = new Connector("sendNotificationMotor");
-    const conn_sendNotificationMotor_37__seen = new Set();
-    if(!conn_sendNotificationMotor_37__seen.has("nm::outAck")) { this.attachEndpointSafe(conn_sendNotificationMotor_37, this.FactoryAutomationSystem.agvs.vc.nm, "outAck"); conn_sendNotificationMotor_37__seen.add("nm::outAck"); }
-    if(!conn_sendNotificationMotor_37__seen.has("vc::ack_ca")) { this.attachEndpointSafe(conn_sendNotificationMotor_37, this.FactoryAutomationSystem.agvs.vc, "ack_ca"); conn_sendNotificationMotor_37__seen.add("vc::ack_ca"); }
-    this.addConnector(conn_sendNotificationMotor_37);
-    const conn_outAck_outAck__ack_ca_ack_ca_outAck_outAck__ack_ca_ack_ca_38 = new Connector("outAck.outAck__ack_ca.ack_ca_outAck.outAck__ack_ca.ack_ca");
-    const conn_outAck_outAck__ack_ca_ack_ca_outAck_outAck__ack_ca_ack_ca_38__seen = new Set();
-    if(!conn_outAck_outAck__ack_ca_ack_ca_outAck_outAck__ack_ca_ack_ca_38__seen.has("nm::outAck")) { this.attachEndpointSafe(conn_outAck_outAck__ack_ca_ack_ca_outAck_outAck__ack_ca_ack_ca_38, this.FactoryAutomationSystem.agvs.vc.nm, "outAck"); conn_outAck_outAck__ack_ca_ack_ca_outAck_outAck__ack_ca_ack_ca_38__seen.add("nm::outAck"); }
-    if(!conn_outAck_outAck__ack_ca_ack_ca_outAck_outAck__ack_ca_ack_ca_38__seen.has("vc::ack_ca")) { this.attachEndpointSafe(conn_outAck_outAck__ack_ca_ack_ca_outAck_outAck__ack_ca_ack_ca_38, this.FactoryAutomationSystem.agvs.vc, "ack_ca"); conn_outAck_outAck__ack_ca_ack_ca_outAck_outAck__ack_ca_ack_ca_38__seen.add("vc::ack_ca"); }
-    this.addConnector(conn_outAck_outAck__ack_ca_ack_ca_outAck_outAck__ack_ca_ack_ca_38);
-    const conn_sendNotificationMotor2_40 = new Connector("sendNotificationMotor2");
-    const conn_sendNotificationMotor2_40__seen = new Set();
-    if(!conn_sendNotificationMotor2_40__seen.has("cs::ack_cs")) { this.attachEndpointSafe(conn_sendNotificationMotor2_40, this.FactoryAutomationSystem.agvs.vc.cs, "ack_cs"); conn_sendNotificationMotor2_40__seen.add("cs::ack_cs"); }
-    this.addConnector(conn_sendNotificationMotor2_40);
-    const conn_x_x__cs_ack_cs_x_x__cs_ack_cs_41 = new Connector("x.x__cs.ack_cs_x.x__cs.ack_cs");
-    const conn_x_x__cs_ack_cs_x_x__cs_ack_cs_41__seen = new Set();
-    if(!conn_x_x__cs_ack_cs_x_x__cs_ack_cs_41__seen.has("cs::ack_cs")) { this.attachEndpointSafe(conn_x_x__cs_ack_cs_x_x__cs_ack_cs_41, this.FactoryAutomationSystem.agvs.vc.cs, "ack_cs"); conn_x_x__cs_ack_cs_x_x__cs_ack_cs_41__seen.add("cs::ack_cs"); }
-    this.addConnector(conn_x_x__cs_ack_cs_x_x__cs_ack_cs_41);
+    const CN_dataExchange_1 = new CN_interactionAGVAndSupervisory("dataExchange");
+    this.addConnector(CN_dataExchange_1);
+    const CN_updateStatus_4 = new CN_status("updateStatus");
+    this.addConnector(CN_updateStatus_4);
+    const CN_arrived_7 = new CN_locationVehicle("arrived");
+    this.addConnector(CN_arrived_7);
+    const CN_ackArm_10 = new CN_notificationArm("ackArm");
+    this.addConnector(CN_ackArm_10);
+    const CN_cmdArm_13 = new CN_commandArm("cmdArm");
+    this.addConnector(CN_cmdArm_13);
+    const CN_ackMotor_16 = new CN_notificationMotor("ackMotor");
+    this.addConnector(CN_ackMotor_16);
+    const CN_cmdMotor_19 = new CN_commandMotor("cmdMotor");
+    this.addConnector(CN_cmdMotor_19);
+    const CN_destinationStation2_22 = new CN_locationVehicle("destinationStation2");
+    this.addConnector(CN_destinationStation2_22);
+    const CN_destinationStation_25 = new CN_locationVehicle("destinationStation");
+    this.addConnector(CN_destinationStation_25);
+    const CN_command_28 = new CN_commandArm("command");
+    this.addConnector(CN_command_28);
+    const CN_command2_31 = new CN_commandArm("command2");
+    this.addConnector(CN_command2_31);
+    const CN_currentLocation_34 = new CN_locationVehicle("currentLocation");
+    this.addConnector(CN_currentLocation_34);
+    const CN_sendNotificationMotor_37 = new CN_notificationMotor("sendNotificationMotor");
+    this.addConnector(CN_sendNotificationMotor_37);
+    const CN_sendNotificationMotor2_40 = new CN_notificationMotor("sendNotificationMotor2");
+    this.addConnector(CN_sendNotificationMotor2_40);
+    const CN_arrived_43 = new CN_locationVehicle("arrived");
+    this.addConnector(CN_arrived_43);
+    const CN_ackArm_46 = new CN_notificationArm("ackArm");
+    this.addConnector(CN_ackArm_46);
+    const CN_cmdArm_49 = new CN_commandArm("cmdArm");
+    this.addConnector(CN_cmdArm_49);
+    const CN_ackMotor_52 = new CN_notificationMotor("ackMotor");
+    this.addConnector(CN_ackMotor_52);
+    const CN_cmdMotor_55 = new CN_commandMotor("cmdMotor");
+    this.addConnector(CN_cmdMotor_55);
+    const CN_destinationStation2_58 = new CN_locationVehicle("destinationStation2");
+    this.addConnector(CN_destinationStation2_58);
+    const CN_destinationStation_61 = new CN_locationVehicle("destinationStation");
+    this.addConnector(CN_destinationStation_61);
+    const CN_command_64 = new CN_commandArm("command");
+    this.addConnector(CN_command_64);
+    const CN_command2_67 = new CN_commandArm("command2");
+    this.addConnector(CN_command2_67);
+    const CN_currentLocation_70 = new CN_locationVehicle("currentLocation");
+    this.addConnector(CN_currentLocation_70);
+    const CN_sendNotificationMotor_73 = new CN_notificationMotor("sendNotificationMotor");
+    this.addConnector(CN_sendNotificationMotor_73);
+    const CN_sendNotificationMotor2_76 = new CN_notificationMotor("sendNotificationMotor2");
+    this.addConnector(CN_sendNotificationMotor2_76);
   }
 }
 

@@ -47,6 +47,32 @@ class PT_CTemperatureOPT extends SimplePort {
   }
 }
 
+// Connectors
+class CN_FahrenheitToCelsiusCN extends Connector {
+  constructor(name, opts = {}) {
+    super(name, opts);
+    // Flows: Flow from Ft to undefined
+  }
+}
+class CN_PresenceCN extends Connector {
+  constructor(name, opts = {}) {
+    super(name, opts);
+    // Flows: Flow from pOut to undefined
+  }
+}
+class CN_CommandCN extends Connector {
+  constructor(name, opts = {}) {
+    super(name, opts);
+    // Flows: Flow from commandOut to undefined
+  }
+}
+class CN_CTemperatureCN extends Connector {
+  constructor(name, opts = {}) {
+    super(name, opts);
+    // Flows: Flow from CtOut to undefined
+  }
+}
+
 // Components
 class CP_TemperatureSensorCP extends Component {
   constructor(name, opts={}) {
@@ -157,12 +183,12 @@ class SysADLModel extends Model {
     this.addExecutableSafe("SysADLModel.CalculateAverageTemperatureEx", "executable def CalculateAverageTemperatureEx(in temp1:CelsiusTemperature,in temp2:CelsiusTemperature):out CelsiusTemperature{return (temp1 + temp2)/2 ; }", []);
     this.addExecutableSafe("SysADLModel.CheckPresenceToSetTemperature", "executable def CheckPresenceToSetTemperature(in presence:Boolean, in userTemp:CelsiusTemperature):out CelsiusTemperature{if(presence == true) return userTemp; else return 2; }", []);
     this.addExecutableSafe("SysADLModel.CompareTemperatureEx", "executable def CompareTemperatureEx(in target:CelsiusTemperature, in average:CelsiusTemperature):out Commands{let heater:Command = types.Command::Off; let cooler:Command = types.Command::Off; if(average > target) {heater = types.Command::Off; cooler = types.Command::On ; } else {heater = types.Command::On; cooler = types.Command::Off ;} }", []);
-    this.addExecutableSafe("SysADLModel.u5tz", "executable FahrenheitToCelsiusEx to FahrenheitToCelsiusAN", []);
-    this.addExecutableSafe("SysADLModel.kite", "executable CompareTemperatureEx to CompareTemperatureAN", []);
-    this.addExecutableSafe("SysADLModel.2s5g", "executable CommandHeaterEx to CommandHeaterAN", []);
-    this.addExecutableSafe("SysADLModel.lmz9", "executable CommandCoolerEx to CommandCoolerAN", []);
-    this.addExecutableSafe("SysADLModel.yhcp", "executable CheckPresenceToSetTemperature to CheckPeresenceToSetTemperatureAN", []);
-    this.addExecutableSafe("SysADLModel.ru71", "executable CalculateAverageTemperatureEx to CalculateAverageTemperatureAN", []);
+    this.addExecutableSafe("SysADLModel.gorq", "executable FahrenheitToCelsiusEx to FahrenheitToCelsiusAN", []);
+    this.addExecutableSafe("SysADLModel.wx1x", "executable CompareTemperatureEx to CompareTemperatureAN", []);
+    this.addExecutableSafe("SysADLModel.prt3", "executable CommandHeaterEx to CommandHeaterAN", []);
+    this.addExecutableSafe("SysADLModel.ur6y", "executable CommandCoolerEx to CommandCoolerAN", []);
+    this.addExecutableSafe("SysADLModel.3wdl", "executable CheckPresenceToSetTemperature to CheckPeresenceToSetTemperatureAN", []);
+    this.addExecutableSafe("SysADLModel.b8um", "executable CalculateAverageTemperatureEx to CalculateAverageTemperatureAN", []);
     const act_CalculateAverageTemperatureAC_s1 = new Activity("CalculateAverageTemperatureAC", { component: "s1", inputPorts: ["current"] });
     act_CalculateAverageTemperatureAC_s1.addAction(new Action("CalculateAverageTemperatureAN", [], "CalculateAverageTemperatureEx"));
     this.registerActivity("CalculateAverageTemperatureAC::s1", act_CalculateAverageTemperatureAC_s1);
@@ -303,74 +329,26 @@ class SysADLModel extends Model {
     const act_FahrenheitToCelsiusAC_pc = new Activity("FahrenheitToCelsiusAC", { component: "pc", inputPorts: ["detected"] });
     act_FahrenheitToCelsiusAC_pc.addAction(new Action("FahrenheitToCelsiusAN", [], "FahrenheitToCelsiusEx"));
     this.registerActivity("FahrenheitToCelsiusAC::pc", act_FahrenheitToCelsiusAC_pc);
-    const conn_c1_1 = new Connector("c1");
-    const conn_c1_1__seen = new Set();
-    if(!conn_c1_1__seen.has("s1::current")) { this.attachEndpointSafe(conn_c1_1, this.RTCSystemCFD.s1, "current"); conn_c1_1__seen.add("s1::current"); }
-    this.addConnector(conn_c1_1);
-    const conn_s1_current__x_x_s1_current__x_x_2 = new Connector("s1.current__x.x_s1.current__x.x");
-    const conn_s1_current__x_x_s1_current__x_x_2__seen = new Set();
-    if(!conn_s1_current__x_x_s1_current__x_x_2__seen.has("s1::current")) { this.attachEndpointSafe(conn_s1_current__x_x_s1_current__x_x_2, this.RTCSystemCFD.s1, "current"); conn_s1_current__x_x_s1_current__x_x_2__seen.add("s1::current"); }
-    this.addConnector(conn_s1_current__x_x_s1_current__x_x_2);
-    const conn_uc_4 = new Connector("uc");
-    const conn_uc_4__seen = new Set();
-    if(!conn_uc_4__seen.has("ui::desired")) { this.attachEndpointSafe(conn_uc_4, this.RTCSystemCFD.ui, "desired"); conn_uc_4__seen.add("ui::desired"); }
-    this.addConnector(conn_uc_4);
-    const conn_ui_desired__x_x_ui_desired__x_x_5 = new Connector("ui.desired__x.x_ui.desired__x.x");
-    const conn_ui_desired__x_x_ui_desired__x_x_5__seen = new Set();
-    if(!conn_ui_desired__x_x_ui_desired__x_x_5__seen.has("ui::desired")) { this.attachEndpointSafe(conn_ui_desired__x_x_ui_desired__x_x_5, this.RTCSystemCFD.ui, "desired"); conn_ui_desired__x_x_ui_desired__x_x_5__seen.add("ui::desired"); }
-    this.addConnector(conn_ui_desired__x_x_ui_desired__x_x_5);
-    const conn_cc2_7 = new Connector("cc2");
-    const conn_cc2_7__seen = new Set();
-    if(!conn_cc2_7__seen.has("a2::controllerC")) { this.attachEndpointSafe(conn_cc2_7, this.RTCSystemCFD.a2, "controllerC"); conn_cc2_7__seen.add("a2::controllerC"); }
-    this.addConnector(conn_cc2_7);
-    const conn_x_x__a2_controllerC_x_x__a2_controllerC_8 = new Connector("x.x__a2.controllerC_x.x__a2.controllerC");
-    const conn_x_x__a2_controllerC_x_x__a2_controllerC_8__seen = new Set();
-    if(!conn_x_x__a2_controllerC_x_x__a2_controllerC_8__seen.has("a2::controllerC")) { this.attachEndpointSafe(conn_x_x__a2_controllerC_x_x__a2_controllerC_8, this.RTCSystemCFD.a2, "controllerC"); conn_x_x__a2_controllerC_x_x__a2_controllerC_8__seen.add("a2::controllerC"); }
-    this.addConnector(conn_x_x__a2_controllerC_x_x__a2_controllerC_8);
-    const conn_pc_10 = new Connector("pc");
-    const conn_pc_10__seen = new Set();
-    if(!conn_pc_10__seen.has("s3::detected")) { this.attachEndpointSafe(conn_pc_10, this.RTCSystemCFD.s3, "detected"); conn_pc_10__seen.add("s3::detected"); }
-    if(!conn_pc_10__seen.has("rtc::detected")) { this.attachEndpointSafe(conn_pc_10, this.RTCSystemCFD.rtc, "detected"); conn_pc_10__seen.add("rtc::detected"); }
-    this.addConnector(conn_pc_10);
-    const conn_s3_detected__rtc_detected_s3_detected__rtc_detected_11 = new Connector("s3.detected__rtc.detected_s3.detected__rtc.detected");
-    const conn_s3_detected__rtc_detected_s3_detected__rtc_detected_11__seen = new Set();
-    if(!conn_s3_detected__rtc_detected_s3_detected__rtc_detected_11__seen.has("s3::detected")) { this.attachEndpointSafe(conn_s3_detected__rtc_detected_s3_detected__rtc_detected_11, this.RTCSystemCFD.s3, "detected"); conn_s3_detected__rtc_detected_s3_detected__rtc_detected_11__seen.add("s3::detected"); }
-    if(!conn_s3_detected__rtc_detected_s3_detected__rtc_detected_11__seen.has("rtc::detected")) { this.attachEndpointSafe(conn_s3_detected__rtc_detected_s3_detected__rtc_detected_11, this.RTCSystemCFD.rtc, "detected"); conn_s3_detected__rtc_detected_s3_detected__rtc_detected_11__seen.add("rtc::detected"); }
-    this.addConnector(conn_s3_detected__rtc_detected_s3_detected__rtc_detected_11);
-    const conn_c2_13 = new Connector("c2");
-    const conn_c2_13__seen = new Set();
-    if(!conn_c2_13__seen.has("s2::current")) { this.attachEndpointSafe(conn_c2_13, this.RTCSystemCFD.s2, "current"); conn_c2_13__seen.add("s2::current"); }
-    this.addConnector(conn_c2_13);
-    const conn_s2_current__x_x_s2_current__x_x_14 = new Connector("s2.current__x.x_s2.current__x.x");
-    const conn_s2_current__x_x_s2_current__x_x_14__seen = new Set();
-    if(!conn_s2_current__x_x_s2_current__x_x_14__seen.has("s2::current")) { this.attachEndpointSafe(conn_s2_current__x_x_s2_current__x_x_14, this.RTCSystemCFD.s2, "current"); conn_s2_current__x_x_s2_current__x_x_14__seen.add("s2::current"); }
-    this.addConnector(conn_s2_current__x_x_s2_current__x_x_14);
-    const conn_cc1_16 = new Connector("cc1");
-    const conn_cc1_16__seen = new Set();
-    if(!conn_cc1_16__seen.has("a1::controllerH")) { this.attachEndpointSafe(conn_cc1_16, this.RTCSystemCFD.a1, "controllerH"); conn_cc1_16__seen.add("a1::controllerH"); }
-    this.addConnector(conn_cc1_16);
-    const conn_x_x__a1_controllerH_x_x__a1_controllerH_17 = new Connector("x.x__a1.controllerH_x.x__a1.controllerH");
-    const conn_x_x__a1_controllerH_x_x__a1_controllerH_17__seen = new Set();
-    if(!conn_x_x__a1_controllerH_x_x__a1_controllerH_17__seen.has("a1::controllerH")) { this.attachEndpointSafe(conn_x_x__a1_controllerH_x_x__a1_controllerH_17, this.RTCSystemCFD.a1, "controllerH"); conn_x_x__a1_controllerH_x_x__a1_controllerH_17__seen.add("a1::controllerH"); }
-    this.addConnector(conn_x_x__a1_controllerH_x_x__a1_controllerH_17);
-    const conn_target_19 = new Connector("target");
-    const conn_target_19__seen = new Set();
-    if(!conn_target_19__seen.has("cm::target2")) { this.attachEndpointSafe(conn_target_19, this.RTCSystemCFD.rtc.cm, "target2"); conn_target_19__seen.add("cm::target2"); }
-    this.addConnector(conn_target_19);
-    const conn_x_x__cm_target2_x_x__cm_target2_20 = new Connector("x.x__cm.target2_x.x__cm.target2");
-    const conn_x_x__cm_target2_x_x__cm_target2_20__seen = new Set();
-    if(!conn_x_x__cm_target2_x_x__cm_target2_20__seen.has("cm::target2")) { this.attachEndpointSafe(conn_x_x__cm_target2_x_x__cm_target2_20, this.RTCSystemCFD.rtc.cm, "target2"); conn_x_x__cm_target2_x_x__cm_target2_20__seen.add("cm::target2"); }
-    this.addConnector(conn_x_x__cm_target2_x_x__cm_target2_20);
-    const conn_average_22 = new Connector("average");
-    const conn_average_22__seen = new Set();
-    if(!conn_average_22__seen.has("sm::average")) { this.attachEndpointSafe(conn_average_22, this.RTCSystemCFD.rtc.sm, "average"); conn_average_22__seen.add("sm::average"); }
-    if(!conn_average_22__seen.has("cm::average2")) { this.attachEndpointSafe(conn_average_22, this.RTCSystemCFD.rtc.cm, "average2"); conn_average_22__seen.add("cm::average2"); }
-    this.addConnector(conn_average_22);
-    const conn_average_average__average2_average2_average_average__average2_average2_23 = new Connector("average.average__average2.average2_average.average__average2.average2");
-    const conn_average_average__average2_average2_average_average__average2_average2_23__seen = new Set();
-    if(!conn_average_average__average2_average2_average_average__average2_average2_23__seen.has("sm::average")) { this.attachEndpointSafe(conn_average_average__average2_average2_average_average__average2_average2_23, this.RTCSystemCFD.rtc.sm, "average"); conn_average_average__average2_average2_average_average__average2_average2_23__seen.add("sm::average"); }
-    if(!conn_average_average__average2_average2_average_average__average2_average2_23__seen.has("cm::average2")) { this.attachEndpointSafe(conn_average_average__average2_average2_average_average__average2_average2_23, this.RTCSystemCFD.rtc.cm, "average2"); conn_average_average__average2_average2_average_average__average2_average2_23__seen.add("cm::average2"); }
-    this.addConnector(conn_average_average__average2_average2_average_average__average2_average2_23);
+    const CN_c1_1 = new CN_FahrenheitToCelsiusCN("c1");
+    this.addConnector(CN_c1_1);
+    const CN_uc_4 = new CN_CTemperatureCN("uc");
+    this.addConnector(CN_uc_4);
+    const CN_cc2_7 = new CN_CommandCN("cc2");
+    this.addConnector(CN_cc2_7);
+    const CN_pc_10 = new CN_PresenceCN("pc");
+    this.addConnector(CN_pc_10);
+    const CN_c2_13 = new CN_FahrenheitToCelsiusCN("c2");
+    this.addConnector(CN_c2_13);
+    const CN_cc1_16 = new CN_CommandCN("cc1");
+    this.addConnector(CN_cc1_16);
+    const CN_target_19 = new CN_CTemperatureCN("target");
+    this.addConnector(CN_target_19);
+    const CN_average_22 = new CN_CTemperatureCN("average");
+    this.addConnector(CN_average_22);
+    const CN_target_25 = new CN_CTemperatureCN("target");
+    this.addConnector(CN_target_25);
+    const CN_average_28 = new CN_CTemperatureCN("average");
+    this.addConnector(CN_average_28);
   }
 }
 
