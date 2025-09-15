@@ -72,10 +72,14 @@ class SysADLModel extends Model {
     this.SystemCP.tempMon = new CP_Elements_TempMonitorCP("tempMon", { isBoundary: true, sysadlDefinition: "TempMonitorCP" });
     this.SystemCP.addComponent(this.SystemCP.tempMon);
 
+    this.SystemCP.addConnector(new CN_Elements_FarToCelCN("c1"));
+    this.SystemCP.addConnector(new CN_Elements_FarToCelCN("c2"));
+    this.SystemCP.addConnector(new CN_Elements_CelToCelCN("c3"));
+
     this.addExecutableSafe("SysADLModel.FarToCelEX", "executable def FarToCelEX (in f:Real): out Real {\n\t\treturn 5*(f - 32)/9 ;\n\t}", []);
     this.addExecutableSafe("SysADLModel.CalcAverageEX", "executable def CalcAverageEX(in temp1:Real,in temp2:Real):out Real{\n\t\treturn (temp1 + temp2)/2 ;\n\t}", []);
-    this.addExecutableSafe("SysADLModel.rl14", "executable FarToCelEX to FarToCelAN", []);
-    this.addExecutableSafe("SysADLModel.esvm", "executable CalcAverageEX to TempMonitorAN", []);
+    this.addExecutableSafe("SysADLModel.cvf1", "executable FarToCelEX to FarToCelAN", []);
+    this.addExecutableSafe("SysADLModel.epx7", "executable CalcAverageEX to TempMonitorAN", []);
     const act_FarToCelAC_s1 = new Activity("FarToCelAC", { component: "s1", inputPorts: ["current"] });
     act_FarToCelAC_s1.addAction(new Action("FarToCelAN", [], "FarToCelEX"));
     this.registerActivity("FarToCelAC::s1", act_FarToCelAC_s1);
@@ -91,12 +95,6 @@ class SysADLModel extends Model {
     const act_TempMonitorAC_tempMon = new Activity("TempMonitorAC", { component: "tempMon", inputPorts: ["s1"] });
     act_TempMonitorAC_tempMon.addAction(new Action("TempMonitorAN", [], "CalcAverageEX"));
     this.registerActivity("TempMonitorAC::tempMon", act_TempMonitorAC_tempMon);
-    const CN_c1_1 = new CN_Elements_FarToCelCN("c1");
-    this.addConnector(CN_c1_1);
-    const CN_c2_4 = new CN_Elements_FarToCelCN("c2");
-    this.addConnector(CN_c2_4);
-    const CN_c3_7 = new CN_Elements_CelToCelCN("c3");
-    this.addConnector(CN_c3_7);
   }
 }
 

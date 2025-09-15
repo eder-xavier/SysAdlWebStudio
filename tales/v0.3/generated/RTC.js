@@ -177,18 +177,29 @@ class SysADLModel extends Model {
     this.RTCSystemCFD.rtc.sm = new CP_Components_SensorsMonitorCP("sm", { sysadlDefinition: "SensorsMonitorCP" });
     this.RTCSystemCFD.rtc.addComponent(this.RTCSystemCFD.rtc.sm);
 
+    this.RTCSystemCFD.addConnector(new CN_Connectors_FahrenheitToCelsiusCN("c1"));
+    this.RTCSystemCFD.addConnector(new CN_Connectors_CTemperatureCN("uc"));
+    this.RTCSystemCFD.addConnector(new CN_Connectors_CommandCN("cc2"));
+    this.RTCSystemCFD.addConnector(new CN_Connectors_PresenceCN("pc"));
+    this.RTCSystemCFD.addConnector(new CN_Connectors_FahrenheitToCelsiusCN("c2"));
+    this.RTCSystemCFD.addConnector(new CN_Connectors_CommandCN("cc1"));
+    this.RTCSystemCFD.addConnector(new CN_Connectors_CTemperatureCN("target"));
+    this.RTCSystemCFD.addConnector(new CN_Connectors_CTemperatureCN("average"));
+    this.RTCSystemCFD.addConnector(new CN_Connectors_CTemperatureCN("target"));
+    this.RTCSystemCFD.addConnector(new CN_Connectors_CTemperatureCN("average"));
+
     this.addExecutableSafe("SysADLModel.CommandCoolerEx", "executable def CommandCoolerEx(in cmds:Commands): out Command{return cmds->cooler ; }", []);
     this.addExecutableSafe("SysADLModel.CommandHeaterEx", "executable def CommandHeaterEx(in cmds:Commands): out Command{return cmds->heater ; }", []);
     this.addExecutableSafe("SysADLModel.FahrenheitToCelsiusEx", "executable def FahrenheitToCelsiusEx(in f:FahrenheitTemperature): out CelsiusTemperature{return 5*(f - 32)/9 ; }", []);
     this.addExecutableSafe("SysADLModel.CalculateAverageTemperatureEx", "executable def CalculateAverageTemperatureEx(in temp1:CelsiusTemperature,in temp2:CelsiusTemperature):out CelsiusTemperature{return (temp1 + temp2)/2 ; }", []);
     this.addExecutableSafe("SysADLModel.CheckPresenceToSetTemperature", "executable def CheckPresenceToSetTemperature(in presence:Boolean, in userTemp:CelsiusTemperature):out CelsiusTemperature{if(presence == true) return userTemp; else return 2; }", []);
     this.addExecutableSafe("SysADLModel.CompareTemperatureEx", "executable def CompareTemperatureEx(in target:CelsiusTemperature, in average:CelsiusTemperature):out Commands{let heater:Command = types.Command::Off; let cooler:Command = types.Command::Off; if(average > target) {heater = types.Command::Off; cooler = types.Command::On ; } else {heater = types.Command::On; cooler = types.Command::Off ;} }", []);
-    this.addExecutableSafe("SysADLModel.veyz", "executable FahrenheitToCelsiusEx to FahrenheitToCelsiusAN", []);
-    this.addExecutableSafe("SysADLModel.8j0w", "executable CompareTemperatureEx to CompareTemperatureAN", []);
-    this.addExecutableSafe("SysADLModel.orcr", "executable CommandHeaterEx to CommandHeaterAN", []);
-    this.addExecutableSafe("SysADLModel.hn3o", "executable CommandCoolerEx to CommandCoolerAN", []);
-    this.addExecutableSafe("SysADLModel.0cbv", "executable CheckPresenceToSetTemperature to CheckPeresenceToSetTemperatureAN", []);
-    this.addExecutableSafe("SysADLModel.1gs6", "executable CalculateAverageTemperatureEx to CalculateAverageTemperatureAN", []);
+    this.addExecutableSafe("SysADLModel.vx8v", "executable FahrenheitToCelsiusEx to FahrenheitToCelsiusAN", []);
+    this.addExecutableSafe("SysADLModel.q22v", "executable CompareTemperatureEx to CompareTemperatureAN", []);
+    this.addExecutableSafe("SysADLModel.arbo", "executable CommandHeaterEx to CommandHeaterAN", []);
+    this.addExecutableSafe("SysADLModel.97ar", "executable CommandCoolerEx to CommandCoolerAN", []);
+    this.addExecutableSafe("SysADLModel.2aj8", "executable CheckPresenceToSetTemperature to CheckPeresenceToSetTemperatureAN", []);
+    this.addExecutableSafe("SysADLModel.k16e", "executable CalculateAverageTemperatureEx to CalculateAverageTemperatureAN", []);
     const act_CalculateAverageTemperatureAC_s1 = new Activity("CalculateAverageTemperatureAC", { component: "s1", inputPorts: ["current"] });
     act_CalculateAverageTemperatureAC_s1.addAction(new Action("CalculateAverageTemperatureAN", [], "CalculateAverageTemperatureEx"));
     this.registerActivity("CalculateAverageTemperatureAC::s1", act_CalculateAverageTemperatureAC_s1);
@@ -329,26 +340,6 @@ class SysADLModel extends Model {
     const act_FahrenheitToCelsiusAC_pc = new Activity("FahrenheitToCelsiusAC", { component: "pc", inputPorts: ["detected"] });
     act_FahrenheitToCelsiusAC_pc.addAction(new Action("FahrenheitToCelsiusAN", [], "FahrenheitToCelsiusEx"));
     this.registerActivity("FahrenheitToCelsiusAC::pc", act_FahrenheitToCelsiusAC_pc);
-    const CN_c1_1 = new CN_Connectors_FahrenheitToCelsiusCN("c1");
-    this.addConnector(CN_c1_1);
-    const CN_uc_4 = new CN_Connectors_CTemperatureCN("uc");
-    this.addConnector(CN_uc_4);
-    const CN_cc2_7 = new CN_Connectors_CommandCN("cc2");
-    this.addConnector(CN_cc2_7);
-    const CN_pc_10 = new CN_Connectors_PresenceCN("pc");
-    this.addConnector(CN_pc_10);
-    const CN_c2_13 = new CN_Connectors_FahrenheitToCelsiusCN("c2");
-    this.addConnector(CN_c2_13);
-    const CN_cc1_16 = new CN_Connectors_CommandCN("cc1");
-    this.addConnector(CN_cc1_16);
-    const CN_Components_target_19 = new CN_Connectors_CTemperatureCN("target");
-    this.addConnector(CN_Components_target_19);
-    const CN_Components_average_22 = new CN_Connectors_CTemperatureCN("average");
-    this.addConnector(CN_Components_average_22);
-    const CN_Components_target_25 = new CN_Connectors_CTemperatureCN("target");
-    this.addConnector(CN_Components_target_25);
-    const CN_Components_average_28 = new CN_Connectors_CTemperatureCN("average");
-    this.addConnector(CN_Components_average_28);
   }
 }
 

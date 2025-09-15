@@ -66,6 +66,37 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     return `${defaultPrefix}_`;
   }
   
+  // Helper function to find common parent path from multiple paths
+  function findCommonParentPath(paths) {
+    if (!paths || paths.length === 0) return null;
+    if (paths.length === 1) {
+      const parts = paths[0].split('.');
+      return parts.length > 1 ? parts.slice(0, -1).join('.') : null;
+    }
+    
+    // Split all paths into parts
+    const pathParts = paths.map(path => path.split('.'));
+    
+    // Find shortest path length
+    const minLength = Math.min(...pathParts.map(parts => parts.length));
+    
+    // Find common prefix - but we need to find the deepest common container
+    let commonParts = [];
+    for (let i = 0; i < minLength; i++) {
+      const part = pathParts[0][i];
+      if (pathParts.every(parts => parts[i] === part)) {
+        commonParts.push(part);
+      } else {
+        break;
+      }
+    }
+    
+    // For connector ownership, we want the deepest common parent that can contain connectors
+    // If all paths share 'this.SystemCP', then SystemCP should own the connectors
+    const result = commonParts.length >= 2 ? commonParts.join('.') : null;
+    return result;
+  }
+  
   // Helper function to determine the port class to use (PT_ class if available, otherwise Port)
   function getPortClass(portName, isComposite = false, portUse = null) {
     if (isComposite) {
@@ -573,6 +604,45 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     else instancePathMap[iname] = `this.${iname}`;
   }
 
+  // emit connectors early (right after components are added)
+  if (Array.isArray(connectorDescriptors) && connectorDescriptors.length) {
+    // Filter to include only connectors defined in the SysADL (c1, c2, c3, etc)
+    const filteredConnectors = connectorDescriptors.filter(cb => {
+      const cname = cb.name || ('connector_' + Math.random().toString(36).slice(2,6));
+      // Include only connectors with recognizable names (c1, c2, c3, etc) or proper naming pattern
+      return /^c\d+$/.test(cname) || (cb.name && cb.name.length > 0 && !cname.includes('connector_'));
+    });
+    
+    if (filteredConnectors.length > 0) {
+      for (const cb of filteredConnectors) {
+        const cname = cb.name || ('connector_' + Math.random().toString(36).slice(2,6));
+        
+        // Determine the connector class to use based on definition
+        const connectorDef = cb.definition || null;
+        const connectorClass = connectorDef ? (getPackagePrefix(connectorDef, 'CN') + connectorDef) : 'Connector';
+        
+        // Determine which component should own this connector
+        let connectorOwner = 'this'; // default to model level
+        
+        // Simple heuristic: if we have components in instancePathMap that share a common prefix,
+        // use that prefix as the connector owner
+        const componentPaths = Object.values(instancePathMap);
+        if (componentPaths.length > 0) {
+          // Find the most common parent from all component paths
+          const commonParent = findCommonParentPath(componentPaths);
+          if (commonParent && commonParent !== 'this') {
+            connectorOwner = commonParent;
+          }
+        }
+        
+        // Add connector to the appropriate component using inline syntax
+        lines.push(`    ${connectorOwner}.addConnector(new ${connectorClass}(${JSON.stringify(cname)}));`);
+      }
+      
+      lines.push('');
+    }
+  }
+
   // emit ports (attach to component instances)
   // track emitted ports to avoid duplicate lines when portUses and activity ensures overlap
   const __emittedPorts = new Set();
@@ -828,124 +898,9 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     }
   }
   const unresolvedBindings = [];
-  // emit connectors (use normalized connectorDescriptors so we have participants/bindings resolved)
-  if (Array.isArray(connectorDescriptors) && connectorDescriptors.length) {
-    // Filter to include only connectors defined in the SysADL (c1, c2, c3, etc)
-    const filteredConnectors = connectorDescriptors.filter(cb => {
-      const cname = cb.name || ('connector_' + Math.random().toString(36).slice(2,6));
-      // Include only connectors with recognizable names (c1, c2, c3, etc) or proper naming pattern
-      return /^c\d+$/.test(cname) || (cb.name && cb.name.length > 0 && !cname.includes('connector_'));
-    });
-    
-    // avoid emitting multiple connectors that resolve to the same concrete endpoint set
-    const __connectorSigsEmitted = new Set();
-    for (const cb of filteredConnectors) {
-      const cname = cb.name || ('connector_' + Math.random().toString(36).slice(2,6));
-      // Use simple name with UID to avoid duplicates
-      const uid = cb && cb._uid ? '_' + String(cb._uid) : '';
-      const varName = getPackagePrefix(cname, 'CN') + sanitizeId(String(cname)) + uid;
-  // build a simple signature from participants/bindings to detect duplicate connectors (owner::port sorted)
-  try {
-    const __partsForSig = [];
-    if (Array.isArray(cb.participants) && cb.participants.length) {
-      for (const p of cb.participants) {
-        if (p && p.owner && p.port) __partsForSig.push(`${p.owner}::${p.port}`);
-      }
-    }
-    if (Array.isArray(cb.bindings) && cb.bindings.length) {
-      for (const b of cb.bindings) {
-        try {
-          if (b && b.left && b.left.owner && b.left.port) __partsForSig.push(`${b.left.owner}::${b.left.port}`);
-          if (b && b.right && b.right.owner && b.right.port) __partsForSig.push(`${b.right.owner}::${b.right.port}`);
-        } catch(e){}
-      }
-    }
-    const __sig = (__partsForSig.length ? __partsForSig.sort().join('|') : null);
-    if (__sig && __connectorSigsEmitted.has(__sig)) continue;
-    if (__sig) __connectorSigsEmitted.add(__sig);
-  } catch(e){}
-  // Determine the connector class to use based on definition
-  const connectorDef = cb.definition || null;
-  const connectorClass = connectorDef ? (getPackagePrefix(connectorDef, 'CN') + connectorDef) : 'Connector';
-  
-  lines.push(`    const ${varName} = new ${connectorClass}(${JSON.stringify(cname)});`);
-  // track endpoints already emitted for this connector to avoid duplicate __attachEndpoint calls
-  let needsSeenSet = false;
-  // Check if we need the seen set (only if there are participants that will use it)
-  if ((Array.isArray(cb.participants) && cb.participants.length) || 
-      (Array.isArray(cb.bindings) && cb.bindings.length)) {
-    needsSeenSet = true;
-    lines.push(`    const ${varName}__seen = new Set();`);
-  }
-  // generator-time dedupe: avoid emitting identical attach lines multiple times
-  const emittedConnEndpointsLocal = new Set();
-      // attach participants if present (resolved earlier)
-          if (Array.isArray(cb.participants) && cb.participants.length) {
-        for (const p of cb.participants) {
-          if (!p || !p.owner || !p.port) { unresolvedBindings.push({ connector: cname, reason: 'missing owner/port', entry: p }); continue; }
-          // owner may be qualified like 'a.b' -> prefer instancePathMap lookup to get full expression
-          const ownerExpr = (instancePathMap && instancePathMap[p.owner]) ? instancePathMap[p.owner] : `this.${p.owner}`;
-          // compute a stable key for dedupe
-          const epKey = `${p.owner}::${p.port}`;
-          if (emittedConnEndpointsLocal.has(epKey)) continue;
-          emittedConnEndpointsLocal.add(epKey);
-          // emit attach only if not seen for this connector
-          if (String(p.port).indexOf('.') !== -1) {
-            const parts = String(p.port).split('.');
-            const sub = parts.slice(1).join('.');
-            const main = parts[0];
-            lines.push(`    { const __owner = ${ownerExpr}; const __compPort = (__owner && __owner.ports && __owner.ports[${JSON.stringify(main)}]) ? __owner.ports[${JSON.stringify(main)}] : null; if(!__compPort) throw new Error('Missing composite port '+${JSON.stringify(main)}+' on '+${JSON.stringify(p.owner)}); const __sp = __compPort.getSubPort(${JSON.stringify(sub)}); if(!__sp) throw new Error('Missing sub-port '+${JSON.stringify(sub)}+' on '+${JSON.stringify(p.owner)}+'.'+${JSON.stringify(main)}); if(!${varName}__seen.has(${JSON.stringify(epKey)})) { this.attachEndpointSafe(${varName}, __sp); ${varName}__seen.add(${JSON.stringify(epKey)}); } }`);
-          } else {
-            lines.push(`    if(!${varName}__seen.has(${JSON.stringify(epKey)})) { this.attachEndpointSafe(${varName}, ${ownerExpr}, ${JSON.stringify(p.port)}); ${varName}__seen.add(${JSON.stringify(epKey)}); }`);
-          }
-        }
-      }
-      // also handle bindings array (may contain strings or resolved objects)
-  if (Array.isArray(cb.bindings) && cb.bindings.length) {
-        for (const b of cb.bindings) {
-          const left = b && (b.left || b.from) ? b.left : null;
-          const right = b && (b.right || b.to) ? b.right : null;
-          if (!left || !right) { unresolvedBindings.push({ connector: cname, reason: 'binding pair missing', entry: b }); continue; }
-          // string form: attempt to attach using previous heuristics
-      if (typeof left === 'string' && typeof right === 'string') {
-            const lparts = String(left).split('.'); const rparts = String(right).split('.');
-            const lowner = lparts.length>1? lparts[0] : null; const lport = lparts.length>1? lparts.slice(1).join('.') : lparts[0];
-            const rowner = rparts.length>1? rparts[0] : null; const rport = rparts.length>1? rparts.slice(1).join('.') : rparts[0];
-                      if (lowner) {
-                        const ownerExpr = (instancePathMap && instancePathMap[lowner]) ? instancePathMap[lowner] : `this.${lowner}`;
-            const epKeyL = `${lowner}::${lport}`;
-            if (!emittedConnEndpointsLocal.has(epKeyL)) { emittedConnEndpointsLocal.add(epKeyL); lines.push(`    if(!${varName}__seen.has(${JSON.stringify(epKeyL)})) { this.attachEndpointSafe(${varName}, ${ownerExpr}, ${JSON.stringify(lport)}); ${varName}__seen.add(${JSON.stringify(epKeyL)}); }`); }
-            } else {
-        unresolvedBindings.push({ connector: cname, reason: 'unqualified port left', port: lport, binding: b });
-            }
-            if (rowner) {
-              const ownerExpr = (instancePathMap && instancePathMap[rowner]) ? instancePathMap[rowner] : `this.${rowner}`;
-  const epKeyR = `${rowner}::${rport}`;
-  if (!emittedConnEndpointsLocal.has(epKeyR)) { emittedConnEndpointsLocal.add(epKeyR); lines.push(`    if(!${varName}__seen.has(${JSON.stringify(epKeyR)})) { this.attachEndpointSafe(${varName}, ${ownerExpr}, ${JSON.stringify(rport)}); ${varName}__seen.add(${JSON.stringify(epKeyR)}); }`); }
-            } else {
-        unresolvedBindings.push({ connector: cname, reason: 'unqualified port right', port: rport, binding: b });
-            }
-            continue;
-          }
-          // object form: { left: { owner, port }, right: { owner, port } }
-          const lobj = (typeof left === 'object' && left) ? left : null;
-          const robj = (typeof right === 'object' && right) ? right : null;
-          if (lobj && lobj.owner && lobj.port) {
-            const ownerExpr = instancePathMap[lobj.owner] || `this.${lobj.owner}`;
-            const epKeyL = `${lobj.owner}::${lobj.port}`;
-            if (!emittedConnEndpointsLocal.has(epKeyL)) { emittedConnEndpointsLocal.add(epKeyL); lines.push(`    if(!${varName}__seen.has(${JSON.stringify(epKeyL)})) { this.attachEndpointSafe(${varName}, ${ownerExpr}, ${JSON.stringify(lobj.port)}); ${varName}__seen.add(${JSON.stringify(epKeyL)}); }`); }
-          } else if (lobj && (!lobj.owner || !lobj.port)) unresolvedBindings.push({ connector: cname, reason: 'unresolved object left', entry: lobj });
-          if (robj && robj.owner && robj.port) {
-            const ownerExpr = instancePathMap[robj.owner] || `this.${robj.owner}`;
-            const epKeyR = `${robj.owner}::${robj.port}`;
-            if (!emittedConnEndpointsLocal.has(epKeyR)) { emittedConnEndpointsLocal.add(epKeyR); lines.push(`    if(!${varName}__seen.has(${JSON.stringify(epKeyR)})) { this.attachEndpointSafe(${varName}, ${ownerExpr}, ${JSON.stringify(robj.port)}); ${varName}__seen.add(${JSON.stringify(epKeyR)}); }`); }
-          } else if (robj && (!robj.owner || !robj.port)) unresolvedBindings.push({ connector: cname, reason: 'unresolved object right', entry: robj });
-        }
-      }
-      // Add connector to the model (connectors are typically model-level)
-      lines.push(`    this.addConnector(${varName});`);
-    }
-  }
+  // connectors are now emitted earlier (right after components)
+
+  // if we collected unresolved bindings, fail with a consolidated report
 
   // if we collected unresolved bindings, fail with a consolidated report
   if (unresolvedBindings.length) {

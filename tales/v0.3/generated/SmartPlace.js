@@ -477,6 +477,24 @@ class SysADLArchitecture extends Model {
     this.SmartPlace.Raspberry.tc = new CP_SmartPlaceComponents_TemperatureController("tc", { sysadlDefinition: "TemperatureController" });
     this.SmartPlace.Raspberry.addComponent(this.SmartPlace.Raspberry.tc);
 
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_QueryDataBaseCN("qdb"));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendPostgreSQLInfoCN("spsqli"));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendContextCN("ci1"));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_ContextCN("c"));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_CmdRestfulCN("cr"));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendValueCN("sendPresence"));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_FrameListCN("fl"));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendValueCN("sendTempHumi"));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_ReservationCN("rn"));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_InfraCodeCN("ic"));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_InfraredSignalCN("is"));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendValueCN("countPeople"));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_ReservationCN("rn"));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_UndefinedCN("u"));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_UndefinedCN("u"));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendValueCN("countPeople"));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_ReservationCN("rn"));
+
     const act_RaspberryControllerAC_spw = new Activity("RaspberryControllerAC", { component: "spw", inputPorts: ["u"] });
     this.registerActivity("RaspberryControllerAC::spw", act_RaspberryControllerAC_spw);
     const act_RaspberryControllerAC_rrs = new Activity("RaspberryControllerAC", { component: "rrs", inputPorts: ["ri"] });
@@ -555,40 +573,6 @@ class SysADLArchitecture extends Model {
     this.registerActivity("UpdateContextSensorsAC::gg", act_UpdateContextSensorsAC_gg);
     const act_UpdateContextSensorsAC_hc = new Activity("UpdateContextSensorsAC", { component: "hc", inputPorts: ["rr"] });
     this.registerActivity("UpdateContextSensorsAC::hc", act_UpdateContextSensorsAC_hc);
-    const CN_qdb_1 = new CN_SmartPlaceConnectors_QueryDataBaseCN("qdb");
-    this.addConnector(CN_qdb_1);
-    const CN_spsqli_4 = new CN_SmartPlaceConnectors_SendPostgreSQLInfoCN("spsqli");
-    this.addConnector(CN_spsqli_4);
-    const CN_ci1_7 = new CN_SmartPlaceConnectors_SendContextCN("ci1");
-    this.addConnector(CN_ci1_7);
-    const CN_c_10 = new CN_SmartPlaceConnectors_ContextCN("c");
-    this.addConnector(CN_c_10);
-    const CN_cr_13 = new CN_SmartPlaceConnectors_CmdRestfulCN("cr");
-    this.addConnector(CN_cr_13);
-    const CN_sendPresence_16 = new CN_SmartPlaceConnectors_SendValueCN("sendPresence");
-    this.addConnector(CN_sendPresence_16);
-    const CN_fl_19 = new CN_SmartPlaceConnectors_FrameListCN("fl");
-    this.addConnector(CN_fl_19);
-    const CN_sendTempHumi_22 = new CN_SmartPlaceConnectors_SendValueCN("sendTempHumi");
-    this.addConnector(CN_sendTempHumi_22);
-    const CN_rn_25 = new CN_SmartPlaceConnectors_ReservationCN("rn");
-    this.addConnector(CN_rn_25);
-    const CN_SmartPlaceComponents_ic_28 = new CN_SmartPlaceConnectors_InfraCodeCN("ic");
-    this.addConnector(CN_SmartPlaceComponents_ic_28);
-    const CN_is_31 = new CN_SmartPlaceConnectors_InfraredSignalCN("is");
-    this.addConnector(CN_is_31);
-    const CN_countPeople_34 = new CN_SmartPlaceConnectors_SendValueCN("countPeople");
-    this.addConnector(CN_countPeople_34);
-    const CN_rn_37 = new CN_SmartPlaceConnectors_ReservationCN("rn");
-    this.addConnector(CN_rn_37);
-    const CN_SmartPlaceComponents_u_40 = new CN_SmartPlaceConnectors_UndefinedCN("u");
-    this.addConnector(CN_SmartPlaceComponents_u_40);
-    const CN_SmartPlaceComponents_u_43 = new CN_SmartPlaceConnectors_UndefinedCN("u");
-    this.addConnector(CN_SmartPlaceComponents_u_43);
-    const CN_countPeople_46 = new CN_SmartPlaceConnectors_SendValueCN("countPeople");
-    this.addConnector(CN_countPeople_46);
-    const CN_rn_49 = new CN_SmartPlaceConnectors_ReservationCN("rn");
-    this.addConnector(CN_rn_49);
   }
 }
 
