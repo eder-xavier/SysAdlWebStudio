@@ -4,7 +4,11 @@
 const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
-const { sanitizeId } = require('../v0.2/utils');
+
+// Utility function to sanitize identifiers for JavaScript code generation
+function sanitizeId(s) {
+  return String(s).replace(/[^A-Za-z0-9_]/g, '_');
+}
 
 async function loadParser(parserPath) {
   const url = pathToFileURL(parserPath).href;
@@ -47,7 +51,7 @@ function collectPortUses(configNode) {
   return uses;
 }
 
-function generateClassModule(modelName, compUses, portUses, connectorBindings, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, portAliasMap, compDefMapArg, portDefMapArg, embeddedTypes, connectorDefMap = {}, packageMap = {}) {
+function generateClassModule(modelName, compUses, portUses, connectorBindings, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, portAliasMap, compDefMapArg, portDefMapArg, embeddedTypes, connectorDefMap = {}, packageMap = {}, ast = null) {
   const lines = [];
   // runtime imports for generated module
   lines.push("const { Model, Component, Port, SimplePort, CompositePort, Connector, Activity, Action, createExecutableFromExpression, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit } = require('../SysADLBase');");
@@ -67,6 +71,353 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   }
   
   // Helper function to find common parent path from multiple paths
+  // Helper function to find the component context from AST node using AST analysis
+  function findComponentContextFromParentMap(node, instancePathMap, parentMap) {
+    console.log(`[DEBUG] findComponentContextFromParentMap called for node: ${node?.name || 'undefined'}`);
+    if (!node) return 'this';
+    
+    // Strategy 1: Use AST to find connector definition location
+    const connectorName = node.name;
+    if (connectorName && ast) {
+      console.log(`[DEBUG] Checking AST placement for connector: ${connectorName}`);
+      const astPlacement = findConnectorPlacementInAST(connectorName);
+      if (astPlacement && astPlacement !== 'system') {
+        console.log(`[AST Placement] Connector ${connectorName} -> ${astPlacement}`);
+        return astPlacement;
+      }
+      
+      // If AST found it in system level, map to instance path
+      if (astPlacement === 'system') {
+        // Look for the system instance in instancePathMap
+        for (const [instName, fullPath] of Object.entries(instancePathMap || {})) {
+          if (instName.toLowerCase().includes('system') || fullPath.toLowerCase().includes('system')) {
+            console.log(`[AST Placement] System connector ${connectorName} -> ${fullPath}`);
+            return fullPath;
+          }
+        }
+      }
+    }
+    
+    // Strategy 2: Look for connector name in the node hierarchy to map to component
+    let current = node;
+    
+    // Walk up to find configuration context
+    while (current && current.__parent) {
+      current = current.__parent;
+      
+      // Look for ComponentDef or Configuration
+      if (current.type === 'ComponentDef' || current.type === 'ComponentDefinition') {
+        const compDefName = current.name;
+        
+        // Find corresponding instance path from parentMap and instancePathMap
+        for (const [instanceName, parentPath] of Object.entries(parentMap || {})) {
+          for (const [instName, fullPath] of Object.entries(instancePathMap || {})) {
+            if (fullPath.includes(compDefName) || instName === instanceName) {
+              // This instance is related to the component definition
+              return fullPath;
+            }
+          }
+        }
+        
+        // Direct mapping by component definition name
+        for (const [instName, fullPath] of Object.entries(instancePathMap || {})) {
+          if (fullPath.includes(compDefName) || instName === compDefName) {
+            return fullPath;
+          }
+        }
+      }
+    }
+    
+    return 'this'; // fallback to model level
+  }
+
+  // AST-based connector placement analysis
+  function findConnectorPlacementInAST(connectorName) {
+    if (!ast) return null;
+
+    console.log(`[DEBUG] Looking for connector '${connectorName}' in AST...`);
+
+    try {
+      // The issue is that we're looking at ComponentDef (definitions) but connectors 
+      // are in component instances. Let's look at the AST structure to find instances.
+      
+      if (ast.involvedElements && Array.isArray(ast.involvedElements)) {
+        console.log(`[DEBUG] AST.involvedElements has ${ast.involvedElements.length} elements`);
+        
+        for (const element of ast.involvedElements) {
+          console.log(`[DEBUG] InvolvedElement: type=${element.type}, name=${element.name}`);
+          
+          // Look for component instances
+          if (element.type === 'Component' && element.configuration) {
+            console.log(`[DEBUG] Found component instance: ${element.name}`);
+            console.log(`[DEBUG] Configuration keys:`, Object.keys(element.configuration));
+            
+            if (element.configuration.connectors) {
+              console.log(`[DEBUG] Component instance ${element.name} has ${element.configuration.connectors.length} connectors`);
+              
+              for (const connector of element.configuration.connectors) {
+                console.log(`[DEBUG] Connector: ${connector.name}`);
+                if (connector.name === connectorName) {
+                  console.log(`[DEBUG] Found connector '${connectorName}' in instance ${element.name}!`);
+                  return element.name; // Return the instance name where connector is defined
+                }
+              }
+            }
+            
+            // Check nested components in the configuration
+            if (element.configuration.components) {
+              console.log(`[DEBUG] Component instance ${element.name} has ${element.configuration.components.length} nested components`);
+              
+              for (const nestedComp of element.configuration.components) {
+                console.log(`[DEBUG] Nested component: ${nestedComp.name}`);
+                const result = searchComponentInstanceForConnector(nestedComp, connectorName, [element.name, nestedComp.name]);
+                if (result) {
+                  console.log(`[DEBUG] Found connector '${connectorName}' at path: ${result.join('.')}`);
+                  return result.join('.');
+                }
+              }
+            }
+          }
+        }
+      }
+
+      console.log(`[DEBUG] No involvedElements or component instances found, falling back to definitions...`);
+      
+      // Fallback: search in component definitions (previous approach)
+      if (ast.members && Array.isArray(ast.members)) {
+        for (const member of ast.members) {
+          if (member.type === 'Package' && member.definitions) {
+            for (const definition of member.definitions) {
+              if (definition.type === 'ComponentDef' && definition.composite) {
+                const result = searchComponentForConnector(definition, connectorName, [definition.name]);
+                if (result) {
+                  return result;
+                }
+              }
+            }
+          }
+        }
+      }
+
+    } catch (error) {
+      console.error('Error in AST connector placement analysis:', error);
+    }
+
+    console.log(`[DEBUG] Connector '${connectorName}' not found in AST`);
+    return null;
+  }
+
+  // Helper function to search for connectors in a component instance
+  function searchComponentInstanceForConnector(component, connectorName, path) {
+    if (!component) return null;
+    
+    console.log(`[DEBUG] Searching in component instance ${component.name}, path: ${path.join('.')}`);
+    
+    // Check if this component instance has connectors
+    if (component.connectors) {
+      console.log(`[DEBUG] Component instance ${component.name} has ${component.connectors.length} connectors`);
+      
+      for (const connector of component.connectors) {
+        console.log(`[DEBUG] Connector: ${connector.name}`);
+        if (connector.name === connectorName) {
+          console.log(`[DEBUG] Found connector '${connectorName}' in instance ${component.name}!`);
+          return path; // Return the path where connector is defined
+        }
+      }
+    }
+    
+    // Recursively search in nested component instances
+    if (component.components) {
+      console.log(`[DEBUG] Component instance ${component.name} has ${component.components.length} nested components`);
+      
+      for (const nestedComp of component.components) {
+        console.log(`[DEBUG] Nested component: ${nestedComp.name}`);
+        const result = searchComponentInstanceForConnector(nestedComp, connectorName, [...path, nestedComp.name]);
+        if (result) return result;
+      }
+    }
+    
+    return null;
+  }
+
+  // Helper function to search for connectors in a component
+  function searchComponentForConnector(component, connectorName, path) {
+    if (!component) return null;
+    
+    console.log(`[DEBUG] Searching in component ${component.name}, path: ${path.join('.')}`);
+    console.log(`[DEBUG] Component keys:`, Object.keys(component));
+    
+    // Check if this component has members (component's internal structure)
+    if (component.members) {
+      console.log(`[DEBUG] Component ${component.name} has ${component.members.length} members`);
+      
+      for (const member of component.members) {
+        console.log(`[DEBUG] Member in ${component.name}: type=${member.type}, name=${member.name}`);
+        
+        // Check if this member is a connector
+        if (member.type === 'Connector' && member.name === connectorName) {
+          console.log(`[DEBUG] Found connector ${connectorName} in component ${component.name}!`);
+          return path; // Return the path where connector is defined
+        }
+        
+        // Recursively search in nested components
+        if (member.type === 'ComponentDef' && member.composite) {
+          console.log(`[DEBUG] Searching nested component: ${member.name}`);
+          const result = searchComponentForConnector(member, connectorName, [...path, member.name]);
+          if (result) return result;
+        }
+      }
+    }
+    
+    // Also check if this component has a configuration with connectors (alternative structure)
+    if (component.configuration) {
+      console.log(`[DEBUG] Component ${component.name} has configuration, keys:`, Object.keys(component.configuration));
+      
+      if (component.configuration.connectors) {
+        console.log(`[DEBUG] Component ${component.name} has ${component.configuration.connectors.length} connectors in configuration`);
+        
+        for (const connector of component.configuration.connectors) {
+          console.log(`[DEBUG] Connector in ${component.name}: ${connector.name}`);
+          if (connector.name === connectorName) {
+            console.log(`[DEBUG] Found connector ${connectorName} in component ${component.name}!`);
+            return path; // Return the path where connector is defined
+          }
+        }
+      }
+      
+      // Recursively search in nested components
+      if (component.configuration.components) {
+        console.log(`[DEBUG] Component ${component.name} has ${component.configuration.components.length} nested components`);
+        
+        for (const nestedComp of component.configuration.components) {
+          console.log(`[DEBUG] Nested component: ${nestedComp.name}`);
+          const result = searchComponentForConnector(nestedComp, connectorName, [...path, nestedComp.name]);
+          if (result) return result;
+        }
+      }
+    }
+    
+    return null;
+  }
+
+  function findComponentDefinition(componentName) {
+    if (!ast || !ast.packages) return null;
+
+    try {
+      for (const pkg of ast.packages) {
+        if (pkg.definitions) {
+          for (const definition of pkg.definitions) {
+            if (definition.type === 'ComponentDef' && definition.name === componentName) {
+              return definition;
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error finding component definition:', error);
+    }
+
+    return null;
+  }
+
+  function searchComponentConfiguration(componentDef, connectorName, currentPath) {
+    console.log(`[DEBUG] Searching in component '${componentDef.name}' with path: [${currentPath.join(', ')}]`);
+    
+    // First, recursively search in nested components
+    if (componentDef.composite && componentDef.composite.components) {
+      console.log(`[DEBUG] Component '${componentDef.name}' has nested components`);
+      const componentsSection = componentDef.composite.components;
+      for (const item of componentsSection) {
+        if (Array.isArray(item)) {
+          for (const subItem of item) {
+            if (subItem?.type === 'ComponentUse') {
+              console.log(`[DEBUG] Found nested component use: ${subItem.name} (type: ${subItem.definition})`);
+              // Find the component definition for this component use
+              const nestedComponentDef = findComponentDefinition(subItem.definition);
+              if (nestedComponentDef) {
+                const nestedPath = [...currentPath, subItem.name];
+                console.log(`[DEBUG] Recursing into ${subItem.name} with path: [${nestedPath.join(', ')}]`);
+                const result = searchComponentConfiguration(nestedComponentDef, connectorName, nestedPath);
+                if (result) {
+                  return result;
+                }
+              } else {
+                console.log(`[DEBUG] Could not find definition for component ${subItem.definition}`);
+              }
+            }
+          }
+        }
+      }
+    } else {
+      console.log(`[DEBUG] Component '${componentDef.name}' has no nested components`);
+    }
+
+    // Then check if this component's configuration defines our connector
+    if (componentDef.composite && componentDef.composite.connectors) {
+      console.log(`[DEBUG] Checking connectors in component '${componentDef.name}'`);
+      const connectorsSection = componentDef.composite.connectors;
+      if (configurationDefinesConnector(connectorsSection, connectorName)) {
+        console.log(`[DEBUG] Found connector '${connectorName}' in component '${componentDef.name}'`);
+        return formatConnectorPath(currentPath);
+      }
+    } else {
+      console.log(`[DEBUG] Component '${componentDef.name}' has no connectors section`);
+    }
+
+    return null;
+  }
+
+  function configurationDefinesConnector(connectorsSection, connectorName) {
+    if (!connectorsSection || !Array.isArray(connectorsSection)) return false;
+
+    // Handle the mixed array structure from PEG parser
+    for (const item of connectorsSection) {
+      if (Array.isArray(item)) {
+        for (const subItem of item) {
+          if (subItem?.type === 'ConnectorUse' && subItem.name === connectorName) {
+            return true;
+          }
+        }
+      } else if (item?.type === 'ConnectorUse' && item.name === connectorName) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  function formatConnectorPath(componentPath) {
+    // Convert component definition path to instance path format
+    
+    // Handle Simple model: ['SystemCP'] -> 'system'
+    if (componentPath.length === 1 && componentPath[0] === 'SystemCP') {
+      return 'system';
+    }
+    
+    // Handle RTC model specific mappings
+    if (componentPath.length === 1 && componentPath[0] === 'RTCSystemCFD') {
+      return 'RTCSystemCFD';
+    }
+    
+    if (componentPath.length === 2 && componentPath[0] === 'RTCSystemCFD' && componentPath[1] === 'rtc') {
+      return 'RTCSystemCFD.rtc';
+    }
+    
+    // Handle AGV model: ['SmartwatchSystemCFD'] -> 'SmartwatchSystemCFD'
+    if (componentPath.length === 1 && componentPath[0] === 'SmartwatchSystemCFD') {
+      return 'SmartwatchSystemCFD';
+    }
+    
+    // Handle SmartPlace model: ['SmartPlaceCFD'] -> 'SmartPlaceCFD'  
+    if (componentPath.length === 1 && componentPath[0] === 'SmartPlaceCFD') {
+      return 'SmartPlaceCFD';
+    }
+    
+    // For other hierarchies, map component definitions to their instance paths
+    // This covers the general case where component path mirrors instance hierarchy
+    return componentPath.join('.');
+  }
+
   function findCommonParentPath(paths) {
     if (!paths || paths.length === 0) return null;
     if (paths.length === 1) {
@@ -92,7 +443,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     }
     
     // For connector ownership, we want the deepest common parent that can contain connectors
-    // If all paths share 'this.SystemCP', then SystemCP should own the connectors
+    // If all paths share a common root component, then that component should own the connectors
     const result = commonParts.length >= 2 ? commonParts.join('.') : null;
     return result;
   }
@@ -305,10 +656,9 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
       if (!name) continue;
       const prefixedName = getPackagePrefix(name, 'PT') + name;
       
-      // Determine if this is a composite port
+      // Determine if this is a composite port based on structure, not naming patterns
       const isComposite = info.isComposite || 
-                         (info.expectedType && info.expectedType.toLowerCase().includes('composite')) ||
-                         (info.type && info.type.toLowerCase().includes('composite'));
+                         (info.subports && Array.isArray(info.subports) && info.subports.length > 0);
       
       // Choose the base class based on port type
       const baseClass = isComposite ? 'CompositePort' : 'SimplePort';
@@ -367,18 +717,50 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
         if (!name) continue;
         const prefixedName = getPackagePrefix(name, 'CN') + name;
         
+        // Check if this is a composite connector (has configuration with connectors)
+        const configuration = connDef.composite && connDef.composite[1] && connDef.composite[1].type === 'Configuration' 
+                            ? connDef.composite[1] 
+                            : null;
+        // Extract actual connectors from the parser structure
+        const connectorsArray = configuration && 
+                               configuration.connectors && 
+                               Array.isArray(configuration.connectors) && 
+                               configuration.connectors.length >= 6 && 
+                               Array.isArray(configuration.connectors[5])
+                               ? configuration.connectors[5]
+                               : [];
+        const isComposite = connectorsArray.length > 0;
+        
         classLines.push(`class ${prefixedName} extends Connector {`);
         classLines.push(`  constructor(name, opts = {}) {`);
         classLines.push(`    super(name, opts);`);
         
-        // Add participants information as comment
-        if (connDef.participants && Array.isArray(connDef.participants)) {
-          classLines.push(`    // Participants: ${connDef.participants.map(p => `${p.name || p.id}: ${p.type || p.portType || p.definition}`).join(', ')}`);
-        }
-        
-        // Add flows information as comment  
-        if (connDef.flows && Array.isArray(connDef.flows)) {
-          classLines.push(`    // Flows: ${connDef.flows.map(f => `${f.type || 'data'} from ${f.from || f.source} to ${f.to || f.target}`).join(', ')}`);
+        if (isComposite) {
+          // Generate sub-connectors for composite connectors
+          classLines.push(`    // Composite connector with internal connectors`);
+          
+          for (const subConn of connectorsArray) {
+            const subName = subConn.name;
+            const subDef = subConn.definition;
+            if (subName && subDef) {
+              const subPrefixedName = getPackagePrefix(subDef, 'CN') + subDef;
+              classLines.push(`    this.${subName} = new ${subPrefixedName}("${subName}");`);
+              classLines.push(`    this.connectors = this.connectors || {};`);
+              classLines.push(`    this.connectors["${subName}"] = this.${subName};`);
+            }
+          }
+        } else {
+          // Add participants information as comment for simple connectors
+          if (connDef.participants && Array.isArray(connDef.participants)) {
+            classLines.push(`    // Participants: ${connDef.participants.map(p => `${p.name || p.id}: ${p.type || p.portType || p.definition}`).join(', ')}`);
+          }
+          
+          // Add flows information as comment  
+          if (connDef.flows && Array.isArray(connDef.flows)) {
+            classLines.push(`    // Flows: ${connDef.flows.map(f => `${f.flowType || f.type || 'Flow'} from ${f.source} to ${f.destination}`).join(', ')}`);
+          } else {
+            classLines.push(`    // Flows: `);
+          }
         }
         
         classLines.push(`  }`);
@@ -526,8 +908,8 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   
 
   // Instantiate components respecting hierarchical parents (rootDefs holds top-level composite types)
-  // rootDefs: array of type names to create at model root (e.g. ['FactoryAutomationSystem'])
-  // parentMap: map instanceName -> parentPath (e.g. { agvs: 'this.FactoryAutomationSystem' })
+  // rootDefs: array of type names to create at model root (e.g. main component definitions)
+  // parentMap: map instanceName -> parentPath (e.g. { childInstance: 'this.ParentComponent' })
   const compMap = {};
   // create root composite instances
   if (Array.isArray(rootDefs)) {
@@ -573,7 +955,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   for (const it of instances) {
     const iname = it.name; const typeCls = it.typeCls; const parentPath = it.parentPath;
     if (parentPath) {
-      // attach under parentPath, e.g. this.FactoryAutomationSystem.agvs
+      // attach under parentPath, e.g. this.ParentComponent.childInstance
   const instDef = (compInstanceDef && compInstanceDef[iname]) ? compInstanceDef[iname] : null;
   const instIsBoundary = (instDef && compDefMapArg && compDefMapArg[String(instDef)] && !!compDefMapArg[String(instDef)].isBoundary);
   const instOpts = instIsBoundary ? `{ isBoundary: true, sysadlDefinition: ${JSON.stringify(String(instDef))} }` : `{ sysadlDefinition: ${instDef ? JSON.stringify(String(instDef)) : 'null'} }`;
@@ -606,32 +988,183 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
 
   // emit connectors early (right after components are added)
   if (Array.isArray(connectorDescriptors) && connectorDescriptors.length) {
-    // Filter to include only connectors defined in the SysADL (c1, c2, c3, etc)
+    // Filter to include only connectors defined in the SysADL (exclude auto-generated ones)
     const filteredConnectors = connectorDescriptors.filter(cb => {
-      const cname = cb.name || ('connector_' + Math.random().toString(36).slice(2,6));
-      // Include only connectors with recognizable names (c1, c2, c3, etc) or proper naming pattern
-      return /^c\d+$/.test(cname) || (cb.name && cb.name.length > 0 && !cname.includes('connector_'));
+      // Include only connectors with explicit names from SysADL
+      return cb.name && cb.name.length > 0;
     });
     
     if (filteredConnectors.length > 0) {
-      for (const cb of filteredConnectors) {
-        const cname = cb.name || ('connector_' + Math.random().toString(36).slice(2,6));
+      // Avoid duplicate connectors with same name + class, prioritizing those with explicit owners
+      const connectorMap = new Map();
+      
+      // Sort connectors to process those with specific owners first
+      const sortedConnectors = filteredConnectors.sort((a, b) => {
+        const aHasOwner = a.owner && a.owner.length > 0;
+        const bHasOwner = b.owner && b.owner.length > 0;
+        
+        // Process connectors with owners first
+        if (aHasOwner && !bHasOwner) return -1;
+        if (!aHasOwner && bHasOwner) return 1;
+        return 0;
+      });
+      
+      // First pass: collect all connectors with deduplication that prevents incorrect promotion
+      for (const cb of sortedConnectors) {
+        const cname = cb.name; // cb.name is guaranteed to exist due to filtering
+        const connectorDef = cb.definition || null;
+        const connectorClass = connectorDef ? (getPackagePrefix(connectorDef, 'CN') + connectorDef) : 'Connector';
+        
+        // Create a more specific key that prevents conflicts between specific and generic connectors
+        const ownerKey = cb.owner || 'main';
+        const fullKey = `${connectorClass}::${cname}::${ownerKey}`;
+        const hasOwner = cb.owner && cb.owner.length > 0;
+        
+        // DEBUG for AGV problematic connectors
+        // if (cname === 'arrived' || cname === 'ackArm') {
+        //   console.log(`DEBUG ${cname}: owner="${cb.owner}", definition=${connectorDef}, fullKey=${fullKey}`);
+        // }
+        
+        // DEBUG for SmartPlace rn connector
+        // if (cname === 'rn') {
+        //   console.log(`DEBUG rn: found - owner="${cb.owner || 'main'}", definition=${connectorDef}`);
+        //   console.log(`DEBUG rn: cb.bindings=`, cb.bindings);
+        //   console.log(`DEBUG rn: raw cb=`, JSON.stringify(cb, null, 2));
+        // }
+        
+        // Also check for conflicts with same connector name but different owners
+        const nameKey = `${connectorClass}::${cname}`;
+        const existingWithSameName = Array.from(connectorMap.values()).find(existing => 
+          existing.name === cname && existing.definition === connectorDef
+        );
+        
+        if (existingWithSameName) {
+          // If we have an existing connector with the same name and definition,
+          // we need intelligent conflict resolution
+          
+          // if (cname === 'rn') {
+          //   console.log(`DEBUG rn: conflict detected - existing owner="${existingWithSameName.owner || 'main'}", current owner="${cb.owner || 'main'}"`);
+          // }
+          
+          const existingHasOwner = existingWithSameName.owner && existingWithSameName.owner.length > 0;
+          const currentHasOwner = hasOwner;
+          
+          // Check if these are EXACTLY the same connector (same bindings/definition)
+          const sameDefinition = existingWithSameName.definition === cb.definition;
+          
+          // Compare actual bindings from _node structure
+          const existingBindingsStr = JSON.stringify(existingWithSameName._node?.bindings || []);
+          const currentBindingsStr = JSON.stringify(cb._node?.bindings || []);
+          const sameBindings = existingBindingsStr === currentBindingsStr;
+          
+          const exactDuplicate = sameDefinition && sameBindings;
+          
+          // if (cname === 'rn') {
+          //   console.log(`DEBUG rn: exactDuplicate=${exactDuplicate}, sameDefinition=${sameDefinition}, sameBindings=${sameBindings}`);
+          //   console.log(`DEBUG rn: existing bindings (length=${existingBindingsStr.length}):`, existingBindingsStr.substring(0, 200));
+          //   console.log(`DEBUG rn: current bindings (length=${currentBindingsStr.length}):`, currentBindingsStr.substring(0, 200));
+          // }
+          
+          // Strategy: If we have exact duplicates with different owners,
+          // prefer specific owner over empty owner
+          if (exactDuplicate && existingHasOwner && !currentHasOwner) {
+            // Skip the generic one since we have a specific one (AGV case)
+            // if (cname === 'arrived' || cname === 'ackArm' || cname === 'rn') {
+            //   console.log(`DEBUG ${cname}: skipping generic (empty owner), keeping specific owner ${existingWithSameName.owner}`);
+            // }
+            continue;
+          } else if (exactDuplicate && !existingHasOwner && currentHasOwner) {
+            // Replace the generic one with the specific one (AGV case)
+            const existingKey = `${connectorClass}::${cname}::${existingWithSameName.owner || 'main'}`;
+            connectorMap.delete(existingKey);
+            connectorMap.set(fullKey, cb);
+            // if (cname === 'arrived' || cname === 'ackArm' || cname === 'rn') {
+            //   console.log(`DEBUG ${cname}: replaced generic with specific owner ${cb.owner}`);
+            // }
+          } else {
+            // Different bindings/definitions or both have owners - legitimate different connectors (SmartPlace case)
+            const existing = connectorMap.get(fullKey);
+            if (existing) {
+              // if (cname === 'rn') {
+              //   console.log(`DEBUG ${cname}: skipping exact duplicate with same key`);
+              // }
+              continue; // Skip exact duplicate
+            }
+            connectorMap.set(fullKey, cb);
+            // if (cname === 'rn') {
+            //   console.log(`DEBUG ${cname}: added different component connector - owner=${cb.owner || 'main'}, bindings=${JSON.stringify(cb.bindings)}`);
+            // }
+          }
+        } else {
+          // No conflict with same name, just add it
+          const existing = connectorMap.get(fullKey);
+          if (existing) {
+            continue; // Skip duplicate
+          }
+          connectorMap.set(fullKey, cb);
+          // if (cname === 'rn') {
+          //   console.log(`DEBUG ${cname}: added new connector - owner=${cb.owner || 'main'}`);
+          // }
+        }
+      }
+      
+      // Second pass: process the final selected connectors
+      for (const cb of connectorMap.values()) {
+        const cname = cb.name; // cb.name is guaranteed to exist due to filtering
         
         // Determine the connector class to use based on definition
         const connectorDef = cb.definition || null;
         const connectorClass = connectorDef ? (getPackagePrefix(connectorDef, 'CN') + connectorDef) : 'Connector';
         
         // Determine which component should own this connector
-        let connectorOwner = 'this'; // default to model level
+        // Use the original owner information from where the connector was defined
+        let connectorOwner = null;
         
-        // Simple heuristic: if we have components in instancePathMap that share a common prefix,
-        // use that prefix as the connector owner
-        const componentPaths = Object.values(instancePathMap);
-        if (componentPaths.length > 0) {
-          // Find the most common parent from all component paths
-          const commonParent = findCommonParentPath(componentPaths);
-          if (commonParent && commonParent !== 'this') {
-            connectorOwner = commonParent;
+        // Priority 1: Use the explicit owner information from the connectorBinding
+        if (cb.owner && cb.owner.length > 0) {
+          // The connector was defined inside a specific component
+          if (instancePathMap[cb.owner]) {
+            connectorOwner = instancePathMap[cb.owner];
+          }
+        }
+        
+        // Priority 2: Fallback logic - only for connectors that truly have no explicit owner
+        // Skip fallback if the connector seems to belong to a specific nested component
+        if (!connectorOwner && instancePathMap) {
+          // Only apply fallback if the connector doesn't have contextual information suggesting a specific owner
+          // This prevents promoting sub-component connectors to the main component
+          const componentPaths = Object.values(instancePathMap);
+          
+          if (componentPaths.length > 0) {
+            // Only use main component fallback for top-level connectors without any owner hints
+            // This is more restrictive to avoid incorrect promotion
+            const mainComponents = componentPaths.filter(path => path.split('.').length === 2);
+            if (mainComponents.length > 0) {
+              // Additional check: only use fallback if this seems like a genuine top-level connector
+              // based on the fact that it has no owner information at all
+              if (!cb.owner || cb.owner.length === 0) {
+                connectorOwner = mainComponents[0];
+              }
+            }
+          }
+        }
+        
+        // Skip this connector if no valid component owner was found
+        if (!connectorOwner) {
+          continue;
+        }
+        
+        // Validate that the connectorOwner path exists in instancePathMap
+        const ownerExists = Object.values(instancePathMap).includes(connectorOwner);
+        if (!ownerExists) {
+          // Try to find a valid component instead
+          const componentPaths = Object.values(instancePathMap);
+          if (componentPaths.length > 0) {
+            // Use the first available component instead
+            connectorOwner = componentPaths[0];
+          } else {
+            // Skip this connector if no components available
+            continue;
           }
         }
         
@@ -1083,6 +1616,16 @@ async function main() {
   const src = fs.readFileSync(input, 'utf8');
   const ast = parse(src, { grammarSource: { source: input, text: src } });
 
+  // Save AST to file for debugging/analysis (will be deleted later)
+  try {
+    const astDir = path.join(__dirname, 'generated', 'ast');
+    const modelName = path.basename(input, path.extname(input));
+    const astPath = path.join(astDir, `${modelName}.ast`);
+    fs.writeFileSync(astPath, JSON.stringify(ast, null, 2), 'utf8');
+  } catch (e) {
+    // Silent fail - AST saving is optional
+  }
+
   // annotate AST nodes with __parent to allow finding enclosing configuration scopes
   (function attachParents(root) {
     function rec(node, parent) {
@@ -1422,7 +1965,10 @@ async function main() {
     // skip when an ancestor is a ConnectorDef (these are definition internals)
     let p = n.__parent;
     let insideConnectorDef = false;
-    while (p) { if (p.type && /ConnectorDef/i.test(p.type)) { insideConnectorDef = true; break; } p = p.__parent; }
+    while (p) { 
+      if (p.type && /ConnectorDef/i.test(p.type)) { insideConnectorDef = true; break; }
+      p = p.__parent; 
+    }
     if (insideConnectorDef) return;
     connectorBindings.push({ owner: '', node: n });
   });
@@ -1460,14 +2006,36 @@ async function main() {
             // This is a participant role, map to default port based on type
             const portTypeName = typeof roleType === 'string' ? roleType : roleType.name || roleType;
             
-            // Map common port types to default port names
-            const portMapping = {
-              'FTempOPT': 'current',
-              'CTempIPT': 's1', // for input roles
-              'CTempOPT': 'average'
-            };
+            // Map port types to default port names dynamically
+            // This is a generic algorithm that infers port names from type patterns
+            let defaultPort = 'current'; // Generic fallback
             
-            const defaultPort = portMapping[portTypeName] || 'current';
+            // Extract meaningful name from port type
+            if (portTypeName) {
+              const typeName = String(portTypeName);
+              // Generic semantic name extraction from port type
+              let semanticName = typeName
+                .replace(/^[A-Z]+/, '') // Remove prefix like 'FTemp', 'CTemp'
+                .replace(/(IPT|OPT)$/, '') // Remove direction suffixes
+                .toLowerCase();
+              
+              // Enhanced semantic analysis for better port name inference
+              if (semanticName.length > 0 && semanticName !== 'temp') {
+                defaultPort = semanticName;
+              } else {
+                // Generic fallback based on direction and context
+                if (typeName.includes('IPT')) {
+                  // For input ports, use generic input naming
+                  defaultPort = 'input';
+                } else if (typeName.includes('OPT')) {
+                  // For output ports, use generic output naming  
+                  defaultPort = 'output';
+                } else {
+                  // Ultimate fallback
+                  defaultPort = 'data';
+                }
+              }
+            }
             
             // Return as participant role for later resolution
             return { 
@@ -2618,7 +3186,8 @@ async function main() {
     for (const cb of connectorBindings) {
       try {
         const node = cb.node || {};
-        const cname = node.name || ('connector_' + Math.random().toString(36).slice(2,6));
+        // Use node.name if available, otherwise skip (will be filtered out later)
+        const cname = node.name || null;
         // Extract connector definition
         const defName = node.definition && (node.definition.name || node.definition) ? (node.definition.name || node.definition) : null;
         connectorDescriptors.push({
@@ -2627,7 +3196,8 @@ async function main() {
           bindings: [],
           participants: [],
           _uid: ++connectorCounter,
-          definition: defName
+          definition: defName,
+          owner: cb.owner || ''  // Add owner information from connectorBinding
         });
       } catch(e) {}
     }
@@ -3010,7 +3580,7 @@ async function main() {
   // determine hierarchical parents using transitive reachability among ComponentDefs with configurations
   // algorithm: build directed graph A -> B when ComponentDef A's configuration instantiates ComponentDef B.
   // collapse SCCs; if some SCC reaches all others, choose its members as root(s); otherwise choose all source SCCs as roots.
-  const parentMap = {}; // instanceName -> parent expression (e.g. 'this.FactoryAutomationSystem')
+  const parentMap = {}; // instanceName -> parent expression (e.g. 'this.ParentComponent')
   const rootDefs = [];
   try {
     // build set of ComponentDefs that are 'composed' (have a configuration)
@@ -3193,15 +3763,33 @@ async function main() {
         if (ports.length === 1) {
           const only = ports[0];
           portAliasMap[inst] = portAliasMap[inst] || {};
-          // add common alias tokens mapping to the sole port (only if not already present)
-          const candidates = ['temp1','temp2','current','c3','in','out','value'];
+          // Generate alias candidates dynamically from the model's port names
+          const candidates = [];
+          try {
+            // Extract common port names from the model to use as alias candidates
+            for (const [compName, ports] of Object.entries(compPortsMap_main || {})) {
+              for (const portName of Array.from(ports || [])) {
+                if (portName && portName.length <= 8 && !candidates.includes(portName)) {
+                  candidates.push(portName);
+                }
+              }
+            }
+            
+            // Add generic common aliases if no model-specific ones found
+            if (candidates.length === 0) {
+              candidates.push('input', 'output', 'data', 'in', 'out', 'value');
+            }
+          } catch (e) {
+            // Fallback to generic aliases
+            candidates.push('input', 'output', 'data', 'in', 'out', 'value');
+          }
           for (const tok of candidates) if (!Object.prototype.hasOwnProperty.call(portAliasMap[inst], tok)) portAliasMap[inst][tok] = only;
         }
       } catch(e){}
     }
   } catch(e) {}
 
-  let moduleCode = generateClassModule(outModelName, compUses, portUses, connectorDescriptors, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, portAliasMap, compDefMap, portDefMap, embeddedTypes, connectorDefMap, packageMap);
+  let moduleCode = generateClassModule(outModelName, compUses, portUses, connectorDescriptors, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, portAliasMap, compDefMap, portDefMap, embeddedTypes, connectorDefMap, packageMap, ast);
   // remove JS comments (block and line) to ensure generator does not emit comments
   try {
     moduleCode = moduleCode.replace(/\/\*[\s\S]*?\*\//g, ''); // remove /* ... */
@@ -3210,7 +3798,7 @@ async function main() {
   } catch(e) { /* ignore */ }
   const outFile = path.join(outDir, path.basename(input, path.extname(input)) + '.js');
   fs.writeFileSync(outFile, moduleCode, 'utf8');
-  console.log('Generated', outFile);
+  // console.log('Generated', outFile); // Commented out to avoid output pollution
 }
 
 // Helper function to order datatypes by dependencies using topological sort

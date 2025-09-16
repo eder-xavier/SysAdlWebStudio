@@ -191,85 +191,103 @@ class PT_SmartPlacePorts_ContextI2O extends CompositePort {
 class CN_SmartPlaceConnectors_UndefinedCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
-    // Flows: Flow from undO to undefined
+    // Flows: Void from undO to undI
   }
 }
 class CN_SmartPlaceConnectors_SendValueCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
-    // Flows: Flow from vO to undefined
+    // Flows: Int from vO to vI
   }
 }
 class CN_SmartPlaceConnectors_InfraCodeCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
-    // Flows: Flow from cmdO to undefined
+    // Flows: InfraredCode from cmdO to cmdI
   }
 }
 class CN_SmartPlaceConnectors_CmdRestfulCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
-    // Flows: Flow from restO to undefined
+    // Flows: RestFulRaspeberry from restO to restI
   }
 }
 class CN_SmartPlaceConnectors_SendReservationInfoCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
-    // Flows: Flow from rRespO to undefined
+    // Flows: Boolean from rRespO to rrRespI
   }
 }
 class CN_SmartPlaceConnectors_RequestCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
-    // Flows: Flow from rReqO to undefined
+    // Flows: String from rReqO to rReqI
   }
 }
 class CN_SmartPlaceConnectors_SendContextCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
-    // Flows: Flow from ciO to undefined
+    // Flows: ContextInformation from ciO to ciI
   }
 }
 class CN_SmartPlaceConnectors_InfraredSignalCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
-    // Flows: Flow from isO to undefined
+    // Flows: Void from isO to isI
   }
 }
 class CN_SmartPlaceConnectors_ReservationCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
-    // Flows: 
+    // Composite connector with internal connectors
+    this.rri = new CN_SmartPlaceConnectors_RequestCN("rri");
+    this.connectors = this.connectors || {};
+    this.connectors["rri"] = this.rri;
+    this.sri = new CN_SmartPlaceConnectors_SendReservationInfoCN("sri");
+    this.connectors = this.connectors || {};
+    this.connectors["sri"] = this.sri;
   }
 }
 class CN_SmartPlaceConnectors_QueryDataBaseCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
-    // Flows: 
+    // Composite connector with internal connectors
+    this.req = new CN_SmartPlaceConnectors_RequestCN("req");
+    this.connectors = this.connectors || {};
+    this.connectors["req"] = this.req;
+    this.resp = new CN_SmartPlaceConnectors_SendPostgreSQLInfoCN("resp");
+    this.connectors = this.connectors || {};
+    this.connectors["resp"] = this.resp;
   }
 }
 class CN_SmartPlaceConnectors_SendPostgreSQLInfoCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
-    // Flows: Flow from psqlO to undefined
+    // Flows: String from psqlO to psqlI
   }
 }
 class CN_SmartPlaceConnectors_ScheduleCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
-    // Flows: Flow from dO to undefined
+    // Flows: Schedule from dO to dI
   }
 }
 class CN_SmartPlaceConnectors_FrameListCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
-    // Flows: Flow from fO to undefined
+    // Flows: FrameList from fO to fI
   }
 }
 class CN_SmartPlaceConnectors_ContextCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
-    // Flows: 
+    // Composite connector with internal connectors
+    this.req = new CN_SmartPlaceConnectors_RequestCN("req");
+    this.connectors = this.connectors || {};
+    this.connectors["req"] = this.req;
+    this.resp = new CN_SmartPlaceConnectors_SendContextCN("resp");
+    this.connectors = this.connectors || {};
+    this.connectors["resp"] = this.resp;
   }
 }
 
@@ -477,6 +495,9 @@ class SysADLArchitecture extends Model {
     this.SmartPlace.Raspberry.tc = new CP_SmartPlaceComponents_TemperatureController("tc", { sysadlDefinition: "TemperatureController" });
     this.SmartPlace.Raspberry.addComponent(this.SmartPlace.Raspberry.tc);
 
+    this.SmartPlace.ac.addConnector(new CN_SmartPlaceConnectors_UndefinedCN("u"));
+    this.SmartPlace.Raspberry.addConnector(new CN_SmartPlaceConnectors_SendValueCN("countPeople"));
+    this.SmartPlace.Raspberry.addConnector(new CN_SmartPlaceConnectors_ReservationCN("rn"));
     this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_QueryDataBaseCN("qdb"));
     this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendPostgreSQLInfoCN("spsqli"));
     this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendContextCN("ci1"));
@@ -488,12 +509,6 @@ class SysADLArchitecture extends Model {
     this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_ReservationCN("rn"));
     this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_InfraCodeCN("ic"));
     this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_InfraredSignalCN("is"));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendValueCN("countPeople"));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_ReservationCN("rn"));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_UndefinedCN("u"));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_UndefinedCN("u"));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendValueCN("countPeople"));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_ReservationCN("rn"));
 
     const act_RaspberryControllerAC_spw = new Activity("RaspberryControllerAC", { component: "spw", inputPorts: ["u"] });
     this.registerActivity("RaspberryControllerAC::spw", act_RaspberryControllerAC_spw);

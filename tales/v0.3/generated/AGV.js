@@ -112,55 +112,61 @@ class PT_PortsAGV_ISupervisorySystem extends CompositePort {
 class CN_ConnectorsAGV_notifySupervisory extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
-    // Flows: Flow from nsOPT to undefined
+    // Flows: NotificationToSupervisory from nsOPT to nsIPT
   }
 }
 class CN_ConnectorsAGV_sendVehicleData extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
-    // Flows: Flow from vdOPT to undefined
+    // Flows: VehicleData from vdOPT to vdIPT
   }
 }
 class CN_ConnectorsAGV_notificationMotor extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
-    // Flows: Flow from nmOPT to undefined
+    // Flows: NotificationFromMotor from nmOPT to nmIPT
   }
 }
 class CN_ConnectorsAGV_commandArm extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
-    // Flows: Flow from caOPT to undefined
+    // Flows: CommandToArm from caOPT to caIPT
   }
 }
 class CN_ConnectorsAGV_notificationArm extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
-    // Flows: Flow from naOPT to undefined
+    // Flows: NotificationFromArm from naOPT to naIPT
   }
 }
 class CN_ConnectorsAGV_commandMotor extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
-    // Flows: Flow from cmOPT to undefined
+    // Flows: CommandToMotor from cmOPT to cmIPT
   }
 }
 class CN_ConnectorsAGV_interactionAGVAndSupervisory extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
-    // Flows: 
+    // Composite connector with internal connectors
+    this.nS = new CN_ConnectorsAGV_notifySupervisory("nS");
+    this.connectors = this.connectors || {};
+    this.connectors["nS"] = this.nS;
+    this.sVD = new CN_ConnectorsAGV_sendVehicleData("sVD");
+    this.connectors = this.connectors || {};
+    this.connectors["sVD"] = this.sVD;
   }
 }
 class CN_ConnectorsAGV_locationVehicle extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
-    // Flows: Flow from lOPT to undefined
+    // Flows: Location from lOPT to lIPT
   }
 }
 class CN_ComponentsAGV_status extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
-    // Flows: Flow from sOPT to undefined
+    // Flows: Status from sOPT to sIPT
   }
 }
 
@@ -315,32 +321,20 @@ class SysADLArchitecture extends Model {
     this.FactoryAutomationSystem.agvs.vc.vt = new CP_ComponentsAGV_VehicleTimer("vt", { sysadlDefinition: "VehicleTimer" });
     this.FactoryAutomationSystem.agvs.vc.addComponent(this.FactoryAutomationSystem.agvs.vc.vt);
 
+    this.FactoryAutomationSystem.agvs.addConnector(new CN_ConnectorsAGV_locationVehicle("arrived"));
+    this.FactoryAutomationSystem.agvs.addConnector(new CN_ConnectorsAGV_notificationArm("ackArm"));
+    this.FactoryAutomationSystem.agvs.addConnector(new CN_ConnectorsAGV_commandArm("cmdArm"));
+    this.FactoryAutomationSystem.agvs.addConnector(new CN_ConnectorsAGV_notificationMotor("ackMotor"));
+    this.FactoryAutomationSystem.agvs.addConnector(new CN_ConnectorsAGV_commandMotor("cmdMotor"));
+    this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_locationVehicle("destinationStation2"));
+    this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_locationVehicle("destinationStation"));
+    this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_commandArm("command"));
+    this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_commandArm("command2"));
+    this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_locationVehicle("currentLocation"));
+    this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_notificationMotor("sendNotificationMotor"));
+    this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_notificationMotor("sendNotificationMotor2"));
     this.FactoryAutomationSystem.addConnector(new CN_ConnectorsAGV_interactionAGVAndSupervisory("dataExchange"));
     this.FactoryAutomationSystem.addConnector(new CN_ComponentsAGV_status("updateStatus"));
-    this.FactoryAutomationSystem.addConnector(new CN_ConnectorsAGV_locationVehicle("arrived"));
-    this.FactoryAutomationSystem.addConnector(new CN_ConnectorsAGV_notificationArm("ackArm"));
-    this.FactoryAutomationSystem.addConnector(new CN_ConnectorsAGV_commandArm("cmdArm"));
-    this.FactoryAutomationSystem.addConnector(new CN_ConnectorsAGV_notificationMotor("ackMotor"));
-    this.FactoryAutomationSystem.addConnector(new CN_ConnectorsAGV_commandMotor("cmdMotor"));
-    this.FactoryAutomationSystem.addConnector(new CN_ConnectorsAGV_locationVehicle("destinationStation2"));
-    this.FactoryAutomationSystem.addConnector(new CN_ConnectorsAGV_locationVehicle("destinationStation"));
-    this.FactoryAutomationSystem.addConnector(new CN_ConnectorsAGV_commandArm("command"));
-    this.FactoryAutomationSystem.addConnector(new CN_ConnectorsAGV_commandArm("command2"));
-    this.FactoryAutomationSystem.addConnector(new CN_ConnectorsAGV_locationVehicle("currentLocation"));
-    this.FactoryAutomationSystem.addConnector(new CN_ConnectorsAGV_notificationMotor("sendNotificationMotor"));
-    this.FactoryAutomationSystem.addConnector(new CN_ConnectorsAGV_notificationMotor("sendNotificationMotor2"));
-    this.FactoryAutomationSystem.addConnector(new CN_ConnectorsAGV_locationVehicle("arrived"));
-    this.FactoryAutomationSystem.addConnector(new CN_ConnectorsAGV_notificationArm("ackArm"));
-    this.FactoryAutomationSystem.addConnector(new CN_ConnectorsAGV_commandArm("cmdArm"));
-    this.FactoryAutomationSystem.addConnector(new CN_ConnectorsAGV_notificationMotor("ackMotor"));
-    this.FactoryAutomationSystem.addConnector(new CN_ConnectorsAGV_commandMotor("cmdMotor"));
-    this.FactoryAutomationSystem.addConnector(new CN_ConnectorsAGV_locationVehicle("destinationStation2"));
-    this.FactoryAutomationSystem.addConnector(new CN_ConnectorsAGV_locationVehicle("destinationStation"));
-    this.FactoryAutomationSystem.addConnector(new CN_ConnectorsAGV_commandArm("command"));
-    this.FactoryAutomationSystem.addConnector(new CN_ConnectorsAGV_commandArm("command2"));
-    this.FactoryAutomationSystem.addConnector(new CN_ConnectorsAGV_locationVehicle("currentLocation"));
-    this.FactoryAutomationSystem.addConnector(new CN_ConnectorsAGV_notificationMotor("sendNotificationMotor"));
-    this.FactoryAutomationSystem.addConnector(new CN_ConnectorsAGV_notificationMotor("sendNotificationMotor2"));
 
     this.addExecutableSafe("SysADLArchitecture.SendStartMotorEX", "executable def SendStartMotorEX ( in move : VehicleData) : out CommandToMotor {\n\t\treturn CommandToMotor::start;\n\t}", []);
     this.addExecutableSafe("SysADLArchitecture.SendCommandEX", "executable def SendCommandEX ( in move : VehicleData) : out CommandToArm {\n\t\treturn move->command;\n\t}", []);
@@ -354,18 +348,18 @@ class SysADLArchitecture extends Model {
     this.addExecutableSafe("SysADLArchitecture.ControlArmEX", "executable def ControlArmEX ( in statusMotor : NotificationFromMotor, in cmd : CommandToArm) : out CommandToArm {\n\t\tif(statusMotor == NotificationFromMotor::stopped)\n\t\t\treturn cmd;\n\t\telse\n\t\t\treturn CommandToArm::idle;\n\t}", []);
     this.addExecutableSafe("SysADLArchitecture.NotifierArmEX", "executable def NotifierArmEX ( in statusArm : NotificationFromArm) : \n\tout\tNotificationToSupervisory {\n\t\treturn NotificationToSupervisory::arrived;\n\t}", []);
     this.addExecutableSafe("SysADLArchitecture.VehicleTimerEX", "executable def VehicleTimerEX ( in location : Location, in cmd : CommandToArm, \n\t\tin destination : Location) : out Status {\n\t\t\n\t\tlet s : Status;\n\t\ts->destination = destination;\n\t\ts->location = location;\n\t\ts->command = cmd;\n\t\t\n\t\treturn s;\n\t}", []);
-    this.addExecutableSafe("SysADLArchitecture.n7bw", "executable CompareStationsEX to CompareStationsAN", []);
-    this.addExecutableSafe("SysADLArchitecture.hha3", "executable ControlArmEX to ControlArmAN", []);
-    this.addExecutableSafe("SysADLArchitecture.5soo", "executable NotifierArmEX to NotifierArmAN", []);
-    this.addExecutableSafe("SysADLArchitecture.gny8", "executable NotifyAGVFromMotorEX to NotifyAGVFromMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.jhh2", "executable NotifySupervisoryFromMotorEX to NotifySupervisoryFromMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.vxev", "executable PassedMotorEX to PassedMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.01zj", "executable SendCommandEX to SendCommandAN", []);
-    this.addExecutableSafe("SysADLArchitecture.58ty", "executable SendCurrentLocationEX to SendCurrentLocationAN", []);
-    this.addExecutableSafe("SysADLArchitecture.guxg", "executable SendDestinationEX to SendDestinationAN", []);
-    this.addExecutableSafe("SysADLArchitecture.addi", "executable SendStartMotorEX to SendStartMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.peq9", "executable StopMotorEX to StopMotorAN", []);
-    this.addExecutableSafe("SysADLArchitecture.fyg1", "executable VehicleTimerEX to VehicleTimerAN", []);
+    this.addExecutableSafe("SysADLArchitecture.yosf", "executable CompareStationsEX to CompareStationsAN", []);
+    this.addExecutableSafe("SysADLArchitecture.e3pb", "executable ControlArmEX to ControlArmAN", []);
+    this.addExecutableSafe("SysADLArchitecture.1n9a", "executable NotifierArmEX to NotifierArmAN", []);
+    this.addExecutableSafe("SysADLArchitecture.allj", "executable NotifyAGVFromMotorEX to NotifyAGVFromMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.ptuo", "executable NotifySupervisoryFromMotorEX to NotifySupervisoryFromMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.dnyk", "executable PassedMotorEX to PassedMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.so5j", "executable SendCommandEX to SendCommandAN", []);
+    this.addExecutableSafe("SysADLArchitecture.4t1q", "executable SendCurrentLocationEX to SendCurrentLocationAN", []);
+    this.addExecutableSafe("SysADLArchitecture.9emp", "executable SendDestinationEX to SendDestinationAN", []);
+    this.addExecutableSafe("SysADLArchitecture.37sw", "executable SendStartMotorEX to SendStartMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.7hkf", "executable StopMotorEX to StopMotorAN", []);
+    this.addExecutableSafe("SysADLArchitecture.v2jv", "executable VehicleTimerEX to VehicleTimerAN", []);
     const act_StartMovingAC_sm = new Activity("StartMovingAC", { component: "sm", inputPorts: ["move"] });
     act_StartMovingAC_sm.addAction(new Action("SendStartMotorAN", [], "SendStartMotorEX"));
     act_StartMovingAC_sm.addAction(new Action("SendCommandAN", [], "SendCommandEX"));

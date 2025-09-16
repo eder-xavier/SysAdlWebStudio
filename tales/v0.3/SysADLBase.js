@@ -172,12 +172,14 @@ class Component extends Element {
     super(name, opts);
     this.ports = {};
     this.components = {}; // child instances
+    this.connectors = {}; // connectors within this component
     this.sysadlDefinition = opts && opts.sysadlDefinition ? opts.sysadlDefinition : null;
   // preserve explicit boundary flag when provided by generator
     this.isBoundary = !!(opts && opts.isBoundary);
   }
   addPort(p){ if (!p || !p.name) return; if (this.ports[p.name]) return this.ports[p.name]; this.ports[p.name] = p; return p; }
   addComponent(inst){ this.components[inst.name] = inst; }
+  addConnector(conn) { if (conn && conn.name) this.connectors[conn.name] = conn; }
 }
 
 class Connector extends Element {

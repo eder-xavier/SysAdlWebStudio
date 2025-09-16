@@ -22,13 +22,13 @@ class PT_Elements_FTempOPT extends SimplePort {
 class CN_Elements_FarToCelCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
-    // Flows: Flow from f to undefined
+    // Flows: Real from f to c
   }
 }
 class CN_Elements_CelToCelCN extends Connector {
   constructor(name, opts = {}) {
     super(name, opts);
-    // Flows: Flow from c1 to undefined
+    // Flows: Real from c1 to c2
   }
 }
 
@@ -78,8 +78,8 @@ class SysADLModel extends Model {
 
     this.addExecutableSafe("SysADLModel.FarToCelEX", "executable def FarToCelEX (in f:Real): out Real {\n\t\treturn 5*(f - 32)/9 ;\n\t}", []);
     this.addExecutableSafe("SysADLModel.CalcAverageEX", "executable def CalcAverageEX(in temp1:Real,in temp2:Real):out Real{\n\t\treturn (temp1 + temp2)/2 ;\n\t}", []);
-    this.addExecutableSafe("SysADLModel.cvf1", "executable FarToCelEX to FarToCelAN", []);
-    this.addExecutableSafe("SysADLModel.epx7", "executable CalcAverageEX to TempMonitorAN", []);
+    this.addExecutableSafe("SysADLModel.egcz", "executable FarToCelEX to FarToCelAN", []);
+    this.addExecutableSafe("SysADLModel.2kt2", "executable CalcAverageEX to TempMonitorAN", []);
     const act_FarToCelAC_s1 = new Activity("FarToCelAC", { component: "s1", inputPorts: ["current"] });
     act_FarToCelAC_s1.addAction(new Action("FarToCelAN", [], "FarToCelEX"));
     this.registerActivity("FarToCelAC::s1", act_FarToCelAC_s1);

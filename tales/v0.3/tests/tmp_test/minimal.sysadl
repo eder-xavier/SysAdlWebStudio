@@ -1,8 +1,0 @@
-Model Minimal;
-component def C1 { ports { port def p { flow out Int } } }
-component def C2 { ports { port def q { flow in Int } } }
-configuration MinimalCfg {
-  C1 c1;
-  C2 c2;
-  connector def c { bindings { c1.p -> c2.q } }
-}
