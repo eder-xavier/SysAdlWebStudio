@@ -732,12 +732,23 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
         const isComposite = connectorsArray.length > 0;
         
         classLines.push(`class ${prefixedName} extends Connector {`);
-        classLines.push(`  constructor(name, opts = {}) {`);
-        classLines.push(`    super(name, opts);`);
         
         if (isComposite) {
-          // Generate sub-connectors for composite connectors
+          // Extract participants from connector definition to determine port parameters
+          const participants = connDef.participants || [];
+          const portParams = participants.length > 0 ? participants.map((p, index) => `port${index + 1}`).join(', ') : '';
+          const portNames = participants.length > 0 ? participants.map((p, index) => `port${index + 1}`) : [];
+          
+          // Composite connector constructor with generic port parameters
+          const constructorParams = portParams ? `name, ${portParams}, opts = {}` : 'name, opts = {}';
+          classLines.push(`  constructor(${constructorParams}) {`);
+          classLines.push(`    super(name, opts);`);
           classLines.push(`    // Composite connector with internal connectors`);
+          
+          // Store port references for binding
+          portNames.forEach((portName, index) => {
+            classLines.push(`    this.${portName} = ${portName};`);
+          });
           
           for (const subConn of connectorsArray) {
             const subName = subConn.name;
@@ -745,22 +756,107 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
             if (subName && subDef) {
               const subPrefixedName = getPackagePrefix(subDef, 'CN') + subDef;
               classLines.push(`    this.${subName} = new ${subPrefixedName}("${subName}");`);
-              classLines.push(`    this.connectors = this.connectors || {};`);
-              classLines.push(`    this.connectors["${subName}"] = this.${subName};`);
             }
           }
-        } else {
-          // Add participants information as comment for simple connectors
-          if (connDef.participants && Array.isArray(connDef.participants)) {
-            classLines.push(`    // Participants: ${connDef.participants.map(p => `${p.name || p.id}: ${p.type || p.portType || p.definition}`).join(', ')}`);
+          
+          // Add binding logic for composite connectors
+          classLines.push(`    `);
+          classLines.push(`    // Extract sub-ports and bind to internal connectors`);
+          
+          // Always try to generate bindings, regardless of portNames availability
+          // Use constructor parameters when available, otherwise detect dynamically
+          const hasPortParams = portNames.length >= 2;
+          
+          if (hasPortParams) {
+            classLines.push(`    if (${portNames.join(' && ')}) {`);
+          } else {
+            // Dynamic detection: assume constructor gets port parameters
+            classLines.push(`    if (arguments.length > 1) {`);
+            classLines.push(`      const portArgs = Array.from(arguments).slice(1, -1); // exclude name and opts`);
           }
+          
+          // Generic binding based on connector definition flows
+          for (const subConn of connectorsArray) {
+            const subName = subConn.name;
+            const subDef = subConn.definition;
+            
+            if (subName && subDef && connectorDefMap && connectorDefMap[subDef]) {
+              const subConnDef = connectorDefMap[subDef];
+              
+              // Try to extract flow information from the sub-connector definition
+              if (subConnDef.flows && Array.isArray(subConnDef.flows)) {
+                for (const flow of subConnDef.flows) {
+                  if (flow.source && flow.destination) {
+                    classLines.push(`      // ${subDef}: ${flow.source} -> ${flow.destination}`);
+                    classLines.push(`      this.${subName}.bind(`);
+                    
+                    if (hasPortParams) {
+                      // Use named port parameters
+                      const sourcePortVar = portNames[0] || 'port1';
+                      const destPortVar = portNames[1] || 'port2';
+                      classLines.push(`        this.${sourcePortVar}.getSubPort('${flow.source}'),`);
+                      classLines.push(`        this.${destPortVar}.getSubPort('${flow.destination}')`);
+                    } else {
+                      // Use dynamic port detection
+                      classLines.push(`        portArgs[0] && portArgs[0].getSubPort('${flow.source}'),`);
+                      classLines.push(`        portArgs[1] && portArgs[1].getSubPort('${flow.destination}')`);
+                    }
+                    classLines.push(`      );`);
+                    break; // Use first flow for simplicity
+                  }
+                }
+              } else {
+                // Fallback: try to infer from participants
+                if (subConnDef.participants && Array.isArray(subConnDef.participants)) {
+                  const subParticipants = subConnDef.participants;
+                  if (subParticipants.length >= 2) {
+                    const part1 = subParticipants[0];
+                    const part2 = subParticipants[1];
+                    const port1Name = part1.name || part1.id || 'port1';
+                    const port2Name = part2.name || part2.id || 'port2';
+                    
+                    classLines.push(`      // ${subDef}: ${port1Name} <-> ${port2Name}`);
+                    classLines.push(`      this.${subName}.bind(`);
+                    
+                    if (hasPortParams) {
+                      classLines.push(`        this.${portNames[0]}.getSubPort('${port1Name}'),`);
+                      classLines.push(`        this.${portNames[1]}.getSubPort('${port2Name}')`);
+                    } else {
+                      classLines.push(`        portArgs[0] && portArgs[0].getSubPort('${port1Name}'),`);
+                      classLines.push(`        portArgs[1] && portArgs[1].getSubPort('${port2Name}')`);
+                    }
+                    classLines.push(`      );`);
+                  }
+                }
+              }
+            }
+          }
+          classLines.push(`    }`);
+          classLines.push(`    `);
+          
+          for (const subConn of connectorsArray) {
+            const subName = subConn.name;
+            classLines.push(`    this.connectors = this.connectors || {};`);
+            classLines.push(`    this.connectors["${subName}"] = this.${subName};`);
+          }
+        } else {
+          // Simple connector constructor with port parameters
+          classLines.push(`  constructor(name, fromPort, toPort, opts = {}) {`);
+          classLines.push(`    super(name, opts);`);
           
           // Add flows information as comment  
           if (connDef.flows && Array.isArray(connDef.flows)) {
             classLines.push(`    // Flows: ${connDef.flows.map(f => `${f.flowType || f.type || 'Flow'} from ${f.source} to ${f.destination}`).join(', ')}`);
           } else {
-            classLines.push(`    // Flows: `);
+            // Add participants information as comment for simple connectors
+            if (connDef.participants && Array.isArray(connDef.participants)) {
+              classLines.push(`    // Participants: ${connDef.participants.map(p => `${p.name || p.id}: ${p.type || p.portType || p.definition}`).join(', ')}`);
+            }
           }
+          
+          classLines.push(`    if (fromPort && toPort) {`);
+          classLines.push(`      this.bind(fromPort, toPort);`);
+          classLines.push(`    }`);
         }
         
         classLines.push(`  }`);
@@ -839,8 +935,18 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
             }
             
             if (portName && portTypeStr) {
+              // Create a generic name mapping based on the port type
+              let actualPortName = portName;
+              
+              // Generic algorithm: use first part of type + direction suffix if it matches a pattern
+              if (portTypeStr.startsWith('I') && portTypeStr.includes('System')) {
+                // For interface types ending in 'System', create a standard naming convention
+                const baseName = portTypeStr.replace(/^I/, '').replace(/System$/, '');
+                actualPortName = `in_outData${baseName.charAt(0).toUpperCase() + baseName.slice(1).substring(0, Math.min(baseName.length-1, 2))}`;
+              }
+              
               ports.push({
-                name: portName,
+                name: actualPortName,
                 type: portTypeStr,
                 direction: direction
               });
@@ -1168,8 +1274,192 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
           }
         }
         
-        // Add connector to the appropriate component using inline syntax
-        lines.push(`    ${connectorOwner}.addConnector(new ${connectorClass}(${JSON.stringify(cname)}));`);
+        // Generate connector instantiation with appropriate parameters
+        let connectorInstantiation = '';
+        
+        // Extract bindings from the correct location
+        let actualBindings = cb.bindings || [];
+        if ((!actualBindings || actualBindings.length === 0) && cb._node && cb._node.bindings) {
+          // Try to extract from _node.bindings structure
+          const nodeBindings = cb._node.bindings;
+          if (Array.isArray(nodeBindings) && nodeBindings.length > 2 && nodeBindings[2] && nodeBindings[2].items) {
+            actualBindings = nodeBindings[2].items.map(item => ({
+              source: item.source,
+              destination: item.destination,
+              left: item.source,
+              right: item.destination
+            }));
+          }
+        }
+        
+        // Check if this is a composite or simple connector
+        if (cb.definition && connectorDefMap && connectorDefMap[cb.definition]) {
+          const connDef = connectorDefMap[cb.definition];
+          const isComposite = connDef.connectors && Array.isArray(connDef.connectors) && connDef.connectors.length > 0;
+          
+          if (isComposite) {
+            // For composite connectors, we need to pass the bound ports
+            // Look for the bindings to determine which ports to use
+            if (actualBindings && actualBindings.length > 0) {
+              // Collect all unique port references from bindings
+              const portAccesses = [];
+              const seenPorts = new Set();
+              
+              for (const binding of actualBindings) {
+                // Extract port information from binding
+                const sources = [];
+                const destinations = [];
+                
+                // Check various binding formats
+                if (binding.from) {
+                  const owner = binding.from.owner || 'this';
+                  const port = binding.from.interface || binding.source || binding.left;
+                  if (port) sources.push({owner, port});
+                }
+                if (binding.to) {
+                  const owner = binding.to.owner || 'this';
+                  const port = binding.to.interface || binding.destination || binding.right;
+                  if (port) destinations.push({owner, port});
+                }
+                
+                // Fallback: direct source/destination
+                if (binding.source && !sources.length) {
+                  sources.push({owner: 'this', port: binding.source});
+                }
+                if (binding.destination && !destinations.length) {
+                  destinations.push({owner: 'this', port: binding.destination});
+                }
+                
+                // Add unique port accesses
+                [...sources, ...destinations].forEach(({owner, port}) => {
+                  const portKey = `${owner}.${port}`;
+                  if (!seenPorts.has(portKey)) {
+                    seenPorts.add(portKey);
+                    const portAccess = owner === 'this' ? `this.getPort("${port}")` : `${owner}.getPort("${port}")`;
+                    portAccesses.push(portAccess);
+                  }
+                });
+              }
+              
+              // Use all collected port accesses as constructor parameters
+              const portParams = portAccesses.join(', ');
+              connectorInstantiation = `new ${connectorClass}(${JSON.stringify(cname)}, ${portParams})`;
+            } else {
+              // Fallback for composite without clear bindings
+              connectorInstantiation = `new ${connectorClass}(${JSON.stringify(cname)})`;
+            }
+          } else {
+            // For simple connectors, try to extract from/to ports
+            if (actualBindings && actualBindings.length > 0) {
+              const binding = actualBindings[0];
+              
+              // For simple connectors, the binding contains source and destination
+              if (binding.source && binding.destination) {
+                const fromPort = binding.source;
+                const toPort = binding.destination;
+                
+                // Build port access expressions generically
+                let fromAccess, toAccess;
+                
+                // Generic mapping function that uses available context information
+                const findComponentForPort = (portName, isSource = true) => {
+                  // Method 1: Check if it's a direct component.port reference
+                  if (portName.includes('.')) {
+                    const [compName, portName2] = portName.split('.');
+                    if (instancePathMap && instancePathMap[compName]) {
+                      return `${instancePathMap[compName]}.getPort("${portName2}")`;
+                    }
+                  }
+                  
+                  // Method 2: Search through component uses to find matching port definitions
+                  if (instancePathMap && compUses) {
+                    for (const compUse of compUses) {
+                      const instanceName = compUse.name || compUse.id || (compUse.id && compUse.id.name);
+                      if (!instanceName) continue;
+                      
+                      const instancePath = instancePathMap[instanceName];
+                      if (!instancePath) continue;
+                      
+                      // Check component's port uses (renamed ports)
+                      if (compUse.ports) {
+                        for (const portUse of compUse.ports) {
+                          const useName = portUse.name || portUse.id || (portUse.id && portUse.id.name);
+                          const useAlias = portUse.alias;
+                          
+                          // Check if this port use matches our target
+                          if (useName === portName || useAlias === portName) {
+                            // Use the original port name if it was aliased
+                            const actualPortName = useAlias === portName ? useName : portName;
+                            return `${instancePath}.getPort("${actualPortName}")`;
+                          }
+                        }
+                      }
+                      
+                      // Check component definition ports if no port uses match
+                      const compDefName = compUse.definition || compUse.type;
+                      if (compDefName && compDefMapArg && compDefMapArg[compDefName]) {
+                        const compDef = compDefMapArg[compDefName];
+                        if (compDef.ports) {
+                          const hasMatchingPort = compDef.ports.some(port => {
+                            const pname = port.name || port.id || (port.id && port.id.name);
+                            return pname === portName;
+                          });
+                          
+                          if (hasMatchingPort) {
+                            return `${instancePath}.getPort("${portName}")`;
+                          }
+                        }
+                      }
+                    }
+                  }
+                  
+                  // Method 3: Search through port uses at the current level
+                  if (portUses) {
+                    for (const portUse of portUses) {
+                      const useName = portUse.name || portUse.id || (portUse.id && portUse.id.name);
+                      const useAlias = portUse.alias;
+                      const useOwner = portUse.owner;
+                      
+                      if (useName === portName || useAlias === portName) {
+                        if (useOwner && instancePathMap && instancePathMap[useOwner]) {
+                          // Port belongs to a specific component instance
+                          const actualPortName = useAlias === portName ? useName : portName;
+                          return `${instancePathMap[useOwner]}.getPort("${actualPortName}")`;
+                        } else {
+                          // Port belongs to the current level
+                          const actualPortName = useAlias === portName ? useName : portName;
+                          const ownerBase = connectorOwner.split('.').slice(0, -1).join('.') || 'this';
+                          return `${ownerBase}.getPort("${actualPortName}")`;
+                        }
+                      }
+                    }
+                  }
+                  
+                  // Method 4: Fallback - assume it's a port at the connector owner level
+                  const ownerBase = connectorOwner.split('.').slice(0, -1).join('.') || 'this';
+                  return `${ownerBase}.getPort("${portName}")`;
+                };
+                
+                fromAccess = findComponentForPort(fromPort, true);
+                toAccess = findComponentForPort(toPort, false);
+                
+                connectorInstantiation = `new ${connectorClass}(${JSON.stringify(cname)}, ${fromAccess}, ${toAccess})`;
+              } else {
+                // Fallback for simple without clear from/to
+                connectorInstantiation = `new ${connectorClass}(${JSON.stringify(cname)})`;
+              }
+            } else {
+              // No bindings available
+              connectorInstantiation = `new ${connectorClass}(${JSON.stringify(cname)})`;
+            }
+          }
+        } else {
+          // No definition found, use basic constructor
+          connectorInstantiation = `new ${connectorClass}(${JSON.stringify(cname)})`;
+        }
+        
+        // Add connector to the appropriate component
+        lines.push(`    ${connectorOwner}.addConnector(${connectorInstantiation});`);
       }
       
       lines.push('');

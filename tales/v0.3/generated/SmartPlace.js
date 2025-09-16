@@ -189,51 +189,75 @@ class PT_SmartPlacePorts_ContextI2O extends CompositePort {
 
 // Connectors
 class CN_SmartPlaceConnectors_UndefinedCN extends Connector {
-  constructor(name, opts = {}) {
+  constructor(name, fromPort, toPort, opts = {}) {
     super(name, opts);
     // Flows: Void from undO to undI
+    if (fromPort && toPort) {
+      this.bind(fromPort, toPort);
+    }
   }
 }
 class CN_SmartPlaceConnectors_SendValueCN extends Connector {
-  constructor(name, opts = {}) {
+  constructor(name, fromPort, toPort, opts = {}) {
     super(name, opts);
     // Flows: Int from vO to vI
+    if (fromPort && toPort) {
+      this.bind(fromPort, toPort);
+    }
   }
 }
 class CN_SmartPlaceConnectors_InfraCodeCN extends Connector {
-  constructor(name, opts = {}) {
+  constructor(name, fromPort, toPort, opts = {}) {
     super(name, opts);
     // Flows: InfraredCode from cmdO to cmdI
+    if (fromPort && toPort) {
+      this.bind(fromPort, toPort);
+    }
   }
 }
 class CN_SmartPlaceConnectors_CmdRestfulCN extends Connector {
-  constructor(name, opts = {}) {
+  constructor(name, fromPort, toPort, opts = {}) {
     super(name, opts);
     // Flows: RestFulRaspeberry from restO to restI
+    if (fromPort && toPort) {
+      this.bind(fromPort, toPort);
+    }
   }
 }
 class CN_SmartPlaceConnectors_SendReservationInfoCN extends Connector {
-  constructor(name, opts = {}) {
+  constructor(name, fromPort, toPort, opts = {}) {
     super(name, opts);
     // Flows: Boolean from rRespO to rrRespI
+    if (fromPort && toPort) {
+      this.bind(fromPort, toPort);
+    }
   }
 }
 class CN_SmartPlaceConnectors_RequestCN extends Connector {
-  constructor(name, opts = {}) {
+  constructor(name, fromPort, toPort, opts = {}) {
     super(name, opts);
     // Flows: String from rReqO to rReqI
+    if (fromPort && toPort) {
+      this.bind(fromPort, toPort);
+    }
   }
 }
 class CN_SmartPlaceConnectors_SendContextCN extends Connector {
-  constructor(name, opts = {}) {
+  constructor(name, fromPort, toPort, opts = {}) {
     super(name, opts);
     // Flows: ContextInformation from ciO to ciI
+    if (fromPort && toPort) {
+      this.bind(fromPort, toPort);
+    }
   }
 }
 class CN_SmartPlaceConnectors_InfraredSignalCN extends Connector {
-  constructor(name, opts = {}) {
+  constructor(name, fromPort, toPort, opts = {}) {
     super(name, opts);
     // Flows: Void from isO to isI
+    if (fromPort && toPort) {
+      this.bind(fromPort, toPort);
+    }
   }
 }
 class CN_SmartPlaceConnectors_ReservationCN extends Connector {
@@ -241,9 +265,25 @@ class CN_SmartPlaceConnectors_ReservationCN extends Connector {
     super(name, opts);
     // Composite connector with internal connectors
     this.rri = new CN_SmartPlaceConnectors_RequestCN("rri");
+    this.sri = new CN_SmartPlaceConnectors_SendReservationInfoCN("sri");
+    
+    // Extract sub-ports and bind to internal connectors
+    if (arguments.length > 1) {
+      const portArgs = Array.from(arguments).slice(1, -1); // exclude name and opts
+      // RequestCN: rReqO -> rReqI
+      this.rri.bind(
+        portArgs[0] && portArgs[0].getSubPort('rReqO'),
+        portArgs[1] && portArgs[1].getSubPort('rReqI')
+      );
+      // SendReservationInfoCN: rRespO -> rrRespI
+      this.sri.bind(
+        portArgs[0] && portArgs[0].getSubPort('rRespO'),
+        portArgs[1] && portArgs[1].getSubPort('rrRespI')
+      );
+    }
+    
     this.connectors = this.connectors || {};
     this.connectors["rri"] = this.rri;
-    this.sri = new CN_SmartPlaceConnectors_SendReservationInfoCN("sri");
     this.connectors = this.connectors || {};
     this.connectors["sri"] = this.sri;
   }
@@ -253,29 +293,54 @@ class CN_SmartPlaceConnectors_QueryDataBaseCN extends Connector {
     super(name, opts);
     // Composite connector with internal connectors
     this.req = new CN_SmartPlaceConnectors_RequestCN("req");
+    this.resp = new CN_SmartPlaceConnectors_SendPostgreSQLInfoCN("resp");
+    
+    // Extract sub-ports and bind to internal connectors
+    if (arguments.length > 1) {
+      const portArgs = Array.from(arguments).slice(1, -1); // exclude name and opts
+      // RequestCN: rReqO -> rReqI
+      this.req.bind(
+        portArgs[0] && portArgs[0].getSubPort('rReqO'),
+        portArgs[1] && portArgs[1].getSubPort('rReqI')
+      );
+      // SendPostgreSQLInfoCN: psqlO -> psqlI
+      this.resp.bind(
+        portArgs[0] && portArgs[0].getSubPort('psqlO'),
+        portArgs[1] && portArgs[1].getSubPort('psqlI')
+      );
+    }
+    
     this.connectors = this.connectors || {};
     this.connectors["req"] = this.req;
-    this.resp = new CN_SmartPlaceConnectors_SendPostgreSQLInfoCN("resp");
     this.connectors = this.connectors || {};
     this.connectors["resp"] = this.resp;
   }
 }
 class CN_SmartPlaceConnectors_SendPostgreSQLInfoCN extends Connector {
-  constructor(name, opts = {}) {
+  constructor(name, fromPort, toPort, opts = {}) {
     super(name, opts);
     // Flows: String from psqlO to psqlI
+    if (fromPort && toPort) {
+      this.bind(fromPort, toPort);
+    }
   }
 }
 class CN_SmartPlaceConnectors_ScheduleCN extends Connector {
-  constructor(name, opts = {}) {
+  constructor(name, fromPort, toPort, opts = {}) {
     super(name, opts);
     // Flows: Schedule from dO to dI
+    if (fromPort && toPort) {
+      this.bind(fromPort, toPort);
+    }
   }
 }
 class CN_SmartPlaceConnectors_FrameListCN extends Connector {
-  constructor(name, opts = {}) {
+  constructor(name, fromPort, toPort, opts = {}) {
     super(name, opts);
     // Flows: FrameList from fO to fI
+    if (fromPort && toPort) {
+      this.bind(fromPort, toPort);
+    }
   }
 }
 class CN_SmartPlaceConnectors_ContextCN extends Connector {
@@ -283,9 +348,25 @@ class CN_SmartPlaceConnectors_ContextCN extends Connector {
     super(name, opts);
     // Composite connector with internal connectors
     this.req = new CN_SmartPlaceConnectors_RequestCN("req");
+    this.resp = new CN_SmartPlaceConnectors_SendContextCN("resp");
+    
+    // Extract sub-ports and bind to internal connectors
+    if (arguments.length > 1) {
+      const portArgs = Array.from(arguments).slice(1, -1); // exclude name and opts
+      // RequestCN: rReqO -> rReqI
+      this.req.bind(
+        portArgs[0] && portArgs[0].getSubPort('rReqO'),
+        portArgs[1] && portArgs[1].getSubPort('rReqI')
+      );
+      // SendContextCN: ciO -> ciI
+      this.resp.bind(
+        portArgs[0] && portArgs[0].getSubPort('ciO'),
+        portArgs[1] && portArgs[1].getSubPort('ciI')
+      );
+    }
+    
     this.connectors = this.connectors || {};
     this.connectors["req"] = this.req;
-    this.resp = new CN_SmartPlaceConnectors_SendContextCN("resp");
     this.connectors = this.connectors || {};
     this.connectors["resp"] = this.resp;
   }
@@ -495,20 +576,20 @@ class SysADLArchitecture extends Model {
     this.SmartPlace.Raspberry.tc = new CP_SmartPlaceComponents_TemperatureController("tc", { sysadlDefinition: "TemperatureController" });
     this.SmartPlace.Raspberry.addComponent(this.SmartPlace.Raspberry.tc);
 
-    this.SmartPlace.ac.addConnector(new CN_SmartPlaceConnectors_UndefinedCN("u"));
-    this.SmartPlace.Raspberry.addConnector(new CN_SmartPlaceConnectors_SendValueCN("countPeople"));
-    this.SmartPlace.Raspberry.addConnector(new CN_SmartPlaceConnectors_ReservationCN("rn"));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_QueryDataBaseCN("qdb"));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendPostgreSQLInfoCN("spsqli"));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendContextCN("ci1"));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_ContextCN("c"));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_CmdRestfulCN("cr"));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendValueCN("sendPresence"));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_FrameListCN("fl"));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendValueCN("sendTempHumi"));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_ReservationCN("rn"));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_InfraCodeCN("ic"));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_InfraredSignalCN("is"));
+    this.SmartPlace.ac.addConnector(new CN_SmartPlaceConnectors_UndefinedCN("u", this.SmartPlace.getPort("uF"), this.SmartPlace.getPort("uAcc")));
+    this.SmartPlace.Raspberry.addConnector(new CN_SmartPlaceConnectors_SendValueCN("countPeople", this.SmartPlace.getPort("numPeopleCm"), this.SmartPlace.getPort("numPeopleTc")));
+    this.SmartPlace.Raspberry.addConnector(new CN_SmartPlaceConnectors_ReservationCN("rn", this.SmartPlace.getPort("riTc"), this.SmartPlace.rrs.getPort("ri")));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_QueryDataBaseCN("qdb", this.getPort("dbSpw"), this.SmartPlace.spw.getPort("db")));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendPostgreSQLInfoCN("spsqli", this.getPort("uSpw"), this.SmartPlace.spw.getPort("u")));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendContextCN("ci1", this.getPort("coSpw"), this.SmartPlace.ocb.getPort("ci")));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_ContextCN("c", this.SmartPlace.spw.getPort("ctx"), this.getPort("ctxSpw")));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_CmdRestfulCN("cr", this.SmartPlace.spw.getPort("rr"), this.getPort("rrSpw")));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendValueCN("sendPresence", this.getPort("presencePs"), this.SmartPlace.ps.getPort("presence")));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_FrameListCN("fl", this.getPort("fCam"), this.SmartPlace.Raspberry.getPort("f")));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendValueCN("sendTempHumi", this.getPort("temperatureThs"), this.SmartPlace.ths.getPort("temperature")));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_ReservationCN("rn", this.SmartPlace.rrs.getPort("ri"), this.getPort("riRrs")));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_InfraCodeCN("ic", this.SmartPlace.Led.getPort("c"), this.getPort("cLed")));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_InfraredSignalCN("is", this.getPort("isLed"), this.getPort("isAc")));
 
     const act_RaspberryControllerAC_spw = new Activity("RaspberryControllerAC", { component: "spw", inputPorts: ["u"] });
     this.registerActivity("RaspberryControllerAC::spw", act_RaspberryControllerAC_spw);

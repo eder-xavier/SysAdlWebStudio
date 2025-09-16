@@ -20,15 +20,21 @@ class PT_Elements_FTempOPT extends SimplePort {
 
 // Connectors
 class CN_Elements_FarToCelCN extends Connector {
-  constructor(name, opts = {}) {
+  constructor(name, fromPort, toPort, opts = {}) {
     super(name, opts);
     // Flows: Real from f to c
+    if (fromPort && toPort) {
+      this.bind(fromPort, toPort);
+    }
   }
 }
 class CN_Elements_CelToCelCN extends Connector {
-  constructor(name, opts = {}) {
+  constructor(name, fromPort, toPort, opts = {}) {
     super(name, opts);
     // Flows: Real from c1 to c2
+    if (fromPort && toPort) {
+      this.bind(fromPort, toPort);
+    }
   }
 }
 
@@ -72,14 +78,14 @@ class SysADLModel extends Model {
     this.SystemCP.tempMon = new CP_Elements_TempMonitorCP("tempMon", { isBoundary: true, sysadlDefinition: "TempMonitorCP" });
     this.SystemCP.addComponent(this.SystemCP.tempMon);
 
-    this.SystemCP.addConnector(new CN_Elements_FarToCelCN("c1"));
-    this.SystemCP.addConnector(new CN_Elements_FarToCelCN("c2"));
-    this.SystemCP.addConnector(new CN_Elements_CelToCelCN("c3"));
+    this.SystemCP.addConnector(new CN_Elements_FarToCelCN("c1", this.getPort("temp1"), this.SystemCP.tempMon.getPort("s1")));
+    this.SystemCP.addConnector(new CN_Elements_FarToCelCN("c2", this.getPort("temp2"), this.SystemCP.tempMon.getPort("s2")));
+    this.SystemCP.addConnector(new CN_Elements_CelToCelCN("c3", this.SystemCP.tempMon.getPort("average"), this.getPort("avg")));
 
     this.addExecutableSafe("SysADLModel.FarToCelEX", "executable def FarToCelEX (in f:Real): out Real {\n\t\treturn 5*(f - 32)/9 ;\n\t}", []);
     this.addExecutableSafe("SysADLModel.CalcAverageEX", "executable def CalcAverageEX(in temp1:Real,in temp2:Real):out Real{\n\t\treturn (temp1 + temp2)/2 ;\n\t}", []);
-    this.addExecutableSafe("SysADLModel.egcz", "executable FarToCelEX to FarToCelAN", []);
-    this.addExecutableSafe("SysADLModel.2kt2", "executable CalcAverageEX to TempMonitorAN", []);
+    this.addExecutableSafe("SysADLModel.r42c", "executable FarToCelEX to FarToCelAN", []);
+    this.addExecutableSafe("SysADLModel.umu3", "executable CalcAverageEX to TempMonitorAN", []);
     const act_FarToCelAC_s1 = new Activity("FarToCelAC", { component: "s1", inputPorts: ["current"] });
     act_FarToCelAC_s1.addAction(new Action("FarToCelAN", [], "FarToCelEX"));
     this.registerActivity("FarToCelAC::s1", act_FarToCelAC_s1);

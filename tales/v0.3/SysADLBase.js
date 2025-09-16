@@ -18,7 +18,6 @@ class Model extends Element {
     this._log = [];
     this._activities = {};
     this._pendingInputs = {};
-  this._connectorEndpoints = {}; // map 'comp.port' -> Set of connectors
   }
 
   addComponent(inst) {
@@ -28,20 +27,9 @@ class Model extends Element {
 
   addConnector(conn) { if (conn && conn.name) this.connectors[conn.name] = conn; }
 
-  registerConnectorEndpoint(connector, compName, portName){
-    if(!connector || !compName || !portName) return;
-    const key = compName + '.' + portName;
-    this._connectorEndpoints[key] = this._connectorEndpoints[key] || new Set();
-    this._connectorEndpoints[key].add(connector);
-  }
-
-  _dispatchConnectors(compName, portName, value){
-    const key = compName + '.' + portName;
-    const set = this._connectorEndpoints[key];
-    if(!set || !set.size) return;
-    for(const conn of Array.from(set)){
-      try{ if (typeof conn.forwardFrom === 'function') conn.forwardFrom(compName, portName, value, this); } catch(e){}
-    }
+  logEvent(event) {
+    this._log = this._log || [];
+    this._log.push(event);
   }
 
   addExecutable(name, fn) {
@@ -73,36 +61,6 @@ class Model extends Element {
     } catch (e) {
       // ignore errors during generation-time registration
     }
-  }
-
-  // safe attach for connectors emitted by generator. Accepts either:
-  // - (connector, portObj) where portObj is a Port/CompositePort instance
-  // - (connector, compObj, portName) where compObj is a Component instance and portName a string
-  attachEndpointSafe(connector, compOrPort, portName) {
-    try {
-      if (!connector || !compOrPort) return;
-      // if second argument looks like a Port instance, attach directly
-      if (typeof compOrPort === 'object' && compOrPort && compOrPort.name && compOrPort.owner) {
-        connector.addEndpoint(this, compOrPort);
-        return;
-      }
-      // otherwise treat compOrPort as a component and portName as the port id
-      const comp = compOrPort;
-      if (!comp || !portName) return;
-      if (comp.ports && comp.ports[portName]) { connector.addEndpoint(this, comp.ports[portName]); return; }
-      // fallback: search composite ports for a matching sub-port
-      if (comp.ports) {
-        for (const k of Object.keys(comp.ports)) {
-          try {
-            const cp = comp.ports[k];
-            if (cp && typeof cp.getSubPort === 'function') {
-              const sp = cp.getSubPort(portName);
-              if (sp) { connector.addEndpoint(this, sp); return; }
-            }
-          } catch (e) { /* ignore */ }
-        }
-      }
-    } catch (e) { /* ignore */ }
   }
 
   registerActivity(key, activity) {
@@ -180,30 +138,28 @@ class Component extends Element {
   addPort(p){ if (!p || !p.name) return; if (this.ports[p.name]) return this.ports[p.name]; this.ports[p.name] = p; return p; }
   addComponent(inst){ this.components[inst.name] = inst; }
   addConnector(conn) { if (conn && conn.name) this.connectors[conn.name] = conn; }
+  
+  // Get a port by name
+  getPort(portName) {
+    return this.ports[portName] || null;
+  }
 }
 
 class Connector extends Element {
   constructor(name, opts = {}){ super(name, opts); this.participants = []; }
   addParticipant(p){ this.participants.push(p); }
-  // register a Port endpoint with this connector (model is needed to map back)
-  // Accepts a Port or a CompositePort sub-port. No runtime name-based resolution happens here.
-  addEndpoint(model, port){
-    try{
-      this.participants = this.participants || [];
-      if(port && port.owner && port.name) this.participants.push(port);
-      // inform model about this endpoint for dispatch
-      if(model && typeof model.registerConnectorEndpoint === 'function') model.registerConnectorEndpoint(this, port.owner, port.name);
-    }catch(e){}
-  }
-  // forward incoming value from one endpoint to the other endpoints
-  forwardFrom(compName, portName, value, model){
-    const parts = (this.participants || []).filter(Boolean);
-    for(const p of parts){
-      try{
-        // skip the origin endpoint (match by owner+name)
-        if(p.owner === compName && p.name === portName) continue;
-        if(typeof p.receive === 'function') p.receive(value, model);
-      }catch(e){}
+  
+  // Bind two ports together in this connector
+  bind(fromPort, toPort) {
+    if (!fromPort || !toPort) return;
+    this.participants = this.participants || [];
+    
+    // Add both ports as participants if not already present
+    if (!this.participants.some(p => p === fromPort)) {
+      this.participants.push(fromPort);
+    }
+    if (!this.participants.some(p => p === toPort)) {
+      this.participants.push(toPort);
     }
   }
 }
@@ -223,9 +179,7 @@ class Port extends Element {
     this.last = v;
     if (this.binding && typeof this.binding.receive === 'function') this.binding.receive(v, model);
     if (model) {
-      // dispatch to connectors first (connectors know endpoints and will forward to other ports)
-      if (typeof model._dispatchConnectors === 'function') model._dispatchConnectors(this.owner, this.name, v);
-      // still notify model of receive to trigger activities on this component
+      // notify model of receive to trigger activities on this component
       model.handlePortReceive(this.owner, this.name, v);
     }
   }
@@ -269,9 +223,7 @@ class CompositePort extends Port {
   send(v, model){
     // Type validation removed
     model && model.logEvent && model.logEvent({ elementType: 'port_send', component: this.owner, name: this.name, inputs: [v], when: Date.now() });
-    // dispatch to connectors registered on composite-level first
-    if (model && typeof model._dispatchConnectors === 'function') model._dispatchConnectors(this.owner, this.name, v);
-    // then forward to subports (broadcast)
+    // forward to subports (broadcast)
     for (const sp of Object.values(this.subports || {})) { try { if (sp && typeof sp.receive === 'function') sp.receive(v, model); } catch(e){} }
     // activities: composite itself may have activities bound to its name
     if (model) model.handlePortReceive(this.owner, this.name, v);
@@ -280,7 +232,6 @@ class CompositePort extends Port {
   receive(v, model){
     // Type validation removed
     model && model.logEvent && model.logEvent({ elementType: 'port_receive', component: this.owner, name: this.name, inputs: [v], when: Date.now() });
-    if (model && typeof model._dispatchConnectors === 'function') model._dispatchConnectors(this.owner, this.name, v);
     for (const sp of Object.values(this.subports || {})) { try { if (sp && typeof sp.receive === 'function') sp.receive(v, model); } catch(e){} }
     if (model) model.handlePortReceive(this.owner, this.name, v);
   }
