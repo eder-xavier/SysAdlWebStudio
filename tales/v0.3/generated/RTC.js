@@ -282,14 +282,13 @@ class CT_Components_CalculateAverageTemperatureEQ extends Constraint {
       inParameters: [],
       outParameters: [],
       equation: "(av == ((t1 + t2) / 2))",
-      constraintFunction: function(t1, t2) {
+      constraintFunction: function(params) {// Constraint equation: (av == ((t1 + t2) / 2))
+          const { t1, t2 } = params;
+          
           // Type validation
           if (typeof t1 !== 'number') throw new Error('Parameter t1 must be a Real (number)');
           if (typeof t2 !== 'number') throw new Error('Parameter t2 must be a Real (number)');
-          // Constraint equation: (av == ((t1 + t2) / 2))
-          const expectedValue = (t1 + t2) / 2;
-          const actualValue = av;
-          return Math.abs(expectedValue - actualValue) < 1e-10; // tolerance for floating point comparison
+          return av == ((t1 + t2) / 2);
         }
     });
   }
@@ -303,14 +302,15 @@ class CT_Components_CompareTemperatureEQ extends Constraint {
       inParameters: [],
       outParameters: [],
       equation: "((average > target) ? ((cmds == types.Commands.heater.Off) && types.Commands.cooler.On) : (types.Commands.heater.On && (cmds == types.Commands.cooler.Off)))",
-      constraintFunction: function(average, target, cmds, heater, cooler) {
+      constraintFunction: function(params) {// Conditional constraint: ((average > target) ? ((cmds == types.Commands.heater.Off) && types.Commands.cooler.On) : (types.Commands.heater.On && (cmds == types.Commands.cooler.Off)))
+          const { average, target, cmds, heater, cooler } = params;
+          
           // Type validation
           if (typeof average !== 'number') throw new Error('Parameter average must be a Real (number)');
           if (typeof target !== 'number') throw new Error('Parameter target must be a Real (number)');
           if (typeof cmds !== 'number') throw new Error('Parameter cmds must be a Real (number)');
           if (typeof heater !== 'number') throw new Error('Parameter heater must be a Real (number)');
           if (typeof cooler !== 'number') throw new Error('Parameter cooler must be a Real (number)');
-          // Conditional constraint: ((average > target) ? ((cmds == types.Commands.heater.Off) && types.Commands.cooler.On) : (types.Commands.heater.On && (cmds == types.Commands.cooler.Off)))
           return (average > target) ? ((cmds == types.Commands.heater.Off) && types.Commands.cooler.On) : (types.Commands.heater.On && (cmds == types.Commands.cooler.Off));
         }
     });
@@ -325,13 +325,12 @@ class CT_Components_FahrenheitToCelsiusEQ extends Constraint {
       inParameters: [],
       outParameters: [],
       equation: "(c == ((5 * (f - 32)) / 9))",
-      constraintFunction: function(f) {
+      constraintFunction: function(params) {// Constraint equation: (c == ((5 * (f - 32)) / 9))
+          const { f } = params;
+          
           // Type validation
           if (typeof f !== 'number') throw new Error('Parameter f must be a Real (number)');
-          // Constraint equation: (c == ((5 * (f - 32)) / 9))
-          const expectedValue = (5 * (f - 32)) / 9;
-          const actualValue = c;
-          return Math.abs(expectedValue - actualValue) < 1e-10; // tolerance for floating point comparison
+          return c == ((5 * (f - 32)) / 9);
         }
     });
   }
@@ -345,14 +344,13 @@ class CT_Components_CommandHeaterEQ extends Constraint {
       inParameters: [],
       outParameters: [],
       equation: "(c == cmds.heater)",
-      constraintFunction: function(cmds, heater) {
+      constraintFunction: function(params) {// Constraint equation: (c == cmds.heater)
+          const { cmds, heater } = params;
+          
           // Type validation
           if (typeof cmds !== 'number') throw new Error('Parameter cmds must be a Real (number)');
           if (typeof heater !== 'number') throw new Error('Parameter heater must be a Real (number)');
-          // Constraint equation: (c == cmds.heater)
-          const expectedValue = cmds.heater;
-          const actualValue = c;
-          return Math.abs(expectedValue - actualValue) < 1e-10; // tolerance for floating point comparison
+          return c == cmds.heater;
         }
     });
   }
@@ -366,14 +364,13 @@ class CT_Components_CommandCoolerEQ extends Constraint {
       inParameters: [],
       outParameters: [],
       equation: "(c == cmds.cooler)",
-      constraintFunction: function(cmds, cooler) {
+      constraintFunction: function(params) {// Constraint equation: (c == cmds.cooler)
+          const { cmds, cooler } = params;
+          
           // Type validation
           if (typeof cmds !== 'number') throw new Error('Parameter cmds must be a Real (number)');
           if (typeof cooler !== 'number') throw new Error('Parameter cooler must be a Real (number)');
-          // Constraint equation: (c == cmds.cooler)
-          const expectedValue = cmds.cooler;
-          const actualValue = c;
-          return Math.abs(expectedValue - actualValue) < 1e-10; // tolerance for floating point comparison
+          return c == cmds.cooler;
         }
     });
   }
@@ -387,12 +384,13 @@ class CT_Components_CheckPresenceToSetTemperatureEQ extends Constraint {
       inParameters: [],
       outParameters: [],
       equation: "((detected == true) ? (target == userTemp) : (target == 2))",
-      constraintFunction: function(detected, target, userTemp) {
+      constraintFunction: function(params) {// Conditional constraint: ((detected == true) ? (target == userTemp) : (target == 2))
+          const { detected, target, userTemp } = params;
+          
           // Type validation
           if (typeof detected !== 'number') throw new Error('Parameter detected must be a Real (number)');
           if (typeof target !== 'number') throw new Error('Parameter target must be a Real (number)');
           if (typeof userTemp !== 'number') throw new Error('Parameter userTemp must be a Real (number)');
-          // Conditional constraint: ((detected == true) ? (target == userTemp) : (target == 2))
           return (detected == true) ? (target == userTemp) : (target == 2);
         }
     });
@@ -406,9 +404,10 @@ class EX_Components_CommandCoolerEx extends Executable {
       ...opts,
       inParameters: [],
       body: "executable def CommandCoolerEx(in cmds:Commands): out Command{return cmds->cooler ; }",
-      executableFunction: function(cmds) {
+      executableFunction: function(params) {
           // Type validation
           // Type validation for cmds: (auto-detected from usage)
+          const { cmds } = params;
           return cmds.cooler;
         }
     });
@@ -422,9 +421,10 @@ class EX_Components_CommandHeaterEx extends Executable {
       ...opts,
       inParameters: [],
       body: "executable def CommandHeaterEx(in cmds:Commands): out Command{return cmds->heater ; }",
-      executableFunction: function(cmds) {
+      executableFunction: function(params) {
           // Type validation
           // Type validation for cmds: (auto-detected from usage)
+          const { cmds } = params;
           return cmds.heater;
         }
     });
@@ -438,9 +438,10 @@ class EX_Components_FahrenheitToCelsiusEx extends Executable {
       ...opts,
       inParameters: [],
       body: "executable def FahrenheitToCelsiusEx(in f:FahrenheitTemperature): out CelsiusTemperature{return 5*(f - 32)/9 ; }",
-      executableFunction: function(f) {
+      executableFunction: function(params) {
           // Type validation
           // Type validation for f: (auto-detected from usage)
+          const { f } = params;
           return 5*(f - 32)/9;
         }
     });
@@ -454,10 +455,11 @@ class EX_Components_CalculateAverageTemperatureEx extends Executable {
       ...opts,
       inParameters: [],
       body: "executable def CalculateAverageTemperatureEx(in temp1:CelsiusTemperature,in temp2:CelsiusTemperature):out CelsiusTemperature{return (temp1 + temp2)/2 ; }",
-      executableFunction: function(temp1, temp2) {
+      executableFunction: function(params) {
           // Type validation
           // Type validation for temp1: (auto-detected from usage)
           // Type validation for temp2: (auto-detected from usage)
+          const { temp1, temp2 } = params;
           return (temp1 + temp2)/2;
         }
     });
@@ -471,10 +473,11 @@ class EX_Components_CheckPresenceToSetTemperature extends Executable {
       ...opts,
       inParameters: [],
       body: "executable def CheckPresenceToSetTemperature(in presence:Boolean, in userTemp:CelsiusTemperature):out CelsiusTemperature{if(presence == true) return userTemp; else return 2; }",
-      executableFunction: function(presence, userTemp) {
+      executableFunction: function(params) {
           // Type validation
           // Type validation for presence: (auto-detected from usage)
           // Type validation for userTemp: (auto-detected from usage)
+          const { presence, userTemp } = params;
           if(presence == true) return userTemp; else return 2;
         }
     });
@@ -488,10 +491,11 @@ class EX_Components_CompareTemperatureEx extends Executable {
       ...opts,
       inParameters: [],
       body: "executable def CompareTemperatureEx(in target:CelsiusTemperature, in average:CelsiusTemperature):out Commands{let heater:Command = types.Command::Off; let cooler:Command = types.Command::Off; if(average > target) {heater = types.Command::Off; cooler = types.Command::On ; } else {heater = types.Command::On; cooler = types.Command::Off ;} }",
-      executableFunction: function(target, average) {
+      executableFunction: function(params) {
           // Type validation
           // Type validation for target: (auto-detected from usage)
           // Type validation for average: (auto-detected from usage)
+          const { target, average } = params;
           let heater = types.Command.Off; let cooler = types.Command.Off; if(average > target) {heater = types.Command.Off; cooler = types.Command.On ; } else {heater = types.Command.On; cooler = types.Command.Off ;}
         }
     });
@@ -535,18 +539,6 @@ class SysADLModel extends Model {
     this.RTCSystemCFD.addConnector(new CN_Connectors_FahrenheitToCelsiusCN("c2", this.getPort("current2"), this.RTCSystemCFD.rtc.getPort("localTemp2")));
     this.RTCSystemCFD.addConnector(new CN_Connectors_CommandCN("cc1", this.RTCSystemCFD.rtc.cm.getPort("heating"), this.RTCSystemCFD.a1.getPort("controllerH")));
 
-    this.addExecutableSafe("SysADLModel.CommandCoolerEx", "executable def CommandCoolerEx(in cmds:Commands): out Command{return cmds->cooler ; }", ["cmds"]);
-    this.addExecutableSafe("SysADLModel.CommandHeaterEx", "executable def CommandHeaterEx(in cmds:Commands): out Command{return cmds->heater ; }", ["cmds"]);
-    this.addExecutableSafe("SysADLModel.FahrenheitToCelsiusEx", "executable def FahrenheitToCelsiusEx(in f:FahrenheitTemperature): out CelsiusTemperature{return 5*(f - 32)/9 ; }", ["f"]);
-    this.addExecutableSafe("SysADLModel.CalculateAverageTemperatureEx", "executable def CalculateAverageTemperatureEx(in temp1:CelsiusTemperature,in temp2:CelsiusTemperature):out CelsiusTemperature{return (temp1 + temp2)/2 ; }", ["temp1","temp2"]);
-    this.addExecutableSafe("SysADLModel.CheckPresenceToSetTemperature", "executable def CheckPresenceToSetTemperature(in presence:Boolean, in userTemp:CelsiusTemperature):out CelsiusTemperature{if(presence == true) return userTemp; else return 2; }", ["presence","userTemp"]);
-    this.addExecutableSafe("SysADLModel.CompareTemperatureEx", "executable def CompareTemperatureEx(in target:CelsiusTemperature, in average:CelsiusTemperature):out Commands{let heater:Command = types.Command::Off; let cooler:Command = types.Command::Off; if(average > target) {heater = types.Command::Off; cooler = types.Command::On ; } else {heater = types.Command::On; cooler = types.Command::Off ;} }", ["target","average"]);
-    this.addExecutableSafe("SysADLModel.ssi3", "executable FahrenheitToCelsiusEx to FahrenheitToCelsiusAN", []);
-    this.addExecutableSafe("SysADLModel.tqc8", "executable CompareTemperatureEx to CompareTemperatureAN", []);
-    this.addExecutableSafe("SysADLModel.nf12", "executable CommandHeaterEx to CommandHeaterAN", []);
-    this.addExecutableSafe("SysADLModel.nvwi", "executable CommandCoolerEx to CommandCoolerAN", []);
-    this.addExecutableSafe("SysADLModel.matv", "executable CheckPresenceToSetTemperature to CheckPeresenceToSetTemperatureAN", []);
-    this.addExecutableSafe("SysADLModel.897y", "executable CalculateAverageTemperatureEx to CalculateAverageTemperatureAN", []);
     const act_CalculateAverageTemperatureAC_SensorsMonitorCP = new AC_Components_CalculateAverageTemperatureAC("CalculateAverageTemperatureAC", { component: "SensorsMonitorCP", inputPorts: [], delegates: [{"from":"s1","to":"s1"},{"from":"s2","to":"s2"},{"from":"average","to":"CalcAvTemp"}] });
     const action_CalculateAverageTemperatureAN_CalculateAverageTemperatureAC_SensorsMonitorCP = new AN_Components_CalculateAverageTemperatureAN("CalculateAverageTemperatureAN", { delegates: [] });
     const constraint_CalculateAverageTemperatureEQ_CalculateAverageTemperatureAC_SensorsMonitorCP = new CT_Components_CalculateAverageTemperatureEQ("CalculateAverageTemperatureEQ");

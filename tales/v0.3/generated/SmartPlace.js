@@ -673,8 +673,9 @@ class CT_SmartPlaceComponents_RaspberryControllerEQ extends Constraint {
       inParameters: [],
       outParameters: [],
       equation: "\"a\"",
-      constraintFunction: function() {
-          // Executable expression: "a"
+      constraintFunction: function(params) {// Executable expression: "a"
+          const {  } = params;
+          
           return "a";
         }
     });
@@ -689,13 +690,14 @@ class CT_SmartPlaceComponents_SaveLastPresenceEQ extends Constraint {
       inParameters: [],
       outParameters: [],
       equation: "(((presence == 1) || (numPeople > 0)) ? (lastPresence == currentTime) : (lastPresence == null))",
-      constraintFunction: function(presence, numPeople, lastPresence, currentTime) {
+      constraintFunction: function(params) {// Conditional constraint: (((presence == 1) || (numPeople > 0)) ? (lastPresence == currentTime) : (lastPresence == null))
+          const { presence, numPeople, lastPresence, currentTime } = params;
+          
           // Type validation
           if (typeof presence !== 'number') throw new Error('Parameter presence must be a Real (number)');
           if (typeof numPeople !== 'number') throw new Error('Parameter numPeople must be a Real (number)');
           if (typeof lastPresence !== 'number') throw new Error('Parameter lastPresence must be a Real (number)');
           if (typeof currentTime !== 'number') throw new Error('Parameter currentTime must be a Real (number)');
-          // Conditional constraint: (((presence == 1) || (numPeople > 0)) ? (lastPresence == currentTime) : (lastPresence == null))
           return ((presence == 1) || (numPeople > 0)) ? (lastPresence == currentTime) : (lastPresence == null);
         }
     });
@@ -710,7 +712,9 @@ class CT_SmartPlaceComponents_TurnOnEQ extends Constraint {
       inParameters: [],
       outParameters: [],
       equation: "(((reservation == true) && ((presence == 1) || (numPeople > 0))) ? (ic == InfraredCode.turn_on) : (ic == InfraredCode.turn_off))",
-      constraintFunction: function(reservation, presence, numPeople, ic, InfraredCode, turn_on, turn_off) {
+      constraintFunction: function(params) {// Conditional constraint: (((reservation == true) && ((presence == 1) || (numPeople > 0))) ? (ic == InfraredCode.turn_on) : (ic == InfraredCode.turn_off))
+          const { reservation, presence, numPeople, ic, InfraredCode, turn_on, turn_off } = params;
+          
           // Type validation
           if (typeof reservation !== 'number') throw new Error('Parameter reservation must be a Real (number)');
           if (typeof presence !== 'number') throw new Error('Parameter presence must be a Real (number)');
@@ -719,7 +723,6 @@ class CT_SmartPlaceComponents_TurnOnEQ extends Constraint {
           if (typeof InfraredCode !== 'number') throw new Error('Parameter InfraredCode must be a Real (number)');
           if (typeof turn_on !== 'number') throw new Error('Parameter turn_on must be a Real (number)');
           if (typeof turn_off !== 'number') throw new Error('Parameter turn_off must be a Real (number)');
-          // Conditional constraint: (((reservation == true) && ((presence == 1) || (numPeople > 0))) ? (ic == InfraredCode.turn_on) : (ic == InfraredCode.turn_off))
           return ((reservation == true) && ((presence == 1) || (numPeople > 0))) ? (ic == InfraredCode.turn_on) : (ic == InfraredCode.turn_off);
         }
     });
@@ -734,7 +737,9 @@ class CT_SmartPlaceComponents_TurnOffEQ extends Constraint {
       inParameters: [],
       outParameters: [],
       equation: "((((presence == 0) && (numPeople == 0)) && ((currentTime - lastPresence) > 15)) ? (ic == InfraredCode.turn_off) : (ic == InfraredCode.turn_on))",
-      constraintFunction: function(presence, numPeople, currentTime, lastPresence, ic, InfraredCode, turn_off, turn_on) {
+      constraintFunction: function(params) {// Conditional constraint: ((((presence == 0) && (numPeople == 0)) && ((currentTime - lastPresence) > 15)) ? (ic == InfraredCode.turn_off) : (ic == InfraredCode.turn_on))
+          const { presence, numPeople, currentTime, lastPresence, ic, InfraredCode, turn_off, turn_on } = params;
+          
           // Type validation
           if (typeof presence !== 'number') throw new Error('Parameter presence must be a Real (number)');
           if (typeof numPeople !== 'number') throw new Error('Parameter numPeople must be a Real (number)');
@@ -744,7 +749,6 @@ class CT_SmartPlaceComponents_TurnOffEQ extends Constraint {
           if (typeof InfraredCode !== 'number') throw new Error('Parameter InfraredCode must be a Real (number)');
           if (typeof turn_off !== 'number') throw new Error('Parameter turn_off must be a Real (number)');
           if (typeof turn_on !== 'number') throw new Error('Parameter turn_on must be a Real (number)');
-          // Conditional constraint: ((((presence == 0) && (numPeople == 0)) && ((currentTime - lastPresence) > 15)) ? (ic == InfraredCode.turn_off) : (ic == InfraredCode.turn_on))
           return (((presence == 0) && (numPeople == 0)) && ((currentTime - lastPresence) > 15)) ? (ic == InfraredCode.turn_off) : (ic == InfraredCode.turn_on);
         }
     });
@@ -759,8 +763,9 @@ class CT_SmartPlaceComponents_UpdateDataBaseEQ extends Constraint {
       inParameters: [],
       outParameters: [],
       equation: "\"a\"",
-      constraintFunction: function() {
-          // Executable expression: "a"
+      constraintFunction: function(params) {// Executable expression: "a"
+          const {  } = params;
+          
           return "a";
         }
     });
@@ -775,8 +780,9 @@ class CT_SmartPlaceComponents_UpdateContextSensorsEQ extends Constraint {
       inParameters: [],
       outParameters: [],
       equation: "\"a\"",
-      constraintFunction: function() {
-          // Executable expression: "a"
+      constraintFunction: function(params) {// Executable expression: "a"
+          const {  } = params;
+          
           return "a";
         }
     });

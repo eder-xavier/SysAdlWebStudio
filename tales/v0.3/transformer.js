@@ -1937,23 +1937,25 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
         let functionBody;
         if (alfExpression.includes('==') && !alfExpression.includes('?')) {
           // Simple equality constraint - return boolean result directly
-          functionBody = `${typeValidation}
-          // Constraint equation: ${alfExpression}
+          functionBody = `// Constraint equation: ${alfExpression}
+          const { ${paramNames.join(', ')} } = params;
+          ${typeValidation.replace(/typeof (\w+)/g, 'typeof $1')}
           return ${alfExpression.replace(/^\((.*)\)$/, '$1')};
         `;
         } else {
           // Numeric comparison constraint - use tolerance for floating point
-          functionBody = `${typeValidation}
-          // Constraint equation: ${alfExpression}
+          functionBody = `// Constraint equation: ${alfExpression}
+          const { ${paramNames.join(', ')} } = params;
+          ${typeValidation.replace(/typeof (\w+)/g, 'typeof $1')}
           const expectedValue = ${cleanRightSide};
           const actualValue = ${cleanLeftSide};
           return Math.abs(expectedValue - actualValue) < 1e-10; // tolerance for floating point comparison
         `;
         }
-        
+
         return {
           type: 'constraint',
-          javascript: `function(${paramNames.join(', ')}) {${functionBody}}`,
+          javascript: `function(params) {${functionBody}}`,
           equation: alfExpression,
           parameters: paramNames.map((name, idx) => ({ name, type: paramTypes[idx] }))
         };
@@ -1994,14 +1996,15 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
         const typeValidation = generateTypeValidation(paramNames, paramTypes);
         
         // Create constraint validation function - conditional expressions return boolean directly
-        const functionBody = `${typeValidation}
-          // Conditional constraint: ${alfExpression}
+        const functionBody = `// Conditional constraint: ${alfExpression}
+          const { ${paramNames.join(', ')} } = params;
+          ${typeValidation.replace(/typeof (\w+)/g, 'typeof $1')}
           return ${cleanExpression};
         `;
         
         return {
           type: 'constraint', 
-          javascript: `function(${paramNames.join(', ')}) {${functionBody}}`,
+          javascript: `function(params) {${functionBody}}`,
           equation: alfExpression,
           parameters: paramNames.map((name, idx) => ({ name, type: paramTypes[idx] }))
         };
@@ -2046,14 +2049,15 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
         // Clean the expression to convert SysADL syntax to JavaScript
         const cleanExpression = expression.replace(/->/g, '.');
         
-        const functionBody = `${typeValidation}
-          // Executable expression: ${cleanExpression}
+        const functionBody = `// Executable expression: ${cleanExpression}
+          const { ${extractedParams.join(', ')} } = params;
+          ${typeValidation.replace(/typeof (\w+)/g, 'typeof $1')}
           return ${cleanExpression};
         `;
         
         return {
           type: 'executable',
-          javascript: `function(${extractedParams.join(', ')}) {${functionBody}}`,
+          javascript: `function(params) {${functionBody}}`,
           expression: expression,
           parameters: extractedParams.map((name, idx) => ({ name, type: extractedTypes[idx] }))
         };
@@ -2109,24 +2113,27 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
       // Handle different executable patterns
       if (functionBody.includes('if(') && functionBody.includes('return')) {
         // Conditional executable with if/else
-        return `function(${paramNames.join(', ')}) {
+        return `function(params) {
           // Type validation
           ${paramNames.map(name => `// Type validation for ${name}: (auto-detected from usage)`).join('\n          ')}
+          const { ${paramNames.join(', ')} } = params;
           ${functionBody}
         }`;
       } else if (functionBody.startsWith('return ')) {
         // Simple return expression
         const returnExpr = functionBody.replace(/^return\s+/, '').replace(/\s*;\s*$/, '');
-        return `function(${paramNames.join(', ')}) {
+        return `function(params) {
           // Type validation
           ${paramNames.map(name => `// Type validation for ${name}: (auto-detected from usage)`).join('\n          ')}
+          const { ${paramNames.join(', ')} } = params;
           return ${returnExpr};
         }`;
       } else {
         // Complex executable body  
-        return `function(${paramNames.join(', ')}) {
+        return `function(params) {
           // Type validation
           ${paramNames.map(name => `// Type validation for ${name}: (auto-detected from usage)`).join('\n          ')}
+          const { ${paramNames.join(', ')} } = params;
           ${functionBody}
         }`;
       }
@@ -2485,24 +2492,8 @@ function extractExecutableParams(body) {
     .filter(name => name);
 }
 
-  // add executables (use helper to keep code concise)
-  if (Array.isArray(executables) && executables.length) {
-    for (const ex of executables) {
-      const body = (ex.body || ex.expression || '') || '';
-      if (!String(body).trim()) continue;
-      
-      // Extract parameters automatically from body if not provided
-      let params = Array.isArray(ex.params) ? ex.params : (ex.params || []);
-      if (params.length === 0) {
-        params = extractExecutableParams(body);
-      }
-      
-      let en = ex.name || null;
-      if (!en) en = `${modelName}.${Math.random().toString(36).slice(2,6)}`;
-      else if (!en.includes('.')) en = `${modelName}.${en}`;
-  lines.push(`    this.addExecutableSafe(${JSON.stringify(en)}, ${JSON.stringify(String(body))}, ${JSON.stringify(params)});`);
-    }
-  }
+  // Executable registration is handled through class instantiation and action.registerExecutable()
+  // No need for addExecutableSafe since executable classes already contain the compiled functions
 
   // register activities using explicit classes
   if (Array.isArray(activitiesToRegister) && activitiesToRegister.length) {
@@ -4155,7 +4146,27 @@ async function main() {
 
   // extract executables (simple): look for Executable nodes
   const executables = [];
-  traverse(ast, n => { if (n && (n.type === 'Executable' || /Executable/i.test(n.type))) { const name = n.name || (n.id && n.id.name) || n.id || null; let params = []; if (Array.isArray(n.parameters)) params = n.parameters.map(p => p.name || p.id || String(p)); let body = ''; if (n.location && n.location.start && typeof n.location.start.offset === 'number') { try { const s = n.location.start.offset; const e = n.location.end.offset; body = src.slice(s,e); } catch(e){} } executables.push({ name, params, body }); } });
+  traverse(ast, n => { 
+    if (n && (n.type === 'Executable' || /Executable/i.test(n.type))) { 
+      const name = n.name || (n.id && n.id.name) || n.id || null; 
+      let params = []; 
+      if (Array.isArray(n.parameters)) params = n.parameters.map(p => p.name || p.id || String(p)); 
+      let body = ''; 
+      if (n.location && n.location.start && typeof n.location.start.offset === 'number') { 
+        try { 
+          const s = n.location.start.offset; 
+          const e = n.location.end.offset; 
+          body = src.slice(s,e); 
+        } catch(e){} 
+      } 
+      
+      // Only add executables that have actual function bodies (definitions)
+      // Skip executable allocations (executable X to Y) which are just mappings
+      if (body && body.includes('{') && body.includes('}')) {
+        executables.push({ name, params, body }); 
+      }
+    } 
+  });
 
   // activities: ported heuristics from v0.2 to map actions->executables and pick input ports
   const activitiesToRegister = [];

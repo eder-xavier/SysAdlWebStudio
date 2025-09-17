@@ -117,13 +117,12 @@ class CT_Elements_FarToCelEQ extends Constraint {
       inParameters: [],
       outParameters: [],
       equation: "(c == ((5 * (f - 32)) / 9))",
-      constraintFunction: function(f) {
+      constraintFunction: function(params) {// Constraint equation: (c == ((5 * (f - 32)) / 9))
+          const { f } = params;
+          
           // Type validation
           if (typeof f !== 'number') throw new Error('Parameter f must be a Real (number)');
-          // Constraint equation: (c == ((5 * (f - 32)) / 9))
-          const expectedValue = (5 * (f - 32)) / 9;
-          const actualValue = c;
-          return Math.abs(expectedValue - actualValue) < 1e-10; // tolerance for floating point comparison
+          return c == ((5 * (f - 32)) / 9);
         }
     });
   }
@@ -137,14 +136,13 @@ class CT_Elements_CalcAverageEQ extends Constraint {
       inParameters: [],
       outParameters: [],
       equation: "(av == ((t1 + t2) / 2))",
-      constraintFunction: function(t1, t2) {
+      constraintFunction: function(params) {// Constraint equation: (av == ((t1 + t2) / 2))
+          const { t1, t2 } = params;
+          
           // Type validation
           if (typeof t1 !== 'number') throw new Error('Parameter t1 must be a Real (number)');
           if (typeof t2 !== 'number') throw new Error('Parameter t2 must be a Real (number)');
-          // Constraint equation: (av == ((t1 + t2) / 2))
-          const expectedValue = (t1 + t2) / 2;
-          const actualValue = av;
-          return Math.abs(expectedValue - actualValue) < 1e-10; // tolerance for floating point comparison
+          return av == ((t1 + t2) / 2);
         }
     });
   }
@@ -157,9 +155,10 @@ class EX_Elements_FarToCelEX extends Executable {
       ...opts,
       inParameters: [],
       body: "executable def FarToCelEX (in f:Real): out Real {\n\t\treturn 5*(f - 32)/9 ;\n\t}",
-      executableFunction: function(f) {
+      executableFunction: function(params) {
           // Type validation
           // Type validation for f: (auto-detected from usage)
+          const { f } = params;
           return 5*(f - 32)/9;
         }
     });
@@ -173,10 +172,11 @@ class EX_Elements_CalcAverageEX extends Executable {
       ...opts,
       inParameters: [],
       body: "executable def CalcAverageEX(in temp1:Real,in temp2:Real):out Real{\n\t\treturn (temp1 + temp2)/2 ;\n\t}",
-      executableFunction: function(temp1, temp2) {
+      executableFunction: function(params) {
           // Type validation
           // Type validation for temp1: (auto-detected from usage)
           // Type validation for temp2: (auto-detected from usage)
+          const { temp1, temp2 } = params;
           return (temp1 + temp2)/2;
         }
     });
@@ -203,10 +203,6 @@ class SysADLModel extends Model {
     this.SystemCP.addConnector(new CN_Elements_FarToCelCN("c2", this.getPort("temp2"), this.SystemCP.tempMon.getPort("s2")));
     this.SystemCP.addConnector(new CN_Elements_CelToCelCN("c3", this.SystemCP.tempMon.getPort("average"), this.getPort("avg")));
 
-    this.addExecutableSafe("SysADLModel.FarToCelEX", "executable def FarToCelEX (in f:Real): out Real {\n\t\treturn 5*(f - 32)/9 ;\n\t}", ["f"]);
-    this.addExecutableSafe("SysADLModel.CalcAverageEX", "executable def CalcAverageEX(in temp1:Real,in temp2:Real):out Real{\n\t\treturn (temp1 + temp2)/2 ;\n\t}", ["temp1","temp2"]);
-    this.addExecutableSafe("SysADLModel.u95x", "executable FarToCelEX to FarToCelAN", []);
-    this.addExecutableSafe("SysADLModel.jxh0", "executable CalcAverageEX to TempMonitorAN", []);
     const act_FarToCelAC_FarToCelCN = new AC_Elements_FarToCelAC("FarToCelAC", { component: "FarToCelCN", inputPorts: [], delegates: [{"from":"far","to":"far"},{"from":"cel","to":"ftoc"}] });
     const action_FarToCelAN_FarToCelAC_FarToCelCN = new AN_Elements_FarToCelAN("FarToCelAN", { delegates: [{"from":"far","to":"f"},{"from":"FarToCelAN","to":"c"}] });
     const constraint_FarToCelEQ_FarToCelAC_FarToCelCN = new CT_Elements_FarToCelEQ("FarToCelEQ");
