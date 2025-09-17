@@ -1,4 +1,4 @@
-const { Model, Component, Port, SimplePort, CompositePort, Connector, Activity, Action, createExecutableFromExpression, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit } = require('../SysADLBase');
+const { Model, Component, Port, SimplePort, CompositePort, Connector, Activity, Action, createExecutableFromExpression, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit, Constraint, Executable } = require('../SysADLBase');
 
 // Types
 const EN_InfraredCode = new Enum("increase", "decrease", "turn_on", "turn_off");
@@ -532,6 +532,259 @@ class CP_SmartPlaceComponents_HistoricController extends Component {
 }
 class CP_SmartPlaceComponents_SmartPlace extends Component { }
 
+// ===== Behavioral Element Classes =====
+// Activity class: RaspberryControllerAC
+class AC_SmartPlaceComponents_RaspberryControllerAC extends Activity {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [{"name":"restful","type":"Pin","direction":"in"},{"name":"signal","type":"Pin","direction":"in"}],
+      outParameters: []
+    });
+  }
+}
+
+// Activity class: TemperatureControllerAC
+class AC_SmartPlaceComponents_TemperatureControllerAC extends Activity {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [{"name":"presence","type":"Pin","direction":"in"},{"name":"temperature","type":"Pin","direction":"in"},{"name":"numPeople","type":"Pin","direction":"in"},{"name":"reservation","type":"Pin","direction":"in"},{"name":"restful","type":"Pin","direction":"in"},{"name":"cmd","type":"Pin","direction":"in"},{"name":"query_reservation","type":"Pin","direction":"in"}],
+      outParameters: []
+    });
+  }
+}
+
+// Activity class: UpdateContextSensorsAC
+class AC_SmartPlaceComponents_UpdateContextSensorsAC extends Activity {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [{"name":"dataSensor","type":"Pin","direction":"in"},{"name":"currentTime","type":"Pin","direction":"in"},{"name":"infoCtx","type":"Pin","direction":"in"}],
+      outParameters: []
+    });
+  }
+}
+
+// Action class: RaspberryControllerAN
+class AN_SmartPlaceComponents_RaspberryControllerAN extends Action {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [{"name":"restful","type":"Pin","direction":"in"}],
+      outParameters: [],
+    });
+  }
+}
+
+// Action class: PresenceLast15MinAN
+class AN_SmartPlaceComponents_PresenceLast15MinAN extends Action {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [{"name":"respPres15","type":"Pin","direction":"in"}],
+      outParameters: [],
+    });
+  }
+}
+
+// Action class: ChangeTempAN
+class AN_SmartPlaceComponents_ChangeTempAN extends Action {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [{"name":"lastAdjustTemp","type":"Pin","direction":"in"},{"name":"currentTime","type":"Pin","direction":"in"}],
+      outParameters: [],
+    });
+  }
+}
+
+// Action class: IncreaseDecreaseTempAN
+class AN_SmartPlaceComponents_IncreaseDecreaseTempAN extends Action {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [{"name":"lastPresence","type":"Pin","direction":"in"},{"name":"lastAdjustTemp","type":"Pin","direction":"in"},{"name":"temp","type":"Pin","direction":"in"}],
+      outParameters: [],
+    });
+  }
+}
+
+// Action class: UpdateDataBaseAN
+class AN_SmartPlaceComponents_UpdateDataBaseAN extends Action {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [{"name":"restful","type":"Pin","direction":"in"},{"name":"currentTime","type":"Pin","direction":"in"}],
+      outParameters: [],
+    });
+  }
+}
+
+// Action class: UpdateContextSensorsAN
+class AN_SmartPlaceComponents_UpdateContextSensorsAN extends Action {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [{"name":"dataSensor","type":"Pin","direction":"in"},{"name":"currentTime","type":"Pin","direction":"in"}],
+      outParameters: [],
+    });
+  }
+}
+
+// Action class: SaveLastPresenceAN
+class AN_SmartPlaceComponents_SaveLastPresenceAN extends Action {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [{"name":"presence","type":"Pin","direction":"in"},{"name":"numPeople","type":"Pin","direction":"in"},{"name":"currentTime","type":"Pin","direction":"in"}],
+      outParameters: [],
+    });
+  }
+}
+
+// Action class: TurnOnAN
+class AN_SmartPlaceComponents_TurnOnAN extends Action {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [{"name":"presence","type":"Pin","direction":"in"},{"name":"numPeople","type":"Pin","direction":"in"},{"name":"reservation","type":"Pin","direction":"in"}],
+      outParameters: [],
+    });
+  }
+}
+
+// Action class: TurnOffAN
+class AN_SmartPlaceComponents_TurnOffAN extends Action {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [{"name":"presence","type":"Pin","direction":"in"},{"name":"numPeople","type":"Pin","direction":"in"},{"name":"lastPresence","type":"Pin","direction":"in"},{"name":"currentTime","type":"Pin","direction":"in"}],
+      outParameters: [],
+    });
+  }
+}
+
+// Constraint class: RaspberryControllerEQ
+class CT_SmartPlaceComponents_RaspberryControllerEQ extends Constraint {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      outParameters: [],
+      equation: "\"a\"",
+      constraintFunction: function() {
+          // Executable expression: "a"
+          return "a";
+        }
+    });
+  }
+}
+
+// Constraint class: SaveLastPresenceEQ
+class CT_SmartPlaceComponents_SaveLastPresenceEQ extends Constraint {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      outParameters: [],
+      equation: "(((presence == 1) || (numPeople > 0)) ? (lastPresence == currentTime) : (lastPresence == null))",
+      constraintFunction: function(presence, numPeople, lastPresence, currentTime) {
+          // Type validation
+          if (typeof presence !== 'number') throw new Error('Parameter presence must be a Real (number)');
+          if (typeof numPeople !== 'number') throw new Error('Parameter numPeople must be a Real (number)');
+          if (typeof lastPresence !== 'number') throw new Error('Parameter lastPresence must be a Real (number)');
+          if (typeof currentTime !== 'number') throw new Error('Parameter currentTime must be a Real (number)');
+          // Conditional constraint: (((presence == 1) || (numPeople > 0)) ? (lastPresence == currentTime) : (lastPresence == null))
+          return ((presence == 1) || (numPeople > 0)) ? (lastPresence == currentTime) : (lastPresence == null);
+        }
+    });
+  }
+}
+
+// Constraint class: TurnOnEQ
+class CT_SmartPlaceComponents_TurnOnEQ extends Constraint {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      outParameters: [],
+      equation: "(((reservation == true) && ((presence == 1) || (numPeople > 0))) ? (ic == InfraredCode.turn_on) : (ic == InfraredCode.turn_off))",
+      constraintFunction: function(reservation, presence, numPeople, ic, InfraredCode, turn_on, turn_off) {
+          // Type validation
+          if (typeof reservation !== 'number') throw new Error('Parameter reservation must be a Real (number)');
+          if (typeof presence !== 'number') throw new Error('Parameter presence must be a Real (number)');
+          if (typeof numPeople !== 'number') throw new Error('Parameter numPeople must be a Real (number)');
+          if (typeof ic !== 'number') throw new Error('Parameter ic must be a Real (number)');
+          if (typeof InfraredCode !== 'number') throw new Error('Parameter InfraredCode must be a Real (number)');
+          if (typeof turn_on !== 'number') throw new Error('Parameter turn_on must be a Real (number)');
+          if (typeof turn_off !== 'number') throw new Error('Parameter turn_off must be a Real (number)');
+          // Conditional constraint: (((reservation == true) && ((presence == 1) || (numPeople > 0))) ? (ic == InfraredCode.turn_on) : (ic == InfraredCode.turn_off))
+          return ((reservation == true) && ((presence == 1) || (numPeople > 0))) ? (ic == InfraredCode.turn_on) : (ic == InfraredCode.turn_off);
+        }
+    });
+  }
+}
+
+// Constraint class: TurnOffEQ
+class CT_SmartPlaceComponents_TurnOffEQ extends Constraint {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      outParameters: [],
+      equation: "((((presence == 0) && (numPeople == 0)) && ((currentTime - lastPresence) > 15)) ? (ic == InfraredCode.turn_off) : (ic == InfraredCode.turn_on))",
+      constraintFunction: function(presence, numPeople, currentTime, lastPresence, ic, InfraredCode, turn_off, turn_on) {
+          // Type validation
+          if (typeof presence !== 'number') throw new Error('Parameter presence must be a Real (number)');
+          if (typeof numPeople !== 'number') throw new Error('Parameter numPeople must be a Real (number)');
+          if (typeof currentTime !== 'number') throw new Error('Parameter currentTime must be a Real (number)');
+          if (typeof lastPresence !== 'number') throw new Error('Parameter lastPresence must be a Real (number)');
+          if (typeof ic !== 'number') throw new Error('Parameter ic must be a Real (number)');
+          if (typeof InfraredCode !== 'number') throw new Error('Parameter InfraredCode must be a Real (number)');
+          if (typeof turn_off !== 'number') throw new Error('Parameter turn_off must be a Real (number)');
+          if (typeof turn_on !== 'number') throw new Error('Parameter turn_on must be a Real (number)');
+          // Conditional constraint: ((((presence == 0) && (numPeople == 0)) && ((currentTime - lastPresence) > 15)) ? (ic == InfraredCode.turn_off) : (ic == InfraredCode.turn_on))
+          return (((presence == 0) && (numPeople == 0)) && ((currentTime - lastPresence) > 15)) ? (ic == InfraredCode.turn_off) : (ic == InfraredCode.turn_on);
+        }
+    });
+  }
+}
+
+// Constraint class: UpdateDataBaseEQ
+class CT_SmartPlaceComponents_UpdateDataBaseEQ extends Constraint {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      outParameters: [],
+      equation: "\"a\"",
+      constraintFunction: function() {
+          // Executable expression: "a"
+          return "a";
+        }
+    });
+  }
+}
+
+// Constraint class: UpdateContextSensorsEQ
+class CT_SmartPlaceComponents_UpdateContextSensorsEQ extends Constraint {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      outParameters: [],
+      equation: "\"a\"",
+      constraintFunction: function() {
+          // Executable expression: "a"
+          return "a";
+        }
+    });
+  }
+}
+
+// ===== End Behavioral Element Classes =====
+
 class SysADLArchitecture extends Model {
   constructor(){
     super("SysADLArchitecture");
@@ -591,83 +844,83 @@ class SysADLArchitecture extends Model {
     this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_InfraCodeCN("ic", this.SmartPlace.Led.getPort("c"), this.getPort("cLed")));
     this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_InfraredSignalCN("is", this.getPort("isLed"), this.getPort("isAc")));
 
-    const act_RaspberryControllerAC_spw = new Activity("RaspberryControllerAC", { component: "spw", inputPorts: ["u"] });
+    const act_RaspberryControllerAC_spw = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "spw", inputPorts: ["u"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
     this.registerActivity("RaspberryControllerAC::spw", act_RaspberryControllerAC_spw);
-    const act_RaspberryControllerAC_rrs = new Activity("RaspberryControllerAC", { component: "rrs", inputPorts: ["ri"] });
+    const act_RaspberryControllerAC_rrs = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "rrs", inputPorts: ["ri"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
     this.registerActivity("RaspberryControllerAC::rrs", act_RaspberryControllerAC_rrs);
-    const act_RaspberryControllerAC_ocb = new Activity("RaspberryControllerAC", { component: "ocb", inputPorts: ["ci"] });
+    const act_RaspberryControllerAC_ocb = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "ocb", inputPorts: ["ci"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
     this.registerActivity("RaspberryControllerAC::ocb", act_RaspberryControllerAC_ocb);
-    const act_RaspberryControllerAC_ths = new Activity("RaspberryControllerAC", { component: "ths", inputPorts: ["temperature"] });
+    const act_RaspberryControllerAC_ths = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "ths", inputPorts: ["temperature"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
     this.registerActivity("RaspberryControllerAC::ths", act_RaspberryControllerAC_ths);
-    const act_RaspberryControllerAC_ps = new Activity("RaspberryControllerAC", { component: "ps", inputPorts: ["presence"] });
+    const act_RaspberryControllerAC_ps = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "ps", inputPorts: ["presence"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
     this.registerActivity("RaspberryControllerAC::ps", act_RaspberryControllerAC_ps);
-    const act_RaspberryControllerAC_psql = new Activity("RaspberryControllerAC", { component: "psql", inputPorts: ["u"] });
+    const act_RaspberryControllerAC_psql = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "psql", inputPorts: ["u"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
     this.registerActivity("RaspberryControllerAC::psql", act_RaspberryControllerAC_psql);
-    const act_RaspberryControllerAC_ac = new Activity("RaspberryControllerAC", { component: "ac", inputPorts: ["is"] });
+    const act_RaspberryControllerAC_ac = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "ac", inputPorts: ["is"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
     this.registerActivity("RaspberryControllerAC::ac", act_RaspberryControllerAC_ac);
-    const act_RaspberryControllerAC_Led = new Activity("RaspberryControllerAC", { component: "Led", inputPorts: ["c"] });
+    const act_RaspberryControllerAC_Led = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "Led", inputPorts: ["c"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
     this.registerActivity("RaspberryControllerAC::Led", act_RaspberryControllerAC_Led);
-    const act_RaspberryControllerAC_Raspberry = new Activity("RaspberryControllerAC", { component: "Raspberry", inputPorts: ["f"] });
+    const act_RaspberryControllerAC_Raspberry = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "Raspberry", inputPorts: ["f"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
     this.registerActivity("RaspberryControllerAC::Raspberry", act_RaspberryControllerAC_Raspberry);
-    const act_RaspberryControllerAC_Camera = new Activity("RaspberryControllerAC", { component: "Camera", inputPorts: ["f"] });
+    const act_RaspberryControllerAC_Camera = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "Camera", inputPorts: ["f"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
     this.registerActivity("RaspberryControllerAC::Camera", act_RaspberryControllerAC_Camera);
-    const act_RaspberryControllerAC_cm = new Activity("RaspberryControllerAC", { component: "cm", inputPorts: ["f"] });
+    const act_RaspberryControllerAC_cm = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "cm", inputPorts: ["f"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
     this.registerActivity("RaspberryControllerAC::cm", act_RaspberryControllerAC_cm);
-    const act_RaspberryControllerAC_tc = new Activity("RaspberryControllerAC", { component: "tc", inputPorts: ["presence"] });
+    const act_RaspberryControllerAC_tc = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "tc", inputPorts: ["presence"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
     this.registerActivity("RaspberryControllerAC::tc", act_RaspberryControllerAC_tc);
-    const act_RaspberryControllerAC_sqlite = new Activity("RaspberryControllerAC", { component: "sqlite", inputPorts: ["ri"] });
+    const act_RaspberryControllerAC_sqlite = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "sqlite", inputPorts: ["ri"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
     this.registerActivity("RaspberryControllerAC::sqlite", act_RaspberryControllerAC_sqlite);
-    const act_RaspberryControllerAC_f = new Activity("RaspberryControllerAC", { component: "f", inputPorts: ["u"] });
+    const act_RaspberryControllerAC_f = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "f", inputPorts: ["u"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
     this.registerActivity("RaspberryControllerAC::f", act_RaspberryControllerAC_f);
-    const act_RaspberryControllerAC_acc = new Activity("RaspberryControllerAC", { component: "acc", inputPorts: ["u"] });
+    const act_RaspberryControllerAC_acc = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "acc", inputPorts: ["u"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
     this.registerActivity("RaspberryControllerAC::acc", act_RaspberryControllerAC_acc);
-    const act_RaspberryControllerAC_rc = new Activity("RaspberryControllerAC", { component: "rc", inputPorts: ["ci"] });
+    const act_RaspberryControllerAC_rc = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "rc", inputPorts: ["ci"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
     this.registerActivity("RaspberryControllerAC::rc", act_RaspberryControllerAC_rc);
-    const act_RaspberryControllerAC_rg = new Activity("RaspberryControllerAC", { component: "rg", inputPorts: ["a"] });
+    const act_RaspberryControllerAC_rg = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "rg", inputPorts: ["a"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
     this.registerActivity("RaspberryControllerAC::rg", act_RaspberryControllerAC_rg);
-    const act_RaspberryControllerAC_gg = new Activity("RaspberryControllerAC", { component: "gg", inputPorts: ["db"] });
+    const act_RaspberryControllerAC_gg = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "gg", inputPorts: ["db"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
     this.registerActivity("RaspberryControllerAC::gg", act_RaspberryControllerAC_gg);
-    const act_RaspberryControllerAC_hc = new Activity("RaspberryControllerAC", { component: "hc", inputPorts: ["u"] });
+    const act_RaspberryControllerAC_hc = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "hc", inputPorts: ["u"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
     this.registerActivity("RaspberryControllerAC::hc", act_RaspberryControllerAC_hc);
-    const act_TemperatureControllerAC_tc = new Activity("TemperatureControllerAC", { component: "tc", inputPorts: ["presence"] });
+    const act_TemperatureControllerAC_tc = new AC_SmartPlaceComponents_TemperatureControllerAC("TemperatureControllerAC", { component: "tc", inputPorts: ["presence"], delegates: [{"from":"presence","to":"presenceSlp"},{"from":"numPeople","to":"numPeopleSlp"},{"from":"reservation","to":"reservationTon"},{"from":"numPeople","to":"numPeopleTon"},{"from":"presence","to":"presenceTon"},{"from":"cmd","to":"turnon"}] });
     this.registerActivity("TemperatureControllerAC::tc", act_TemperatureControllerAC_tc);
-    const act_UpdateContextSensorsAC_spw = new Activity("UpdateContextSensorsAC", { component: "spw", inputPorts: ["a","rr"] });
+    const act_UpdateContextSensorsAC_spw = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "spw", inputPorts: ["a","rr"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
     this.registerActivity("UpdateContextSensorsAC::spw", act_UpdateContextSensorsAC_spw);
-    const act_UpdateContextSensorsAC_rrs = new Activity("UpdateContextSensorsAC", { component: "rrs", inputPorts: ["ri"] });
+    const act_UpdateContextSensorsAC_rrs = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "rrs", inputPorts: ["ri"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
     this.registerActivity("UpdateContextSensorsAC::rrs", act_UpdateContextSensorsAC_rrs);
-    const act_UpdateContextSensorsAC_ocb = new Activity("UpdateContextSensorsAC", { component: "ocb", inputPorts: ["ci"] });
+    const act_UpdateContextSensorsAC_ocb = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "ocb", inputPorts: ["ci"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
     this.registerActivity("UpdateContextSensorsAC::ocb", act_UpdateContextSensorsAC_ocb);
-    const act_UpdateContextSensorsAC_ths = new Activity("UpdateContextSensorsAC", { component: "ths", inputPorts: ["temperature"] });
+    const act_UpdateContextSensorsAC_ths = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "ths", inputPorts: ["temperature"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
     this.registerActivity("UpdateContextSensorsAC::ths", act_UpdateContextSensorsAC_ths);
-    const act_UpdateContextSensorsAC_ps = new Activity("UpdateContextSensorsAC", { component: "ps", inputPorts: ["presence"] });
+    const act_UpdateContextSensorsAC_ps = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "ps", inputPorts: ["presence"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
     this.registerActivity("UpdateContextSensorsAC::ps", act_UpdateContextSensorsAC_ps);
-    const act_UpdateContextSensorsAC_psql = new Activity("UpdateContextSensorsAC", { component: "psql", inputPorts: ["db"] });
+    const act_UpdateContextSensorsAC_psql = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "psql", inputPorts: ["db"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
     this.registerActivity("UpdateContextSensorsAC::psql", act_UpdateContextSensorsAC_psql);
-    const act_UpdateContextSensorsAC_ac = new Activity("UpdateContextSensorsAC", { component: "ac", inputPorts: ["is"] });
+    const act_UpdateContextSensorsAC_ac = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "ac", inputPorts: ["is"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
     this.registerActivity("UpdateContextSensorsAC::ac", act_UpdateContextSensorsAC_ac);
-    const act_UpdateContextSensorsAC_Led = new Activity("UpdateContextSensorsAC", { component: "Led", inputPorts: ["c"] });
+    const act_UpdateContextSensorsAC_Led = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "Led", inputPorts: ["c"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
     this.registerActivity("UpdateContextSensorsAC::Led", act_UpdateContextSensorsAC_Led);
-    const act_UpdateContextSensorsAC_Raspberry = new Activity("UpdateContextSensorsAC", { component: "Raspberry", inputPorts: ["c"] });
+    const act_UpdateContextSensorsAC_Raspberry = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "Raspberry", inputPorts: ["c"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
     this.registerActivity("UpdateContextSensorsAC::Raspberry", act_UpdateContextSensorsAC_Raspberry);
-    const act_UpdateContextSensorsAC_Camera = new Activity("UpdateContextSensorsAC", { component: "Camera", inputPorts: ["f"] });
+    const act_UpdateContextSensorsAC_Camera = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "Camera", inputPorts: ["f"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
     this.registerActivity("UpdateContextSensorsAC::Camera", act_UpdateContextSensorsAC_Camera);
-    const act_UpdateContextSensorsAC_cm = new Activity("UpdateContextSensorsAC", { component: "cm", inputPorts: ["f"] });
+    const act_UpdateContextSensorsAC_cm = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "cm", inputPorts: ["f"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
     this.registerActivity("UpdateContextSensorsAC::cm", act_UpdateContextSensorsAC_cm);
-    const act_UpdateContextSensorsAC_tc = new Activity("UpdateContextSensorsAC", { component: "tc", inputPorts: ["presence"] });
+    const act_UpdateContextSensorsAC_tc = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "tc", inputPorts: ["presence"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
     this.registerActivity("UpdateContextSensorsAC::tc", act_UpdateContextSensorsAC_tc);
-    const act_UpdateContextSensorsAC_sqlite = new Activity("UpdateContextSensorsAC", { component: "sqlite", inputPorts: ["ri"] });
+    const act_UpdateContextSensorsAC_sqlite = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "sqlite", inputPorts: ["ri"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
     this.registerActivity("UpdateContextSensorsAC::sqlite", act_UpdateContextSensorsAC_sqlite);
-    const act_UpdateContextSensorsAC_f = new Activity("UpdateContextSensorsAC", { component: "f", inputPorts: ["u"] });
+    const act_UpdateContextSensorsAC_f = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "f", inputPorts: ["u"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
     this.registerActivity("UpdateContextSensorsAC::f", act_UpdateContextSensorsAC_f);
-    const act_UpdateContextSensorsAC_acc = new Activity("UpdateContextSensorsAC", { component: "acc", inputPorts: ["u"] });
+    const act_UpdateContextSensorsAC_acc = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "acc", inputPorts: ["u"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
     this.registerActivity("UpdateContextSensorsAC::acc", act_UpdateContextSensorsAC_acc);
-    const act_UpdateContextSensorsAC_rc = new Activity("UpdateContextSensorsAC", { component: "rc", inputPorts: ["ci"] });
+    const act_UpdateContextSensorsAC_rc = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "rc", inputPorts: ["ci"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
     this.registerActivity("UpdateContextSensorsAC::rc", act_UpdateContextSensorsAC_rc);
-    const act_UpdateContextSensorsAC_rg = new Activity("UpdateContextSensorsAC", { component: "rg", inputPorts: ["a"] });
+    const act_UpdateContextSensorsAC_rg = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "rg", inputPorts: ["a"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
     this.registerActivity("UpdateContextSensorsAC::rg", act_UpdateContextSensorsAC_rg);
-    const act_UpdateContextSensorsAC_gg = new Activity("UpdateContextSensorsAC", { component: "gg", inputPorts: ["db"] });
+    const act_UpdateContextSensorsAC_gg = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "gg", inputPorts: ["db"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
     this.registerActivity("UpdateContextSensorsAC::gg", act_UpdateContextSensorsAC_gg);
-    const act_UpdateContextSensorsAC_hc = new Activity("UpdateContextSensorsAC", { component: "hc", inputPorts: ["rr"] });
+    const act_UpdateContextSensorsAC_hc = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "hc", inputPorts: ["rr"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
     this.registerActivity("UpdateContextSensorsAC::hc", act_UpdateContextSensorsAC_hc);
   }
 }

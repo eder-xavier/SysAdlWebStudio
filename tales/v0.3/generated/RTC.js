@@ -1,4 +1,4 @@
-const { Model, Component, Port, SimplePort, CompositePort, Connector, Activity, Action, createExecutableFromExpression, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit } = require('../SysADLBase');
+const { Model, Component, Port, SimplePort, CompositePort, Connector, Activity, Action, createExecutableFromExpression, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit, Constraint, Executable } = require('../SysADLBase');
 
 // Types
 const DM_types_Temperature = dimension('Temperature');
@@ -163,6 +163,343 @@ class CP_Components_PresenceCheckerCP extends Component {
 }
 class CP_Components_RTCSystemCFD extends Component { }
 
+// ===== Behavioral Element Classes =====
+// Activity class: CalculateAverageTemperatureAC
+class AC_Components_CalculateAverageTemperatureAC extends Activity {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [{"name":"s1","type":"Pin","direction":"in"},{"name":"s2","type":"Pin","direction":"in"},{"name":"average","type":"Pin","direction":"in"}],
+      outParameters: []
+    });
+  }
+}
+
+// Activity class: CheckPresenceToSetTemperatureAC
+class AC_Components_CheckPresenceToSetTemperatureAC extends Activity {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [{"name":"detected","type":"Pin","direction":"in"},{"name":"userTemp","type":"Pin","direction":"in"},{"name":"target","type":"Pin","direction":"in"}],
+      outParameters: []
+    });
+  }
+}
+
+// Activity class: DecideCommandAC
+class AC_Components_DecideCommandAC extends Activity {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [{"name":"average2","type":"Pin","direction":"in"},{"name":"target2","type":"Pin","direction":"in"},{"name":"cooling","type":"Pin","direction":"in"},{"name":"heating","type":"Pin","direction":"in"}],
+      outParameters: []
+    });
+  }
+}
+
+// Activity class: FahrenheitToCelsiusAC
+class AC_Components_FahrenheitToCelsiusAC extends Activity {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [{"name":"current1","type":"Pin","direction":"in"},{"name":"loalTemp1","type":"Pin","direction":"in"}],
+      outParameters: []
+    });
+  }
+}
+
+// Action class: CalculateAverageTemperatureAN
+class AN_Components_CalculateAverageTemperatureAN extends Action {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [{"name":"t1","type":"Pin","direction":"in"},{"name":"t2","type":"Pin","direction":"in"}],
+      outParameters: [],
+    });
+  }
+}
+
+// Action class: CompareTemperatureAN
+class AN_Components_CompareTemperatureAN extends Action {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [{"name":"average2","type":"Pin","direction":"in"},{"name":"target2","type":"Pin","direction":"in"}],
+      outParameters: [],
+    });
+  }
+}
+
+// Action class: CommandHeaterAN
+class AN_Components_CommandHeaterAN extends Action {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [{"name":"cmds","type":"Pin","direction":"in"}],
+      outParameters: [],
+    });
+  }
+}
+
+// Action class: CommandCoolerAN
+class AN_Components_CommandCoolerAN extends Action {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [{"name":"cmds","type":"Pin","direction":"in"}],
+      outParameters: [],
+    });
+  }
+}
+
+// Action class: FahrenheitToCelsiusAN
+class AN_Components_FahrenheitToCelsiusAN extends Action {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [{"name":"current1","type":"Pin","direction":"in"}],
+      outParameters: [],
+    });
+  }
+}
+
+// Action class: CheckPeresenceToSetTemperatureAN
+class AN_Components_CheckPeresenceToSetTemperatureAN extends Action {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [{"name":"detected","type":"Pin","direction":"in"},{"name":"userTemp","type":"Pin","direction":"in"}],
+      outParameters: [],
+    });
+  }
+}
+
+// Constraint class: CalculateAverageTemperatureEQ
+class CT_Components_CalculateAverageTemperatureEQ extends Constraint {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      outParameters: [],
+      equation: "(av == ((t1 + t2) / 2))",
+      constraintFunction: function(t1, t2) {
+          // Type validation
+          if (typeof t1 !== 'number') throw new Error('Parameter t1 must be a Real (number)');
+          if (typeof t2 !== 'number') throw new Error('Parameter t2 must be a Real (number)');
+          // Constraint equation: (av == ((t1 + t2) / 2))
+          const expectedValue = (t1 + t2) / 2;
+          const actualValue = av;
+          return Math.abs(expectedValue - actualValue) < 1e-10; // tolerance for floating point comparison
+        }
+    });
+  }
+}
+
+// Constraint class: CompareTemperatureEQ
+class CT_Components_CompareTemperatureEQ extends Constraint {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      outParameters: [],
+      equation: "((average > target) ? ((cmds == types.Commands.heater.Off) && types.Commands.cooler.On) : (types.Commands.heater.On && (cmds == types.Commands.cooler.Off)))",
+      constraintFunction: function(average, target, cmds, heater, cooler) {
+          // Type validation
+          if (typeof average !== 'number') throw new Error('Parameter average must be a Real (number)');
+          if (typeof target !== 'number') throw new Error('Parameter target must be a Real (number)');
+          if (typeof cmds !== 'number') throw new Error('Parameter cmds must be a Real (number)');
+          if (typeof heater !== 'number') throw new Error('Parameter heater must be a Real (number)');
+          if (typeof cooler !== 'number') throw new Error('Parameter cooler must be a Real (number)');
+          // Conditional constraint: ((average > target) ? ((cmds == types.Commands.heater.Off) && types.Commands.cooler.On) : (types.Commands.heater.On && (cmds == types.Commands.cooler.Off)))
+          return (average > target) ? ((cmds == types.Commands.heater.Off) && types.Commands.cooler.On) : (types.Commands.heater.On && (cmds == types.Commands.cooler.Off));
+        }
+    });
+  }
+}
+
+// Constraint class: FahrenheitToCelsiusEQ
+class CT_Components_FahrenheitToCelsiusEQ extends Constraint {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      outParameters: [],
+      equation: "(c == ((5 * (f - 32)) / 9))",
+      constraintFunction: function(f) {
+          // Type validation
+          if (typeof f !== 'number') throw new Error('Parameter f must be a Real (number)');
+          // Constraint equation: (c == ((5 * (f - 32)) / 9))
+          const expectedValue = (5 * (f - 32)) / 9;
+          const actualValue = c;
+          return Math.abs(expectedValue - actualValue) < 1e-10; // tolerance for floating point comparison
+        }
+    });
+  }
+}
+
+// Constraint class: CommandHeaterEQ
+class CT_Components_CommandHeaterEQ extends Constraint {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      outParameters: [],
+      equation: "(c == cmds.heater)",
+      constraintFunction: function(cmds, heater) {
+          // Type validation
+          if (typeof cmds !== 'number') throw new Error('Parameter cmds must be a Real (number)');
+          if (typeof heater !== 'number') throw new Error('Parameter heater must be a Real (number)');
+          // Constraint equation: (c == cmds.heater)
+          const expectedValue = cmds.heater;
+          const actualValue = c;
+          return Math.abs(expectedValue - actualValue) < 1e-10; // tolerance for floating point comparison
+        }
+    });
+  }
+}
+
+// Constraint class: CommandCoolerEQ
+class CT_Components_CommandCoolerEQ extends Constraint {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      outParameters: [],
+      equation: "(c == cmds.cooler)",
+      constraintFunction: function(cmds, cooler) {
+          // Type validation
+          if (typeof cmds !== 'number') throw new Error('Parameter cmds must be a Real (number)');
+          if (typeof cooler !== 'number') throw new Error('Parameter cooler must be a Real (number)');
+          // Constraint equation: (c == cmds.cooler)
+          const expectedValue = cmds.cooler;
+          const actualValue = c;
+          return Math.abs(expectedValue - actualValue) < 1e-10; // tolerance for floating point comparison
+        }
+    });
+  }
+}
+
+// Constraint class: CheckPresenceToSetTemperatureEQ
+class CT_Components_CheckPresenceToSetTemperatureEQ extends Constraint {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      outParameters: [],
+      equation: "((detected == true) ? (target == userTemp) : (target == 2))",
+      constraintFunction: function(detected, target, userTemp) {
+          // Type validation
+          if (typeof detected !== 'number') throw new Error('Parameter detected must be a Real (number)');
+          if (typeof target !== 'number') throw new Error('Parameter target must be a Real (number)');
+          if (typeof userTemp !== 'number') throw new Error('Parameter userTemp must be a Real (number)');
+          // Conditional constraint: ((detected == true) ? (target == userTemp) : (target == 2))
+          return (detected == true) ? (target == userTemp) : (target == 2);
+        }
+    });
+  }
+}
+
+// Executable class: CommandCoolerEx
+class EX_Components_CommandCoolerEx extends Executable {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      body: "executable def CommandCoolerEx(in cmds:Commands): out Command{return cmds->cooler ; }",
+      executableFunction: function(cmds) {
+          // Type validation
+          // Type validation for cmds: (auto-detected from usage)
+          return cmds.cooler;
+        }
+    });
+  }
+}
+
+// Executable class: CommandHeaterEx
+class EX_Components_CommandHeaterEx extends Executable {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      body: "executable def CommandHeaterEx(in cmds:Commands): out Command{return cmds->heater ; }",
+      executableFunction: function(cmds) {
+          // Type validation
+          // Type validation for cmds: (auto-detected from usage)
+          return cmds.heater;
+        }
+    });
+  }
+}
+
+// Executable class: FahrenheitToCelsiusEx
+class EX_Components_FahrenheitToCelsiusEx extends Executable {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      body: "executable def FahrenheitToCelsiusEx(in f:FahrenheitTemperature): out CelsiusTemperature{return 5*(f - 32)/9 ; }",
+      executableFunction: function(f) {
+          // Type validation
+          // Type validation for f: (auto-detected from usage)
+          return 5*(f - 32)/9;
+        }
+    });
+  }
+}
+
+// Executable class: CalculateAverageTemperatureEx
+class EX_Components_CalculateAverageTemperatureEx extends Executable {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      body: "executable def CalculateAverageTemperatureEx(in temp1:CelsiusTemperature,in temp2:CelsiusTemperature):out CelsiusTemperature{return (temp1 + temp2)/2 ; }",
+      executableFunction: function(temp1, temp2) {
+          // Type validation
+          // Type validation for temp1: (auto-detected from usage)
+          // Type validation for temp2: (auto-detected from usage)
+          return (temp1 + temp2)/2;
+        }
+    });
+  }
+}
+
+// Executable class: CheckPresenceToSetTemperature
+class EX_Components_CheckPresenceToSetTemperature extends Executable {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      body: "executable def CheckPresenceToSetTemperature(in presence:Boolean, in userTemp:CelsiusTemperature):out CelsiusTemperature{if(presence == true) return userTemp; else return 2; }",
+      executableFunction: function(presence, userTemp) {
+          // Type validation
+          // Type validation for presence: (auto-detected from usage)
+          // Type validation for userTemp: (auto-detected from usage)
+          if(presence == true) return userTemp; else return 2;
+        }
+    });
+  }
+}
+
+// Executable class: CompareTemperatureEx
+class EX_Components_CompareTemperatureEx extends Executable {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      body: "executable def CompareTemperatureEx(in target:CelsiusTemperature, in average:CelsiusTemperature):out Commands{let heater:Command = types.Command::Off; let cooler:Command = types.Command::Off; if(average > target) {heater = types.Command::Off; cooler = types.Command::On ; } else {heater = types.Command::On; cooler = types.Command::Off ;} }",
+      executableFunction: function(target, average) {
+          // Type validation
+          // Type validation for target: (auto-detected from usage)
+          // Type validation for average: (auto-detected from usage)
+          let heater = types.Command.Off; let cooler = types.Command.Off; if(average > target) {heater = types.Command.Off; cooler = types.Command.On ; } else {heater = types.Command.On; cooler = types.Command.Off ;}
+        }
+    });
+  }
+}
+
+// ===== End Behavioral Element Classes =====
+
 class SysADLModel extends Model {
   constructor(){
     super("SysADLModel");
@@ -198,158 +535,62 @@ class SysADLModel extends Model {
     this.RTCSystemCFD.addConnector(new CN_Connectors_FahrenheitToCelsiusCN("c2", this.getPort("current2"), this.RTCSystemCFD.rtc.getPort("localTemp2")));
     this.RTCSystemCFD.addConnector(new CN_Connectors_CommandCN("cc1", this.RTCSystemCFD.rtc.cm.getPort("heating"), this.RTCSystemCFD.a1.getPort("controllerH")));
 
-    this.addExecutableSafe("SysADLModel.CommandCoolerEx", "executable def CommandCoolerEx(in cmds:Commands): out Command{return cmds->cooler ; }", []);
-    this.addExecutableSafe("SysADLModel.CommandHeaterEx", "executable def CommandHeaterEx(in cmds:Commands): out Command{return cmds->heater ; }", []);
-    this.addExecutableSafe("SysADLModel.FahrenheitToCelsiusEx", "executable def FahrenheitToCelsiusEx(in f:FahrenheitTemperature): out CelsiusTemperature{return 5*(f - 32)/9 ; }", []);
-    this.addExecutableSafe("SysADLModel.CalculateAverageTemperatureEx", "executable def CalculateAverageTemperatureEx(in temp1:CelsiusTemperature,in temp2:CelsiusTemperature):out CelsiusTemperature{return (temp1 + temp2)/2 ; }", []);
-    this.addExecutableSafe("SysADLModel.CheckPresenceToSetTemperature", "executable def CheckPresenceToSetTemperature(in presence:Boolean, in userTemp:CelsiusTemperature):out CelsiusTemperature{if(presence == true) return userTemp; else return 2; }", []);
-    this.addExecutableSafe("SysADLModel.CompareTemperatureEx", "executable def CompareTemperatureEx(in target:CelsiusTemperature, in average:CelsiusTemperature):out Commands{let heater:Command = types.Command::Off; let cooler:Command = types.Command::Off; if(average > target) {heater = types.Command::Off; cooler = types.Command::On ; } else {heater = types.Command::On; cooler = types.Command::Off ;} }", []);
-    this.addExecutableSafe("SysADLModel.1j0p", "executable FahrenheitToCelsiusEx to FahrenheitToCelsiusAN", []);
-    this.addExecutableSafe("SysADLModel.xur3", "executable CompareTemperatureEx to CompareTemperatureAN", []);
-    this.addExecutableSafe("SysADLModel.qzk3", "executable CommandHeaterEx to CommandHeaterAN", []);
-    this.addExecutableSafe("SysADLModel.l2b7", "executable CommandCoolerEx to CommandCoolerAN", []);
-    this.addExecutableSafe("SysADLModel.5wrw", "executable CheckPresenceToSetTemperature to CheckPeresenceToSetTemperatureAN", []);
-    this.addExecutableSafe("SysADLModel.ul6w", "executable CalculateAverageTemperatureEx to CalculateAverageTemperatureAN", []);
-    const act_CalculateAverageTemperatureAC_s1 = new Activity("CalculateAverageTemperatureAC", { component: "s1", inputPorts: ["current"] });
-    act_CalculateAverageTemperatureAC_s1.addAction(new Action("CalculateAverageTemperatureAN", [], "CalculateAverageTemperatureEx"));
-    this.registerActivity("CalculateAverageTemperatureAC::s1", act_CalculateAverageTemperatureAC_s1);
-    const act_CalculateAverageTemperatureAC_s2 = new Activity("CalculateAverageTemperatureAC", { component: "s2", inputPorts: ["current"] });
-    act_CalculateAverageTemperatureAC_s2.addAction(new Action("CalculateAverageTemperatureAN", [], "CalculateAverageTemperatureEx"));
-    this.registerActivity("CalculateAverageTemperatureAC::s2", act_CalculateAverageTemperatureAC_s2);
-    const act_CalculateAverageTemperatureAC_s3 = new Activity("CalculateAverageTemperatureAC", { component: "s3", inputPorts: ["detected"] });
-    act_CalculateAverageTemperatureAC_s3.addAction(new Action("CalculateAverageTemperatureAN", [], "CalculateAverageTemperatureEx"));
-    this.registerActivity("CalculateAverageTemperatureAC::s3", act_CalculateAverageTemperatureAC_s3);
-    const act_CalculateAverageTemperatureAC_ui = new Activity("CalculateAverageTemperatureAC", { component: "ui", inputPorts: ["desired"] });
-    act_CalculateAverageTemperatureAC_ui.addAction(new Action("CalculateAverageTemperatureAN", [], "CalculateAverageTemperatureEx"));
-    this.registerActivity("CalculateAverageTemperatureAC::ui", act_CalculateAverageTemperatureAC_ui);
-    const act_CalculateAverageTemperatureAC_a2 = new Activity("CalculateAverageTemperatureAC", { component: "a2", inputPorts: ["controllerC"] });
-    act_CalculateAverageTemperatureAC_a2.addAction(new Action("CalculateAverageTemperatureAN", [], "CalculateAverageTemperatureEx"));
-    this.registerActivity("CalculateAverageTemperatureAC::a2", act_CalculateAverageTemperatureAC_a2);
-    const act_CalculateAverageTemperatureAC_a1 = new Activity("CalculateAverageTemperatureAC", { component: "a1", inputPorts: ["controllerH"] });
-    act_CalculateAverageTemperatureAC_a1.addAction(new Action("CalculateAverageTemperatureAN", [], "CalculateAverageTemperatureEx"));
-    this.registerActivity("CalculateAverageTemperatureAC::a1", act_CalculateAverageTemperatureAC_a1);
-    const act_CalculateAverageTemperatureAC_rtc = new Activity("CalculateAverageTemperatureAC", { component: "rtc", inputPorts: ["s1"] });
-    act_CalculateAverageTemperatureAC_rtc.addAction(new Action("CalculateAverageTemperatureAN", [], "CalculateAverageTemperatureEx"));
-    this.registerActivity("CalculateAverageTemperatureAC::rtc", act_CalculateAverageTemperatureAC_rtc);
-    const act_CalculateAverageTemperatureAC_sm = new Activity("CalculateAverageTemperatureAC", { component: "sm", inputPorts: ["s1"] });
-    act_CalculateAverageTemperatureAC_sm.addAction(new Action("CalculateAverageTemperatureAN", [], "CalculateAverageTemperatureEx"));
-    this.registerActivity("CalculateAverageTemperatureAC::sm", act_CalculateAverageTemperatureAC_sm);
-    const act_CalculateAverageTemperatureAC_cm = new Activity("CalculateAverageTemperatureAC", { component: "cm", inputPorts: ["target2"] });
-    act_CalculateAverageTemperatureAC_cm.addAction(new Action("CalculateAverageTemperatureAN", [], "CalculateAverageTemperatureEx"));
-    this.registerActivity("CalculateAverageTemperatureAC::cm", act_CalculateAverageTemperatureAC_cm);
-    const act_CalculateAverageTemperatureAC_pc = new Activity("CalculateAverageTemperatureAC", { component: "pc", inputPorts: ["detected"] });
-    act_CalculateAverageTemperatureAC_pc.addAction(new Action("CalculateAverageTemperatureAN", [], "CalculateAverageTemperatureEx"));
-    this.registerActivity("CalculateAverageTemperatureAC::pc", act_CalculateAverageTemperatureAC_pc);
-    const act_CheckPresenceToSetTemperatureAC_s1 = new Activity("CheckPresenceToSetTemperatureAC", { component: "s1", inputPorts: ["current"] });
-    act_CheckPresenceToSetTemperatureAC_s1.addAction(new Action("CheckPeresenceToSetTemperatureAN", [], "CheckPresenceToSetTemperature"));
-    this.registerActivity("CheckPresenceToSetTemperatureAC::s1", act_CheckPresenceToSetTemperatureAC_s1);
-    const act_CheckPresenceToSetTemperatureAC_s2 = new Activity("CheckPresenceToSetTemperatureAC", { component: "s2", inputPorts: ["current"] });
-    act_CheckPresenceToSetTemperatureAC_s2.addAction(new Action("CheckPeresenceToSetTemperatureAN", [], "CheckPresenceToSetTemperature"));
-    this.registerActivity("CheckPresenceToSetTemperatureAC::s2", act_CheckPresenceToSetTemperatureAC_s2);
-    const act_CheckPresenceToSetTemperatureAC_s3 = new Activity("CheckPresenceToSetTemperatureAC", { component: "s3", inputPorts: ["detected"] });
-    act_CheckPresenceToSetTemperatureAC_s3.addAction(new Action("CheckPeresenceToSetTemperatureAN", [], "CheckPresenceToSetTemperature"));
-    this.registerActivity("CheckPresenceToSetTemperatureAC::s3", act_CheckPresenceToSetTemperatureAC_s3);
-    const act_CheckPresenceToSetTemperatureAC_ui = new Activity("CheckPresenceToSetTemperatureAC", { component: "ui", inputPorts: ["desired"] });
-    act_CheckPresenceToSetTemperatureAC_ui.addAction(new Action("CheckPeresenceToSetTemperatureAN", [], "CheckPresenceToSetTemperature"));
-    this.registerActivity("CheckPresenceToSetTemperatureAC::ui", act_CheckPresenceToSetTemperatureAC_ui);
-    const act_CheckPresenceToSetTemperatureAC_a2 = new Activity("CheckPresenceToSetTemperatureAC", { component: "a2", inputPorts: ["controllerC"] });
-    act_CheckPresenceToSetTemperatureAC_a2.addAction(new Action("CheckPeresenceToSetTemperatureAN", [], "CheckPresenceToSetTemperature"));
-    this.registerActivity("CheckPresenceToSetTemperatureAC::a2", act_CheckPresenceToSetTemperatureAC_a2);
-    const act_CheckPresenceToSetTemperatureAC_a1 = new Activity("CheckPresenceToSetTemperatureAC", { component: "a1", inputPorts: ["controllerH"] });
-    act_CheckPresenceToSetTemperatureAC_a1.addAction(new Action("CheckPeresenceToSetTemperatureAN", [], "CheckPresenceToSetTemperature"));
-    this.registerActivity("CheckPresenceToSetTemperatureAC::a1", act_CheckPresenceToSetTemperatureAC_a1);
-    const act_CheckPresenceToSetTemperatureAC_rtc = new Activity("CheckPresenceToSetTemperatureAC", { component: "rtc", inputPorts: ["detected"] });
-    act_CheckPresenceToSetTemperatureAC_rtc.addAction(new Action("CheckPeresenceToSetTemperatureAN", [], "CheckPresenceToSetTemperature"));
-    this.registerActivity("CheckPresenceToSetTemperatureAC::rtc", act_CheckPresenceToSetTemperatureAC_rtc);
-    const act_CheckPresenceToSetTemperatureAC_sm = new Activity("CheckPresenceToSetTemperatureAC", { component: "sm", inputPorts: ["s1"] });
-    act_CheckPresenceToSetTemperatureAC_sm.addAction(new Action("CheckPeresenceToSetTemperatureAN", [], "CheckPresenceToSetTemperature"));
-    this.registerActivity("CheckPresenceToSetTemperatureAC::sm", act_CheckPresenceToSetTemperatureAC_sm);
-    const act_CheckPresenceToSetTemperatureAC_cm = new Activity("CheckPresenceToSetTemperatureAC", { component: "cm", inputPorts: ["target2"] });
-    act_CheckPresenceToSetTemperatureAC_cm.addAction(new Action("CheckPeresenceToSetTemperatureAN", [], "CheckPresenceToSetTemperature"));
-    this.registerActivity("CheckPresenceToSetTemperatureAC::cm", act_CheckPresenceToSetTemperatureAC_cm);
-    const act_CheckPresenceToSetTemperatureAC_pc = new Activity("CheckPresenceToSetTemperatureAC", { component: "pc", inputPorts: ["detected"] });
-    act_CheckPresenceToSetTemperatureAC_pc.addAction(new Action("CheckPeresenceToSetTemperatureAN", [], "CheckPresenceToSetTemperature"));
-    this.registerActivity("CheckPresenceToSetTemperatureAC::pc", act_CheckPresenceToSetTemperatureAC_pc);
-    const act_DecideCommandAC_s1 = new Activity("DecideCommandAC", { component: "s1", inputPorts: ["current"] });
-    act_DecideCommandAC_s1.addAction(new Action("CommandCoolerAN", [], "CommandCoolerEx"));
-    act_DecideCommandAC_s1.addAction(new Action("CommandHeaterAN", [], "CommandHeaterEx"));
-    act_DecideCommandAC_s1.addAction(new Action("CompareTemperatureAN", [], "CompareTemperatureEx"));
-    this.registerActivity("DecideCommandAC::s1", act_DecideCommandAC_s1);
-    const act_DecideCommandAC_s2 = new Activity("DecideCommandAC", { component: "s2", inputPorts: ["current"] });
-    act_DecideCommandAC_s2.addAction(new Action("CommandCoolerAN", [], "CommandCoolerEx"));
-    act_DecideCommandAC_s2.addAction(new Action("CommandHeaterAN", [], "CommandHeaterEx"));
-    act_DecideCommandAC_s2.addAction(new Action("CompareTemperatureAN", [], "CompareTemperatureEx"));
-    this.registerActivity("DecideCommandAC::s2", act_DecideCommandAC_s2);
-    const act_DecideCommandAC_s3 = new Activity("DecideCommandAC", { component: "s3", inputPorts: ["detected"] });
-    act_DecideCommandAC_s3.addAction(new Action("CommandCoolerAN", [], "CommandCoolerEx"));
-    act_DecideCommandAC_s3.addAction(new Action("CommandHeaterAN", [], "CommandHeaterEx"));
-    act_DecideCommandAC_s3.addAction(new Action("CompareTemperatureAN", [], "CompareTemperatureEx"));
-    this.registerActivity("DecideCommandAC::s3", act_DecideCommandAC_s3);
-    const act_DecideCommandAC_ui = new Activity("DecideCommandAC", { component: "ui", inputPorts: ["desired"] });
-    act_DecideCommandAC_ui.addAction(new Action("CommandCoolerAN", [], "CommandCoolerEx"));
-    act_DecideCommandAC_ui.addAction(new Action("CommandHeaterAN", [], "CommandHeaterEx"));
-    act_DecideCommandAC_ui.addAction(new Action("CompareTemperatureAN", [], "CompareTemperatureEx"));
-    this.registerActivity("DecideCommandAC::ui", act_DecideCommandAC_ui);
-    const act_DecideCommandAC_a2 = new Activity("DecideCommandAC", { component: "a2", inputPorts: ["controllerC"] });
-    act_DecideCommandAC_a2.addAction(new Action("CommandCoolerAN", [], "CommandCoolerEx"));
-    act_DecideCommandAC_a2.addAction(new Action("CommandHeaterAN", [], "CommandHeaterEx"));
-    act_DecideCommandAC_a2.addAction(new Action("CompareTemperatureAN", [], "CompareTemperatureEx"));
-    this.registerActivity("DecideCommandAC::a2", act_DecideCommandAC_a2);
-    const act_DecideCommandAC_a1 = new Activity("DecideCommandAC", { component: "a1", inputPorts: ["controllerH"] });
-    act_DecideCommandAC_a1.addAction(new Action("CommandCoolerAN", [], "CommandCoolerEx"));
-    act_DecideCommandAC_a1.addAction(new Action("CommandHeaterAN", [], "CommandHeaterEx"));
-    act_DecideCommandAC_a1.addAction(new Action("CompareTemperatureAN", [], "CompareTemperatureEx"));
-    this.registerActivity("DecideCommandAC::a1", act_DecideCommandAC_a1);
-    const act_DecideCommandAC_rtc = new Activity("DecideCommandAC", { component: "rtc", inputPorts: ["average2"] });
-    act_DecideCommandAC_rtc.addAction(new Action("CommandCoolerAN", [], "CommandCoolerEx"));
-    act_DecideCommandAC_rtc.addAction(new Action("CommandHeaterAN", [], "CommandHeaterEx"));
-    act_DecideCommandAC_rtc.addAction(new Action("CompareTemperatureAN", [], "CompareTemperatureEx"));
-    this.registerActivity("DecideCommandAC::rtc", act_DecideCommandAC_rtc);
-    const act_DecideCommandAC_sm = new Activity("DecideCommandAC", { component: "sm", inputPorts: ["average"] });
-    act_DecideCommandAC_sm.addAction(new Action("CommandCoolerAN", [], "CommandCoolerEx"));
-    act_DecideCommandAC_sm.addAction(new Action("CommandHeaterAN", [], "CommandHeaterEx"));
-    act_DecideCommandAC_sm.addAction(new Action("CompareTemperatureAN", [], "CompareTemperatureEx"));
-    this.registerActivity("DecideCommandAC::sm", act_DecideCommandAC_sm);
-    const act_DecideCommandAC_cm = new Activity("DecideCommandAC", { component: "cm", inputPorts: ["average2"] });
-    act_DecideCommandAC_cm.addAction(new Action("CommandCoolerAN", [], "CommandCoolerEx"));
-    act_DecideCommandAC_cm.addAction(new Action("CommandHeaterAN", [], "CommandHeaterEx"));
-    act_DecideCommandAC_cm.addAction(new Action("CompareTemperatureAN", [], "CompareTemperatureEx"));
-    this.registerActivity("DecideCommandAC::cm", act_DecideCommandAC_cm);
-    const act_DecideCommandAC_pc = new Activity("DecideCommandAC", { component: "pc", inputPorts: ["detected"] });
-    act_DecideCommandAC_pc.addAction(new Action("CommandCoolerAN", [], "CommandCoolerEx"));
-    act_DecideCommandAC_pc.addAction(new Action("CommandHeaterAN", [], "CommandHeaterEx"));
-    act_DecideCommandAC_pc.addAction(new Action("CompareTemperatureAN", [], "CompareTemperatureEx"));
-    this.registerActivity("DecideCommandAC::pc", act_DecideCommandAC_pc);
-    const act_FahrenheitToCelsiusAC_s1 = new Activity("FahrenheitToCelsiusAC", { component: "s1", inputPorts: ["current"] });
-    act_FahrenheitToCelsiusAC_s1.addAction(new Action("FahrenheitToCelsiusAN", [], "FahrenheitToCelsiusEx"));
-    this.registerActivity("FahrenheitToCelsiusAC::s1", act_FahrenheitToCelsiusAC_s1);
-    const act_FahrenheitToCelsiusAC_s2 = new Activity("FahrenheitToCelsiusAC", { component: "s2", inputPorts: ["current"] });
-    act_FahrenheitToCelsiusAC_s2.addAction(new Action("FahrenheitToCelsiusAN", [], "FahrenheitToCelsiusEx"));
-    this.registerActivity("FahrenheitToCelsiusAC::s2", act_FahrenheitToCelsiusAC_s2);
-    const act_FahrenheitToCelsiusAC_s3 = new Activity("FahrenheitToCelsiusAC", { component: "s3", inputPorts: ["detected"] });
-    act_FahrenheitToCelsiusAC_s3.addAction(new Action("FahrenheitToCelsiusAN", [], "FahrenheitToCelsiusEx"));
-    this.registerActivity("FahrenheitToCelsiusAC::s3", act_FahrenheitToCelsiusAC_s3);
-    const act_FahrenheitToCelsiusAC_ui = new Activity("FahrenheitToCelsiusAC", { component: "ui", inputPorts: ["desired"] });
-    act_FahrenheitToCelsiusAC_ui.addAction(new Action("FahrenheitToCelsiusAN", [], "FahrenheitToCelsiusEx"));
-    this.registerActivity("FahrenheitToCelsiusAC::ui", act_FahrenheitToCelsiusAC_ui);
-    const act_FahrenheitToCelsiusAC_a2 = new Activity("FahrenheitToCelsiusAC", { component: "a2", inputPorts: ["controllerC"] });
-    act_FahrenheitToCelsiusAC_a2.addAction(new Action("FahrenheitToCelsiusAN", [], "FahrenheitToCelsiusEx"));
-    this.registerActivity("FahrenheitToCelsiusAC::a2", act_FahrenheitToCelsiusAC_a2);
-    const act_FahrenheitToCelsiusAC_a1 = new Activity("FahrenheitToCelsiusAC", { component: "a1", inputPorts: ["controllerH"] });
-    act_FahrenheitToCelsiusAC_a1.addAction(new Action("FahrenheitToCelsiusAN", [], "FahrenheitToCelsiusEx"));
-    this.registerActivity("FahrenheitToCelsiusAC::a1", act_FahrenheitToCelsiusAC_a1);
-    const act_FahrenheitToCelsiusAC_rtc = new Activity("FahrenheitToCelsiusAC", { component: "rtc", inputPorts: ["detectedRTC"] });
-    act_FahrenheitToCelsiusAC_rtc.addAction(new Action("FahrenheitToCelsiusAN", [], "FahrenheitToCelsiusEx"));
-    this.registerActivity("FahrenheitToCelsiusAC::rtc", act_FahrenheitToCelsiusAC_rtc);
-    const act_FahrenheitToCelsiusAC_sm = new Activity("FahrenheitToCelsiusAC", { component: "sm", inputPorts: ["s1"] });
-    act_FahrenheitToCelsiusAC_sm.addAction(new Action("FahrenheitToCelsiusAN", [], "FahrenheitToCelsiusEx"));
-    this.registerActivity("FahrenheitToCelsiusAC::sm", act_FahrenheitToCelsiusAC_sm);
-    const act_FahrenheitToCelsiusAC_cm = new Activity("FahrenheitToCelsiusAC", { component: "cm", inputPorts: ["target2"] });
-    act_FahrenheitToCelsiusAC_cm.addAction(new Action("FahrenheitToCelsiusAN", [], "FahrenheitToCelsiusEx"));
-    this.registerActivity("FahrenheitToCelsiusAC::cm", act_FahrenheitToCelsiusAC_cm);
-    const act_FahrenheitToCelsiusAC_pc = new Activity("FahrenheitToCelsiusAC", { component: "pc", inputPorts: ["detected"] });
-    act_FahrenheitToCelsiusAC_pc.addAction(new Action("FahrenheitToCelsiusAN", [], "FahrenheitToCelsiusEx"));
-    this.registerActivity("FahrenheitToCelsiusAC::pc", act_FahrenheitToCelsiusAC_pc);
+    this.addExecutableSafe("SysADLModel.CommandCoolerEx", "executable def CommandCoolerEx(in cmds:Commands): out Command{return cmds->cooler ; }", ["cmds"]);
+    this.addExecutableSafe("SysADLModel.CommandHeaterEx", "executable def CommandHeaterEx(in cmds:Commands): out Command{return cmds->heater ; }", ["cmds"]);
+    this.addExecutableSafe("SysADLModel.FahrenheitToCelsiusEx", "executable def FahrenheitToCelsiusEx(in f:FahrenheitTemperature): out CelsiusTemperature{return 5*(f - 32)/9 ; }", ["f"]);
+    this.addExecutableSafe("SysADLModel.CalculateAverageTemperatureEx", "executable def CalculateAverageTemperatureEx(in temp1:CelsiusTemperature,in temp2:CelsiusTemperature):out CelsiusTemperature{return (temp1 + temp2)/2 ; }", ["temp1","temp2"]);
+    this.addExecutableSafe("SysADLModel.CheckPresenceToSetTemperature", "executable def CheckPresenceToSetTemperature(in presence:Boolean, in userTemp:CelsiusTemperature):out CelsiusTemperature{if(presence == true) return userTemp; else return 2; }", ["presence","userTemp"]);
+    this.addExecutableSafe("SysADLModel.CompareTemperatureEx", "executable def CompareTemperatureEx(in target:CelsiusTemperature, in average:CelsiusTemperature):out Commands{let heater:Command = types.Command::Off; let cooler:Command = types.Command::Off; if(average > target) {heater = types.Command::Off; cooler = types.Command::On ; } else {heater = types.Command::On; cooler = types.Command::Off ;} }", ["target","average"]);
+    this.addExecutableSafe("SysADLModel.ssi3", "executable FahrenheitToCelsiusEx to FahrenheitToCelsiusAN", []);
+    this.addExecutableSafe("SysADLModel.tqc8", "executable CompareTemperatureEx to CompareTemperatureAN", []);
+    this.addExecutableSafe("SysADLModel.nf12", "executable CommandHeaterEx to CommandHeaterAN", []);
+    this.addExecutableSafe("SysADLModel.nvwi", "executable CommandCoolerEx to CommandCoolerAN", []);
+    this.addExecutableSafe("SysADLModel.matv", "executable CheckPresenceToSetTemperature to CheckPeresenceToSetTemperatureAN", []);
+    this.addExecutableSafe("SysADLModel.897y", "executable CalculateAverageTemperatureEx to CalculateAverageTemperatureAN", []);
+    const act_CalculateAverageTemperatureAC_SensorsMonitorCP = new AC_Components_CalculateAverageTemperatureAC("CalculateAverageTemperatureAC", { component: "SensorsMonitorCP", inputPorts: [], delegates: [{"from":"s1","to":"s1"},{"from":"s2","to":"s2"},{"from":"average","to":"CalcAvTemp"}] });
+    const action_CalculateAverageTemperatureAN_CalculateAverageTemperatureAC_SensorsMonitorCP = new AN_Components_CalculateAverageTemperatureAN("CalculateAverageTemperatureAN", { delegates: [] });
+    const constraint_CalculateAverageTemperatureEQ_CalculateAverageTemperatureAC_SensorsMonitorCP = new CT_Components_CalculateAverageTemperatureEQ("CalculateAverageTemperatureEQ");
+    action_CalculateAverageTemperatureAN_CalculateAverageTemperatureAC_SensorsMonitorCP.registerConstraint(constraint_CalculateAverageTemperatureEQ_CalculateAverageTemperatureAC_SensorsMonitorCP);
+    const exec_CalculateAverageTemperatureEx_CalculateAverageTemperatureAC_SensorsMonitorCP = new EX_Components_CalculateAverageTemperatureEx("CalculateAverageTemperatureEx");
+    action_CalculateAverageTemperatureAN_CalculateAverageTemperatureAC_SensorsMonitorCP.registerExecutable(exec_CalculateAverageTemperatureEx_CalculateAverageTemperatureAC_SensorsMonitorCP);
+    act_CalculateAverageTemperatureAC_SensorsMonitorCP.registerAction(action_CalculateAverageTemperatureAN_CalculateAverageTemperatureAC_SensorsMonitorCP);
+    this.registerActivity("CalculateAverageTemperatureAC::SensorsMonitorCP", act_CalculateAverageTemperatureAC_SensorsMonitorCP);
+    const act_CheckPresenceToSetTemperatureAC_PresenceCheckerCP = new AC_Components_CheckPresenceToSetTemperatureAC("CheckPresenceToSetTemperatureAC", { component: "PresenceCheckerCP", inputPorts: [], delegates: [{"from":"detected","to":"detected"},{"from":"userTemp","to":"userTemp"},{"from":"target","to":"CheckPeresenceToSetTemperatureAN"}] });
+    const action_CheckPeresenceToSetTemperatureAN_CheckPresenceToSetTemperatureAC_PresenceCheckerCP = new AN_Components_CheckPeresenceToSetTemperatureAN("CheckPeresenceToSetTemperatureAN", { delegates: [] });
+    const constraint_CheckPresenceToSetTemperatureEQ_CheckPresenceToSetTemperatureAC_PresenceCheckerCP = new CT_Components_CheckPresenceToSetTemperatureEQ("CheckPresenceToSetTemperatureEQ");
+    action_CheckPeresenceToSetTemperatureAN_CheckPresenceToSetTemperatureAC_PresenceCheckerCP.registerConstraint(constraint_CheckPresenceToSetTemperatureEQ_CheckPresenceToSetTemperatureAC_PresenceCheckerCP);
+    const exec_CheckPresenceToSetTemperature_CheckPresenceToSetTemperatureAC_PresenceCheckerCP = new EX_Components_CheckPresenceToSetTemperature("CheckPresenceToSetTemperature");
+    action_CheckPeresenceToSetTemperatureAN_CheckPresenceToSetTemperatureAC_PresenceCheckerCP.registerExecutable(exec_CheckPresenceToSetTemperature_CheckPresenceToSetTemperatureAC_PresenceCheckerCP);
+    act_CheckPresenceToSetTemperatureAC_PresenceCheckerCP.registerAction(action_CheckPeresenceToSetTemperatureAN_CheckPresenceToSetTemperatureAC_PresenceCheckerCP);
+    this.registerActivity("CheckPresenceToSetTemperatureAC::PresenceCheckerCP", act_CheckPresenceToSetTemperatureAC_PresenceCheckerCP);
+    const act_DecideCommandAC_CommanderCP = new AC_Components_DecideCommandAC("DecideCommandAC", { component: "CommanderCP", inputPorts: [], delegates: [{"from":"average2","to":"average2"},{"from":"target2","to":"target2"},{"from":"heating","to":"cmdH"},{"from":"cooling","to":"cmdC"}] });
+    const action_CommandCoolerAN_DecideCommandAC_CommanderCP = new AN_Components_CommandCoolerAN("CommandCoolerAN", { delegates: [] });
+    const constraint_CommandCoolerEQ_DecideCommandAC_CommanderCP = new CT_Components_CommandCoolerEQ("CommandCoolerEQ");
+    action_CommandCoolerAN_DecideCommandAC_CommanderCP.registerConstraint(constraint_CommandCoolerEQ_DecideCommandAC_CommanderCP);
+    const exec_CommandCoolerEx_DecideCommandAC_CommanderCP = new EX_Components_CommandCoolerEx("CommandCoolerEx");
+    action_CommandCoolerAN_DecideCommandAC_CommanderCP.registerExecutable(exec_CommandCoolerEx_DecideCommandAC_CommanderCP);
+    act_DecideCommandAC_CommanderCP.registerAction(action_CommandCoolerAN_DecideCommandAC_CommanderCP);
+    const action_CommandHeaterAN_DecideCommandAC_CommanderCP = new AN_Components_CommandHeaterAN("CommandHeaterAN", { delegates: [] });
+    const constraint_CommandHeaterEQ_DecideCommandAC_CommanderCP = new CT_Components_CommandHeaterEQ("CommandHeaterEQ");
+    action_CommandHeaterAN_DecideCommandAC_CommanderCP.registerConstraint(constraint_CommandHeaterEQ_DecideCommandAC_CommanderCP);
+    const exec_CommandHeaterEx_DecideCommandAC_CommanderCP = new EX_Components_CommandHeaterEx("CommandHeaterEx");
+    action_CommandHeaterAN_DecideCommandAC_CommanderCP.registerExecutable(exec_CommandHeaterEx_DecideCommandAC_CommanderCP);
+    act_DecideCommandAC_CommanderCP.registerAction(action_CommandHeaterAN_DecideCommandAC_CommanderCP);
+    const action_CompareTemperatureAN_DecideCommandAC_CommanderCP = new AN_Components_CompareTemperatureAN("CompareTemperatureAN", { delegates: [] });
+    const constraint_CompareTemperatureEQ_DecideCommandAC_CommanderCP = new CT_Components_CompareTemperatureEQ("CompareTemperatureEQ");
+    action_CompareTemperatureAN_DecideCommandAC_CommanderCP.registerConstraint(constraint_CompareTemperatureEQ_DecideCommandAC_CommanderCP);
+    const exec_CompareTemperatureEx_DecideCommandAC_CommanderCP = new EX_Components_CompareTemperatureEx("CompareTemperatureEx");
+    action_CompareTemperatureAN_DecideCommandAC_CommanderCP.registerExecutable(exec_CompareTemperatureEx_DecideCommandAC_CommanderCP);
+    act_DecideCommandAC_CommanderCP.registerAction(action_CompareTemperatureAN_DecideCommandAC_CommanderCP);
+    this.registerActivity("DecideCommandAC::CommanderCP", act_DecideCommandAC_CommanderCP);
+    const act_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN = new AC_Components_FahrenheitToCelsiusAC("FahrenheitToCelsiusAC", { component: "FahrenheitToCelsiusCN", inputPorts: [], delegates: [{"from":"loalTemp1","to":"FtC"},{"from":"current1","to":"current1"}] });
+    const action_FahrenheitToCelsiusAN_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN = new AN_Components_FahrenheitToCelsiusAN("FahrenheitToCelsiusAN", { delegates: [] });
+    const constraint_FahrenheitToCelsiusEQ_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN = new CT_Components_FahrenheitToCelsiusEQ("FahrenheitToCelsiusEQ");
+    action_FahrenheitToCelsiusAN_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN.registerConstraint(constraint_FahrenheitToCelsiusEQ_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN);
+    const exec_FahrenheitToCelsiusEx_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN = new EX_Components_FahrenheitToCelsiusEx("FahrenheitToCelsiusEx");
+    action_FahrenheitToCelsiusAN_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN.registerExecutable(exec_FahrenheitToCelsiusEx_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN);
+    act_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN.registerAction(action_FahrenheitToCelsiusAN_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN);
+    this.registerActivity("FahrenheitToCelsiusAC::FahrenheitToCelsiusCN", act_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN);
   }
 }
 

@@ -237,15 +237,252 @@ class CompositePort extends Port {
   }
 }
 
-class Action {
-  constructor(name, params=[], executableName=null, rawBody=null){ this.name = name; this.params = params.slice(); this.executableName = executableName; this.rawBody = rawBody; this.executableFn = null; }
-  invoke(inputs, model){ if (!this.executableFn && this.executableName && model && model.executables[this.executableName]) this.executableFn = model.executables[this.executableName]; if (this.executableFn) return this.executableFn.apply(null, inputs); if (this.rawBody) { const fn = createExecutableFromExpression(this.rawBody, this.params || []); this.executableFn = fn; return fn.apply(null, inputs); } }
+// Base class for behavioral elements with pins as parameters
+class BehavioralElement extends Element {
+  constructor(name, opts = {}) {
+    super(name, opts);
+    this.inParameters = opts.inParameters || []; // [{name, type, direction: 'in'}]
+    this.outParameters = opts.outParameters || []; // [{name, type, direction: 'out'}]
+    this.delegates = opts.delegates || []; // [{from, to}] for pin delegations
+  }
+
+  // Validate pin parameters generically
+  validateParameters(inputs, outputs) {
+    if (inputs && this.inParameters.length > 0) {
+      for (let i = 0; i < this.inParameters.length; i++) {
+        const param = this.inParameters[i];
+        const value = inputs[i];
+        if (param.type && !this.validatePinType(value, param.type)) {
+          throw new Error(`Invalid type for pin ${param.name}: expected ${param.type}, got ${typeof value}`);
+        }
+      }
+    }
+    return true;
+  }
+
+  // Generic type validation for pins
+  validatePinType(value, expectedType) {
+    if (!expectedType) return true; // No validation if no type specified
+    
+    switch (expectedType.toLowerCase()) {
+      case 'real': return typeof value === 'number' && !isNaN(value);
+      case 'int': return Number.isInteger(value);
+      case 'boolean': return typeof value === 'boolean';
+      case 'string': return typeof value === 'string';
+      case 'void': return true;
+      default: return true; // Allow custom types for now
+    }
+  }
+
+  // Process pin delegations generically
+  processDelegations(inputValues, model) {
+    const processedValues = [...inputValues];
+    for (const delegation of this.delegates) {
+      const fromIndex = this.inParameters.findIndex(p => p.name === delegation.from);
+      const toIndex = this.outParameters.findIndex(p => p.name === delegation.to);
+      if (fromIndex !== -1 && toIndex !== -1) {
+        // Delegate value from input pin to output pin
+        processedValues[toIndex] = processedValues[fromIndex];
+      }
+    }
+    return processedValues;
+  }
 }
 
-class Activity {
-  constructor(name, opts={}){ this.name = name; this.component = opts.component || null; this.inputPorts = opts.inputPorts ? opts.inputPorts.slice() : []; this.actions = (opts.actions||[]).map(a=> a instanceof Action ? a : new Action(a.name||null, a.params||[], a.executable||null, a.body||null)); }
-  addAction(a){ this.actions.push(a instanceof Action ? a : new Action(a.name, a.params, a.executable, a.body)); }
-  invoke(inputs, model){ let last; for (const a of this.actions){ model && model.logEvent && model.logEvent({ elementType: 'action_invoke', activity: this.name, action: a.name, inputs, when: Date.now() }); last = a.invoke(inputs, model); model && model.logEvent && model.logEvent({ elementType: 'action_result', activity: this.name, action: a.name, output: last, when: Date.now() }); } return last; }
+// Generic Constraint class
+class Constraint extends BehavioralElement {
+  constructor(name, opts = {}) {
+    super(name, opts);
+    this.equation = opts.equation || null; // ALF equation as string
+    this.compiledFn = null;
+  }
+
+  // Compile ALF equation to JavaScript function
+  compile() {
+    if (this.equation && !this.compiledFn) {
+      const paramNames = this.inParameters.map(p => p.name);
+      this.compiledFn = createExecutableFromExpression(this.equation, paramNames);
+    }
+    return this.compiledFn;
+  }
+
+  // Evaluate constraint with given inputs
+  evaluate(inputs, model) {
+    this.validateParameters(inputs);
+    if (!this.compiledFn) this.compile();
+    
+    if (this.compiledFn) {
+      const result = this.compiledFn.apply(null, inputs);
+      model && model.logEvent && model.logEvent({
+        elementType: 'constraint_evaluate',
+        name: this.name,
+        inputs,
+        result,
+        when: Date.now()
+      });
+      return result;
+    }
+    return true; // Default to true if no constraint
+  }
+}
+
+// Generic Executable class
+class Executable extends BehavioralElement {
+  constructor(name, opts = {}) {
+    super(name, opts);
+    this.body = opts.body || null; // ALF body as string
+    this.compiledFn = null;
+  }
+
+  // Compile ALF body to JavaScript function
+  compile() {
+    if (this.body && !this.compiledFn) {
+      const paramNames = this.inParameters.map(p => p.name);
+      this.compiledFn = createExecutableFromExpression(this.body, paramNames);
+    }
+    return this.compiledFn;
+  }
+
+  // Execute with given inputs
+  execute(inputs, model) {
+    this.validateParameters(inputs);
+    if (!this.compiledFn) this.compile();
+    
+    if (this.compiledFn) {
+      const processedInputs = this.processDelegations(inputs, model);
+      const result = this.compiledFn.apply(null, processedInputs);
+      model && model.logEvent && model.logEvent({
+        elementType: 'executable_execute',
+        name: this.name,
+        inputs: processedInputs,
+        result,
+        when: Date.now()
+      });
+      return result;
+    }
+    return undefined;
+  }
+}
+
+// Enhanced Action class with pins as parameters
+class Action extends BehavioralElement {
+  constructor(name, opts = {}) {
+    super(name, opts);
+    this.executableName = opts.executableName || null;
+    this.rawBody = opts.rawBody || null;
+    this.executableFn = null;
+    this.constraints = opts.constraints || []; // Array of Constraint instances
+    this.executables = opts.executables || []; // Array of Executable instances
+  }
+
+  // Register constraint within this action
+  registerConstraint(constraint) {
+    if (constraint instanceof Constraint) {
+      this.constraints.push(constraint);
+    }
+  }
+
+  // Register executable within this action
+  registerExecutable(executable) {
+    if (executable instanceof Executable) {
+      this.executables.push(executable);
+    }
+  }
+
+  invoke(inputs, model) {
+    this.validateParameters(inputs);
+    
+    // Process constraints first
+    for (const constraint of this.constraints) {
+      const constraintResult = constraint.evaluate(inputs, model);
+      if (!constraintResult) {
+        throw new Error(`Constraint ${constraint.name} failed in action ${this.name}`);
+      }
+    }
+
+    // Process executables
+    let result;
+    for (const executable of this.executables) {
+      result = executable.execute(inputs, model);
+    }
+
+    // Legacy compatibility: fallback to old executable handling
+    if (!this.executableFn && this.executableName && model && model.executables[this.executableName]) {
+      this.executableFn = model.executables[this.executableName];
+    }
+    
+    if (this.executableFn) {
+      result = this.executableFn.apply(null, inputs);
+    } else if (this.rawBody) {
+      const paramNames = this.inParameters.map(p => p.name);
+      const fn = createExecutableFromExpression(this.rawBody, paramNames);
+      this.executableFn = fn;
+      result = fn.apply(null, inputs);
+    }
+
+    return result;
+  }
+}
+
+// Enhanced Activity class with pins as parameters
+class Activity extends BehavioralElement {
+  constructor(name, opts = {}) {
+    super(name, opts);
+    this.component = opts.component || null;
+    this.inputPorts = opts.inputPorts ? opts.inputPorts.slice() : [];
+    this.actions = opts.actions || [];
+  }
+
+  // Register action within this activity
+  registerAction(action) {
+    if (action instanceof Action) {
+      this.actions.push(action);
+    }
+  }
+
+  addAction(a) {
+    if (a instanceof Action) {
+      this.actions.push(a);
+    } else {
+      // Legacy compatibility
+      this.actions.push(new Action(a.name, {
+        inParameters: a.params ? a.params.map(p => ({name: p, type: null, direction: 'in'})) : [],
+        executableName: a.executable,
+        rawBody: a.body
+      }));
+    }
+  }
+
+  invoke(inputs, model) {
+    this.validateParameters(inputs);
+    
+    let last;
+    for (const action of this.actions) {
+      model && model.logEvent && model.logEvent({
+        elementType: 'action_invoke',
+        activity: this.name,
+        action: action.name,
+        inputs,
+        when: Date.now()
+      });
+      
+      // Map activity inputs to action inputs based on parameters
+      const actionInputs = action.inParameters.length > 0 
+        ? action.inParameters.map((p, i) => inputs[i])
+        : inputs;
+      
+      last = action.invoke(actionInputs, model);
+      
+      model && model.logEvent && model.logEvent({
+        elementType: 'action_result',
+        activity: this.name,
+        action: action.name,
+        output: last,
+        when: Date.now()
+      });
+    }
+    return last;
+  }
 }
 
 function createExecutableFromExpression(exprText, paramNames = []) {
@@ -256,9 +493,17 @@ function createExecutableFromExpression(exprText, paramNames = []) {
 
   // translate SysADL surface syntax into JS-ish source
   function translateSysadlExpression(src) {
+    // Extract body from executable definitions
+    let s = String(src || '').replace(/\r\n?/g, '\n');
+    
+    // If this is an executable definition, extract just the body
+    const execMatch = s.match(/executable\s+def\s+\w+\s*\([^)]*\)\s*:\s*out\s+\w+\s*\{([\s\S]*)\}/i);
+    if (execMatch) {
+      s = execMatch[1].trim();
+    }
+    
     // normalize and drop noisy DSL lines
-    let s = String(src || '').replace(/\r\n?/g, '\n')
-      .split('\n').filter(line => {
+    s = s.split('\n').filter(line => {
         const t = line.trim();
         return t && !/^delegate\b/i.test(t) && !/^using\b/i.test(t) &&
                !/^constraint\b/i.test(t) && !/^body\b/i.test(t) &&
@@ -544,15 +789,15 @@ const Int = class extends ValueType {
   }
 };
 
-const Boolean = class extends ValueType {
+const SysADLBoolean = class extends ValueType {
   parse(value) {
-    return Boolean(value);
+    return globalThis.Boolean(value);
   }
 };
 
-const String = class extends ValueType {
+const SysADLString = class extends ValueType {
   parse(value) {
-    return String(value);
+    return globalThis.String(value);
   }
 };
 
@@ -603,12 +848,15 @@ module.exports = {
   CompositePort,
   Activity,
   Action,
+  BehavioralElement,
+  Constraint,
+  Executable,
   createExecutableFromExpression,
   Enum,
   // Built-in primitive types
   Int,
-  Boolean,
-  String,
+  Boolean: SysADLBoolean,
+  String: SysADLString,
   Void,
   Real,
   // Type system

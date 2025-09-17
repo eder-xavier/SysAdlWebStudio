@@ -18,3 +18,18 @@ DB_     DataBuffer      DB_                         -
 RQ_     Requirements    RQ_                         -
 
 
+DT_	    DataType	    
+EN_	    Enum	        
+VT_	    ValueType	     	
+DM_ 	Dimension	    
+UN_	    Unit	         
+CP_	    Component	     
+PT_	    Port	         
+CN_	    Connector	     
+AC_	    Activity	     
+AN_	    Action	         
+EX_	    Executable	     
+PI_     Pins             
+CT_     Constraints      
+DB_     DataBuffer       
+RQ_     Requirements    

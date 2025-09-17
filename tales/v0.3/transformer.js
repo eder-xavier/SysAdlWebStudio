@@ -54,7 +54,7 @@ function collectPortUses(configNode) {
 function generateClassModule(modelName, compUses, portUses, connectorBindings, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, portAliasMap, compDefMapArg, portDefMapArg, embeddedTypes, connectorDefMap = {}, packageMap = {}, ast = null) {
   const lines = [];
   // runtime imports for generated module
-  lines.push("const { Model, Component, Port, SimplePort, CompositePort, Connector, Activity, Action, createExecutableFromExpression, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit } = require('../SysADLBase');");
+  lines.push("const { Model, Component, Port, SimplePort, CompositePort, Connector, Activity, Action, createExecutableFromExpression, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit, Constraint, Executable } = require('../SysADLBase');");
   
   // Add blank line after imports
   lines.push("");
@@ -1007,6 +1007,12 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   }
   lines.push('');
 
+  // Generate behavioral classes after components
+  lines.push('// ===== Behavioral Element Classes =====');
+  lines.push(...generateBehavioralClasses());
+  lines.push('// ===== End Behavioral Element Classes =====');
+  lines.push('');
+
   // emit model class
   lines.push(`class ${sanitizeId(modelName)} extends Model {`);
   lines.push('  constructor(){');
@@ -1335,7 +1341,15 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
                   const portKey = `${owner}.${port}`;
                   if (!seenPorts.has(portKey)) {
                     seenPorts.add(portKey);
-                    const portAccess = owner === 'this' ? `this.getPort("${port}")` : `${owner}.getPort("${port}")`;
+                    // Fix the port access to use the correct context
+                    // If owner is 'this' but we're inside a component context, use the actual component owner
+                    let portAccess;
+                    if (owner === 'this') {
+                      // Use the connector owner context instead of 'this'
+                      portAccess = `${connectorOwner}.getPort("${port}")`;
+                    } else {
+                      portAccess = `${owner}.getPort("${port}")`;
+                    }
                     portAccesses.push(portAccess);
                   }
                 });
@@ -1688,12 +1702,801 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     }
   } catch(e) { /* ignore */ }
 
+  // Convert AST expression node to JavaScript string
+  function astExpressionToString(node) {
+    if (!node) return '';
+    
+    switch (node.type) {
+      case 'BinaryExpression':
+        const left = astExpressionToString(node.left);
+        const right = astExpressionToString(node.right);
+        const op = node.operator;
+        return `(${left} ${op} ${right})`;
+        
+      case 'NameExpression':
+        return node.name || '';
+        
+      case 'NaturalLiteral':
+        return String(node.value || 0);
+        
+      case 'RealLiteral':
+        return String(node.value || 0.0);
+        
+      case 'StringLiteral':
+        return `"${node.value || ''}"`;
+        
+      case 'ParenthesizedExpression':
+        return `(${astExpressionToString(node.expression)})`;
+        
+      case 'UnaryExpression':
+        const operand = astExpressionToString(node.operand);
+        return `${node.operator}${operand}`;
+        
+      case 'ConditionalExpression':
+        console.log('DEBUG: Processing ConditionalExpression');
+        const condition = node.condition;
+        const thenExpr = node.then;
+        const elseExpr = node.alternate;
+        
+        if (!condition) {
+          console.warn('ConditionalExpression missing condition:', node);
+          return '/* Missing condition */ ? ' + 
+                 (thenExpr ? astExpressionToString(thenExpr) : 'then') + ' : ' + 
+                 (elseExpr ? astExpressionToString(elseExpr) : 'else');
+        }
+        
+        return '(' + astExpressionToString(condition) + ' ? ' + 
+               astExpressionToString(thenExpr) + ' : ' + 
+               astExpressionToString(elseExpr) + ')';
+        
+      case 'EnumValueLiteral':
+        // Transform enum values like types.Command::On to types.Command.On
+        return `${node.enumName}.${node.value}`;
+        
+      case 'DataTypeAccessExpression':
+        // Transform datatype.attr->value to datatype.attr.value
+        const datatype = node.datatype || '';
+        const attr = node.attr || '';
+        return `${datatype}.${attr}`;
+        
+      case 'PropertyAccessExpression':
+      case 'MemberAccessExpression':
+        // Handle expressions like obj->property or obj.property
+        const object = node.object ? astExpressionToString(node.object) : '';
+        const property = node.property || node.member || '';
+        return `${object}.${property}`;
+        
+      case 'NameExpression':
+        // Check if this is actually a property access with ->
+        if (node.name && node.name.includes('->')) {
+          const parts = node.name.split('->');
+          return parts.join('.');
+        }
+        return node.name || '';
+      case 'ComparisonExpression':
+      case 'LogicalExpression':
+        // These are all binary expressions with different semantic types
+        const leftExpr = astExpressionToString(node.left);
+        const rightExpr = astExpressionToString(node.right);
+        const operator = node.operator;
+        return `(${leftExpr} ${operator} ${rightExpr})`;
+        
+      default:
+        // For unknown types, try to handle them gracefully
+        console.warn(`Unknown AST node type: ${node.type}`);
+        
+        // If it has value property, return that
+        if (node.value !== undefined) {
+          return String(node.value);
+        }
+        
+        // If it has name property, return that
+        if (node.name) {
+          return node.name;
+        }
+        
+        // If it's a binary-like structure, try to handle it
+        if (node.left && node.right && node.operator) {
+          const leftFallback = astExpressionToString(node.left);
+          const rightFallback = astExpressionToString(node.right);
+          return `(${leftFallback} ${node.operator} ${rightFallback})`;
+        }
+        
+        // Last resort: return a comment indicating the problem
+        return `/* Unsupported expression type: ${node.type} */`;
+    }
+  }
+  
+  // Helper function to clean SysADL syntax and convert to JavaScript
+  function cleanSysADLToJS(text) {
+    if (typeof text !== 'string') return text;
+    
+    let result = text;
+    
+    // Replace -> with . for property access
+    result = result.replace(/->/g, '.');
+    
+    // Convert SysADL variable declarations like "let varName:Type = value" to "let varName = value"
+    result = result.replace(/let\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*[a-zA-Z_][a-zA-Z0-9_]*\s*=/g, 'let $1 =');
+    
+    // Convert SysADL variable declarations without assignment like "let varName : Type;" to "let varName;"
+    result = result.replace(/let\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*[a-zA-Z_][a-zA-Z0-9_]*\s*;/g, 'let $1;');
+    
+    // Convert SysADL type scope access like "types.Command::Off" to "types.Command.Off"
+    result = result.replace(/::/g, '.');
+    
+    // Fix if/else structures without braces
+    result = result.replace(/if\s*\([^)]+\)\s*\n\s*return\s+[^;]+;\s*\n\s*else\s*\n\s*return\s+[^;]+;/g, (match) => {
+      const lines = match.split('\n').map(l => l.trim()).filter(l => l);
+      if (lines.length >= 3) {
+        const ifLine = lines[0];
+        const returnLine1 = lines[1];
+        const elseLine = lines[2];
+        const returnLine2 = lines[3] || '';
+        
+        return `${ifLine} {
+          ${returnLine1}
+        } ${elseLine} {
+          ${returnLine2}
+        }`;
+      }
+      return match;
+    });
+    
+    return result;
+  }
+
+  // Convert ALF expressions to executable JavaScript functions
+  function compileALFExpression(alfExpression, inParams = [], outParams = []) {
+    if (!alfExpression || typeof alfExpression !== 'string') {
+      return null;
+    }
+    
+    try {
+      // Extract parameter names and types for function signature
+      const inParamNames = inParams.map(p => (typeof p === 'object' ? p.name : p)).filter(n => n);
+      const inParamTypes = inParams.map(p => (typeof p === 'object' ? p.type || 'Real' : 'Real'));
+      const outParamNames = outParams.map(p => (typeof p === 'object' ? p.name : p)).filter(n => n);
+      
+      // Generate type validation functions
+      function generateTypeValidation(paramNames, paramTypes) {
+        if (paramNames.length === 0) return '';
+        
+        const validations = paramNames.map((name, idx) => {
+          const type = paramTypes[idx] || 'Real';
+          switch (type) {
+            case 'Real':
+              return `if (typeof ${name} !== 'number') throw new Error('Parameter ${name} must be a Real (number)');`;
+            case 'Int':
+              return `if (!Number.isInteger(${name})) throw new Error('Parameter ${name} must be an Int (integer)');`;
+            case 'Boolean':
+              return `if (typeof ${name} !== 'boolean') throw new Error('Parameter ${name} must be a Boolean');`;
+            case 'String':
+              return `if (typeof ${name} !== 'string') throw new Error('Parameter ${name} must be a String');`;
+            default:
+              return `// Type validation for ${name}: ${type} (no validation implemented)`;
+          }
+        }).join('\n          ');
+        
+        return `
+          // Type validation
+          ${validations}`;
+      }
+      
+      // Handle constraint equations (format: "output == expression" or conditional expressions)
+      if (alfExpression.includes('==') && alfExpression.split('==').length === 2 && !alfExpression.includes('?')) {
+        // Traditional constraint equation with == as main divider
+        let cleanExpression = alfExpression.replace(/^\((.*)\)$/, '$1');
+        const [leftSide, rightSide] = cleanExpression.split('==').map(s => s.trim());
+        
+        // Remove parentheses from sides
+        const cleanLeftSide = leftSide.replace(/^\((.*)\)$/, '$1');
+        const cleanRightSide = rightSide.replace(/^\((.*)\)$/, '$1');
+        
+        // Extract variable names from the equation intelligently
+        function extractVariablesFromExpression(expr) {
+          // Skip type references, enum values, and common reserved words
+          const skipPatterns = [
+            /^types\./,           // types.CommandsType, etc.
+            /\b(types|true|false|null|undefined)\b/,  // reserved words
+            /\b[A-Z][a-zA-Z]*::/,  // enum values like Command::On
+            /\.\w+$/             // property access endings
+          ];
+          
+          const variablePattern = /\b[a-zA-Z_][a-zA-Z0-9_]*\b/g;
+          const allWords = expr.match(variablePattern) || [];
+          
+          return allWords.filter(word => {
+            // Skip if word matches any skip pattern
+            return !skipPatterns.some(pattern => pattern.test(word));
+          });
+        }
+        
+        const leftVars = [...new Set(extractVariablesFromExpression(cleanLeftSide))];
+        const rightVars = [...new Set(extractVariablesFromExpression(cleanRightSide))];
+        
+        // Input parameters are variables that appear in the right side but not in left side
+        const inputVars = rightVars.filter(v => !leftVars.includes(v));
+        const outputVars = leftVars;
+        
+        // Use extracted variables or fallback to provided parameters, but ensure no duplicates
+        let paramNames = inputVars.length > 0 ? [...new Set(inputVars)] : 
+                        (inParamNames.length > 0 ? [...new Set(inParamNames)] : [...new Set(outputVars)]);
+        
+        // Remove any remaining type-related words
+        paramNames = paramNames.filter(name => 
+          !['types', 'Commands', 'Command', 'On', 'Off', 'true', 'false', 'null'].includes(name)
+        );
+        
+        const paramTypes = paramNames.map((_, idx) => inParamTypes[idx] || 'Real');
+        
+        // Generate type validation
+        const typeValidation = generateTypeValidation(paramNames, paramTypes);
+        
+        // Determine the type of constraint based on expression structure
+        let functionBody;
+        if (alfExpression.includes('==') && !alfExpression.includes('?')) {
+          // Simple equality constraint - return boolean result directly
+          functionBody = `${typeValidation}
+          // Constraint equation: ${alfExpression}
+          return ${alfExpression.replace(/^\((.*)\)$/, '$1')};
+        `;
+        } else {
+          // Numeric comparison constraint - use tolerance for floating point
+          functionBody = `${typeValidation}
+          // Constraint equation: ${alfExpression}
+          const expectedValue = ${cleanRightSide};
+          const actualValue = ${cleanLeftSide};
+          return Math.abs(expectedValue - actualValue) < 1e-10; // tolerance for floating point comparison
+        `;
+        }
+        
+        return {
+          type: 'constraint',
+          javascript: `function(${paramNames.join(', ')}) {${functionBody}}`,
+          equation: alfExpression,
+          parameters: paramNames.map((name, idx) => ({ name, type: paramTypes[idx] }))
+        };
+      }
+      
+      // Handle conditional constraint expressions (like "condition ? result1 : result2")
+      else if (alfExpression.includes('?') && alfExpression.includes(':')) {
+        // This is a conditional expression, treat it as a boolean constraint
+        let cleanExpression = alfExpression.replace(/^\((.*)\)$/, '$1');
+        
+        // Extract variables from the conditional expression
+        function extractVariablesFromExpression(expr) {
+          const skipPatterns = [
+            /^types\./,           
+            /\b(types|true|false|null|undefined|return|else|if|for|while|function|var|let|const)\b/,  
+            /\b[A-Z][a-zA-Z]*::/,  
+            /\.\w+$/             
+          ];
+          
+          const variablePattern = /\b[a-zA-Z_][a-zA-Z0-9_]*\b/g;
+          const allWords = expr.match(variablePattern) || [];
+          
+          return allWords.filter(word => {
+            return !skipPatterns.some(pattern => pattern.test(word));
+          });
+        }
+        
+        const allVars = [...new Set(extractVariablesFromExpression(cleanExpression))];
+        
+        // Filter out type-related words and JavaScript reserved words
+        const paramNames = allVars.filter(name => 
+          !['types', 'Commands', 'Command', 'On', 'Off', 'true', 'false', 'null', 'return', 'else', 'if', 'for', 'while', 'function', 'var', 'let', 'const'].includes(name)
+        );
+        
+        const paramTypes = paramNames.map(() => 'Real'); // Default to Real for conditional expressions
+        
+        // Generate type validation
+        const typeValidation = generateTypeValidation(paramNames, paramTypes);
+        
+        // Create constraint validation function - conditional expressions return boolean directly
+        const functionBody = `${typeValidation}
+          // Conditional constraint: ${alfExpression}
+          return ${cleanExpression};
+        `;
+        
+        return {
+          type: 'constraint', 
+          javascript: `function(${paramNames.join(', ')}) {${functionBody}}`,
+          equation: alfExpression,
+          parameters: paramNames.map((name, idx) => ({ name, type: paramTypes[idx] }))
+        };
+      }
+      
+      // Handle executable expressions (parse full executable definition)
+      else {
+        let expression = alfExpression;
+        
+        // Extract return expression from executable body
+        if (expression.includes('return')) {
+          const returnMatch = expression.match(/return\s+([^;}]+)/);
+          if (returnMatch) {
+            expression = returnMatch[1].trim();
+          }
+        }
+        
+        // Extract parameter names and types from executable definition if present
+        let extractedParams = inParamNames;
+        let extractedTypes = inParamTypes;
+        if (alfExpression.includes('(in ') && alfExpression.includes(':')) {
+          // Match multiple parameters: (in param1:Type,in param2:Type)
+          const fullParamMatch = alfExpression.match(/\(([^)]+)\)/);
+          if (fullParamMatch) {
+            const paramSection = fullParamMatch[1];
+            const paramMatches = paramSection.match(/in\s+([^:,]+):([^,)]+)/g);
+            if (paramMatches) {
+              extractedParams = [];
+              extractedTypes = [];
+              paramMatches.forEach(p => {
+                const [, name, type] = p.match(/in\s+([^:]+):(.+)/);
+                extractedParams.push(name.trim());
+                extractedTypes.push(type.trim());
+              });
+            }
+          }
+        }
+        
+        // Generate type validation
+        const typeValidation = generateTypeValidation(extractedParams, extractedTypes);
+        
+        // Clean the expression to convert SysADL syntax to JavaScript
+        const cleanExpression = expression.replace(/->/g, '.');
+        
+        const functionBody = `${typeValidation}
+          // Executable expression: ${cleanExpression}
+          return ${cleanExpression};
+        `;
+        
+        return {
+          type: 'executable',
+          javascript: `function(${extractedParams.join(', ')}) {${functionBody}}`,
+          expression: expression,
+          parameters: extractedParams.map((name, idx) => ({ name, type: extractedTypes[idx] }))
+        };
+      }
+    } catch (e) {
+      console.warn('Failed to compile ALF expression:', alfExpression, e.message);
+      return null;
+    }
+  }
+
+  // Compile executable body to JavaScript function
+  function compileExecutableToJS(executableBody, parameters = []) {
+    try {
+      // Extract parameter definitions directly from executable signature
+      let paramNames = [];
+      const paramMatch = executableBody.match(/\(([^)]+)\)/);
+      if (paramMatch) {
+        const paramSection = paramMatch[1];
+        const paramMatches = paramSection.match(/in\s+([^:,]+):/g);
+        if (paramMatches) {
+          paramNames = paramMatches.map(p => p.replace(/in\s+/, '').replace(':', '').trim());
+        }
+      }
+      
+      // If no parameters found from signature, use provided parameters
+      if (paramNames.length === 0 && parameters.length > 0) {
+        paramNames = parameters.map(p => p.name || p);
+      }
+      
+      // Extract the function body from executable definition - handle nested braces
+      let functionBody = '';
+      const startIdx = executableBody.indexOf('{');
+      if (startIdx === -1) return null;
+      
+      let braceCount = 0;
+      let endIdx = startIdx;
+      for (let i = startIdx; i < executableBody.length; i++) {
+        if (executableBody[i] === '{') braceCount++;
+        if (executableBody[i] === '}') braceCount--;
+        if (braceCount === 0) {
+          endIdx = i;
+          break;
+        }
+      }
+      
+      functionBody = executableBody.substring(startIdx + 1, endIdx).trim();
+      
+      // Clean SysADL syntax to JavaScript
+      functionBody = cleanSysADLToJS(functionBody);
+      
+      console.log(`DEBUG: Executable function - params: ${JSON.stringify(paramNames)}, body: ${functionBody}`);
+      
+      // Handle different executable patterns
+      if (functionBody.includes('if(') && functionBody.includes('return')) {
+        // Conditional executable with if/else
+        return `function(${paramNames.join(', ')}) {
+          // Type validation
+          ${paramNames.map(name => `// Type validation for ${name}: (auto-detected from usage)`).join('\n          ')}
+          ${functionBody}
+        }`;
+      } else if (functionBody.startsWith('return ')) {
+        // Simple return expression
+        const returnExpr = functionBody.replace(/^return\s+/, '').replace(/\s*;\s*$/, '');
+        return `function(${paramNames.join(', ')}) {
+          // Type validation
+          ${paramNames.map(name => `// Type validation for ${name}: (auto-detected from usage)`).join('\n          ')}
+          return ${returnExpr};
+        }`;
+      } else {
+        // Complex executable body  
+        return `function(${paramNames.join(', ')}) {
+          // Type validation
+          ${paramNames.map(name => `// Type validation for ${name}: (auto-detected from usage)`).join('\n          ')}
+          ${functionBody}
+        }`;
+      }
+    } catch (e) {
+      console.warn('Failed to compile executable:', executableBody, e.message);
+      return null;
+    }
+  }
+
+  // Generate explicit behavioral element classes with prefixes
+  function generateBehavioralClasses() {
+    const behavioralLines = [];
+    
+    // Collect ActivityDef nodes with their pins
+    const activityDefs = [];
+    traverse(ast, n => {
+      if (n && (n.type === 'ActivityDef' || /ActivityDef/i.test(n.type))) {
+        const name = n.name || n.id || null;
+        if (!name) return;
+        
+        const inPins = [];
+        const outPins = [];
+        
+        // Extract pins from the activity
+        traverse(n, child => {
+          if (child && child.type === 'Pin') {
+            const pinName = child.name || child.id || null;
+            const pinType = child.type || child.typeName || 'String';
+            const direction = child.direction || 'in';
+            
+            const pinData = { name: pinName, type: pinType, direction };
+            if (direction === 'out') {
+              outPins.push(pinData);
+            } else {
+              inPins.push(pinData);
+            }
+          }
+        });
+        
+        activityDefs.push({ name, inPins, outPins, node: n });
+      }
+    });
+    
+    // Collect ActionDef nodes with their pins
+    const actionDefs = [];
+    traverse(ast, n => {
+      if (n && (n.type === 'ActionDef' || /ActionDef/i.test(n.type))) {
+        const name = n.name || n.id || null;
+        if (!name) return;
+        
+        const inPins = [];
+        const outPins = [];
+        let body = null;
+        
+        // Extract pins and body
+        traverse(n, child => {
+          if (child && child.type === 'Pin') {
+            const pinName = child.name || child.id || null;
+            const pinType = child.type || child.typeName || 'String';
+            const direction = child.direction || 'in';
+            
+            const pinData = { name: pinName, type: pinType, direction };
+            if (direction === 'out') {
+              outPins.push(pinData);
+            } else {
+              inPins.push(pinData);
+            }
+          }
+        });
+        
+        // Extract body from location if available
+        if (n.location && n.location.start && typeof n.location.start.offset === 'number') {
+          try {
+            const s = n.location.start.offset;
+            const e = n.location.end.offset;
+            const snippet = src.slice(s, e);
+            const m = snippet.match(/\{([\s\S]*)\}$/m);
+            if (m && m[1]) body = m[1].trim();
+          } catch (e) {}
+        }
+        
+        actionDefs.push({ name, inPins, outPins, body, node: n });
+      }
+    });
+    
+    // Collect ConstraintDef nodes
+    const constraintDefs = [];
+    traverse(ast, n => {
+      if (n && (n.type === 'ConstraintDef' || /ConstraintDef/i.test(n.type))) {
+        const name = n.name || n.id || null;
+        if (!name) return;
+        
+        const inPins = [];
+        const outPins = [];
+        let equation = null;
+        
+        // Extract input parameters from constraint definition
+        if (n.parameters && Array.isArray(n.parameters)) {
+          for (const param of n.parameters) {
+            const paramName = param.name || param.id || null;
+            const paramType = param.type || param.typeName || 'Real';
+            if (paramName) {
+              inPins.push({ name: paramName, type: paramType, direction: 'in' });
+            }
+          }
+        }
+        
+        // Extract output parameters from constraint definition  
+        if (n.returnParameters && Array.isArray(n.returnParameters)) {
+          for (const param of n.returnParameters) {
+            const paramName = param.name || param.id || null;
+            const paramType = param.type || param.typeName || 'Real';
+            if (paramName) {
+              outPins.push({ name: paramName, type: paramType, direction: 'out' });
+            }
+          }
+        }
+        
+        // Extract equation directly from AST structure
+        if (n.equation && Array.isArray(n.equation) && n.equation.length >= 5) {
+          // AST structure: ['equation', ' ', '=', ' ', {expression}]
+          const expressionNode = n.equation[4];
+          if (expressionNode && expressionNode.type) {
+            console.log(`DEBUG: Processing equation for ${name}, expression type: ${expressionNode.type}`);
+            equation = astExpressionToString(expressionNode);
+            console.log(`DEBUG: Transformed equation: ${equation}`);
+          }
+        }
+        
+        constraintDefs.push({ name, inPins, outPins, equation, node: n });
+      }
+    });
+    
+    // Generate Activity classes
+    for (const actDef of activityDefs) {
+      const className = getPackagePrefix(actDef.name, 'AC') + actDef.name;
+      behavioralLines.push(`// Activity class: ${actDef.name}`);
+      behavioralLines.push(`class ${className} extends Activity {`);
+      behavioralLines.push(`  constructor(name, opts = {}) {`);
+      behavioralLines.push(`    super(name, {`);
+      behavioralLines.push(`      ...opts,`);
+      behavioralLines.push(`      inParameters: ${JSON.stringify(actDef.inPins)},`);
+      behavioralLines.push(`      outParameters: ${JSON.stringify(actDef.outPins)}`);
+      behavioralLines.push(`    });`);
+      behavioralLines.push(`  }`);
+      behavioralLines.push(`}`);
+      behavioralLines.push('');
+    }
+    
+    // Generate Action classes
+    for (const actDef of actionDefs) {
+      const className = getPackagePrefix(actDef.name, 'AN') + actDef.name;
+      behavioralLines.push(`// Action class: ${actDef.name}`);
+      behavioralLines.push(`class ${className} extends Action {`);
+      behavioralLines.push(`  constructor(name, opts = {}) {`);
+      behavioralLines.push(`    super(name, {`);
+      behavioralLines.push(`      ...opts,`);
+      behavioralLines.push(`      inParameters: ${JSON.stringify(actDef.inPins)},`);
+      behavioralLines.push(`      outParameters: ${JSON.stringify(actDef.outPins)},`);
+      if (actDef.body) {
+        behavioralLines.push(`      rawBody: ${JSON.stringify(actDef.body)}`);
+      }
+      behavioralLines.push(`    });`);
+      behavioralLines.push(`  }`);
+      behavioralLines.push(`}`);
+      behavioralLines.push('');
+    }
+    
+    // Generate Constraint classes
+    for (const conDef of constraintDefs) {
+      const className = getPackagePrefix(conDef.name, 'CT') + conDef.name;
+      behavioralLines.push(`// Constraint class: ${conDef.name}`);
+      behavioralLines.push(`class ${className} extends Constraint {`);
+      behavioralLines.push(`  constructor(name, opts = {}) {`);
+      behavioralLines.push(`    super(name, {`);
+      behavioralLines.push(`      ...opts,`);
+      behavioralLines.push(`      inParameters: ${JSON.stringify(conDef.inPins)},`);
+      behavioralLines.push(`      outParameters: ${JSON.stringify(conDef.outPins || [])},`);
+      if (conDef.equation) {
+        behavioralLines.push(`      equation: ${JSON.stringify(conDef.equation)},`);
+        
+        // Compile ALF equation to JavaScript function
+        const compiledALF = compileALFExpression(conDef.equation, conDef.inPins, conDef.outPins);
+        if (compiledALF && compiledALF.javascript) {
+          behavioralLines.push(`      constraintFunction: ${compiledALF.javascript}`);
+        }
+      }
+      behavioralLines.push(`    });`);
+      behavioralLines.push(`  }`);
+      behavioralLines.push(`}`);
+      behavioralLines.push('');
+    }
+    
+    // Generate Executable classes for each executable
+    for (const ex of executables) {
+      if (!ex.name) continue;
+      const className = getPackagePrefix(ex.name, 'EX') + ex.name;
+      const params = Array.isArray(ex.params) ? ex.params : (ex.params || []);
+      const inPins = params.map(p => ({ name: p, type: 'String', direction: 'in' }));
+      
+      behavioralLines.push(`// Executable class: ${ex.name}`);
+      behavioralLines.push(`class ${className} extends Executable {`);
+      behavioralLines.push(`  constructor(name, opts = {}) {`);
+      behavioralLines.push(`    super(name, {`);
+      behavioralLines.push(`      ...opts,`);
+      behavioralLines.push(`      inParameters: ${JSON.stringify(inPins)},`);
+      if (ex.body) {
+        behavioralLines.push(`      body: ${JSON.stringify(ex.body)},`);
+        
+        // Compile ALF body to JavaScript function for executables
+        const executableFunc = compileExecutableToJS(ex.body, inPins);
+        if (executableFunc) {
+          behavioralLines.push(`      executableFunction: ${executableFunc}`);
+        }
+      }
+      behavioralLines.push(`    });`);
+      behavioralLines.push(`  }`);
+      behavioralLines.push(`}`);
+      behavioralLines.push('');
+    }
+    
+    return behavioralLines;
+  }
+  
+  // Build constraint to action mapping from AST
+  function buildConstraintToActionMapping() {
+    const constraintToAction = {};
+    
+    traverse(ast, n => {
+      if (n && (n.type === 'ActionDef' || /ActionDef/i.test(n.type))) {
+        const actionName = n.name || n.id || null;
+        if (!actionName) return;
+        
+        // Look for constraints array within this action
+        if (n.constraints && Array.isArray(n.constraints)) {
+          for (const constraint of n.constraints) {
+            if (constraint && constraint.type === 'ConstraintUse' && constraint.definition) {
+              constraintToAction[constraint.definition] = actionName;
+            }
+          }
+        }
+        
+        // Also look for constraint references within this action (fallback)
+        traverse(n, child => {
+          // Look for post-condition constraint references
+          if (child && child.type === 'ConstraintRef' || 
+              (child && typeof child === 'object' && child.constraint)) {
+            const constraintName = child.constraint || child.name || child.id || null;
+            if (constraintName) {
+              constraintToAction[constraintName] = actionName;
+            }
+          }
+          
+          // Also check for "post-condition" patterns in text
+          if (child && child.type === 'PostCondition' || 
+              (child && typeof child === 'string' && child.includes('post-condition'))) {
+            // Extract constraint name from post-condition text
+            const text = typeof child === 'string' ? child : (child.value || '');
+            const match = text.match(/post-condition\s+(\w+)/);
+            if (match && match[1]) {
+              constraintToAction[match[1]] = actionName;
+            }
+          }
+        });
+      }
+    });
+    
+    return constraintToAction;
+  }
+  
+  // Build delegation mappings from AST
+  function buildDelegationMappings() {
+    const activityDelegations = {};
+    const actionDelegations = {};
+    
+    traverse(ast, n => {
+      // Extract delegations from ActivityDef (check both delegations and relations)
+      if (n && (n.type === 'ActivityDef' || /ActivityDef/i.test(n.type))) {
+        const activityName = n.name || n.id || null;
+        if (!activityName) return;
+        
+        const delegations = [];
+        
+        // Check delegations array
+        if (n.delegations && Array.isArray(n.delegations)) {
+          delegations.push(...n.delegations.map(d => ({
+            from: d.source,
+            to: d.target
+          })));
+        }
+        
+        // Check relations array (often used in activity body)
+        if (n.body && n.body.relations && Array.isArray(n.body.relations)) {
+          delegations.push(...n.body.relations
+            .filter(r => r.type === 'ActivityDelegation')
+            .map(d => ({
+              from: d.source,
+              to: d.target
+            })));
+        }
+        
+        if (delegations.length > 0) {
+          activityDelegations[activityName] = delegations;
+        }
+      }
+      
+      // Extract delegations from ActionDef
+      if (n && (n.type === 'ActionDef' || /ActionDef/i.test(n.type))) {
+        const actionName = n.name || n.id || null;
+        if (!actionName) return;
+        
+        const delegations = [];
+        
+        // Check delegations array
+        if (n.delegations && Array.isArray(n.delegations)) {
+          delegations.push(...n.delegations.map(d => ({
+            from: d.source,
+            to: d.target
+          })));
+        }
+        
+        if (delegations.length > 0) {
+          actionDelegations[actionName] = delegations;
+        }
+      }
+    });
+    
+    return { activityDelegations, actionDelegations };
+  }
+  
+  const constraintToActionMap = buildConstraintToActionMapping();
+  const { activityDelegations, actionDelegations } = buildDelegationMappings();
+  
+// Helper function to extract parameters from executable definition
+function extractExecutableParams(body) {
+  if (!body || typeof body !== 'string') return [];
+  
+  // Match executable definition pattern: executable def name (in param1:Type, in param2:Type): out Type
+  const match = body.match(/executable\s+def\s+\w+\s*\(([^)]*)\)/i);
+  if (!match) return [];
+  
+  const paramStr = match[1].trim();
+  if (!paramStr) return [];
+  
+  // Split parameters and extract names (remove 'in'/'out' and type annotations)
+  return paramStr.split(',')
+    .map(p => p.trim())
+    .filter(p => p)
+    .map(p => {
+      // Remove 'in'/'out' prefix and type annotation
+      const parts = p.split(':');
+      const nameWithDirection = parts[0].trim();
+      // Remove 'in' or 'out' prefix
+      return nameWithDirection.replace(/^(in|out)\s+/, '').trim();
+    })
+    .filter(name => name);
+}
+
   // add executables (use helper to keep code concise)
   if (Array.isArray(executables) && executables.length) {
     for (const ex of executables) {
-      const params = Array.isArray(ex.params) ? ex.params : (ex.params || []);
       const body = (ex.body || ex.expression || '') || '';
       if (!String(body).trim()) continue;
+      
+      // Extract parameters automatically from body if not provided
+      let params = Array.isArray(ex.params) ? ex.params : (ex.params || []);
+      if (params.length === 0) {
+        params = extractExecutableParams(body);
+      }
+      
       let en = ex.name || null;
       if (!en) en = `${modelName}.${Math.random().toString(36).slice(2,6)}`;
       else if (!en.includes('.')) en = `${modelName}.${en}`;
@@ -1701,22 +2504,57 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     }
   }
 
-  // register activities
+  // register activities using explicit classes
   if (Array.isArray(activitiesToRegister) && activitiesToRegister.length) {
     for (const a of activitiesToRegister) {
       const comp = a.descriptor && a.descriptor.component;
       const inputPorts = a.descriptor && a.descriptor.inputPorts ? a.descriptor.inputPorts : [];
       const actions = a.descriptor && a.descriptor.actions ? a.descriptor.actions : [];
       const actVar = 'act_' + sanitizeId(a.activityName + '_' + String(comp));
-      lines.push(`    const ${actVar} = new Activity(${JSON.stringify(a.activityName)}, { component: ${JSON.stringify(comp)}, inputPorts: ${JSON.stringify(inputPorts)} });`);
+      
+      // Use explicit Activity class with prefix and include delegations
+      const activityClassName = getPackagePrefix(a.activityName, 'AC') + a.activityName;
+      const activityDels = activityDelegations[a.activityName] || [];
+      lines.push(`    const ${actVar} = new ${activityClassName}(${JSON.stringify(a.activityName)}, { component: ${JSON.stringify(comp)}, inputPorts: ${JSON.stringify(inputPorts)}, delegates: ${JSON.stringify(activityDels)} });`);
+      
+      // Register actions within this activity using explicit classes
       for (const act of actions) {
-        const exec = act.executable || null;
-        if (exec) {
-          lines.push(`    ${actVar}.addAction(new Action(${JSON.stringify(act.name || exec)}, ${JSON.stringify(act.params || [])}, ${JSON.stringify(exec)}));`);
-        } else {
-          lines.push(`    ${actVar}.addAction(new Action(${JSON.stringify(act.name || null)}, ${JSON.stringify(act.params || [])}, null));`);
+        const actionName = act.name || act.executable || null;
+        if (actionName) {
+          const actionClassName = getPackagePrefix(actionName, 'AN') + actionName;
+          const exec = act.executable || null;
+          
+          if (exec) {
+            // Create unique variable names by including activity and component context
+            const uniqueActionVar = `action_${sanitizeId(actionName)}_${sanitizeId(a.activityName)}_${sanitizeId(comp)}`;
+            const uniqueExecVar = `exec_${sanitizeId(exec)}_${sanitizeId(a.activityName)}_${sanitizeId(comp)}`;
+            
+            // Create explicit action class instance with delegations and register executable within it
+            const actionDels = actionDelegations[actionName] || [];
+            lines.push(`    const ${uniqueActionVar} = new ${actionClassName}(${JSON.stringify(actionName)}, { delegates: ${JSON.stringify(actionDels)} });`);
+            
+            // Register constraints associated with this action
+            for (const [constraintName, associatedActionName] of Object.entries(constraintToActionMap)) {
+              if (associatedActionName === actionName) {
+                const constraintClassName = getPackagePrefix(constraintName, 'CT') + constraintName;
+                const uniqueConstraintVar = `constraint_${sanitizeId(constraintName)}_${sanitizeId(a.activityName)}_${sanitizeId(comp)}`;
+                lines.push(`    const ${uniqueConstraintVar} = new ${constraintClassName}(${JSON.stringify(constraintName)});`);
+                lines.push(`    ${uniqueActionVar}.registerConstraint(${uniqueConstraintVar});`);
+              }
+            }
+            
+            // Create explicit executable class and register it within the action
+            const executableClassName = getPackagePrefix(exec, 'EX') + exec;
+            lines.push(`    const ${uniqueExecVar} = new ${executableClassName}(${JSON.stringify(exec)});`);
+            lines.push(`    ${uniqueActionVar}.registerExecutable(${uniqueExecVar});`);
+            lines.push(`    ${actVar}.registerAction(${uniqueActionVar});`);
+          } else {
+            // Fallback to legacy Action creation
+            lines.push(`    ${actVar}.addAction(new Action(${JSON.stringify(actionName)}, ${JSON.stringify(act.params || [])}, null));`);
+          }
         }
       }
+      
       lines.push(`    this.registerActivity(${JSON.stringify(a.activityName + '::' + comp)}, ${actVar});`);
     }
   }
@@ -1897,9 +2735,27 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
 
 async function main() {
   const argv = process.argv.slice(2);
-  if (argv.length < 1) { console.error('Usage: transformer.js <input.sysadl> [outdir]'); process.exit(2); }
+  if (argv.length < 1) { console.error('Usage: transformer.js <input.sysadl> [outdir_or_outfile]'); process.exit(2); }
   const input = path.resolve(argv[0]);
-  const outDir = path.resolve(argv[1] || path.join(__dirname, 'generated'));
+  
+  // Check if second argument is a specific file or directory
+  let outDir, outFile;
+  if (argv[1]) {
+    const outPath = path.resolve(argv[1]);
+    if (path.extname(outPath) === '.js') {
+      // It's a specific file
+      outFile = outPath;
+      outDir = path.dirname(outPath);
+    } else {
+      // It's a directory
+      outDir = outPath;
+      outFile = null;
+    }
+  } else {
+    outDir = path.join(__dirname, 'generated');
+    outFile = null;
+  }
+  
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
   const parserPath = path.join(__dirname, '..', 'sysadl-parser.js');
   const parse = await loadParser(parserPath);
@@ -3356,10 +4212,18 @@ async function main() {
 
   // build executableToAction from allocation info if present
   const executableToAction = {};
+  const activityToComponent = {};
+  
   if (ast && ast.allocation && Array.isArray(ast.allocation.allocations)) {
     for (const a of ast.allocation.allocations) {
       if (!a || !a.type) continue;
-      if (a.type === 'ExecutableAllocation' && a.source && a.target) executableToAction[a.source] = a.target;
+      if (a.type === 'ExecutableAllocation' && a.source && a.target) {
+        executableToAction[a.source] = a.target;
+      }
+      // Add generic ActivityAllocation processing
+      if (a.type === 'ActivityAllocation' && a.source && a.target) {
+        activityToComponent[a.source] = a.target;
+      }
     }
   }
 
@@ -3690,21 +4554,49 @@ async function main() {
 
   for (const [an, def] of Object.entries(activityDefs)) {
     const params = def.params || [];
-    const root = String(an).replace(/AC$/i, '').replace(/Activity$/i, '').trim();
-    const candidates = [];
-    for (const instName of Object.keys(compInstanceDef)) {
-      const ddef = compInstanceDef[instName];
-      if (ddef && normalizeForMatch(String(ddef)) === normalizeForMatch(root)) { candidates.push(instName); continue; }
-      const short = String(instName).split('.').pop(); if (short && normalizeForMatch(short) === normalizeForMatch(root)) { candidates.push(instName); continue; }
-      if (normalizeForMatch(instName) === normalizeForMatch(root)) { candidates.push(instName); continue; }
-    }
-    if (candidates.length === 0) {
+    
+    // First, check if there's an explicit ActivityAllocation
+    let candidates = [];
+    if (activityToComponent[an]) {
+      // Use explicit allocation from allocation table
+      candidates.push(activityToComponent[an]);
+    } else {
+      // Fall back to heuristic matching - check both components and connectors
+      const root = String(an).replace(/AC$/i, '').replace(/Activity$/i, '').trim();
+      
+      // Check components first
       for (const instName of Object.keys(compInstanceDef)) {
-        const ddef = compInstanceDef[instName] || '';
-        if (normalizeForMatch(String(ddef)).indexOf(normalizeForMatch(root)) !== -1) { candidates.push(instName); }
+        const ddef = compInstanceDef[instName];
+        if (ddef && normalizeForMatch(String(ddef)) === normalizeForMatch(root)) { candidates.push(instName); continue; }
+        const short = String(instName).split('.').pop(); if (short && normalizeForMatch(short) === normalizeForMatch(root)) { candidates.push(instName); continue; }
+        if (normalizeForMatch(instName) === normalizeForMatch(root)) { candidates.push(instName); continue; }
       }
+      
+      // Also check connectors for activity allocation
+      if (candidates.length === 0) {
+        for (const desc of connectorDescriptors) {
+          if (!desc || !desc.name) continue;
+          const connName = desc.name;
+          if (normalizeForMatch(connName) === normalizeForMatch(root)) {
+            candidates.push(connName);
+            continue;
+          }
+          const connRoot = String(connName).replace(/CN$/i, '').replace(/Connector$/i, '').trim();
+          if (normalizeForMatch(connRoot) === normalizeForMatch(root)) {
+            candidates.push(connName);
+            continue;
+          }
+        }
+      }
+      
+      if (candidates.length === 0) {
+        for (const instName of Object.keys(compInstanceDef)) {
+          const ddef = compInstanceDef[instName] || '';
+          if (normalizeForMatch(String(ddef)).indexOf(normalizeForMatch(root)) !== -1) { candidates.push(instName); }
+        }
+      }
+      if (candidates.length === 0) candidates.push(...Object.keys(compInstanceDef));
     }
-    if (candidates.length === 0) candidates.push(...Object.keys(compInstanceDef));
 
     for (const cand of candidates) {
       const portsSet = collectPortsForQualifiedComponent(cand) || new Set();
@@ -4086,7 +4978,12 @@ async function main() {
     // Keep // comments since we now use them for section headers
     // moduleCode = moduleCode.replace(/(^|[^\\:])\/\/.*$/gm, '$1'); // remove //... line comments (avoid chopping http://)
   } catch(e) { /* ignore */ }
-  const outFile = path.join(outDir, path.basename(input, path.extname(input)) + '.js');
+  
+  // Use the predefined outFile if available, otherwise construct it
+  if (!outFile) {
+    outFile = path.join(outDir, path.basename(input, path.extname(input)) + '.js');
+  }
+  
   fs.writeFileSync(outFile, moduleCode, 'utf8');
   // console.log('Generated', outFile); // Commented out to avoid output pollution
 }
