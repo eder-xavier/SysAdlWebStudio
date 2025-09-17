@@ -9,135 +9,31 @@ class Element {
   }
 }
 
-class Model extends Element {
-  constructor(name) {
-    super(name);
-    this.components = {}; // direct children instances by local name
-    this.connectors = {};
-    this.executables = {};
-    this._log = [];
-    this._activities = {};
-    this._pendingInputs = {};
-  }
-
-  addComponent(inst) {
-    if (!inst || !inst.name) return;
-    this.components[inst.name] = inst;
-  }
-
-  addConnector(conn) { if (conn && conn.name) this.connectors[conn.name] = conn; }
-
-  logEvent(event) {
-    this._log = this._log || [];
-    this._log.push(event);
-  }
-
-  addExecutable(name, fn) {
-    // keep same behavior wrapping
-    const model = this;
-    const wrapped = function(...args){
-      let output;
-      try { output = fn.apply(this, args); } catch (e) { model.logEvent({ elementType: 'executable', name, inputs: args, error: e.message, when: Date.now() }); throw e; }
-      model.logEvent({ elementType: 'executable', name, inputs: args, output, when: Date.now() });
-      return output;
-    };
-    this.executables[name] = wrapped;
-    // wire to activities by executableName if present
-    for (const k of Object.keys(this._activities || {})){
-      const a = this._activities[k];
-      if (a && a.actions) {
-        for (const act of a.actions) {
-          if (act && act.executableName === name && !act.executableFn) act.executableFn = wrapped;
-        }
-      }
-    }
-  }
-
-  // safe helper used by generated modules: compile and register executable, ignore failures
-  addExecutableSafe(name, body, params) {
-    try {
-      const fn = createExecutableFromExpression(String(body || ''), Array.isArray(params) ? params : (params || []));
-      this.addExecutable(name, fn);
-    } catch (e) {
-      // ignore errors during generation-time registration
-    }
-  }
-
-  registerActivity(key, activity) {
-    if (!key) return;
-    this._activities[key] = activity;
-    this._pendingInputs[key] = {};
-  }
-
-  handlePortReceive(instancePath, portName, value) {
-    // instancePath is an array of path segments or a dot-string
-    const compId = Array.isArray(instancePath) ? instancePath.join('.') : instancePath;
-    for (const [k, a] of Object.entries(this._activities || {})){
-      let actName = k, comp = null;
-      if (String(k).includes('::')) { const [n,c] = k.split('::'); actName = n; comp = c; }
-      else if (a && a.component) comp = a.component;
-      if (comp !== compId) continue;
-      const inputPorts = a.inputPorts || [];
-      if (!inputPorts.includes(portName)) continue;
-      const pending = this._pendingInputs[k] || {};
-      pending[portName] = value;
-      this._pendingInputs[k] = pending;
-      const ready = inputPorts.every(p => Object.prototype.hasOwnProperty.call(pending, p));
-      if (ready) {
-        const inputs = inputPorts.map(p => pending[p]);
-        this.logEvent({ elementType: 'activity_start', name: actName, component: comp, inputs, when: Date.now() });
-        try { this.executeActivity(k, inputs); this.logEvent({ elementType: 'activity_end', name: actName, component: comp, when: Date.now() }); } catch (e) { this.logEvent({ elementType: 'activity_error', name: actName, component: comp, error: e.message, when: Date.now() }); }
-        this._pendingInputs[k] = {};
-      }
-    }
-  }
-
-  executeActivity(key, inputs) {
-    const a = this._activities[key];
-    if (!a) throw new Error('Activity not found: '+key);
-    if (typeof a.invoke === 'function') return a.invoke(inputs, this);
-    // fallback descriptor
-    let last;
-    for (const action of (a.actions || [])){
-      const actInputs = (action.params && action.params.length) ? action.params.map((p,i) => inputs[i]) : inputs;
-      if (action.executableFn) {
-        last = action.executableFn.apply(null, actInputs);
-      } else if (action.executableName && this.executables[action.executableName]) {
-        last = this.executables[action.executableName].apply(null, actInputs);
-      } else if (action.rawBody) {
-        const fn = createExecutableFromExpression(action.rawBody, action.params || []);
-        last = fn.apply(null, actInputs);
-      }
-    }
-    return last;
-  }
-
-  // Validate data type before sending through port
-  validatePortData(portName, data, expectedType) {
-    if (!expectedType) return data; // No type validation if not specified
-    // Type validation removed - just return data as-is
-    return data;
-  }
-
-  // Get type registry for external access (removed)
-  getTypeRegistry() {
-    return null; // Type registry removed
-  }
-}
-
-class Component extends Element {
-  constructor(name, opts = {}){
+// Base class for SysADL elements
+class SysADLBase extends Element {
+  constructor(name, opts = {}) {
     super(name, opts);
+    this.components = {};
+    this.connectors = {};
     this.ports = {};
-    this.components = {}; // child instances
-    this.connectors = {}; // connectors within this component
-    this.sysadlDefinition = opts && opts.sysadlDefinition ? opts.sysadlDefinition : null;
-  // preserve explicit boundary flag when provided by generator
-    this.isBoundary = !!(opts && opts.isBoundary);
   }
-  addPort(p){ if (!p || !p.name) return; if (this.ports[p.name]) return this.ports[p.name]; this.ports[p.name] = p; return p; }
-  addComponent(inst){ this.components[inst.name] = inst; }
-  addConnector(conn) { if (conn && conn.name) this.connectors[conn.name] = conn; }
+
+  addComponent(comp) {
+    if (!comp || !comp.name) return;
+    this.components[comp.name] = comp;
+  }
+
+  addConnector(conn) {
+    if (!conn || !conn.name) return;
+    this.connectors[conn.name] = conn;
+  }
+
+  addPort(p) {
+    if (!p || !p.name) return;
+    if (this.ports[p.name]) return this.ports[p.name];
+    this.ports[p.name] = p;
+    return p;
+  }
   
   // Get a port by name
   getPort(portName) {
@@ -145,8 +41,105 @@ class Component extends Element {
   }
 }
 
-class Connector extends Element {
-  constructor(name, opts = {}){ super(name, opts); this.participants = []; }
+class Model extends SysADLBase {
+  constructor(name) {
+    super(name);
+    this._activities = {};
+    this._pendingInputs = {};
+  }
+
+  registerActivity(key, activity) {
+    if (!key) return;
+    this._activities[key] = activity;
+    this._pendingInputs[key] = {};
+  }
+  
+  // Walk through all components recursively and apply function
+  walkComponents(fn) {
+    const visited = new Set();
+    const walk = (obj) => {
+      if (!obj || typeof obj !== 'object' || visited.has(obj)) return;
+      visited.add(obj);
+      
+      // Check if this object is a component
+      if (obj instanceof Component) {
+        fn(obj);
+      }
+      
+      // Recursively check components collection
+      if (obj.components && typeof obj.components === 'object') {
+        Object.values(obj.components).forEach(walk);
+      }
+    };
+    walk(this);
+  }
+  
+  // Walk through all connectors recursively and apply function
+  walkConnectors(fn) {
+    const visited = new Set();
+    const walk = (obj) => {
+      if (!obj || typeof obj !== 'object' || visited.has(obj)) return;
+      visited.add(obj);
+      
+      // Check if this object is a connector
+      if (obj instanceof Connector) {
+        fn(obj);
+      }
+      
+      // Recursively check connectors collection
+      if (obj.connectors && typeof obj.connectors === 'object') {
+        Object.values(obj.connectors).forEach(walk);
+      }
+      
+      // Recursively check components (they may have connectors)
+      if (obj.components && typeof obj.components === 'object') {
+        Object.values(obj.components).forEach(walk);
+      }
+    };
+    walk(this);
+  }
+  
+  // Inject model reference into all components and connectors
+  injectModelReference() {
+    this.walkComponents(comp => comp.setModel(this));
+    this.walkConnectors(conn => conn.setModel(this));
+  }
+}
+
+class Component extends SysADLBase {
+  constructor(name, opts = {}) {
+    super(name, opts);
+    this.activityName = null; // Direct reference to activity name
+    this._model = null;
+  }
+  
+  setModel(model) {
+    this._model = model;
+  }
+  
+  // Lazy loading for activity
+  getActivity() {
+    if (!this.activityName || !this._model) return null;
+    return this._model._activities[this.activityName];
+  }
+}class Connector extends SysADLBase {
+  constructor(name, opts = {}){ 
+    super(name, opts); 
+    this.participants = [];
+    this.activityName = null; // Direct reference to activity name
+    this._model = null;
+  }
+  
+  setModel(model) {
+    this._model = model;
+  }
+  
+  // Lazy loading for activity
+  getActivity() {
+    if (!this.activityName || !this._model) return null;
+    return this._model._activities[this.activityName];
+  }
+  
   addParticipant(p){ this.participants.push(p); }
   
   // Bind two ports together in this connector
@@ -851,7 +844,6 @@ module.exports = {
   BehavioralElement,
   Constraint,
   Executable,
-  createExecutableFromExpression,
   Enum,
   // Built-in primitive types
   Int,
