@@ -653,8 +653,8 @@ class SysADLModel extends Model {
       [],
       [{"from":"s1","to":"s1"},{"from":"s2","to":"s2"},{"from":"average","to":"CalcAvTemp"}]
     );
-    const an_CalculateAverageTemperatureAN_CalculateAverageTemperatureAC_SensorsMonitorCP = new AN_Components_CalculateAverageTemperatureAN("CalculateAverageTemperatureAN");
-    ac_CalculateAverageTemperatureAC_SensorsMonitorCP.registerAction(an_CalculateAverageTemperatureAN_CalculateAverageTemperatureAC_SensorsMonitorCP);
+    const CalcAvTemp = new AN_Components_CalculateAverageTemperatureAN("CalcAvTemp");
+    ac_CalculateAverageTemperatureAC_SensorsMonitorCP.registerAction(CalcAvTemp);
     this.registerActivity("CalculateAverageTemperatureAC", ac_CalculateAverageTemperatureAC_SensorsMonitorCP);
     const ac_CheckPresenceToSetTemperatureAC_PresenceCheckerCP = new AC_Components_CheckPresenceToSetTemperatureAC(
       "CheckPresenceToSetTemperatureAC",
@@ -662,8 +662,8 @@ class SysADLModel extends Model {
       [],
       [{"from":"detected","to":"detected"},{"from":"userTemp","to":"userTemp"},{"from":"target","to":"CheckPeresenceToSetTemperatureAN"}]
     );
-    const an_CheckPeresenceToSetTemperatureAN_CheckPresenceToSetTemperatureAC_PresenceCheckerCP = new AN_Components_CheckPeresenceToSetTemperatureAN("CheckPeresenceToSetTemperatureAN");
-    ac_CheckPresenceToSetTemperatureAC_PresenceCheckerCP.registerAction(an_CheckPeresenceToSetTemperatureAN_CheckPresenceToSetTemperatureAC_PresenceCheckerCP);
+    const CheckPeresenceToSetTemperatureAN_inst = new AN_Components_CheckPeresenceToSetTemperatureAN("CheckPeresenceToSetTemperatureAN");
+    ac_CheckPresenceToSetTemperatureAC_PresenceCheckerCP.registerAction(CheckPeresenceToSetTemperatureAN_inst);
     this.registerActivity("CheckPresenceToSetTemperatureAC", ac_CheckPresenceToSetTemperatureAC_PresenceCheckerCP);
     const ac_DecideCommandAC_CommanderCP = new AC_Components_DecideCommandAC(
       "DecideCommandAC",
@@ -671,12 +671,12 @@ class SysADLModel extends Model {
       [],
       [{"from":"average2","to":"average2"},{"from":"target2","to":"target2"},{"from":"heating","to":"cmdH"},{"from":"cooling","to":"cmdC"}]
     );
-    const an_CommandCoolerAN_DecideCommandAC_CommanderCP = new AN_Components_CommandCoolerAN("CommandCoolerAN");
-    ac_DecideCommandAC_CommanderCP.registerAction(an_CommandCoolerAN_DecideCommandAC_CommanderCP);
-    const an_CommandHeaterAN_DecideCommandAC_CommanderCP = new AN_Components_CommandHeaterAN("CommandHeaterAN");
-    ac_DecideCommandAC_CommanderCP.registerAction(an_CommandHeaterAN_DecideCommandAC_CommanderCP);
-    const an_CompareTemperatureAN_DecideCommandAC_CommanderCP = new AN_Components_CompareTemperatureAN("CompareTemperatureAN");
-    ac_DecideCommandAC_CommanderCP.registerAction(an_CompareTemperatureAN_DecideCommandAC_CommanderCP);
+    const cmdC = new AN_Components_CommandCoolerAN("cmdC");
+    ac_DecideCommandAC_CommanderCP.registerAction(cmdC);
+    const cmdH = new AN_Components_CommandHeaterAN("cmdH");
+    ac_DecideCommandAC_CommanderCP.registerAction(cmdH);
+    const ct = new AN_Components_CompareTemperatureAN("ct");
+    ac_DecideCommandAC_CommanderCP.registerAction(ct);
     this.registerActivity("DecideCommandAC", ac_DecideCommandAC_CommanderCP);
     const ac_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN = new AC_Components_FahrenheitToCelsiusAC(
       "FahrenheitToCelsiusAC",
@@ -684,8 +684,8 @@ class SysADLModel extends Model {
       [],
       [{"from":"loalTemp1","to":"FtC"},{"from":"current1","to":"current1"}]
     );
-    const an_FahrenheitToCelsiusAN_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN = new AN_Components_FahrenheitToCelsiusAN("FahrenheitToCelsiusAN");
-    ac_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN.registerAction(an_FahrenheitToCelsiusAN_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN);
+    const FtC = new AN_Components_FahrenheitToCelsiusAN("FtC");
+    ac_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN.registerAction(FtC);
     this.registerActivity("FahrenheitToCelsiusAC", ac_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN);
   }
 

@@ -1099,279 +1099,279 @@ class SysADLArchitecture extends Model {
     const is = this.SmartPlace.connectors["is"];
     is.bind(this.getPort("isLed"), this.getPort("isAc"));
 
-    const ac_RaspberryControllerAC_spw = new AC_SmartPlaceComponents_RaspberryControllerAC(
+    const ac_spw = new AC_SmartPlaceComponents_RaspberryControllerAC(
       "RaspberryControllerAC",
       "spw",
       ["u"],
       [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
     );
-    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_spw);
-    const ac_RaspberryControllerAC_rrs = new AC_SmartPlaceComponents_RaspberryControllerAC(
+    this.registerActivity("RaspberryControllerAC", ac_spw);
+    const ac_rrs = new AC_SmartPlaceComponents_RaspberryControllerAC(
       "RaspberryControllerAC",
       "rrs",
       ["ri"],
       [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
     );
-    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_rrs);
-    const ac_RaspberryControllerAC_ocb = new AC_SmartPlaceComponents_RaspberryControllerAC(
+    this.registerActivity("RaspberryControllerAC", ac_rrs);
+    const ac_ocb = new AC_SmartPlaceComponents_RaspberryControllerAC(
       "RaspberryControllerAC",
       "ocb",
       ["ci"],
       [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
     );
-    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_ocb);
-    const ac_RaspberryControllerAC_ths = new AC_SmartPlaceComponents_RaspberryControllerAC(
+    this.registerActivity("RaspberryControllerAC", ac_ocb);
+    const ac_ths = new AC_SmartPlaceComponents_RaspberryControllerAC(
       "RaspberryControllerAC",
       "ths",
       ["temperature"],
       [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
     );
-    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_ths);
-    const ac_RaspberryControllerAC_ps = new AC_SmartPlaceComponents_RaspberryControllerAC(
+    this.registerActivity("RaspberryControllerAC", ac_ths);
+    const ac_ps = new AC_SmartPlaceComponents_RaspberryControllerAC(
       "RaspberryControllerAC",
       "ps",
       ["presence"],
       [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
     );
-    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_ps);
-    const ac_RaspberryControllerAC_psql = new AC_SmartPlaceComponents_RaspberryControllerAC(
+    this.registerActivity("RaspberryControllerAC", ac_ps);
+    const ac_psql = new AC_SmartPlaceComponents_RaspberryControllerAC(
       "RaspberryControllerAC",
       "psql",
       ["u"],
       [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
     );
-    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_psql);
-    const ac_RaspberryControllerAC_ac = new AC_SmartPlaceComponents_RaspberryControllerAC(
+    this.registerActivity("RaspberryControllerAC", ac_psql);
+    const ac_ac = new AC_SmartPlaceComponents_RaspberryControllerAC(
       "RaspberryControllerAC",
       "ac",
       ["is"],
       [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
     );
-    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_ac);
-    const ac_RaspberryControllerAC_Led = new AC_SmartPlaceComponents_RaspberryControllerAC(
+    this.registerActivity("RaspberryControllerAC", ac_ac);
+    const ac_Led = new AC_SmartPlaceComponents_RaspberryControllerAC(
       "RaspberryControllerAC",
       "Led",
       ["c"],
       [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
     );
-    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_Led);
-    const ac_RaspberryControllerAC_Raspberry = new AC_SmartPlaceComponents_RaspberryControllerAC(
+    this.registerActivity("RaspberryControllerAC", ac_Led);
+    const ac_Raspberry = new AC_SmartPlaceComponents_RaspberryControllerAC(
       "RaspberryControllerAC",
       "Raspberry",
       ["f"],
       [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
     );
-    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_Raspberry);
-    const ac_RaspberryControllerAC_Camera = new AC_SmartPlaceComponents_RaspberryControllerAC(
+    this.registerActivity("RaspberryControllerAC", ac_Raspberry);
+    const ac_Camera = new AC_SmartPlaceComponents_RaspberryControllerAC(
       "RaspberryControllerAC",
       "Camera",
       ["f"],
       [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
     );
-    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_Camera);
-    const ac_RaspberryControllerAC_cm = new AC_SmartPlaceComponents_RaspberryControllerAC(
+    this.registerActivity("RaspberryControllerAC", ac_Camera);
+    const ac_cm = new AC_SmartPlaceComponents_RaspberryControllerAC(
       "RaspberryControllerAC",
       "cm",
       ["f"],
       [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
     );
-    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_cm);
-    const ac_RaspberryControllerAC_tc = new AC_SmartPlaceComponents_RaspberryControllerAC(
+    this.registerActivity("RaspberryControllerAC", ac_cm);
+    const ac_tc = new AC_SmartPlaceComponents_RaspberryControllerAC(
       "RaspberryControllerAC",
       "tc",
       ["presence"],
       [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
     );
-    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_tc);
-    const ac_RaspberryControllerAC_sqlite = new AC_SmartPlaceComponents_RaspberryControllerAC(
+    this.registerActivity("RaspberryControllerAC", ac_tc);
+    const ac_sqlite = new AC_SmartPlaceComponents_RaspberryControllerAC(
       "RaspberryControllerAC",
       "sqlite",
       ["ri"],
       [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
     );
-    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_sqlite);
-    const ac_RaspberryControllerAC_f = new AC_SmartPlaceComponents_RaspberryControllerAC(
+    this.registerActivity("RaspberryControllerAC", ac_sqlite);
+    const ac_f = new AC_SmartPlaceComponents_RaspberryControllerAC(
       "RaspberryControllerAC",
       "f",
       ["u"],
       [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
     );
-    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_f);
-    const ac_RaspberryControllerAC_acc = new AC_SmartPlaceComponents_RaspberryControllerAC(
+    this.registerActivity("RaspberryControllerAC", ac_f);
+    const ac_acc = new AC_SmartPlaceComponents_RaspberryControllerAC(
       "RaspberryControllerAC",
       "acc",
       ["u"],
       [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
     );
-    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_acc);
-    const ac_RaspberryControllerAC_rc = new AC_SmartPlaceComponents_RaspberryControllerAC(
+    this.registerActivity("RaspberryControllerAC", ac_acc);
+    const ac_rc = new AC_SmartPlaceComponents_RaspberryControllerAC(
       "RaspberryControllerAC",
       "rc",
       ["ci"],
       [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
     );
-    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_rc);
-    const ac_RaspberryControllerAC_rg = new AC_SmartPlaceComponents_RaspberryControllerAC(
+    this.registerActivity("RaspberryControllerAC", ac_rc);
+    const ac_rg = new AC_SmartPlaceComponents_RaspberryControllerAC(
       "RaspberryControllerAC",
       "rg",
       ["a"],
       [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
     );
-    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_rg);
-    const ac_RaspberryControllerAC_gg = new AC_SmartPlaceComponents_RaspberryControllerAC(
+    this.registerActivity("RaspberryControllerAC", ac_rg);
+    const ac_gg = new AC_SmartPlaceComponents_RaspberryControllerAC(
       "RaspberryControllerAC",
       "gg",
       ["db"],
       [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
     );
-    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_gg);
-    const ac_RaspberryControllerAC_hc = new AC_SmartPlaceComponents_RaspberryControllerAC(
+    this.registerActivity("RaspberryControllerAC", ac_gg);
+    const ac_hc = new AC_SmartPlaceComponents_RaspberryControllerAC(
       "RaspberryControllerAC",
       "hc",
       ["u"],
       [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
     );
-    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_hc);
-    const ac_TemperatureControllerAC_tc = new AC_SmartPlaceComponents_TemperatureControllerAC(
+    this.registerActivity("RaspberryControllerAC", ac_hc);
+    const ac_tc_2 = new AC_SmartPlaceComponents_TemperatureControllerAC(
       "TemperatureControllerAC",
       "tc",
       ["presence"],
       [{"from":"presence","to":"presenceSlp"},{"from":"numPeople","to":"numPeopleSlp"},{"from":"reservation","to":"reservationTon"},{"from":"numPeople","to":"numPeopleTon"},{"from":"presence","to":"presenceTon"},{"from":"cmd","to":"turnon"}]
     );
-    this.registerActivity("TemperatureControllerAC", ac_TemperatureControllerAC_tc);
-    const ac_UpdateContextSensorsAC_spw = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+    this.registerActivity("TemperatureControllerAC", ac_tc_2);
+    const ac_spw_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
       "UpdateContextSensorsAC",
       "spw",
       ["a","rr"],
       [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
     );
-    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_spw);
-    const ac_UpdateContextSensorsAC_rrs = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+    this.registerActivity("UpdateContextSensorsAC", ac_spw_2);
+    const ac_rrs_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
       "UpdateContextSensorsAC",
       "rrs",
       ["ri"],
       [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
     );
-    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_rrs);
-    const ac_UpdateContextSensorsAC_ocb = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+    this.registerActivity("UpdateContextSensorsAC", ac_rrs_2);
+    const ac_ocb_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
       "UpdateContextSensorsAC",
       "ocb",
       ["ci"],
       [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
     );
-    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_ocb);
-    const ac_UpdateContextSensorsAC_ths = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+    this.registerActivity("UpdateContextSensorsAC", ac_ocb_2);
+    const ac_ths_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
       "UpdateContextSensorsAC",
       "ths",
       ["temperature"],
       [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
     );
-    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_ths);
-    const ac_UpdateContextSensorsAC_ps = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+    this.registerActivity("UpdateContextSensorsAC", ac_ths_2);
+    const ac_ps_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
       "UpdateContextSensorsAC",
       "ps",
       ["presence"],
       [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
     );
-    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_ps);
-    const ac_UpdateContextSensorsAC_psql = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+    this.registerActivity("UpdateContextSensorsAC", ac_ps_2);
+    const ac_psql_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
       "UpdateContextSensorsAC",
       "psql",
       ["db"],
       [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
     );
-    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_psql);
-    const ac_UpdateContextSensorsAC_ac = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+    this.registerActivity("UpdateContextSensorsAC", ac_psql_2);
+    const ac_ac_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
       "UpdateContextSensorsAC",
       "ac",
       ["is"],
       [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
     );
-    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_ac);
-    const ac_UpdateContextSensorsAC_Led = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+    this.registerActivity("UpdateContextSensorsAC", ac_ac_2);
+    const ac_Led_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
       "UpdateContextSensorsAC",
       "Led",
       ["c"],
       [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
     );
-    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_Led);
-    const ac_UpdateContextSensorsAC_Raspberry = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+    this.registerActivity("UpdateContextSensorsAC", ac_Led_2);
+    const ac_Raspberry_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
       "UpdateContextSensorsAC",
       "Raspberry",
       ["c"],
       [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
     );
-    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_Raspberry);
-    const ac_UpdateContextSensorsAC_Camera = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+    this.registerActivity("UpdateContextSensorsAC", ac_Raspberry_2);
+    const ac_Camera_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
       "UpdateContextSensorsAC",
       "Camera",
       ["f"],
       [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
     );
-    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_Camera);
-    const ac_UpdateContextSensorsAC_cm = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+    this.registerActivity("UpdateContextSensorsAC", ac_Camera_2);
+    const ac_cm_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
       "UpdateContextSensorsAC",
       "cm",
       ["f"],
       [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
     );
-    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_cm);
-    const ac_UpdateContextSensorsAC_tc = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+    this.registerActivity("UpdateContextSensorsAC", ac_cm_2);
+    const ac_tc_3 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
       "UpdateContextSensorsAC",
       "tc",
       ["presence"],
       [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
     );
-    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_tc);
-    const ac_UpdateContextSensorsAC_sqlite = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+    this.registerActivity("UpdateContextSensorsAC", ac_tc_3);
+    const ac_sqlite_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
       "UpdateContextSensorsAC",
       "sqlite",
       ["ri"],
       [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
     );
-    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_sqlite);
-    const ac_UpdateContextSensorsAC_f = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+    this.registerActivity("UpdateContextSensorsAC", ac_sqlite_2);
+    const ac_f_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
       "UpdateContextSensorsAC",
       "f",
       ["u"],
       [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
     );
-    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_f);
-    const ac_UpdateContextSensorsAC_acc = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+    this.registerActivity("UpdateContextSensorsAC", ac_f_2);
+    const ac_acc_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
       "UpdateContextSensorsAC",
       "acc",
       ["u"],
       [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
     );
-    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_acc);
-    const ac_UpdateContextSensorsAC_rc = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+    this.registerActivity("UpdateContextSensorsAC", ac_acc_2);
+    const ac_rc_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
       "UpdateContextSensorsAC",
       "rc",
       ["ci"],
       [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
     );
-    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_rc);
-    const ac_UpdateContextSensorsAC_rg = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+    this.registerActivity("UpdateContextSensorsAC", ac_rc_2);
+    const ac_rg_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
       "UpdateContextSensorsAC",
       "rg",
       ["a"],
       [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
     );
-    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_rg);
-    const ac_UpdateContextSensorsAC_gg = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+    this.registerActivity("UpdateContextSensorsAC", ac_rg_2);
+    const ac_gg_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
       "UpdateContextSensorsAC",
       "gg",
       ["db"],
       [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
     );
-    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_gg);
-    const ac_UpdateContextSensorsAC_hc = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+    this.registerActivity("UpdateContextSensorsAC", ac_gg_2);
+    const ac_hc_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
       "UpdateContextSensorsAC",
       "hc",
       ["rr"],
       [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
     );
-    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_hc);
+    this.registerActivity("UpdateContextSensorsAC", ac_hc_2);
   }
 
 }

@@ -1310,12 +1310,12 @@ class SysADLArchitecture extends Model {
       [],
       [{"from":"destination","to":"sc"},{"from":"cmd","to":"sd"},{"from":"start","to":"ssm"},{"from":"move","to":"moveSD"},{"from":"move","to":"moveSC"},{"from":"move","to":"moveSSM"}]
     );
-    const an_SendStartMotorAN_StartMovingAC_StartMoving = new AN_ComponentsAGV_SendStartMotorAN("SendStartMotorAN");
-    ac_StartMovingAC_StartMoving.registerAction(an_SendStartMotorAN_StartMovingAC_StartMoving);
-    const an_SendCommandAN_StartMovingAC_StartMoving = new AN_ComponentsAGV_SendCommandAN("SendCommandAN");
-    ac_StartMovingAC_StartMoving.registerAction(an_SendCommandAN_StartMovingAC_StartMoving);
-    const an_SendDestinationAN_StartMovingAC_StartMoving = new AN_ComponentsAGV_SendDestinationAN("SendDestinationAN");
-    ac_StartMovingAC_StartMoving.registerAction(an_SendDestinationAN_StartMovingAC_StartMoving);
+    const ssm = new AN_ComponentsAGV_SendStartMotorAN("ssm");
+    ac_StartMovingAC_StartMoving.registerAction(ssm);
+    const sc = new AN_ComponentsAGV_SendCommandAN("sc");
+    ac_StartMovingAC_StartMoving.registerAction(sc);
+    const sd = new AN_ComponentsAGV_SendDestinationAN("sd");
+    ac_StartMovingAC_StartMoving.registerAction(sd);
     this.registerActivity("StartMovingAC", ac_StartMovingAC_StartMoving);
     const ac_NotifierMotorAC_NotifierMotor = new AC_ComponentsAGV_NotifierMotorAC(
       "NotifierMotorAC",
@@ -1323,10 +1323,10 @@ class SysADLArchitecture extends Model {
       [],
       [{"from":"outStatusMotor","to":"nagvm"},{"from":"ack","to":"nsm"},{"from":"inStatusMotor","to":"statusMotor"},{"from":"inStatusMotor","to":"statusMotor"}]
     );
-    const an_NotifyAGVFromMotorAN_NotifierMotorAC_NotifierMotor = new AN_ComponentsAGV_NotifyAGVFromMotorAN("NotifyAGVFromMotorAN");
-    ac_NotifierMotorAC_NotifierMotor.registerAction(an_NotifyAGVFromMotorAN_NotifierMotorAC_NotifierMotor);
-    const an_NotifySupervisoryFromMotorAN_NotifierMotorAC_NotifierMotor = new AN_ComponentsAGV_NotifySupervisoryFromMotorAN("NotifySupervisoryFromMotorAN");
-    ac_NotifierMotorAC_NotifierMotor.registerAction(an_NotifySupervisoryFromMotorAN_NotifierMotorAC_NotifierMotor);
+    const nagvm = new AN_ComponentsAGV_NotifyAGVFromMotorAN("nagvm");
+    ac_NotifierMotorAC_NotifierMotor.registerAction(nagvm);
+    const nsm = new AN_ComponentsAGV_NotifySupervisoryFromMotorAN("nsm");
+    ac_NotifierMotorAC_NotifierMotor.registerAction(nsm);
     this.registerActivity("NotifierMotorAC", ac_NotifierMotorAC_NotifierMotor);
     const ac_CheckStationAC_CheckStation = new AC_ComponentsAGV_CheckStationAC(
       "CheckStationAC",
@@ -1334,14 +1334,14 @@ class SysADLArchitecture extends Model {
       [],
       [{"from":"statusMotor","to":"NotificationsMotor"},{"from":"destination","to":"Destinations"},{"from":"inLocation","to":"location"},{"from":"outLocation","to":"scl"},{"from":"inLocation","to":"location"},{"from":"stopMotor","to":"sm"},{"from":"passed","to":"pm"}]
     );
-    const an_CompareStationsAN_CheckStationAC_CheckStation = new AN_ComponentsAGV_CompareStationsAN("CompareStationsAN");
-    ac_CheckStationAC_CheckStation.registerAction(an_CompareStationsAN_CheckStationAC_CheckStation);
-    const an_StopMotorAN_CheckStationAC_CheckStation = new AN_ComponentsAGV_StopMotorAN("StopMotorAN");
-    ac_CheckStationAC_CheckStation.registerAction(an_StopMotorAN_CheckStationAC_CheckStation);
-    const an_PassedMotorAN_CheckStationAC_CheckStation = new AN_ComponentsAGV_PassedMotorAN("PassedMotorAN");
-    ac_CheckStationAC_CheckStation.registerAction(an_PassedMotorAN_CheckStationAC_CheckStation);
-    const an_SendCurrentLocationAN_CheckStationAC_CheckStation = new AN_ComponentsAGV_SendCurrentLocationAN("SendCurrentLocationAN");
-    ac_CheckStationAC_CheckStation.registerAction(an_SendCurrentLocationAN_CheckStationAC_CheckStation);
+    const cs = new AN_ComponentsAGV_CompareStationsAN("cs");
+    ac_CheckStationAC_CheckStation.registerAction(cs);
+    const sm = new AN_ComponentsAGV_StopMotorAN("sm");
+    ac_CheckStationAC_CheckStation.registerAction(sm);
+    const pm = new AN_ComponentsAGV_PassedMotorAN("pm");
+    ac_CheckStationAC_CheckStation.registerAction(pm);
+    const scl = new AN_ComponentsAGV_SendCurrentLocationAN("scl");
+    ac_CheckStationAC_CheckStation.registerAction(scl);
     this.registerActivity("CheckStationAC", ac_CheckStationAC_CheckStation);
     const ac_ControlArmAC_ControlArm = new AC_ComponentsAGV_ControlArmAC(
       "ControlArmAC",
@@ -1349,8 +1349,8 @@ class SysADLArchitecture extends Model {
       [],
       [{"from":"startArm","to":"ca"},{"from":"cmd","to":"cmd"},{"from":"statusMotor","to":"statusMotor"}]
     );
-    const an_ControlArmAN_ControlArmAC_ControlArm = new AN_ComponentsAGV_ControlArmAN("ControlArmAN");
-    ac_ControlArmAC_ControlArm.registerAction(an_ControlArmAN_ControlArmAC_ControlArm);
+    const ca = new AN_ComponentsAGV_ControlArmAN("ca");
+    ac_ControlArmAC_ControlArm.registerAction(ca);
     this.registerActivity("ControlArmAC", ac_ControlArmAC_ControlArm);
     const ac_NotifierArmAC_NotifierArm = new AC_ComponentsAGV_NotifierArmAC(
       "NotifierArmAC",
@@ -1358,8 +1358,8 @@ class SysADLArchitecture extends Model {
       [],
       [{"from":"ack","to":"na"},{"from":"statusArm","to":"statusArm"}]
     );
-    const an_NotifierArmAN_NotifierArmAC_NotifierArm = new AN_ComponentsAGV_NotifierArmAN("NotifierArmAN");
-    ac_NotifierArmAC_NotifierArm.registerAction(an_NotifierArmAN_NotifierArmAC_NotifierArm);
+    const na = new AN_ComponentsAGV_NotifierArmAN("na");
+    ac_NotifierArmAC_NotifierArm.registerAction(na);
     this.registerActivity("NotifierArmAC", ac_NotifierArmAC_NotifierArm);
     const ac_VehicleTimerAC_VehicleTimer = new AC_ComponentsAGV_VehicleTimerAC(
       "VehicleTimerAC",
@@ -1367,8 +1367,8 @@ class SysADLArchitecture extends Model {
       [],
       [{"from":"status","to":"vt"},{"from":"cmd","to":"cmd"},{"from":"destination","to":"destination"},{"from":"location","to":"location"}]
     );
-    const an_VehicleTimerAN_VehicleTimerAC_VehicleTimer = new AN_ComponentsAGV_VehicleTimerAN("VehicleTimerAN");
-    ac_VehicleTimerAC_VehicleTimer.registerAction(an_VehicleTimerAN_VehicleTimerAC_VehicleTimer);
+    const vt = new AN_ComponentsAGV_VehicleTimerAN("vt");
+    ac_VehicleTimerAC_VehicleTimer.registerAction(vt);
     this.registerActivity("VehicleTimerAC", ac_VehicleTimerAC_VehicleTimer);
   }
 

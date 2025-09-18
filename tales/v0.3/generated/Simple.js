@@ -83,14 +83,14 @@ class CN_Elements_CelToCelCN extends Connector {
 // Components
 class CP_Elements_SensorCP extends Component {
   constructor(name, opts={}) {
-      super(name, { ...opts, isBoundary: true });
+      super(name, opts);
       // Add ports from component definition
       this.addPort(new PT_Elements_FTempOPT("current", "in", { owner: name }));
     }
 }
 class CP_Elements_TempMonitorCP extends Component {
   constructor(name, opts={}) {
-      super(name, { ...opts, activityName: "TempMonitorAC" });
+      super(name, { ...opts, isBoundary: true, activityName: "TempMonitorAC" });
       // Add ports from component definition
       this.addPort(new PT_Elements_CTempIPT("s1", "in", { owner: name }));
       this.addPort(new PT_Elements_CTempIPT("s2", "in", { owner: name }));
@@ -238,13 +238,13 @@ class SysADLModel extends Model {
     super("SysADLModel");
     this.SystemCP = new CP_Elements_SystemCP("SystemCP", { sysadlDefinition: "SystemCP" });
     this.addComponent(this.SystemCP);
-    this.SystemCP.s1 = new CP_Elements_SensorCP("s1", { isBoundary: true, sysadlDefinition: "SensorCP" });
+    this.SystemCP.s1 = new CP_Elements_SensorCP("s1", { sysadlDefinition: "SensorCP" });
     this.SystemCP.addComponent(this.SystemCP.s1);
-    this.SystemCP.s2 = new CP_Elements_SensorCP("s2", { isBoundary: true, sysadlDefinition: "SensorCP" });
+    this.SystemCP.s2 = new CP_Elements_SensorCP("s2", { sysadlDefinition: "SensorCP" });
     this.SystemCP.addComponent(this.SystemCP.s2);
     this.SystemCP.stdOut = new CP_Elements_StdOutCP("stdOut", { isBoundary: true, sysadlDefinition: "StdOutCP" });
     this.SystemCP.addComponent(this.SystemCP.stdOut);
-    this.SystemCP.tempMon = new CP_Elements_TempMonitorCP("tempMon", { sysadlDefinition: "TempMonitorCP" });
+    this.SystemCP.tempMon = new CP_Elements_TempMonitorCP("tempMon", { isBoundary: true, sysadlDefinition: "TempMonitorCP" });
     this.SystemCP.addComponent(this.SystemCP.tempMon);
 
     this.SystemCP.addConnector(new CN_Elements_FarToCelCN("c1"));

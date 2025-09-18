@@ -2680,12 +2680,39 @@ function extractExecutableParams(body) {
   // No need for addExecutableSafe since executable classes already contain the compiled functions
 
   // register activities using explicit classes
+  // track used activity variable names to avoid collisions — append counter when duplicates occur
+  const usedActivityVars = {};
+  // additionally track the final variable names already emitted to be robust
+  const usedActivityVarNames = new Set();
   if (Array.isArray(activitiesToRegister) && activitiesToRegister.length) {
     for (const a of activitiesToRegister) {
       const comp = a.descriptor && a.descriptor.component;
       const inputPorts = a.descriptor && a.descriptor.inputPorts ? a.descriptor.inputPorts : [];
       const actions = a.descriptor && a.descriptor.actions ? a.descriptor.actions : [];
-      const actVar = 'ac_' + sanitizeId(a.activityName + '_' + String(comp));
+      // Choose a stable instance name for the activity variable using the
+      // same resolution logic we apply to actions. Prefer an explicit
+      // descriptor.instanceName when available, otherwise use the
+      // component/connector instance name (comp) or the activity name.
+      const activityInstanceRaw = (a.descriptor && a.descriptor.instanceName) || comp || a.activityName;
+      const resolvedActivityInstance = resolveInstanceName(activityInstanceRaw, a.activityName, `${a.activityName}_${comp}`);
+  // Prefer using the SysADL instance token as the base activity variable name.
+  // This yields names like `ac_spw` or `ac_ftoc`. If the same instance token
+  // appears multiple times in the same generated module, append a numeric
+  // suffix to guarantee uniqueness (e.g. `ac_spw_2`).
+  const baseActVar = 'ac_' + sanitizeId(resolvedActivityInstance);
+      // ensure uniqueness: maintain a count per base and also a global set of used names
+      if (!usedActivityVars[baseActVar]) usedActivityVars[baseActVar] = 1;
+      else usedActivityVars[baseActVar]++;
+      let actVar = (usedActivityVars[baseActVar] > 1) ? `${baseActVar}_${usedActivityVars[baseActVar]}` : baseActVar;
+      // If the candidate name is already taken (for any reason), increment until we find a free one
+      let loopGuard = 0;
+      while (usedActivityVarNames.has(actVar) && loopGuard < 1000) {
+        usedActivityVars[baseActVar] = (usedActivityVars[baseActVar] || 1) + 1;
+        actVar = `${baseActVar}_${usedActivityVars[baseActVar]}`;
+        loopGuard++;
+      }
+      usedActivityVarNames.add(actVar);
+  // uniqueness logging removed for production runs
       
       // Use explicit Activity class with prefix and include delegations
       const activityClassName = getPackagePrefix(a.activityName, 'AC') + a.activityName;
@@ -2696,6 +2723,7 @@ function extractExecutableParams(body) {
       lines.push(`      ${JSON.stringify(inputPorts)},`);
       lines.push(`      ${JSON.stringify(activityDels)}`);
       lines.push(`    );`);
+      // emit-lines debug removed
       
       // Register actions within this activity using explicit classes
       for (const act of actions) {
@@ -5169,8 +5197,9 @@ async function main() {
   if (!outFile) {
     outFile = path.join(outDir, path.basename(input, path.extname(input)) + '.js');
   }
-  
-  fs.writeFileSync(outFile, moduleCode, 'utf8');
+
+  // Optional debug: dump the moduleCode to a temp file for inspection
+  // debug module dump removed
   // console.log('Generated', outFile); // Commented out to avoid output pollution
 }
 
