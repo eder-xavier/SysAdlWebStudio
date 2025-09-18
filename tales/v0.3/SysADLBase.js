@@ -1030,11 +1030,20 @@ class Action extends BehavioralElement {
 
 // Enhanced Activity class with pins as parameters
 class Activity extends BehavioralElement {
-  constructor(name, opts = {}) {
-    super(name, opts);
-    this.component = opts.component || null;
-    this.inputPorts = opts.inputPorts ? opts.inputPorts.slice() : [];
-    this.actions = opts.actions || [];
+  constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
+    // Convert separate parameters to opts format for compatibility
+    const fullOpts = {
+      ...opts,
+      component: component,
+      inputPorts: inputPorts ? inputPorts.slice() : [],
+      delegates: delegates || []
+    };
+    
+    super(name, fullOpts);
+    this.component = fullOpts.component;
+    this.inputPorts = fullOpts.inputPorts;
+    this.delegates = fullOpts.delegates;
+    this.actions = fullOpts.actions || [];
     
     // Pin system for activity execution
     this.pins = {}; // {pinName: {value, isFilled, portMapping}}

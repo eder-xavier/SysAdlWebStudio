@@ -750,8 +750,8 @@ class CP_SmartPlaceComponents_SmartPlace extends Component { }
 // ===== Behavioral Element Classes =====
 // Activity class: RaspberryControllerAC
 class AC_SmartPlaceComponents_RaspberryControllerAC extends Activity {
-  constructor(name, opts = {}) {
-    super(name, {
+  constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
+    super(name, component, inputPorts, delegates, {
       ...opts,
       inParameters: [{"name":"restful","type":"Pin","direction":"in"},{"name":"signal","type":"Pin","direction":"in"}],
       outParameters: []
@@ -761,8 +761,8 @@ class AC_SmartPlaceComponents_RaspberryControllerAC extends Activity {
 
 // Activity class: TemperatureControllerAC
 class AC_SmartPlaceComponents_TemperatureControllerAC extends Activity {
-  constructor(name, opts = {}) {
-    super(name, {
+  constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
+    super(name, component, inputPorts, delegates, {
       ...opts,
       inParameters: [{"name":"presence","type":"Pin","direction":"in"},{"name":"temperature","type":"Pin","direction":"in"},{"name":"numPeople","type":"Pin","direction":"in"},{"name":"reservation","type":"Pin","direction":"in"},{"name":"restful","type":"Pin","direction":"in"},{"name":"cmd","type":"Pin","direction":"in"},{"name":"query_reservation","type":"Pin","direction":"in"}],
       outParameters: []
@@ -772,8 +772,8 @@ class AC_SmartPlaceComponents_TemperatureControllerAC extends Activity {
 
 // Activity class: UpdateContextSensorsAC
 class AC_SmartPlaceComponents_UpdateContextSensorsAC extends Activity {
-  constructor(name, opts = {}) {
-    super(name, {
+  constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
+    super(name, component, inputPorts, delegates, {
       ...opts,
       inParameters: [{"name":"dataSensor","type":"Pin","direction":"in"},{"name":"currentTime","type":"Pin","direction":"in"},{"name":"infoCtx","type":"Pin","direction":"in"}],
       outParameters: []
@@ -1093,106 +1093,281 @@ class SysADLArchitecture extends Model {
     const is = this.SmartPlace.connectors["is"];
     is.bind(this.getPort("isLed"), this.getPort("isAc"));
 
-    const act_RaspberryControllerAC_spw = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "spw", inputPorts: ["u"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
-    this.registerActivity("RaspberryControllerAC", act_RaspberryControllerAC_spw);
-    const act_RaspberryControllerAC_rrs = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "rrs", inputPorts: ["ri"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
-    this.registerActivity("RaspberryControllerAC", act_RaspberryControllerAC_rrs);
-    const act_RaspberryControllerAC_ocb = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "ocb", inputPorts: ["ci"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
-    this.registerActivity("RaspberryControllerAC", act_RaspberryControllerAC_ocb);
-    const act_RaspberryControllerAC_ths = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "ths", inputPorts: ["temperature"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
-    this.registerActivity("RaspberryControllerAC", act_RaspberryControllerAC_ths);
-    const act_RaspberryControllerAC_ps = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "ps", inputPorts: ["presence"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
-    this.registerActivity("RaspberryControllerAC", act_RaspberryControllerAC_ps);
-    const act_RaspberryControllerAC_psql = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "psql", inputPorts: ["u"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
-    this.registerActivity("RaspberryControllerAC", act_RaspberryControllerAC_psql);
-    const act_RaspberryControllerAC_ac = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "ac", inputPorts: ["is"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
-    this.registerActivity("RaspberryControllerAC", act_RaspberryControllerAC_ac);
-    const act_RaspberryControllerAC_Led = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "Led", inputPorts: ["c"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
-    this.registerActivity("RaspberryControllerAC", act_RaspberryControllerAC_Led);
-    const act_RaspberryControllerAC_Raspberry = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "Raspberry", inputPorts: ["f"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
-    this.registerActivity("RaspberryControllerAC", act_RaspberryControllerAC_Raspberry);
-    const act_RaspberryControllerAC_Camera = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "Camera", inputPorts: ["f"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
-    this.registerActivity("RaspberryControllerAC", act_RaspberryControllerAC_Camera);
-    const act_RaspberryControllerAC_cm = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "cm", inputPorts: ["f"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
-    this.registerActivity("RaspberryControllerAC", act_RaspberryControllerAC_cm);
-    const act_RaspberryControllerAC_tc = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "tc", inputPorts: ["presence"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
-    this.registerActivity("RaspberryControllerAC", act_RaspberryControllerAC_tc);
-    const act_RaspberryControllerAC_sqlite = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "sqlite", inputPorts: ["ri"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
-    this.registerActivity("RaspberryControllerAC", act_RaspberryControllerAC_sqlite);
-    const act_RaspberryControllerAC_f = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "f", inputPorts: ["u"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
-    this.registerActivity("RaspberryControllerAC", act_RaspberryControllerAC_f);
-    const act_RaspberryControllerAC_acc = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "acc", inputPorts: ["u"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
-    this.registerActivity("RaspberryControllerAC", act_RaspberryControllerAC_acc);
-    const act_RaspberryControllerAC_rc = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "rc", inputPorts: ["ci"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
-    this.registerActivity("RaspberryControllerAC", act_RaspberryControllerAC_rc);
-    const act_RaspberryControllerAC_rg = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "rg", inputPorts: ["a"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
-    this.registerActivity("RaspberryControllerAC", act_RaspberryControllerAC_rg);
-    const act_RaspberryControllerAC_gg = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "gg", inputPorts: ["db"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
-    this.registerActivity("RaspberryControllerAC", act_RaspberryControllerAC_gg);
-    const act_RaspberryControllerAC_hc = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "hc", inputPorts: ["u"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
-    this.registerActivity("RaspberryControllerAC", act_RaspberryControllerAC_hc);
-    const act_TemperatureControllerAC_tc = new AC_SmartPlaceComponents_TemperatureControllerAC("TemperatureControllerAC", { component: "tc", inputPorts: ["presence"], delegates: [{"from":"presence","to":"presenceSlp"},{"from":"numPeople","to":"numPeopleSlp"},{"from":"reservation","to":"reservationTon"},{"from":"numPeople","to":"numPeopleTon"},{"from":"presence","to":"presenceTon"},{"from":"cmd","to":"turnon"}] });
-    this.registerActivity("TemperatureControllerAC", act_TemperatureControllerAC_tc);
-    const act_UpdateContextSensorsAC_spw = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "spw", inputPorts: ["a","rr"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
-    this.registerActivity("UpdateContextSensorsAC", act_UpdateContextSensorsAC_spw);
-    const act_UpdateContextSensorsAC_rrs = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "rrs", inputPorts: ["ri"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
-    this.registerActivity("UpdateContextSensorsAC", act_UpdateContextSensorsAC_rrs);
-    const act_UpdateContextSensorsAC_ocb = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "ocb", inputPorts: ["ci"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
-    this.registerActivity("UpdateContextSensorsAC", act_UpdateContextSensorsAC_ocb);
-    const act_UpdateContextSensorsAC_ths = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "ths", inputPorts: ["temperature"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
-    this.registerActivity("UpdateContextSensorsAC", act_UpdateContextSensorsAC_ths);
-    const act_UpdateContextSensorsAC_ps = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "ps", inputPorts: ["presence"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
-    this.registerActivity("UpdateContextSensorsAC", act_UpdateContextSensorsAC_ps);
-    const act_UpdateContextSensorsAC_psql = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "psql", inputPorts: ["db"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
-    this.registerActivity("UpdateContextSensorsAC", act_UpdateContextSensorsAC_psql);
-    const act_UpdateContextSensorsAC_ac = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "ac", inputPorts: ["is"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
-    this.registerActivity("UpdateContextSensorsAC", act_UpdateContextSensorsAC_ac);
-    const act_UpdateContextSensorsAC_Led = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "Led", inputPorts: ["c"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
-    this.registerActivity("UpdateContextSensorsAC", act_UpdateContextSensorsAC_Led);
-    const act_UpdateContextSensorsAC_Raspberry = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "Raspberry", inputPorts: ["c"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
-    this.registerActivity("UpdateContextSensorsAC", act_UpdateContextSensorsAC_Raspberry);
-    const act_UpdateContextSensorsAC_Camera = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "Camera", inputPorts: ["f"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
-    this.registerActivity("UpdateContextSensorsAC", act_UpdateContextSensorsAC_Camera);
-    const act_UpdateContextSensorsAC_cm = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "cm", inputPorts: ["f"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
-    this.registerActivity("UpdateContextSensorsAC", act_UpdateContextSensorsAC_cm);
-    const act_UpdateContextSensorsAC_tc = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "tc", inputPorts: ["presence"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
-    this.registerActivity("UpdateContextSensorsAC", act_UpdateContextSensorsAC_tc);
-    const act_UpdateContextSensorsAC_sqlite = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "sqlite", inputPorts: ["ri"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
-    this.registerActivity("UpdateContextSensorsAC", act_UpdateContextSensorsAC_sqlite);
-    const act_UpdateContextSensorsAC_f = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "f", inputPorts: ["u"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
-    this.registerActivity("UpdateContextSensorsAC", act_UpdateContextSensorsAC_f);
-    const act_UpdateContextSensorsAC_acc = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "acc", inputPorts: ["u"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
-    this.registerActivity("UpdateContextSensorsAC", act_UpdateContextSensorsAC_acc);
-    const act_UpdateContextSensorsAC_rc = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "rc", inputPorts: ["ci"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
-    this.registerActivity("UpdateContextSensorsAC", act_UpdateContextSensorsAC_rc);
-    const act_UpdateContextSensorsAC_rg = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "rg", inputPorts: ["a"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
-    this.registerActivity("UpdateContextSensorsAC", act_UpdateContextSensorsAC_rg);
-    const act_UpdateContextSensorsAC_gg = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "gg", inputPorts: ["db"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
-    this.registerActivity("UpdateContextSensorsAC", act_UpdateContextSensorsAC_gg);
-    const act_UpdateContextSensorsAC_hc = new AC_SmartPlaceComponents_UpdateContextSensorsAC("UpdateContextSensorsAC", { component: "hc", inputPorts: ["rr"], delegates: [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}] });
-    this.registerActivity("UpdateContextSensorsAC", act_UpdateContextSensorsAC_hc);
+    const ac_RaspberryControllerAC_spw = new AC_SmartPlaceComponents_RaspberryControllerAC(
+      "RaspberryControllerAC",
+      "spw",
+      ["u"],
+      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
+    );
+    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_spw);
+    const ac_RaspberryControllerAC_rrs = new AC_SmartPlaceComponents_RaspberryControllerAC(
+      "RaspberryControllerAC",
+      "rrs",
+      ["ri"],
+      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
+    );
+    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_rrs);
+    const ac_RaspberryControllerAC_ocb = new AC_SmartPlaceComponents_RaspberryControllerAC(
+      "RaspberryControllerAC",
+      "ocb",
+      ["ci"],
+      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
+    );
+    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_ocb);
+    const ac_RaspberryControllerAC_ths = new AC_SmartPlaceComponents_RaspberryControllerAC(
+      "RaspberryControllerAC",
+      "ths",
+      ["temperature"],
+      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
+    );
+    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_ths);
+    const ac_RaspberryControllerAC_ps = new AC_SmartPlaceComponents_RaspberryControllerAC(
+      "RaspberryControllerAC",
+      "ps",
+      ["presence"],
+      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
+    );
+    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_ps);
+    const ac_RaspberryControllerAC_psql = new AC_SmartPlaceComponents_RaspberryControllerAC(
+      "RaspberryControllerAC",
+      "psql",
+      ["u"],
+      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
+    );
+    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_psql);
+    const ac_RaspberryControllerAC_ac = new AC_SmartPlaceComponents_RaspberryControllerAC(
+      "RaspberryControllerAC",
+      "ac",
+      ["is"],
+      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
+    );
+    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_ac);
+    const ac_RaspberryControllerAC_Led = new AC_SmartPlaceComponents_RaspberryControllerAC(
+      "RaspberryControllerAC",
+      "Led",
+      ["c"],
+      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
+    );
+    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_Led);
+    const ac_RaspberryControllerAC_Raspberry = new AC_SmartPlaceComponents_RaspberryControllerAC(
+      "RaspberryControllerAC",
+      "Raspberry",
+      ["f"],
+      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
+    );
+    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_Raspberry);
+    const ac_RaspberryControllerAC_Camera = new AC_SmartPlaceComponents_RaspberryControllerAC(
+      "RaspberryControllerAC",
+      "Camera",
+      ["f"],
+      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
+    );
+    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_Camera);
+    const ac_RaspberryControllerAC_cm = new AC_SmartPlaceComponents_RaspberryControllerAC(
+      "RaspberryControllerAC",
+      "cm",
+      ["f"],
+      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
+    );
+    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_cm);
+    const ac_RaspberryControllerAC_tc = new AC_SmartPlaceComponents_RaspberryControllerAC(
+      "RaspberryControllerAC",
+      "tc",
+      ["presence"],
+      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
+    );
+    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_tc);
+    const ac_RaspberryControllerAC_sqlite = new AC_SmartPlaceComponents_RaspberryControllerAC(
+      "RaspberryControllerAC",
+      "sqlite",
+      ["ri"],
+      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
+    );
+    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_sqlite);
+    const ac_RaspberryControllerAC_f = new AC_SmartPlaceComponents_RaspberryControllerAC(
+      "RaspberryControllerAC",
+      "f",
+      ["u"],
+      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
+    );
+    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_f);
+    const ac_RaspberryControllerAC_acc = new AC_SmartPlaceComponents_RaspberryControllerAC(
+      "RaspberryControllerAC",
+      "acc",
+      ["u"],
+      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
+    );
+    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_acc);
+    const ac_RaspberryControllerAC_rc = new AC_SmartPlaceComponents_RaspberryControllerAC(
+      "RaspberryControllerAC",
+      "rc",
+      ["ci"],
+      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
+    );
+    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_rc);
+    const ac_RaspberryControllerAC_rg = new AC_SmartPlaceComponents_RaspberryControllerAC(
+      "RaspberryControllerAC",
+      "rg",
+      ["a"],
+      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
+    );
+    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_rg);
+    const ac_RaspberryControllerAC_gg = new AC_SmartPlaceComponents_RaspberryControllerAC(
+      "RaspberryControllerAC",
+      "gg",
+      ["db"],
+      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
+    );
+    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_gg);
+    const ac_RaspberryControllerAC_hc = new AC_SmartPlaceComponents_RaspberryControllerAC(
+      "RaspberryControllerAC",
+      "hc",
+      ["u"],
+      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
+    );
+    this.registerActivity("RaspberryControllerAC", ac_RaspberryControllerAC_hc);
+    const ac_TemperatureControllerAC_tc = new AC_SmartPlaceComponents_TemperatureControllerAC(
+      "TemperatureControllerAC",
+      "tc",
+      ["presence"],
+      [{"from":"presence","to":"presenceSlp"},{"from":"numPeople","to":"numPeopleSlp"},{"from":"reservation","to":"reservationTon"},{"from":"numPeople","to":"numPeopleTon"},{"from":"presence","to":"presenceTon"},{"from":"cmd","to":"turnon"}]
+    );
+    this.registerActivity("TemperatureControllerAC", ac_TemperatureControllerAC_tc);
+    const ac_UpdateContextSensorsAC_spw = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+      "UpdateContextSensorsAC",
+      "spw",
+      ["a","rr"],
+      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
+    );
+    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_spw);
+    const ac_UpdateContextSensorsAC_rrs = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+      "UpdateContextSensorsAC",
+      "rrs",
+      ["ri"],
+      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
+    );
+    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_rrs);
+    const ac_UpdateContextSensorsAC_ocb = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+      "UpdateContextSensorsAC",
+      "ocb",
+      ["ci"],
+      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
+    );
+    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_ocb);
+    const ac_UpdateContextSensorsAC_ths = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+      "UpdateContextSensorsAC",
+      "ths",
+      ["temperature"],
+      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
+    );
+    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_ths);
+    const ac_UpdateContextSensorsAC_ps = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+      "UpdateContextSensorsAC",
+      "ps",
+      ["presence"],
+      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
+    );
+    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_ps);
+    const ac_UpdateContextSensorsAC_psql = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+      "UpdateContextSensorsAC",
+      "psql",
+      ["db"],
+      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
+    );
+    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_psql);
+    const ac_UpdateContextSensorsAC_ac = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+      "UpdateContextSensorsAC",
+      "ac",
+      ["is"],
+      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
+    );
+    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_ac);
+    const ac_UpdateContextSensorsAC_Led = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+      "UpdateContextSensorsAC",
+      "Led",
+      ["c"],
+      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
+    );
+    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_Led);
+    const ac_UpdateContextSensorsAC_Raspberry = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+      "UpdateContextSensorsAC",
+      "Raspberry",
+      ["c"],
+      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
+    );
+    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_Raspberry);
+    const ac_UpdateContextSensorsAC_Camera = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+      "UpdateContextSensorsAC",
+      "Camera",
+      ["f"],
+      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
+    );
+    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_Camera);
+    const ac_UpdateContextSensorsAC_cm = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+      "UpdateContextSensorsAC",
+      "cm",
+      ["f"],
+      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
+    );
+    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_cm);
+    const ac_UpdateContextSensorsAC_tc = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+      "UpdateContextSensorsAC",
+      "tc",
+      ["presence"],
+      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
+    );
+    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_tc);
+    const ac_UpdateContextSensorsAC_sqlite = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+      "UpdateContextSensorsAC",
+      "sqlite",
+      ["ri"],
+      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
+    );
+    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_sqlite);
+    const ac_UpdateContextSensorsAC_f = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+      "UpdateContextSensorsAC",
+      "f",
+      ["u"],
+      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
+    );
+    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_f);
+    const ac_UpdateContextSensorsAC_acc = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+      "UpdateContextSensorsAC",
+      "acc",
+      ["u"],
+      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
+    );
+    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_acc);
+    const ac_UpdateContextSensorsAC_rc = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+      "UpdateContextSensorsAC",
+      "rc",
+      ["ci"],
+      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
+    );
+    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_rc);
+    const ac_UpdateContextSensorsAC_rg = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+      "UpdateContextSensorsAC",
+      "rg",
+      ["a"],
+      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
+    );
+    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_rg);
+    const ac_UpdateContextSensorsAC_gg = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+      "UpdateContextSensorsAC",
+      "gg",
+      ["db"],
+      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
+    );
+    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_gg);
+    const ac_UpdateContextSensorsAC_hc = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
+      "UpdateContextSensorsAC",
+      "hc",
+      ["rr"],
+      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
+    );
+    this.registerActivity("UpdateContextSensorsAC", ac_UpdateContextSensorsAC_hc);
   }
 
-  // Get model metrics for debugging and analysis
-  getMetrics() {
-    const metrics = {
-      activities: Object.keys(this._activities).length,
-      activityKeys: Object.keys(this._activities),
-      components: 0,
-      connectors: 0,
-      componentsWithActivities: 0,
-      connectorsWithActivities: 0
-    };
-    this.walkComponents(c => {
-      metrics.components++;
-      if (c.activityName) metrics.componentsWithActivities++;
-    });
-    this.walkConnectors(c => {
-      metrics.connectors++;
-      if (c.activityName) metrics.connectorsWithActivities++;
-    });
-    return metrics;
-  }
 }
 
 function createModel(){ 

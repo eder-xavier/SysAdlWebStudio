@@ -488,8 +488,8 @@ class CP_ComponentsAGV_FactoryAutomationSystem extends Component { }
 // ===== Behavioral Element Classes =====
 // Activity class: StartMovingAC
 class AC_ComponentsAGV_StartMovingAC extends Activity {
-  constructor(name, opts = {}) {
-    super(name, {
+  constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
+    super(name, component, inputPorts, delegates, {
       ...opts,
       inParameters: [{"name":"move","type":"Pin","direction":"in"},{"name":"cmd","type":"Pin","direction":"in"},{"name":"destination","type":"Pin","direction":"in"},{"name":"start","type":"Pin","direction":"in"}],
       outParameters: []
@@ -499,8 +499,8 @@ class AC_ComponentsAGV_StartMovingAC extends Activity {
 
 // Activity class: NotifierMotorAC
 class AC_ComponentsAGV_NotifierMotorAC extends Activity {
-  constructor(name, opts = {}) {
-    super(name, {
+  constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
+    super(name, component, inputPorts, delegates, {
       ...opts,
       inParameters: [{"name":"inStatusMotor","type":"Pin","direction":"in"},{"name":"outStatusMotor","type":"Pin","direction":"in"},{"name":"ack","type":"Pin","direction":"in"}],
       outParameters: []
@@ -510,8 +510,8 @@ class AC_ComponentsAGV_NotifierMotorAC extends Activity {
 
 // Activity class: CheckStationAC
 class AC_ComponentsAGV_CheckStationAC extends Activity {
-  constructor(name, opts = {}) {
-    super(name, {
+  constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
+    super(name, component, inputPorts, delegates, {
       ...opts,
       inParameters: [{"name":"statusMotor","type":"Pin","direction":"in"},{"name":"destination","type":"Pin","direction":"in"},{"name":"inLocation","type":"Pin","direction":"in"},{"name":"stopMotor","type":"Pin","direction":"in"},{"name":"outLocation","type":"Pin","direction":"in"},{"name":"passed","type":"Pin","direction":"in"}],
       outParameters: []
@@ -521,8 +521,8 @@ class AC_ComponentsAGV_CheckStationAC extends Activity {
 
 // Activity class: ControlArmAC
 class AC_ComponentsAGV_ControlArmAC extends Activity {
-  constructor(name, opts = {}) {
-    super(name, {
+  constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
+    super(name, component, inputPorts, delegates, {
       ...opts,
       inParameters: [{"name":"cmd","type":"Pin","direction":"in"},{"name":"statusMotor","type":"Pin","direction":"in"},{"name":"startArm","type":"Pin","direction":"in"}],
       outParameters: []
@@ -532,8 +532,8 @@ class AC_ComponentsAGV_ControlArmAC extends Activity {
 
 // Activity class: NotifierArmAC
 class AC_ComponentsAGV_NotifierArmAC extends Activity {
-  constructor(name, opts = {}) {
-    super(name, {
+  constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
+    super(name, component, inputPorts, delegates, {
       ...opts,
       inParameters: [{"name":"statusArm","type":"Pin","direction":"in"},{"name":"ack","type":"Pin","direction":"in"}],
       outParameters: []
@@ -543,8 +543,8 @@ class AC_ComponentsAGV_NotifierArmAC extends Activity {
 
 // Activity class: VehicleTimerAC
 class AC_ComponentsAGV_VehicleTimerAC extends Activity {
-  constructor(name, opts = {}) {
-    super(name, {
+  constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
+    super(name, component, inputPorts, delegates, {
       ...opts,
       inParameters: [{"name":"destination","type":"Pin","direction":"in"},{"name":"location","type":"Pin","direction":"in"},{"name":"cmd","type":"Pin","direction":"in"},{"name":"status","type":"Pin","direction":"in"}],
       outParameters: []
@@ -1268,114 +1268,124 @@ class SysADLArchitecture extends Model {
     const updateStatus = this.FactoryAutomationSystem.connectors["updateStatus"];
     updateStatus.bind(this.FactoryAutomationSystem.agvs.getPort("sendStatus"), this.FactoryAutomationSystem.ds.getPort("receiveStatus"));
 
-    const act_StartMovingAC_StartMoving = new AC_ComponentsAGV_StartMovingAC("StartMovingAC", { component: "StartMoving", inputPorts: [], delegates: [{"from":"destination","to":"sc"},{"from":"cmd","to":"sd"},{"from":"start","to":"ssm"},{"from":"move","to":"moveSD"},{"from":"move","to":"moveSC"},{"from":"move","to":"moveSSM"}] });
-    const action_SendStartMotorAN_StartMovingAC_StartMoving = new AN_ComponentsAGV_SendStartMotorAN("SendStartMotorAN", { delegates: [{"from":"SendStartMotorAN","to":"cmd"}] });
-    const constraint_SendStartMotorEQ_StartMovingAC_StartMoving = new CT_ComponentsAGV_SendStartMotorEQ("SendStartMotorEQ");
-    action_SendStartMotorAN_StartMovingAC_StartMoving.registerConstraint(constraint_SendStartMotorEQ_StartMovingAC_StartMoving);
-    const exec_SendStartMotorEX_StartMovingAC_StartMoving = new EX_ComponentsAGV_SendStartMotorEX("SendStartMotorEX");
-    action_SendStartMotorAN_StartMovingAC_StartMoving.registerExecutable(exec_SendStartMotorEX_StartMovingAC_StartMoving);
-    act_StartMovingAC_StartMoving.registerAction(action_SendStartMotorAN_StartMovingAC_StartMoving);
-    const action_SendCommandAN_StartMovingAC_StartMoving = new AN_ComponentsAGV_SendCommandAN("SendCommandAN", { delegates: [{"from":"SendCommandAN","to":"cmd"},{"from":"move","to":"move"}] });
-    const constraint_SendCommandEQ_StartMovingAC_StartMoving = new CT_ComponentsAGV_SendCommandEQ("SendCommandEQ");
-    action_SendCommandAN_StartMovingAC_StartMoving.registerConstraint(constraint_SendCommandEQ_StartMovingAC_StartMoving);
-    const exec_SendCommandEX_StartMovingAC_StartMoving = new EX_ComponentsAGV_SendCommandEX("SendCommandEX");
-    action_SendCommandAN_StartMovingAC_StartMoving.registerExecutable(exec_SendCommandEX_StartMovingAC_StartMoving);
-    act_StartMovingAC_StartMoving.registerAction(action_SendCommandAN_StartMovingAC_StartMoving);
-    const action_SendDestinationAN_StartMovingAC_StartMoving = new AN_ComponentsAGV_SendDestinationAN("SendDestinationAN", { delegates: [{"from":"SendDestinationAN","to":"destination"},{"from":"move","to":"move"}] });
-    const constraint_SendDestinationEQ_StartMovingAC_StartMoving = new CT_ComponentsAGV_SendDestinationEQ("SendDestinationEQ");
-    action_SendDestinationAN_StartMovingAC_StartMoving.registerConstraint(constraint_SendDestinationEQ_StartMovingAC_StartMoving);
-    const exec_SendDestinationEX_StartMovingAC_StartMoving = new EX_ComponentsAGV_SendDestinationEX("SendDestinationEX");
-    action_SendDestinationAN_StartMovingAC_StartMoving.registerExecutable(exec_SendDestinationEX_StartMovingAC_StartMoving);
-    act_StartMovingAC_StartMoving.registerAction(action_SendDestinationAN_StartMovingAC_StartMoving);
-    this.registerActivity("StartMovingAC", act_StartMovingAC_StartMoving);
-    const act_NotifierMotorAC_NotifierMotor = new AC_ComponentsAGV_NotifierMotorAC("NotifierMotorAC", { component: "NotifierMotor", inputPorts: [], delegates: [{"from":"outStatusMotor","to":"nagvm"},{"from":"ack","to":"nsm"},{"from":"inStatusMotor","to":"statusMotor"},{"from":"inStatusMotor","to":"statusMotor"}] });
-    const action_NotifyAGVFromMotorAN_NotifierMotorAC_NotifierMotor = new AN_ComponentsAGV_NotifyAGVFromMotorAN("NotifyAGVFromMotorAN", { delegates: [{"from":"NotifyAGVFromMotorAN","to":"outStatusMotor"},{"from":"statusMotor","to":"inStatusMotor"}] });
-    const constraint_NotifyAGVFromMotorEQ_NotifierMotorAC_NotifierMotor = new CT_ComponentsAGV_NotifyAGVFromMotorEQ("NotifyAGVFromMotorEQ");
-    action_NotifyAGVFromMotorAN_NotifierMotorAC_NotifierMotor.registerConstraint(constraint_NotifyAGVFromMotorEQ_NotifierMotorAC_NotifierMotor);
-    const exec_NotifyAGVFromMotorEX_NotifierMotorAC_NotifierMotor = new EX_ComponentsAGV_NotifyAGVFromMotorEX("NotifyAGVFromMotorEX");
-    action_NotifyAGVFromMotorAN_NotifierMotorAC_NotifierMotor.registerExecutable(exec_NotifyAGVFromMotorEX_NotifierMotorAC_NotifierMotor);
-    act_NotifierMotorAC_NotifierMotor.registerAction(action_NotifyAGVFromMotorAN_NotifierMotorAC_NotifierMotor);
-    const action_NotifySupervisoryFromMotorAN_NotifierMotorAC_NotifierMotor = new AN_ComponentsAGV_NotifySupervisoryFromMotorAN("NotifySupervisoryFromMotorAN", { delegates: [{"from":"NotifySupervisoryFromMotorAN","to":"ack"},{"from":"statusMotor","to":"statusMotor"}] });
-    const constraint_NotifySupervisoryFromMotorEQ_NotifierMotorAC_NotifierMotor = new CT_ComponentsAGV_NotifySupervisoryFromMotorEQ("NotifySupervisoryFromMotorEQ");
-    action_NotifySupervisoryFromMotorAN_NotifierMotorAC_NotifierMotor.registerConstraint(constraint_NotifySupervisoryFromMotorEQ_NotifierMotorAC_NotifierMotor);
-    const exec_NotifySupervisoryFromMotorEX_NotifierMotorAC_NotifierMotor = new EX_ComponentsAGV_NotifySupervisoryFromMotorEX("NotifySupervisoryFromMotorEX");
-    action_NotifySupervisoryFromMotorAN_NotifierMotorAC_NotifierMotor.registerExecutable(exec_NotifySupervisoryFromMotorEX_NotifierMotorAC_NotifierMotor);
-    act_NotifierMotorAC_NotifierMotor.registerAction(action_NotifySupervisoryFromMotorAN_NotifierMotorAC_NotifierMotor);
-    this.registerActivity("NotifierMotorAC", act_NotifierMotorAC_NotifierMotor);
-    const act_CheckStationAC_CheckStation = new AC_ComponentsAGV_CheckStationAC("CheckStationAC", { component: "CheckStation", inputPorts: [], delegates: [{"from":"statusMotor","to":"NotificationsMotor"},{"from":"destination","to":"Destinations"},{"from":"inLocation","to":"location"},{"from":"outLocation","to":"scl"},{"from":"inLocation","to":"location"},{"from":"stopMotor","to":"sm"},{"from":"passed","to":"pm"}] });
-    const action_CompareStationsAN_CheckStationAC_CheckStation = new AN_ComponentsAGV_CompareStationsAN("CompareStationsAN", { delegates: [{"from":"CompareStationsAN","to":"result"},{"from":"location","to":"loc"},{"from":"destination","to":"dest"},{"from":"statusMotor","to":"statusMotor"}] });
-    const constraint_CompareStationsEQ_CheckStationAC_CheckStation = new CT_ComponentsAGV_CompareStationsEQ("CompareStationsEQ");
-    action_CompareStationsAN_CheckStationAC_CheckStation.registerConstraint(constraint_CompareStationsEQ_CheckStationAC_CheckStation);
-    const constraint_NotificationMotorIsStartedEQ_CheckStationAC_CheckStation = new CT_ComponentsAGV_NotificationMotorIsStartedEQ("NotificationMotorIsStartedEQ");
-    action_CompareStationsAN_CheckStationAC_CheckStation.registerConstraint(constraint_NotificationMotorIsStartedEQ_CheckStationAC_CheckStation);
-    const exec_CompareStationsEX_CheckStationAC_CheckStation = new EX_ComponentsAGV_CompareStationsEX("CompareStationsEX");
-    action_CompareStationsAN_CheckStationAC_CheckStation.registerExecutable(exec_CompareStationsEX_CheckStationAC_CheckStation);
-    act_CheckStationAC_CheckStation.registerAction(action_CompareStationsAN_CheckStationAC_CheckStation);
-    const action_StopMotorAN_CheckStationAC_CheckStation = new AN_ComponentsAGV_StopMotorAN("StopMotorAN", { delegates: [{"from":"comparisonResult","to":"result"},{"from":"StopMotorAN","to":"cmd"}] });
-    const constraint_StopMotorEQ_CheckStationAC_CheckStation = new CT_ComponentsAGV_StopMotorEQ("StopMotorEQ");
-    action_StopMotorAN_CheckStationAC_CheckStation.registerConstraint(constraint_StopMotorEQ_CheckStationAC_CheckStation);
-    const exec_StopMotorEX_CheckStationAC_CheckStation = new EX_ComponentsAGV_StopMotorEX("StopMotorEX");
-    action_StopMotorAN_CheckStationAC_CheckStation.registerExecutable(exec_StopMotorEX_CheckStationAC_CheckStation);
-    act_CheckStationAC_CheckStation.registerAction(action_StopMotorAN_CheckStationAC_CheckStation);
-    const action_PassedMotorAN_CheckStationAC_CheckStation = new AN_ComponentsAGV_PassedMotorAN("PassedMotorAN", { delegates: [{"from":"PassedMotorAN","to":"ack"},{"from":"comparisonResult","to":"result"}] });
-    const constraint_PassedMotorEQ_CheckStationAC_CheckStation = new CT_ComponentsAGV_PassedMotorEQ("PassedMotorEQ");
-    action_PassedMotorAN_CheckStationAC_CheckStation.registerConstraint(constraint_PassedMotorEQ_CheckStationAC_CheckStation);
-    const exec_PassedMotorEX_CheckStationAC_CheckStation = new EX_ComponentsAGV_PassedMotorEX("PassedMotorEX");
-    action_PassedMotorAN_CheckStationAC_CheckStation.registerExecutable(exec_PassedMotorEX_CheckStationAC_CheckStation);
-    act_CheckStationAC_CheckStation.registerAction(action_PassedMotorAN_CheckStationAC_CheckStation);
-    const action_SendCurrentLocationAN_CheckStationAC_CheckStation = new AN_ComponentsAGV_SendCurrentLocationAN("SendCurrentLocationAN", { delegates: [{"from":"location","to":"inLocation"},{"from":"SendCurrentLocationAN","to":"outLocation"}] });
-    const constraint_SendCurrentLocationEQ_CheckStationAC_CheckStation = new CT_ComponentsAGV_SendCurrentLocationEQ("SendCurrentLocationEQ");
-    action_SendCurrentLocationAN_CheckStationAC_CheckStation.registerConstraint(constraint_SendCurrentLocationEQ_CheckStationAC_CheckStation);
-    const exec_SendCurrentLocationEX_CheckStationAC_CheckStation = new EX_ComponentsAGV_SendCurrentLocationEX("SendCurrentLocationEX");
-    action_SendCurrentLocationAN_CheckStationAC_CheckStation.registerExecutable(exec_SendCurrentLocationEX_CheckStationAC_CheckStation);
-    act_CheckStationAC_CheckStation.registerAction(action_SendCurrentLocationAN_CheckStationAC_CheckStation);
-    this.registerActivity("CheckStationAC", act_CheckStationAC_CheckStation);
-    const act_ControlArmAC_ControlArm = new AC_ComponentsAGV_ControlArmAC("ControlArmAC", { component: "ControlArm", inputPorts: [], delegates: [{"from":"startArm","to":"ca"},{"from":"cmd","to":"cmd"},{"from":"statusMotor","to":"statusMotor"}] });
-    const action_ControlArmAN_ControlArmAC_ControlArm = new AN_ComponentsAGV_ControlArmAN("ControlArmAN", { delegates: [{"from":"ControlArmAN","to":"startArm"},{"from":"statusMotor","to":"statusMotor"},{"from":"cmd","to":"cmd"}] });
-    const constraint_ControlArmEQ_ControlArmAC_ControlArm = new CT_ComponentsAGV_ControlArmEQ("ControlArmEQ");
-    action_ControlArmAN_ControlArmAC_ControlArm.registerConstraint(constraint_ControlArmEQ_ControlArmAC_ControlArm);
-    const exec_ControlArmEX_ControlArmAC_ControlArm = new EX_ComponentsAGV_ControlArmEX("ControlArmEX");
-    action_ControlArmAN_ControlArmAC_ControlArm.registerExecutable(exec_ControlArmEX_ControlArmAC_ControlArm);
-    act_ControlArmAC_ControlArm.registerAction(action_ControlArmAN_ControlArmAC_ControlArm);
-    this.registerActivity("ControlArmAC", act_ControlArmAC_ControlArm);
-    const act_NotifierArmAC_NotifierArm = new AC_ComponentsAGV_NotifierArmAC("NotifierArmAC", { component: "NotifierArm", inputPorts: [], delegates: [{"from":"ack","to":"na"},{"from":"statusArm","to":"statusArm"}] });
-    const action_NotifierArmAN_NotifierArmAC_NotifierArm = new AN_ComponentsAGV_NotifierArmAN("NotifierArmAN", { delegates: [{"from":"NotifierArmAN","to":"ack"}] });
-    const constraint_NotifierArmEQ_NotifierArmAC_NotifierArm = new CT_ComponentsAGV_NotifierArmEQ("NotifierArmEQ");
-    action_NotifierArmAN_NotifierArmAC_NotifierArm.registerConstraint(constraint_NotifierArmEQ_NotifierArmAC_NotifierArm);
-    const exec_NotifierArmEX_NotifierArmAC_NotifierArm = new EX_ComponentsAGV_NotifierArmEX("NotifierArmEX");
-    action_NotifierArmAN_NotifierArmAC_NotifierArm.registerExecutable(exec_NotifierArmEX_NotifierArmAC_NotifierArm);
-    act_NotifierArmAC_NotifierArm.registerAction(action_NotifierArmAN_NotifierArmAC_NotifierArm);
-    this.registerActivity("NotifierArmAC", act_NotifierArmAC_NotifierArm);
-    const act_VehicleTimerAC_VehicleTimer = new AC_ComponentsAGV_VehicleTimerAC("VehicleTimerAC", { component: "VehicleTimer", inputPorts: [], delegates: [{"from":"status","to":"vt"},{"from":"cmd","to":"cmd"},{"from":"destination","to":"destination"},{"from":"location","to":"location"}] });
-    const action_VehicleTimerAN_VehicleTimerAC_VehicleTimer = new AN_ComponentsAGV_VehicleTimerAN("VehicleTimerAN", { delegates: [{"from":"VehicleTimerAN","to":"s"},{"from":"location","to":"loc"},{"from":"destination","to":"dest"},{"from":"cmd","to":"cmd"}] });
-    const constraint_VehicleTimerEQ_VehicleTimerAC_VehicleTimer = new CT_ComponentsAGV_VehicleTimerEQ("VehicleTimerEQ");
-    action_VehicleTimerAN_VehicleTimerAC_VehicleTimer.registerConstraint(constraint_VehicleTimerEQ_VehicleTimerAC_VehicleTimer);
-    const exec_VehicleTimerEX_VehicleTimerAC_VehicleTimer = new EX_ComponentsAGV_VehicleTimerEX("VehicleTimerEX");
-    action_VehicleTimerAN_VehicleTimerAC_VehicleTimer.registerExecutable(exec_VehicleTimerEX_VehicleTimerAC_VehicleTimer);
-    act_VehicleTimerAC_VehicleTimer.registerAction(action_VehicleTimerAN_VehicleTimerAC_VehicleTimer);
-    this.registerActivity("VehicleTimerAC", act_VehicleTimerAC_VehicleTimer);
+    const ac_StartMovingAC_StartMoving = new AC_ComponentsAGV_StartMovingAC(
+      "StartMovingAC",
+      "StartMoving",
+      [],
+      [{"from":"destination","to":"sc"},{"from":"cmd","to":"sd"},{"from":"start","to":"ssm"},{"from":"move","to":"moveSD"},{"from":"move","to":"moveSC"},{"from":"move","to":"moveSSM"}]
+    );
+    const an_SendStartMotorAN_StartMovingAC_StartMoving = new AN_ComponentsAGV_SendStartMotorAN("SendStartMotorAN", { delegates: [{"from":"SendStartMotorAN","to":"cmd"}] });
+    const ct_SendStartMotorEQ_StartMovingAC_StartMoving = new CT_ComponentsAGV_SendStartMotorEQ("SendStartMotorEQ");
+    an_SendStartMotorAN_StartMovingAC_StartMoving.registerConstraint(ct_SendStartMotorEQ_StartMovingAC_StartMoving);
+    const ex_SendStartMotorEX_StartMovingAC_StartMoving = new EX_ComponentsAGV_SendStartMotorEX("SendStartMotorEX");
+    an_SendStartMotorAN_StartMovingAC_StartMoving.registerExecutable(ex_SendStartMotorEX_StartMovingAC_StartMoving);
+    ac_StartMovingAC_StartMoving.registerAction(an_SendStartMotorAN_StartMovingAC_StartMoving);
+    const an_SendCommandAN_StartMovingAC_StartMoving = new AN_ComponentsAGV_SendCommandAN("SendCommandAN", { delegates: [{"from":"SendCommandAN","to":"cmd"},{"from":"move","to":"move"}] });
+    const ct_SendCommandEQ_StartMovingAC_StartMoving = new CT_ComponentsAGV_SendCommandEQ("SendCommandEQ");
+    an_SendCommandAN_StartMovingAC_StartMoving.registerConstraint(ct_SendCommandEQ_StartMovingAC_StartMoving);
+    const ex_SendCommandEX_StartMovingAC_StartMoving = new EX_ComponentsAGV_SendCommandEX("SendCommandEX");
+    an_SendCommandAN_StartMovingAC_StartMoving.registerExecutable(ex_SendCommandEX_StartMovingAC_StartMoving);
+    ac_StartMovingAC_StartMoving.registerAction(an_SendCommandAN_StartMovingAC_StartMoving);
+    const an_SendDestinationAN_StartMovingAC_StartMoving = new AN_ComponentsAGV_SendDestinationAN("SendDestinationAN", { delegates: [{"from":"SendDestinationAN","to":"destination"},{"from":"move","to":"move"}] });
+    const ct_SendDestinationEQ_StartMovingAC_StartMoving = new CT_ComponentsAGV_SendDestinationEQ("SendDestinationEQ");
+    an_SendDestinationAN_StartMovingAC_StartMoving.registerConstraint(ct_SendDestinationEQ_StartMovingAC_StartMoving);
+    const ex_SendDestinationEX_StartMovingAC_StartMoving = new EX_ComponentsAGV_SendDestinationEX("SendDestinationEX");
+    an_SendDestinationAN_StartMovingAC_StartMoving.registerExecutable(ex_SendDestinationEX_StartMovingAC_StartMoving);
+    ac_StartMovingAC_StartMoving.registerAction(an_SendDestinationAN_StartMovingAC_StartMoving);
+    this.registerActivity("StartMovingAC", ac_StartMovingAC_StartMoving);
+    const ac_NotifierMotorAC_NotifierMotor = new AC_ComponentsAGV_NotifierMotorAC(
+      "NotifierMotorAC",
+      "NotifierMotor",
+      [],
+      [{"from":"outStatusMotor","to":"nagvm"},{"from":"ack","to":"nsm"},{"from":"inStatusMotor","to":"statusMotor"},{"from":"inStatusMotor","to":"statusMotor"}]
+    );
+    const an_NotifyAGVFromMotorAN_NotifierMotorAC_NotifierMotor = new AN_ComponentsAGV_NotifyAGVFromMotorAN("NotifyAGVFromMotorAN", { delegates: [{"from":"NotifyAGVFromMotorAN","to":"outStatusMotor"},{"from":"statusMotor","to":"inStatusMotor"}] });
+    const ct_NotifyAGVFromMotorEQ_NotifierMotorAC_NotifierMotor = new CT_ComponentsAGV_NotifyAGVFromMotorEQ("NotifyAGVFromMotorEQ");
+    an_NotifyAGVFromMotorAN_NotifierMotorAC_NotifierMotor.registerConstraint(ct_NotifyAGVFromMotorEQ_NotifierMotorAC_NotifierMotor);
+    const ex_NotifyAGVFromMotorEX_NotifierMotorAC_NotifierMotor = new EX_ComponentsAGV_NotifyAGVFromMotorEX("NotifyAGVFromMotorEX");
+    an_NotifyAGVFromMotorAN_NotifierMotorAC_NotifierMotor.registerExecutable(ex_NotifyAGVFromMotorEX_NotifierMotorAC_NotifierMotor);
+    ac_NotifierMotorAC_NotifierMotor.registerAction(an_NotifyAGVFromMotorAN_NotifierMotorAC_NotifierMotor);
+    const an_NotifySupervisoryFromMotorAN_NotifierMotorAC_NotifierMotor = new AN_ComponentsAGV_NotifySupervisoryFromMotorAN("NotifySupervisoryFromMotorAN", { delegates: [{"from":"NotifySupervisoryFromMotorAN","to":"ack"},{"from":"statusMotor","to":"statusMotor"}] });
+    const ct_NotifySupervisoryFromMotorEQ_NotifierMotorAC_NotifierMotor = new CT_ComponentsAGV_NotifySupervisoryFromMotorEQ("NotifySupervisoryFromMotorEQ");
+    an_NotifySupervisoryFromMotorAN_NotifierMotorAC_NotifierMotor.registerConstraint(ct_NotifySupervisoryFromMotorEQ_NotifierMotorAC_NotifierMotor);
+    const ex_NotifySupervisoryFromMotorEX_NotifierMotorAC_NotifierMotor = new EX_ComponentsAGV_NotifySupervisoryFromMotorEX("NotifySupervisoryFromMotorEX");
+    an_NotifySupervisoryFromMotorAN_NotifierMotorAC_NotifierMotor.registerExecutable(ex_NotifySupervisoryFromMotorEX_NotifierMotorAC_NotifierMotor);
+    ac_NotifierMotorAC_NotifierMotor.registerAction(an_NotifySupervisoryFromMotorAN_NotifierMotorAC_NotifierMotor);
+    this.registerActivity("NotifierMotorAC", ac_NotifierMotorAC_NotifierMotor);
+    const ac_CheckStationAC_CheckStation = new AC_ComponentsAGV_CheckStationAC(
+      "CheckStationAC",
+      "CheckStation",
+      [],
+      [{"from":"statusMotor","to":"NotificationsMotor"},{"from":"destination","to":"Destinations"},{"from":"inLocation","to":"location"},{"from":"outLocation","to":"scl"},{"from":"inLocation","to":"location"},{"from":"stopMotor","to":"sm"},{"from":"passed","to":"pm"}]
+    );
+    const an_CompareStationsAN_CheckStationAC_CheckStation = new AN_ComponentsAGV_CompareStationsAN("CompareStationsAN", { delegates: [{"from":"CompareStationsAN","to":"result"},{"from":"location","to":"loc"},{"from":"destination","to":"dest"},{"from":"statusMotor","to":"statusMotor"}] });
+    const ct_CompareStationsEQ_CheckStationAC_CheckStation = new CT_ComponentsAGV_CompareStationsEQ("CompareStationsEQ");
+    an_CompareStationsAN_CheckStationAC_CheckStation.registerConstraint(ct_CompareStationsEQ_CheckStationAC_CheckStation);
+    const ct_NotificationMotorIsStartedEQ_CheckStationAC_CheckStation = new CT_ComponentsAGV_NotificationMotorIsStartedEQ("NotificationMotorIsStartedEQ");
+    an_CompareStationsAN_CheckStationAC_CheckStation.registerConstraint(ct_NotificationMotorIsStartedEQ_CheckStationAC_CheckStation);
+    const ex_CompareStationsEX_CheckStationAC_CheckStation = new EX_ComponentsAGV_CompareStationsEX("CompareStationsEX");
+    an_CompareStationsAN_CheckStationAC_CheckStation.registerExecutable(ex_CompareStationsEX_CheckStationAC_CheckStation);
+    ac_CheckStationAC_CheckStation.registerAction(an_CompareStationsAN_CheckStationAC_CheckStation);
+    const an_StopMotorAN_CheckStationAC_CheckStation = new AN_ComponentsAGV_StopMotorAN("StopMotorAN", { delegates: [{"from":"comparisonResult","to":"result"},{"from":"StopMotorAN","to":"cmd"}] });
+    const ct_StopMotorEQ_CheckStationAC_CheckStation = new CT_ComponentsAGV_StopMotorEQ("StopMotorEQ");
+    an_StopMotorAN_CheckStationAC_CheckStation.registerConstraint(ct_StopMotorEQ_CheckStationAC_CheckStation);
+    const ex_StopMotorEX_CheckStationAC_CheckStation = new EX_ComponentsAGV_StopMotorEX("StopMotorEX");
+    an_StopMotorAN_CheckStationAC_CheckStation.registerExecutable(ex_StopMotorEX_CheckStationAC_CheckStation);
+    ac_CheckStationAC_CheckStation.registerAction(an_StopMotorAN_CheckStationAC_CheckStation);
+    const an_PassedMotorAN_CheckStationAC_CheckStation = new AN_ComponentsAGV_PassedMotorAN("PassedMotorAN", { delegates: [{"from":"PassedMotorAN","to":"ack"},{"from":"comparisonResult","to":"result"}] });
+    const ct_PassedMotorEQ_CheckStationAC_CheckStation = new CT_ComponentsAGV_PassedMotorEQ("PassedMotorEQ");
+    an_PassedMotorAN_CheckStationAC_CheckStation.registerConstraint(ct_PassedMotorEQ_CheckStationAC_CheckStation);
+    const ex_PassedMotorEX_CheckStationAC_CheckStation = new EX_ComponentsAGV_PassedMotorEX("PassedMotorEX");
+    an_PassedMotorAN_CheckStationAC_CheckStation.registerExecutable(ex_PassedMotorEX_CheckStationAC_CheckStation);
+    ac_CheckStationAC_CheckStation.registerAction(an_PassedMotorAN_CheckStationAC_CheckStation);
+    const an_SendCurrentLocationAN_CheckStationAC_CheckStation = new AN_ComponentsAGV_SendCurrentLocationAN("SendCurrentLocationAN", { delegates: [{"from":"location","to":"inLocation"},{"from":"SendCurrentLocationAN","to":"outLocation"}] });
+    const ct_SendCurrentLocationEQ_CheckStationAC_CheckStation = new CT_ComponentsAGV_SendCurrentLocationEQ("SendCurrentLocationEQ");
+    an_SendCurrentLocationAN_CheckStationAC_CheckStation.registerConstraint(ct_SendCurrentLocationEQ_CheckStationAC_CheckStation);
+    const ex_SendCurrentLocationEX_CheckStationAC_CheckStation = new EX_ComponentsAGV_SendCurrentLocationEX("SendCurrentLocationEX");
+    an_SendCurrentLocationAN_CheckStationAC_CheckStation.registerExecutable(ex_SendCurrentLocationEX_CheckStationAC_CheckStation);
+    ac_CheckStationAC_CheckStation.registerAction(an_SendCurrentLocationAN_CheckStationAC_CheckStation);
+    this.registerActivity("CheckStationAC", ac_CheckStationAC_CheckStation);
+    const ac_ControlArmAC_ControlArm = new AC_ComponentsAGV_ControlArmAC(
+      "ControlArmAC",
+      "ControlArm",
+      [],
+      [{"from":"startArm","to":"ca"},{"from":"cmd","to":"cmd"},{"from":"statusMotor","to":"statusMotor"}]
+    );
+    const an_ControlArmAN_ControlArmAC_ControlArm = new AN_ComponentsAGV_ControlArmAN("ControlArmAN", { delegates: [{"from":"ControlArmAN","to":"startArm"},{"from":"statusMotor","to":"statusMotor"},{"from":"cmd","to":"cmd"}] });
+    const ct_ControlArmEQ_ControlArmAC_ControlArm = new CT_ComponentsAGV_ControlArmEQ("ControlArmEQ");
+    an_ControlArmAN_ControlArmAC_ControlArm.registerConstraint(ct_ControlArmEQ_ControlArmAC_ControlArm);
+    const ex_ControlArmEX_ControlArmAC_ControlArm = new EX_ComponentsAGV_ControlArmEX("ControlArmEX");
+    an_ControlArmAN_ControlArmAC_ControlArm.registerExecutable(ex_ControlArmEX_ControlArmAC_ControlArm);
+    ac_ControlArmAC_ControlArm.registerAction(an_ControlArmAN_ControlArmAC_ControlArm);
+    this.registerActivity("ControlArmAC", ac_ControlArmAC_ControlArm);
+    const ac_NotifierArmAC_NotifierArm = new AC_ComponentsAGV_NotifierArmAC(
+      "NotifierArmAC",
+      "NotifierArm",
+      [],
+      [{"from":"ack","to":"na"},{"from":"statusArm","to":"statusArm"}]
+    );
+    const an_NotifierArmAN_NotifierArmAC_NotifierArm = new AN_ComponentsAGV_NotifierArmAN("NotifierArmAN", { delegates: [{"from":"NotifierArmAN","to":"ack"}] });
+    const ct_NotifierArmEQ_NotifierArmAC_NotifierArm = new CT_ComponentsAGV_NotifierArmEQ("NotifierArmEQ");
+    an_NotifierArmAN_NotifierArmAC_NotifierArm.registerConstraint(ct_NotifierArmEQ_NotifierArmAC_NotifierArm);
+    const ex_NotifierArmEX_NotifierArmAC_NotifierArm = new EX_ComponentsAGV_NotifierArmEX("NotifierArmEX");
+    an_NotifierArmAN_NotifierArmAC_NotifierArm.registerExecutable(ex_NotifierArmEX_NotifierArmAC_NotifierArm);
+    ac_NotifierArmAC_NotifierArm.registerAction(an_NotifierArmAN_NotifierArmAC_NotifierArm);
+    this.registerActivity("NotifierArmAC", ac_NotifierArmAC_NotifierArm);
+    const ac_VehicleTimerAC_VehicleTimer = new AC_ComponentsAGV_VehicleTimerAC(
+      "VehicleTimerAC",
+      "VehicleTimer",
+      [],
+      [{"from":"status","to":"vt"},{"from":"cmd","to":"cmd"},{"from":"destination","to":"destination"},{"from":"location","to":"location"}]
+    );
+    const an_VehicleTimerAN_VehicleTimerAC_VehicleTimer = new AN_ComponentsAGV_VehicleTimerAN("VehicleTimerAN", { delegates: [{"from":"VehicleTimerAN","to":"s"},{"from":"location","to":"loc"},{"from":"destination","to":"dest"},{"from":"cmd","to":"cmd"}] });
+    const ct_VehicleTimerEQ_VehicleTimerAC_VehicleTimer = new CT_ComponentsAGV_VehicleTimerEQ("VehicleTimerEQ");
+    an_VehicleTimerAN_VehicleTimerAC_VehicleTimer.registerConstraint(ct_VehicleTimerEQ_VehicleTimerAC_VehicleTimer);
+    const ex_VehicleTimerEX_VehicleTimerAC_VehicleTimer = new EX_ComponentsAGV_VehicleTimerEX("VehicleTimerEX");
+    an_VehicleTimerAN_VehicleTimerAC_VehicleTimer.registerExecutable(ex_VehicleTimerEX_VehicleTimerAC_VehicleTimer);
+    ac_VehicleTimerAC_VehicleTimer.registerAction(an_VehicleTimerAN_VehicleTimerAC_VehicleTimer);
+    this.registerActivity("VehicleTimerAC", ac_VehicleTimerAC_VehicleTimer);
   }
 
-  // Get model metrics for debugging and analysis
-  getMetrics() {
-    const metrics = {
-      activities: Object.keys(this._activities).length,
-      activityKeys: Object.keys(this._activities),
-      components: 0,
-      connectors: 0,
-      componentsWithActivities: 0,
-      connectorsWithActivities: 0
-    };
-    this.walkComponents(c => {
-      metrics.components++;
-      if (c.activityName) metrics.componentsWithActivities++;
-    });
-    this.walkConnectors(c => {
-      metrics.connectors++;
-      if (c.activityName) metrics.connectorsWithActivities++;
-    });
-    return metrics;
-  }
 }
 
 function createModel(){ 

@@ -109,8 +109,8 @@ class CP_Elements_SystemCP extends Component { }
 // ===== Behavioral Element Classes =====
 // Activity class: FarToCelAC
 class AC_Elements_FarToCelAC extends Activity {
-  constructor(name, opts = {}) {
-    super(name, {
+  constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
+    super(name, component, inputPorts, delegates, {
       ...opts,
       inParameters: [{"name":"far","type":"Pin","direction":"in"},{"name":"cel","type":"Pin","direction":"in"}],
       outParameters: []
@@ -120,8 +120,8 @@ class AC_Elements_FarToCelAC extends Activity {
 
 // Activity class: TempMonitorAC
 class AC_Elements_TempMonitorAC extends Activity {
-  constructor(name, opts = {}) {
-    super(name, {
+  constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
+    super(name, component, inputPorts, delegates, {
       ...opts,
       inParameters: [{"name":"s1","type":"Pin","direction":"in"},{"name":"s2","type":"Pin","direction":"in"},{"name":"average","type":"Pin","direction":"in"}],
       outParameters: []
@@ -251,44 +251,34 @@ class SysADLModel extends Model {
     const c3 = this.SystemCP.connectors["c3"];
     c3.bind(this.SystemCP.tempMon.getPort("average"), this.getPort("avg"));
 
-    const act_FarToCelAC_FarToCelCN = new AC_Elements_FarToCelAC("FarToCelAC", { component: "FarToCelCN", inputPorts: [], delegates: [{"from":"far","to":"far"},{"from":"cel","to":"ftoc"}] });
-    const action_FarToCelAN_FarToCelAC_FarToCelCN = new AN_Elements_FarToCelAN("FarToCelAN", { delegates: [{"from":"far","to":"f"},{"from":"FarToCelAN","to":"c"}] });
-    const constraint_FarToCelEQ_FarToCelAC_FarToCelCN = new CT_Elements_FarToCelEQ("FarToCelEQ");
-    action_FarToCelAN_FarToCelAC_FarToCelCN.registerConstraint(constraint_FarToCelEQ_FarToCelAC_FarToCelCN);
-    const exec_FarToCelEX_FarToCelAC_FarToCelCN = new EX_Elements_FarToCelEX("FarToCelEX");
-    action_FarToCelAN_FarToCelAC_FarToCelCN.registerExecutable(exec_FarToCelEX_FarToCelAC_FarToCelCN);
-    act_FarToCelAC_FarToCelCN.registerAction(action_FarToCelAN_FarToCelAC_FarToCelCN);
-    this.registerActivity("FarToCelAC", act_FarToCelAC_FarToCelCN);
-    const act_TempMonitorAC_TempMonitorCP = new AC_Elements_TempMonitorAC("TempMonitorAC", { component: "TempMonitorCP", inputPorts: [], delegates: [{"from":"s1","to":"t1"},{"from":"s2","to":"t2"},{"from":"average","to":"TempMonitorAN"}] });
-    const action_TempMonitorAN_TempMonitorAC_TempMonitorCP = new AN_Elements_TempMonitorAN("TempMonitorAN", { delegates: [{"from":"t1","to":"t1"},{"from":"t2","to":"t2"},{"from":"TempMonitorAN","to":"av"}] });
-    const constraint_CalcAverageEQ_TempMonitorAC_TempMonitorCP = new CT_Elements_CalcAverageEQ("CalcAverageEQ");
-    action_TempMonitorAN_TempMonitorAC_TempMonitorCP.registerConstraint(constraint_CalcAverageEQ_TempMonitorAC_TempMonitorCP);
-    const exec_CalcAverageEX_TempMonitorAC_TempMonitorCP = new EX_Elements_CalcAverageEX("CalcAverageEX");
-    action_TempMonitorAN_TempMonitorAC_TempMonitorCP.registerExecutable(exec_CalcAverageEX_TempMonitorAC_TempMonitorCP);
-    act_TempMonitorAC_TempMonitorCP.registerAction(action_TempMonitorAN_TempMonitorAC_TempMonitorCP);
-    this.registerActivity("TempMonitorAC", act_TempMonitorAC_TempMonitorCP);
+    const ac_FarToCelAC_FarToCelCN = new AC_Elements_FarToCelAC(
+      "FarToCelAC",
+      "FarToCelCN",
+      [],
+      [{"from":"far","to":"far"},{"from":"cel","to":"ftoc"}]
+    );
+    const an_FarToCelAN_FarToCelAC_FarToCelCN = new AN_Elements_FarToCelAN("FarToCelAN", { delegates: [{"from":"far","to":"f"},{"from":"FarToCelAN","to":"c"}] });
+    const ct_FarToCelEQ_FarToCelAC_FarToCelCN = new CT_Elements_FarToCelEQ("FarToCelEQ");
+    an_FarToCelAN_FarToCelAC_FarToCelCN.registerConstraint(ct_FarToCelEQ_FarToCelAC_FarToCelCN);
+    const ex_FarToCelEX_FarToCelAC_FarToCelCN = new EX_Elements_FarToCelEX("FarToCelEX");
+    an_FarToCelAN_FarToCelAC_FarToCelCN.registerExecutable(ex_FarToCelEX_FarToCelAC_FarToCelCN);
+    ac_FarToCelAC_FarToCelCN.registerAction(an_FarToCelAN_FarToCelAC_FarToCelCN);
+    this.registerActivity("FarToCelAC", ac_FarToCelAC_FarToCelCN);
+    const ac_TempMonitorAC_TempMonitorCP = new AC_Elements_TempMonitorAC(
+      "TempMonitorAC",
+      "TempMonitorCP",
+      [],
+      [{"from":"s1","to":"t1"},{"from":"s2","to":"t2"},{"from":"average","to":"TempMonitorAN"}]
+    );
+    const an_TempMonitorAN_TempMonitorAC_TempMonitorCP = new AN_Elements_TempMonitorAN("TempMonitorAN", { delegates: [{"from":"t1","to":"t1"},{"from":"t2","to":"t2"},{"from":"TempMonitorAN","to":"av"}] });
+    const ct_CalcAverageEQ_TempMonitorAC_TempMonitorCP = new CT_Elements_CalcAverageEQ("CalcAverageEQ");
+    an_TempMonitorAN_TempMonitorAC_TempMonitorCP.registerConstraint(ct_CalcAverageEQ_TempMonitorAC_TempMonitorCP);
+    const ex_CalcAverageEX_TempMonitorAC_TempMonitorCP = new EX_Elements_CalcAverageEX("CalcAverageEX");
+    an_TempMonitorAN_TempMonitorAC_TempMonitorCP.registerExecutable(ex_CalcAverageEX_TempMonitorAC_TempMonitorCP);
+    ac_TempMonitorAC_TempMonitorCP.registerAction(an_TempMonitorAN_TempMonitorAC_TempMonitorCP);
+    this.registerActivity("TempMonitorAC", ac_TempMonitorAC_TempMonitorCP);
   }
 
-  // Get model metrics for debugging and analysis
-  getMetrics() {
-    const metrics = {
-      activities: Object.keys(this._activities).length,
-      activityKeys: Object.keys(this._activities),
-      components: 0,
-      connectors: 0,
-      componentsWithActivities: 0,
-      connectorsWithActivities: 0
-    };
-    this.walkComponents(c => {
-      metrics.components++;
-      if (c.activityName) metrics.componentsWithActivities++;
-    });
-    this.walkConnectors(c => {
-      metrics.connectors++;
-      if (c.activityName) metrics.connectorsWithActivities++;
-    });
-    return metrics;
-  }
 }
 
 function createModel(){ 

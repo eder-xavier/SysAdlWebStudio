@@ -2378,8 +2378,8 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
       const className = getPackagePrefix(actDef.name, 'AC') + actDef.name;
       behavioralLines.push(`// Activity class: ${actDef.name}`);
       behavioralLines.push(`class ${className} extends Activity {`);
-      behavioralLines.push(`  constructor(name, opts = {}) {`);
-      behavioralLines.push(`    super(name, {`);
+      behavioralLines.push(`  constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {`);
+      behavioralLines.push(`    super(name, component, inputPorts, delegates, {`);
       behavioralLines.push(`      ...opts,`);
       behavioralLines.push(`      inParameters: ${JSON.stringify(actDef.inPins)},`);
       behavioralLines.push(`      outParameters: ${JSON.stringify(actDef.outPins)}`);
@@ -2607,12 +2607,17 @@ function extractExecutableParams(body) {
       const comp = a.descriptor && a.descriptor.component;
       const inputPorts = a.descriptor && a.descriptor.inputPorts ? a.descriptor.inputPorts : [];
       const actions = a.descriptor && a.descriptor.actions ? a.descriptor.actions : [];
-      const actVar = 'act_' + sanitizeId(a.activityName + '_' + String(comp));
+      const actVar = 'ac_' + sanitizeId(a.activityName + '_' + String(comp));
       
       // Use explicit Activity class with prefix and include delegations
       const activityClassName = getPackagePrefix(a.activityName, 'AC') + a.activityName;
       const activityDels = activityDelegations[a.activityName] || [];
-      lines.push(`    const ${actVar} = new ${activityClassName}(${JSON.stringify(a.activityName)}, { component: ${JSON.stringify(comp)}, inputPorts: ${JSON.stringify(inputPorts)}, delegates: ${JSON.stringify(activityDels)} });`);
+      lines.push(`    const ${actVar} = new ${activityClassName}(`);
+      lines.push(`      ${JSON.stringify(a.activityName)},`);
+      lines.push(`      ${JSON.stringify(comp)},`);
+      lines.push(`      ${JSON.stringify(inputPorts)},`);
+      lines.push(`      ${JSON.stringify(activityDels)}`);
+      lines.push(`    );`);
       
       // Register actions within this activity using explicit classes
       for (const act of actions) {
@@ -2623,8 +2628,8 @@ function extractExecutableParams(body) {
           
           if (exec) {
             // Create unique variable names by including activity and component context
-            const uniqueActionVar = `action_${sanitizeId(actionName)}_${sanitizeId(a.activityName)}_${sanitizeId(comp)}`;
-            const uniqueExecVar = `exec_${sanitizeId(exec)}_${sanitizeId(a.activityName)}_${sanitizeId(comp)}`;
+            const uniqueActionVar = `an_${sanitizeId(actionName)}_${sanitizeId(a.activityName)}_${sanitizeId(comp)}`;
+            const uniqueExecVar = `ex_${sanitizeId(exec)}_${sanitizeId(a.activityName)}_${sanitizeId(comp)}`;
             
             // Create explicit action class instance with delegations and register executable within it
             const actionDels = actionDelegations[actionName] || [];
@@ -2634,7 +2639,7 @@ function extractExecutableParams(body) {
             for (const [constraintName, associatedActionName] of Object.entries(constraintToActionMap)) {
               if (associatedActionName === actionName) {
                 const constraintClassName = getPackagePrefix(constraintName, 'CT') + constraintName;
-                const uniqueConstraintVar = `constraint_${sanitizeId(constraintName)}_${sanitizeId(a.activityName)}_${sanitizeId(comp)}`;
+                const uniqueConstraintVar = `ct_${sanitizeId(constraintName)}_${sanitizeId(a.activityName)}_${sanitizeId(comp)}`;
                 lines.push(`    const ${uniqueConstraintVar} = new ${constraintClassName}(${JSON.stringify(constraintName)});`);
                 lines.push(`    ${uniqueActionVar}.registerConstraint(${uniqueConstraintVar});`);
               }
@@ -2750,26 +2755,6 @@ function extractExecutableParams(body) {
 
   lines.push('  }'); // Close constructor
   lines.push('');
-  lines.push('  // Get model metrics for debugging and analysis');
-  lines.push('  getMetrics() {');
-  lines.push('    const metrics = {');
-  lines.push('      activities: Object.keys(this._activities).length,');
-  lines.push('      activityKeys: Object.keys(this._activities),');
-  lines.push('      components: 0,');
-  lines.push('      connectors: 0,');
-  lines.push('      componentsWithActivities: 0,');
-  lines.push('      connectorsWithActivities: 0');
-  lines.push('    };');
-  lines.push('    this.walkComponents(c => {');
-  lines.push('      metrics.components++;');
-  lines.push('      if (c.activityName) metrics.componentsWithActivities++;');
-  lines.push('    });');
-  lines.push('    this.walkConnectors(c => {');
-  lines.push('      metrics.connectors++;');
-  lines.push('      if (c.activityName) metrics.connectorsWithActivities++;');
-  lines.push('    });');
-  lines.push('    return metrics;');
-  lines.push('  }');
 
   lines.push('}'); // Close class
   lines.push('');
