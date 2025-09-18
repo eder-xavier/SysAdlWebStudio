@@ -295,6 +295,8 @@ class AN_Components_CalculateAverageTemperatureAN extends Action {
       ...opts,
       inParameters: [{"name":"t1","type":"Pin","direction":"in"},{"name":"t2","type":"Pin","direction":"in"}],
       outParameters: [],
+      constraints: ["CalculateAverageTemperatureEQ"],
+      executableName: "CalculateAverageTemperatureEx",
     });
   }
 }
@@ -306,6 +308,8 @@ class AN_Components_CompareTemperatureAN extends Action {
       ...opts,
       inParameters: [{"name":"average2","type":"Pin","direction":"in"},{"name":"target2","type":"Pin","direction":"in"}],
       outParameters: [],
+      constraints: ["CompareTemperatureEQ"],
+      executableName: "CompareTemperatureEx",
     });
   }
 }
@@ -317,6 +321,8 @@ class AN_Components_CommandHeaterAN extends Action {
       ...opts,
       inParameters: [{"name":"cmds","type":"Pin","direction":"in"}],
       outParameters: [],
+      constraints: ["CommandHeaterEQ"],
+      executableName: "CommandHeaterEx",
     });
   }
 }
@@ -328,6 +334,8 @@ class AN_Components_CommandCoolerAN extends Action {
       ...opts,
       inParameters: [{"name":"cmds","type":"Pin","direction":"in"}],
       outParameters: [],
+      constraints: ["CommandCoolerEQ"],
+      executableName: "CommandCoolerEx",
     });
   }
 }
@@ -339,6 +347,8 @@ class AN_Components_FahrenheitToCelsiusAN extends Action {
       ...opts,
       inParameters: [{"name":"current1","type":"Pin","direction":"in"}],
       outParameters: [],
+      constraints: ["FahrenheitToCelsiusEQ"],
+      executableName: "FahrenheitToCelsiusEx",
     });
   }
 }
@@ -350,6 +360,8 @@ class AN_Components_CheckPeresenceToSetTemperatureAN extends Action {
       ...opts,
       inParameters: [{"name":"detected","type":"Pin","direction":"in"},{"name":"userTemp","type":"Pin","direction":"in"}],
       outParameters: [],
+      constraints: ["CheckPresenceToSetTemperatureEQ"],
+      executableName: "CheckPresenceToSetTemperature",
     });
   }
 }
@@ -641,11 +653,7 @@ class SysADLModel extends Model {
       [],
       [{"from":"s1","to":"s1"},{"from":"s2","to":"s2"},{"from":"average","to":"CalcAvTemp"}]
     );
-    const an_CalculateAverageTemperatureAN_CalculateAverageTemperatureAC_SensorsMonitorCP = new AN_Components_CalculateAverageTemperatureAN("CalculateAverageTemperatureAN", { delegates: [] });
-    const ct_CalculateAverageTemperatureEQ_CalculateAverageTemperatureAC_SensorsMonitorCP = new CT_Components_CalculateAverageTemperatureEQ("CalculateAverageTemperatureEQ");
-    an_CalculateAverageTemperatureAN_CalculateAverageTemperatureAC_SensorsMonitorCP.registerConstraint(ct_CalculateAverageTemperatureEQ_CalculateAverageTemperatureAC_SensorsMonitorCP);
-    const ex_CalculateAverageTemperatureEx_CalculateAverageTemperatureAC_SensorsMonitorCP = new EX_Components_CalculateAverageTemperatureEx("CalculateAverageTemperatureEx");
-    an_CalculateAverageTemperatureAN_CalculateAverageTemperatureAC_SensorsMonitorCP.registerExecutable(ex_CalculateAverageTemperatureEx_CalculateAverageTemperatureAC_SensorsMonitorCP);
+    const an_CalculateAverageTemperatureAN_CalculateAverageTemperatureAC_SensorsMonitorCP = new AN_Components_CalculateAverageTemperatureAN("CalculateAverageTemperatureAN");
     ac_CalculateAverageTemperatureAC_SensorsMonitorCP.registerAction(an_CalculateAverageTemperatureAN_CalculateAverageTemperatureAC_SensorsMonitorCP);
     this.registerActivity("CalculateAverageTemperatureAC", ac_CalculateAverageTemperatureAC_SensorsMonitorCP);
     const ac_CheckPresenceToSetTemperatureAC_PresenceCheckerCP = new AC_Components_CheckPresenceToSetTemperatureAC(
@@ -654,11 +662,7 @@ class SysADLModel extends Model {
       [],
       [{"from":"detected","to":"detected"},{"from":"userTemp","to":"userTemp"},{"from":"target","to":"CheckPeresenceToSetTemperatureAN"}]
     );
-    const an_CheckPeresenceToSetTemperatureAN_CheckPresenceToSetTemperatureAC_PresenceCheckerCP = new AN_Components_CheckPeresenceToSetTemperatureAN("CheckPeresenceToSetTemperatureAN", { delegates: [] });
-    const ct_CheckPresenceToSetTemperatureEQ_CheckPresenceToSetTemperatureAC_PresenceCheckerCP = new CT_Components_CheckPresenceToSetTemperatureEQ("CheckPresenceToSetTemperatureEQ");
-    an_CheckPeresenceToSetTemperatureAN_CheckPresenceToSetTemperatureAC_PresenceCheckerCP.registerConstraint(ct_CheckPresenceToSetTemperatureEQ_CheckPresenceToSetTemperatureAC_PresenceCheckerCP);
-    const ex_CheckPresenceToSetTemperature_CheckPresenceToSetTemperatureAC_PresenceCheckerCP = new EX_Components_CheckPresenceToSetTemperature("CheckPresenceToSetTemperature");
-    an_CheckPeresenceToSetTemperatureAN_CheckPresenceToSetTemperatureAC_PresenceCheckerCP.registerExecutable(ex_CheckPresenceToSetTemperature_CheckPresenceToSetTemperatureAC_PresenceCheckerCP);
+    const an_CheckPeresenceToSetTemperatureAN_CheckPresenceToSetTemperatureAC_PresenceCheckerCP = new AN_Components_CheckPeresenceToSetTemperatureAN("CheckPeresenceToSetTemperatureAN");
     ac_CheckPresenceToSetTemperatureAC_PresenceCheckerCP.registerAction(an_CheckPeresenceToSetTemperatureAN_CheckPresenceToSetTemperatureAC_PresenceCheckerCP);
     this.registerActivity("CheckPresenceToSetTemperatureAC", ac_CheckPresenceToSetTemperatureAC_PresenceCheckerCP);
     const ac_DecideCommandAC_CommanderCP = new AC_Components_DecideCommandAC(
@@ -667,23 +671,11 @@ class SysADLModel extends Model {
       [],
       [{"from":"average2","to":"average2"},{"from":"target2","to":"target2"},{"from":"heating","to":"cmdH"},{"from":"cooling","to":"cmdC"}]
     );
-    const an_CommandCoolerAN_DecideCommandAC_CommanderCP = new AN_Components_CommandCoolerAN("CommandCoolerAN", { delegates: [] });
-    const ct_CommandCoolerEQ_DecideCommandAC_CommanderCP = new CT_Components_CommandCoolerEQ("CommandCoolerEQ");
-    an_CommandCoolerAN_DecideCommandAC_CommanderCP.registerConstraint(ct_CommandCoolerEQ_DecideCommandAC_CommanderCP);
-    const ex_CommandCoolerEx_DecideCommandAC_CommanderCP = new EX_Components_CommandCoolerEx("CommandCoolerEx");
-    an_CommandCoolerAN_DecideCommandAC_CommanderCP.registerExecutable(ex_CommandCoolerEx_DecideCommandAC_CommanderCP);
+    const an_CommandCoolerAN_DecideCommandAC_CommanderCP = new AN_Components_CommandCoolerAN("CommandCoolerAN");
     ac_DecideCommandAC_CommanderCP.registerAction(an_CommandCoolerAN_DecideCommandAC_CommanderCP);
-    const an_CommandHeaterAN_DecideCommandAC_CommanderCP = new AN_Components_CommandHeaterAN("CommandHeaterAN", { delegates: [] });
-    const ct_CommandHeaterEQ_DecideCommandAC_CommanderCP = new CT_Components_CommandHeaterEQ("CommandHeaterEQ");
-    an_CommandHeaterAN_DecideCommandAC_CommanderCP.registerConstraint(ct_CommandHeaterEQ_DecideCommandAC_CommanderCP);
-    const ex_CommandHeaterEx_DecideCommandAC_CommanderCP = new EX_Components_CommandHeaterEx("CommandHeaterEx");
-    an_CommandHeaterAN_DecideCommandAC_CommanderCP.registerExecutable(ex_CommandHeaterEx_DecideCommandAC_CommanderCP);
+    const an_CommandHeaterAN_DecideCommandAC_CommanderCP = new AN_Components_CommandHeaterAN("CommandHeaterAN");
     ac_DecideCommandAC_CommanderCP.registerAction(an_CommandHeaterAN_DecideCommandAC_CommanderCP);
-    const an_CompareTemperatureAN_DecideCommandAC_CommanderCP = new AN_Components_CompareTemperatureAN("CompareTemperatureAN", { delegates: [] });
-    const ct_CompareTemperatureEQ_DecideCommandAC_CommanderCP = new CT_Components_CompareTemperatureEQ("CompareTemperatureEQ");
-    an_CompareTemperatureAN_DecideCommandAC_CommanderCP.registerConstraint(ct_CompareTemperatureEQ_DecideCommandAC_CommanderCP);
-    const ex_CompareTemperatureEx_DecideCommandAC_CommanderCP = new EX_Components_CompareTemperatureEx("CompareTemperatureEx");
-    an_CompareTemperatureAN_DecideCommandAC_CommanderCP.registerExecutable(ex_CompareTemperatureEx_DecideCommandAC_CommanderCP);
+    const an_CompareTemperatureAN_DecideCommandAC_CommanderCP = new AN_Components_CompareTemperatureAN("CompareTemperatureAN");
     ac_DecideCommandAC_CommanderCP.registerAction(an_CompareTemperatureAN_DecideCommandAC_CommanderCP);
     this.registerActivity("DecideCommandAC", ac_DecideCommandAC_CommanderCP);
     const ac_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN = new AC_Components_FahrenheitToCelsiusAC(
@@ -692,11 +684,7 @@ class SysADLModel extends Model {
       [],
       [{"from":"loalTemp1","to":"FtC"},{"from":"current1","to":"current1"}]
     );
-    const an_FahrenheitToCelsiusAN_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN = new AN_Components_FahrenheitToCelsiusAN("FahrenheitToCelsiusAN", { delegates: [] });
-    const ct_FahrenheitToCelsiusEQ_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN = new CT_Components_FahrenheitToCelsiusEQ("FahrenheitToCelsiusEQ");
-    an_FahrenheitToCelsiusAN_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN.registerConstraint(ct_FahrenheitToCelsiusEQ_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN);
-    const ex_FahrenheitToCelsiusEx_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN = new EX_Components_FahrenheitToCelsiusEx("FahrenheitToCelsiusEx");
-    an_FahrenheitToCelsiusAN_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN.registerExecutable(ex_FahrenheitToCelsiusEx_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN);
+    const an_FahrenheitToCelsiusAN_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN = new AN_Components_FahrenheitToCelsiusAN("FahrenheitToCelsiusAN");
     ac_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN.registerAction(an_FahrenheitToCelsiusAN_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN);
     this.registerActivity("FahrenheitToCelsiusAC", ac_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN);
   }

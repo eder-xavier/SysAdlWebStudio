@@ -788,6 +788,7 @@ class AN_SmartPlaceComponents_RaspberryControllerAN extends Action {
       ...opts,
       inParameters: [{"name":"restful","type":"Pin","direction":"in"}],
       outParameters: [],
+      constraints: ["RaspberryControllerEQ"],
     });
   }
 }
@@ -821,6 +822,7 @@ class AN_SmartPlaceComponents_IncreaseDecreaseTempAN extends Action {
       ...opts,
       inParameters: [{"name":"lastPresence","type":"Pin","direction":"in"},{"name":"lastAdjustTemp","type":"Pin","direction":"in"},{"name":"temp","type":"Pin","direction":"in"}],
       outParameters: [],
+      constraints: ["TurnOffEQ"],
     });
   }
 }
@@ -832,6 +834,7 @@ class AN_SmartPlaceComponents_UpdateDataBaseAN extends Action {
       ...opts,
       inParameters: [{"name":"restful","type":"Pin","direction":"in"},{"name":"currentTime","type":"Pin","direction":"in"}],
       outParameters: [],
+      constraints: ["UpdateDataBaseEQ"],
     });
   }
 }
@@ -843,6 +846,7 @@ class AN_SmartPlaceComponents_UpdateContextSensorsAN extends Action {
       ...opts,
       inParameters: [{"name":"dataSensor","type":"Pin","direction":"in"},{"name":"currentTime","type":"Pin","direction":"in"}],
       outParameters: [],
+      constraints: ["UpdateContextSensorsEQ"],
     });
   }
 }
@@ -854,6 +858,7 @@ class AN_SmartPlaceComponents_SaveLastPresenceAN extends Action {
       ...opts,
       inParameters: [{"name":"presence","type":"Pin","direction":"in"},{"name":"numPeople","type":"Pin","direction":"in"},{"name":"currentTime","type":"Pin","direction":"in"}],
       outParameters: [],
+      constraints: ["SaveLastPresenceEQ"],
     });
   }
 }
@@ -865,6 +870,7 @@ class AN_SmartPlaceComponents_TurnOnAN extends Action {
       ...opts,
       inParameters: [{"name":"presence","type":"Pin","direction":"in"},{"name":"numPeople","type":"Pin","direction":"in"},{"name":"reservation","type":"Pin","direction":"in"}],
       outParameters: [],
+      constraints: ["TurnOnEQ"],
     });
   }
 }

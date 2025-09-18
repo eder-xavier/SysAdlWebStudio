@@ -136,6 +136,9 @@ class AN_Elements_FarToCelAN extends Action {
       ...opts,
       inParameters: [{"name":"far","type":"Pin","direction":"in"}],
       outParameters: [],
+      delegates: [{"from":"far","to":"f"},{"from":"FarToCelAN","to":"c"}],
+      constraints: ["FarToCelEQ"],
+      executableName: "FarToCelEX",
     });
   }
 }
@@ -147,6 +150,9 @@ class AN_Elements_TempMonitorAN extends Action {
       ...opts,
       inParameters: [{"name":"t1","type":"Pin","direction":"in"},{"name":"t2","type":"Pin","direction":"in"}],
       outParameters: [],
+      delegates: [{"from":"t1","to":"t1"},{"from":"t2","to":"t2"},{"from":"TempMonitorAN","to":"av"}],
+      constraints: ["CalcAverageEQ"],
+      executableName: "CalcAverageEX",
     });
   }
 }
@@ -257,11 +263,7 @@ class SysADLModel extends Model {
       [],
       [{"from":"far","to":"far"},{"from":"cel","to":"ftoc"}]
     );
-    const an_FarToCelAN_FarToCelAC_FarToCelCN = new AN_Elements_FarToCelAN("FarToCelAN", { delegates: [{"from":"far","to":"f"},{"from":"FarToCelAN","to":"c"}] });
-    const ct_FarToCelEQ_FarToCelAC_FarToCelCN = new CT_Elements_FarToCelEQ("FarToCelEQ");
-    an_FarToCelAN_FarToCelAC_FarToCelCN.registerConstraint(ct_FarToCelEQ_FarToCelAC_FarToCelCN);
-    const ex_FarToCelEX_FarToCelAC_FarToCelCN = new EX_Elements_FarToCelEX("FarToCelEX");
-    an_FarToCelAN_FarToCelAC_FarToCelCN.registerExecutable(ex_FarToCelEX_FarToCelAC_FarToCelCN);
+    const an_FarToCelAN_FarToCelAC_FarToCelCN = new AN_Elements_FarToCelAN("FarToCelAN");
     ac_FarToCelAC_FarToCelCN.registerAction(an_FarToCelAN_FarToCelAC_FarToCelCN);
     this.registerActivity("FarToCelAC", ac_FarToCelAC_FarToCelCN);
     const ac_TempMonitorAC_TempMonitorCP = new AC_Elements_TempMonitorAC(
@@ -270,11 +272,7 @@ class SysADLModel extends Model {
       [],
       [{"from":"s1","to":"t1"},{"from":"s2","to":"t2"},{"from":"average","to":"TempMonitorAN"}]
     );
-    const an_TempMonitorAN_TempMonitorAC_TempMonitorCP = new AN_Elements_TempMonitorAN("TempMonitorAN", { delegates: [{"from":"t1","to":"t1"},{"from":"t2","to":"t2"},{"from":"TempMonitorAN","to":"av"}] });
-    const ct_CalcAverageEQ_TempMonitorAC_TempMonitorCP = new CT_Elements_CalcAverageEQ("CalcAverageEQ");
-    an_TempMonitorAN_TempMonitorAC_TempMonitorCP.registerConstraint(ct_CalcAverageEQ_TempMonitorAC_TempMonitorCP);
-    const ex_CalcAverageEX_TempMonitorAC_TempMonitorCP = new EX_Elements_CalcAverageEX("CalcAverageEX");
-    an_TempMonitorAN_TempMonitorAC_TempMonitorCP.registerExecutable(ex_CalcAverageEX_TempMonitorAC_TempMonitorCP);
+    const an_TempMonitorAN_TempMonitorAC_TempMonitorCP = new AN_Elements_TempMonitorAN("TempMonitorAN");
     ac_TempMonitorAC_TempMonitorCP.registerAction(an_TempMonitorAN_TempMonitorAC_TempMonitorCP);
     this.registerActivity("TempMonitorAC", ac_TempMonitorAC_TempMonitorCP);
   }

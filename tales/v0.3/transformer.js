@@ -2253,6 +2253,35 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   function generateBehavioralClasses() {
     const behavioralLines = [];
     
+    // Get the actionDelegations from the outer scope that was already built
+    const { activityDelegations: actDels, actionDelegations: actDels2 } = buildDelegationMappings();
+    const constraintToActionMap = buildConstraintToActionMapping();
+    
+    // Create reverse mapping: action -> constraints
+    const actionToConstraintsMap = {};
+    for (const [constraintName, actionName] of Object.entries(constraintToActionMap)) {
+      if (!actionToConstraintsMap[actionName]) {
+        actionToConstraintsMap[actionName] = [];
+      }
+      actionToConstraintsMap[actionName].push(constraintName);
+    }
+    
+    // Build executable to action mapping from allocations
+    const executableToActionMap = {};
+    if (ast && ast.allocation && Array.isArray(ast.allocation.allocations)) {
+      for (const allocation of ast.allocation.allocations) {
+        if (allocation && allocation.type === 'ExecutableAllocation' && allocation.source && allocation.target) {
+          executableToActionMap[allocation.source] = allocation.target;
+        }
+      }
+    }
+    
+    // Create reverse mapping: action -> executable
+    const actionToExecutableMap = {};
+    for (const [executableName, actionName] of Object.entries(executableToActionMap)) {
+      actionToExecutableMap[actionName] = executableName;
+    }
+    
     // Collect ActivityDef nodes with their pins
     const activityDefs = [];
     traverse(ast, n => {
@@ -2392,6 +2421,10 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     // Generate Action classes
     for (const actDef of actionDefs) {
       const className = getPackagePrefix(actDef.name, 'AN') + actDef.name;
+      const actionDels = actDels2[actDef.name] || [];
+      const actionConstraints = actionToConstraintsMap[actDef.name] || [];
+      const actionExecutable = actionToExecutableMap[actDef.name];
+      
       behavioralLines.push(`// Action class: ${actDef.name}`);
       behavioralLines.push(`class ${className} extends Action {`);
       behavioralLines.push(`  constructor(name, opts = {}) {`);
@@ -2399,6 +2432,15 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
       behavioralLines.push(`      ...opts,`);
       behavioralLines.push(`      inParameters: ${JSON.stringify(actDef.inPins)},`);
       behavioralLines.push(`      outParameters: ${JSON.stringify(actDef.outPins)},`);
+      if (actionDels.length > 0) {
+        behavioralLines.push(`      delegates: ${JSON.stringify(actionDels)},`);
+      }
+      if (actionConstraints.length > 0) {
+        behavioralLines.push(`      constraints: ${JSON.stringify(actionConstraints)},`);
+      }
+      if (actionExecutable) {
+        behavioralLines.push(`      executableName: ${JSON.stringify(actionExecutable)},`);
+      }
       if (actDef.body) {
         behavioralLines.push(`      rawBody: ${JSON.stringify(actDef.body)}`);
       }
@@ -2631,24 +2673,8 @@ function extractExecutableParams(body) {
             const uniqueActionVar = `an_${sanitizeId(actionName)}_${sanitizeId(a.activityName)}_${sanitizeId(comp)}`;
             const uniqueExecVar = `ex_${sanitizeId(exec)}_${sanitizeId(a.activityName)}_${sanitizeId(comp)}`;
             
-            // Create explicit action class instance with delegations and register executable within it
-            const actionDels = actionDelegations[actionName] || [];
-            lines.push(`    const ${uniqueActionVar} = new ${actionClassName}(${JSON.stringify(actionName)}, { delegates: ${JSON.stringify(actionDels)} });`);
-            
-            // Register constraints associated with this action
-            for (const [constraintName, associatedActionName] of Object.entries(constraintToActionMap)) {
-              if (associatedActionName === actionName) {
-                const constraintClassName = getPackagePrefix(constraintName, 'CT') + constraintName;
-                const uniqueConstraintVar = `ct_${sanitizeId(constraintName)}_${sanitizeId(a.activityName)}_${sanitizeId(comp)}`;
-                lines.push(`    const ${uniqueConstraintVar} = new ${constraintClassName}(${JSON.stringify(constraintName)});`);
-                lines.push(`    ${uniqueActionVar}.registerConstraint(${uniqueConstraintVar});`);
-              }
-            }
-            
-            // Create explicit executable class and register it within the action
-            const executableClassName = getPackagePrefix(exec, 'EX') + exec;
-            lines.push(`    const ${uniqueExecVar} = new ${executableClassName}(${JSON.stringify(exec)});`);
-            lines.push(`    ${uniqueActionVar}.registerExecutable(${uniqueExecVar});`);
+            // Create explicit action class instance (delegates, constraints and executable are now defined in class)
+            lines.push(`    const ${uniqueActionVar} = new ${actionClassName}(${JSON.stringify(actionName)});`);
             lines.push(`    ${actVar}.registerAction(${uniqueActionVar});`);
           } else {
             // Fallback to legacy Action creation
