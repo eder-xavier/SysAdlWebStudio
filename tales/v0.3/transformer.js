@@ -65,6 +65,42 @@ function findElementPath(elementName) {
   return `this.SystemCP && this.SystemCP.${sanitizeId(elementName)} ? this.SystemCP.${sanitizeId(elementName)} : this.${sanitizeId(elementName)}`;
 }
 
+// Function to resolve naming conflicts for SysADL instance names
+function resolveInstanceName(instanceName, className, context = '') {
+  if (!instanceName || typeof instanceName !== 'string') {
+    return `an_${sanitizeId(className)}_${sanitizeId(context)}`;
+  }
+  
+  // JavaScript reserved words
+  const reservedWords = new Set([
+    'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger', 'default', 
+    'delete', 'do', 'else', 'enum', 'export', 'extends', 'false', 'finally', 
+    'for', 'function', 'if', 'import', 'in', 'instanceof', 'new', 'null', 
+    'return', 'super', 'switch', 'this', 'throw', 'true', 'try', 'typeof', 
+    'var', 'void', 'while', 'with', 'yield', 'let', 'static', 'implements', 
+    'interface', 'package', 'private', 'protected', 'public'
+  ]);
+  
+  const sanitizedName = sanitizeId(instanceName);
+  
+  // If instance name equals class name, add suffix to avoid confusion
+  if (sanitizedName === sanitizeId(className)) {
+    return `${sanitizedName}_inst`;
+  }
+  
+  // If instance name is a JavaScript reserved word, add prefix
+  if (reservedWords.has(sanitizedName.toLowerCase())) {
+    return `inst_${sanitizedName}`;
+  }
+  
+  // If instance name starts with number, add prefix
+  if (/^\d/.test(sanitizedName)) {
+    return `inst_${sanitizedName}`;
+  }
+  
+  return sanitizedName;
+}
+
 function generateClassModule(modelName, compUses, portUses, connectorBindings, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, compDefMapArg, portDefMapArg, embeddedTypes, connectorDefMap = {}, packageMap = {}, ast = null) {
   const lines = [];
   
@@ -2667,18 +2703,19 @@ function extractExecutableParams(body) {
         if (actionName) {
           const actionClassName = getPackagePrefix(actionName, 'AN') + actionName;
           const exec = act.executable || null;
-          
+
+          // Prefer SysADL instance name when provided in the descriptor
+          const instanceNameRaw = act.instanceName || act.instance || act.name || act.executable || actionName;
+          const resolvedInstance = resolveInstanceName(instanceNameRaw, actionName, `${a.activityName}_${comp}`);
+          const actionVarName = sanitizeId(resolvedInstance);
+
           if (exec) {
-            // Create unique variable names by including activity and component context
-            const uniqueActionVar = `an_${sanitizeId(actionName)}_${sanitizeId(a.activityName)}_${sanitizeId(comp)}`;
-            const uniqueExecVar = `ex_${sanitizeId(exec)}_${sanitizeId(a.activityName)}_${sanitizeId(comp)}`;
-            
-            // Create explicit action class instance (delegates, constraints and executable are now defined in class)
-            lines.push(`    const ${uniqueActionVar} = new ${actionClassName}(${JSON.stringify(actionName)});`);
-            lines.push(`    ${actVar}.registerAction(${uniqueActionVar});`);
+            // Create explicit action class instance using the resolved instance name
+            lines.push(`    const ${actionVarName} = new ${actionClassName}(${JSON.stringify(instanceNameRaw)});`);
+            lines.push(`    ${actVar}.registerAction(${actionVarName});`);
           } else {
-            // Fallback to legacy Action creation
-            lines.push(`    ${actVar}.addAction(new Action(${JSON.stringify(actionName)}, ${JSON.stringify(act.params || [])}, null));`);
+            // Fallback to legacy Action creation but use instance name as the Action name
+            lines.push(`    ${actVar}.addAction(new Action(${JSON.stringify(instanceNameRaw)}, ${JSON.stringify(act.params || [])}, null));`);
           }
         }
       }
@@ -4380,10 +4417,25 @@ async function main() {
 
   // map action name -> activity name by scanning ActivityDef nodes
   const actionToActivity = {};
+  // NEW: map to store action instance names: actionClassName -> { instanceName, activityName }
+  const actionInstanceMap = {};
   traverse(ast, n => {
     if (n && (n.type === 'ActivityDef' || /ActivityDef/i.test(n.type))) {
       const activityName = n.name || n.id || null; if (!activityName) return;
-      traverse(n, x => { if (x && x.type && /Action/.test(x.type)) { const an = x.definition || x.name || x.id || null; if (an) actionToActivity[an] = activityName; } });
+      traverse(n, x => { 
+        if (x && x.type && /Action/.test(x.type)) { 
+          const an = x.definition || x.name || x.id || null; 
+          if (an) {
+            actionToActivity[an] = activityName;
+            // Extract instance name from action instances
+            // Prefer the explicit ActionUse name token (e.g. 'ftoc') when present
+            // SysADL format: "actions : instanceName : ClassName"
+            // x.name holds the instance identifier; fall back to other fields or class name
+            const instanceName = (typeof x.name === 'string' && x.name) || x.instanceName || x.instance || x.label || an;
+            actionInstanceMap[an] = { instanceName, activityName };
+          }
+        }
+      });
     }
   });
 
@@ -4781,7 +4833,17 @@ async function main() {
       if (params && params.length) matched = findMatchingPortsForParams(params, portsSet) || [];
       if ((!matched || matched.length === 0) && portsSet && portsSet.size) matched = [Array.from(portsSet)[0]];
       const basicActions = activityActionsMap[an] || [];
-      const enriched = basicActions.map(a => { const ddef = actionDefMap[a.name] || {}; return { name: a.name, executable: a.executable, params: ddef.params || [], body: ddef.body || null }; });
+      const enriched = basicActions.map(a => { 
+        const ddef = actionDefMap[a.name] || {};
+        const instanceInfo = actionInstanceMap[a.name] || {};
+        return { 
+          name: a.name, 
+          executable: a.executable, 
+          params: ddef.params || [], 
+          body: ddef.body || null,
+          instanceName: instanceInfo.instanceName || a.name  // Use SysADL instance name or fallback to class name
+        }; 
+      });
       // if no matched inputPorts but action params exist, use them
       let finalInputs = matched || [];
       if ((!finalInputs || finalInputs.length === 0) && enriched && enriched.length) {
