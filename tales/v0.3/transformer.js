@@ -5197,10 +5197,19 @@ async function main() {
   if (!outFile) {
     outFile = path.join(outDir, path.basename(input, path.extname(input)) + '.js');
   }
+  // Ensure parent directory exists and write the generated moduleCode
+  try {
+    const parent = path.dirname(outFile);
+    if (!fs.existsSync(parent)) fs.mkdirSync(parent, { recursive: true });
+  } catch (e) { /* ignore */ }
 
-  // Optional debug: dump the moduleCode to a temp file for inspection
-  // debug module dump removed
-  // console.log('Generated', outFile); // Commented out to avoid output pollution
+  try {
+    fs.writeFileSync(outFile, moduleCode, 'utf8');
+    console.log('Generated', outFile);
+  } catch (e) {
+    console.error('Failed to write output file', outFile, e && e.stack ? e.stack : e);
+    process.exitCode = 1;
+  }
 }
 
 // Helper function to order datatypes by dependencies using topological sort

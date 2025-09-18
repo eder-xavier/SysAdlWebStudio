@@ -257,24 +257,24 @@ class SysADLModel extends Model {
     const c3 = this.SystemCP.connectors["c3"];
     c3.bind(this.SystemCP.tempMon.getPort("average"), this.getPort("avg"));
 
-    const ac_FarToCelAC_FarToCelCN = new AC_Elements_FarToCelAC(
+    const ac_FarToCelCN = new AC_Elements_FarToCelAC(
       "FarToCelAC",
       "FarToCelCN",
       [],
       [{"from":"far","to":"far"},{"from":"cel","to":"ftoc"}]
     );
     const ftoc = new AN_Elements_FarToCelAN("ftoc");
-    ac_FarToCelAC_FarToCelCN.registerAction(ftoc);
-    this.registerActivity("FarToCelAC", ac_FarToCelAC_FarToCelCN);
-    const ac_TempMonitorAC_TempMonitorCP = new AC_Elements_TempMonitorAC(
+    ac_FarToCelCN.registerAction(ftoc);
+    this.registerActivity("FarToCelAC", ac_FarToCelCN);
+    const ac_TempMonitorCP = new AC_Elements_TempMonitorAC(
       "TempMonitorAC",
       "TempMonitorCP",
       [],
       [{"from":"s1","to":"t1"},{"from":"s2","to":"t2"},{"from":"average","to":"TempMonitorAN"}]
     );
     const TempMonitorAN_inst = new AN_Elements_TempMonitorAN("TempMonitorAN");
-    ac_TempMonitorAC_TempMonitorCP.registerAction(TempMonitorAN_inst);
-    this.registerActivity("TempMonitorAC", ac_TempMonitorAC_TempMonitorCP);
+    ac_TempMonitorCP.registerAction(TempMonitorAN_inst);
+    this.registerActivity("TempMonitorAC", ac_TempMonitorCP);
   }
 
 }

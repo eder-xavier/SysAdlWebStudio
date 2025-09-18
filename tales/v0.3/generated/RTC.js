@@ -647,46 +647,46 @@ class SysADLModel extends Model {
     const cc1 = this.RTCSystemCFD.connectors["cc1"];
     cc1.bind(this.RTCSystemCFD.rtc.cm.getPort("heating"), this.RTCSystemCFD.a1.getPort("controllerH"));
 
-    const ac_CalculateAverageTemperatureAC_SensorsMonitorCP = new AC_Components_CalculateAverageTemperatureAC(
+    const ac_SensorsMonitorCP = new AC_Components_CalculateAverageTemperatureAC(
       "CalculateAverageTemperatureAC",
       "SensorsMonitorCP",
       [],
       [{"from":"s1","to":"s1"},{"from":"s2","to":"s2"},{"from":"average","to":"CalcAvTemp"}]
     );
     const CalcAvTemp = new AN_Components_CalculateAverageTemperatureAN("CalcAvTemp");
-    ac_CalculateAverageTemperatureAC_SensorsMonitorCP.registerAction(CalcAvTemp);
-    this.registerActivity("CalculateAverageTemperatureAC", ac_CalculateAverageTemperatureAC_SensorsMonitorCP);
-    const ac_CheckPresenceToSetTemperatureAC_PresenceCheckerCP = new AC_Components_CheckPresenceToSetTemperatureAC(
+    ac_SensorsMonitorCP.registerAction(CalcAvTemp);
+    this.registerActivity("CalculateAverageTemperatureAC", ac_SensorsMonitorCP);
+    const ac_PresenceCheckerCP = new AC_Components_CheckPresenceToSetTemperatureAC(
       "CheckPresenceToSetTemperatureAC",
       "PresenceCheckerCP",
       [],
       [{"from":"detected","to":"detected"},{"from":"userTemp","to":"userTemp"},{"from":"target","to":"CheckPeresenceToSetTemperatureAN"}]
     );
     const CheckPeresenceToSetTemperatureAN_inst = new AN_Components_CheckPeresenceToSetTemperatureAN("CheckPeresenceToSetTemperatureAN");
-    ac_CheckPresenceToSetTemperatureAC_PresenceCheckerCP.registerAction(CheckPeresenceToSetTemperatureAN_inst);
-    this.registerActivity("CheckPresenceToSetTemperatureAC", ac_CheckPresenceToSetTemperatureAC_PresenceCheckerCP);
-    const ac_DecideCommandAC_CommanderCP = new AC_Components_DecideCommandAC(
+    ac_PresenceCheckerCP.registerAction(CheckPeresenceToSetTemperatureAN_inst);
+    this.registerActivity("CheckPresenceToSetTemperatureAC", ac_PresenceCheckerCP);
+    const ac_CommanderCP = new AC_Components_DecideCommandAC(
       "DecideCommandAC",
       "CommanderCP",
       [],
       [{"from":"average2","to":"average2"},{"from":"target2","to":"target2"},{"from":"heating","to":"cmdH"},{"from":"cooling","to":"cmdC"}]
     );
     const cmdC = new AN_Components_CommandCoolerAN("cmdC");
-    ac_DecideCommandAC_CommanderCP.registerAction(cmdC);
+    ac_CommanderCP.registerAction(cmdC);
     const cmdH = new AN_Components_CommandHeaterAN("cmdH");
-    ac_DecideCommandAC_CommanderCP.registerAction(cmdH);
+    ac_CommanderCP.registerAction(cmdH);
     const ct = new AN_Components_CompareTemperatureAN("ct");
-    ac_DecideCommandAC_CommanderCP.registerAction(ct);
-    this.registerActivity("DecideCommandAC", ac_DecideCommandAC_CommanderCP);
-    const ac_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN = new AC_Components_FahrenheitToCelsiusAC(
+    ac_CommanderCP.registerAction(ct);
+    this.registerActivity("DecideCommandAC", ac_CommanderCP);
+    const ac_FahrenheitToCelsiusCN = new AC_Components_FahrenheitToCelsiusAC(
       "FahrenheitToCelsiusAC",
       "FahrenheitToCelsiusCN",
       [],
       [{"from":"loalTemp1","to":"FtC"},{"from":"current1","to":"current1"}]
     );
     const FtC = new AN_Components_FahrenheitToCelsiusAN("FtC");
-    ac_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN.registerAction(FtC);
-    this.registerActivity("FahrenheitToCelsiusAC", ac_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN);
+    ac_FahrenheitToCelsiusCN.registerAction(FtC);
+    this.registerActivity("FahrenheitToCelsiusAC", ac_FahrenheitToCelsiusCN);
   }
 
 }
