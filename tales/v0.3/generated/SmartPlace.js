@@ -645,7 +645,7 @@ class CP_SmartPlaceComponents_AirConditioner extends Component {
 }
 class CP_SmartPlaceComponents_Led extends Component {
   constructor(name, opts={}) {
-      super(name, { ...opts, isBoundary: true });
+      super(name, { ...opts, isBoundary: true, activityName: "RaspberryControllerAC" });
       // Add ports from component definition
       this.addPort(new PT_SmartPlacePorts_CommandIPT("c", "in", { owner: name }));
       this.addPort(new PT_SmartPlacePorts_InfraredSignalOPT("is", "out", { owner: name }));
@@ -653,7 +653,7 @@ class CP_SmartPlaceComponents_Led extends Component {
 }
 class CP_SmartPlaceComponents_Raspberry extends Component {
   constructor(name, opts={}) {
-      super(name, opts);
+      super(name, { ...opts, activityName: "RaspberryControllerAC" });
       // Add ports from component definition
       this.addPort(new PT_SmartPlacePorts_CommandOPT("c", "out", { owner: name }));
       this.addPort(new PT_SmartPlacePorts_ReservationInformationO2I("ri", { owner: name }));
@@ -665,7 +665,7 @@ class CP_SmartPlaceComponents_Raspberry extends Component {
 }
 class CP_SmartPlaceComponents_Camera extends Component {
   constructor(name, opts={}) {
-      super(name, { ...opts, isBoundary: true });
+      super(name, { ...opts, isBoundary: true, activityName: "RaspberryControllerAC" });
       // Add ports from component definition
       this.addPort(new PT_SmartPlacePorts_FrameListOPT("f", "out", { owner: name }));
     }
@@ -1084,8 +1084,8 @@ class SysADLArchitecture extends Model {
     const sendTempHumi = this.SmartPlace.connectors["sendTempHumi"];
     sendTempHumi.bind(this.getPort("temperatureThs"), this.SmartPlace.ths.getPort("temperature"));
     this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_ReservationCN("rn"));
-    const rn = this.SmartPlace.connectors["rn"];
-    rn.bind(this.SmartPlace.rrs.getPort("ri"), this.getPort("riRrs"));
+    const rn_2 = this.SmartPlace.connectors["rn"];
+    rn_2.bind(this.SmartPlace.rrs.getPort("ri"), this.getPort("riRrs"));
     this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_InfraCodeCN("ic"));
     const ic = this.SmartPlace.connectors["ic"];
     ic.bind(this.SmartPlace.Led.getPort("c"), this.getPort("cLed"));
@@ -1173,440 +1173,6 @@ class SysADLArchitecture extends Model {
     this.registerActivity("UpdateContextSensorsAC", act_UpdateContextSensorsAC_hc);
   }
 
-  // Auto-assign activity references after model setup
-  assignActivityReferences() {
-    this.injectModelReference(); // Ensure model references are set
-    // Assign activity "RaspberryControllerAC" to instances of type "spw"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "spw") {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("spw")) {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    // Assign activity "RaspberryControllerAC" to instances of type "rrs"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "rrs") {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("rrs")) {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    // Assign activity "RaspberryControllerAC" to instances of type "ocb"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "ocb") {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("ocb")) {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    // Assign activity "RaspberryControllerAC" to instances of type "ths"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "ths") {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("ths")) {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    // Assign activity "RaspberryControllerAC" to instances of type "ps"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "ps") {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("ps")) {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    // Assign activity "RaspberryControllerAC" to instances of type "psql"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "psql") {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("psql")) {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    // Assign activity "RaspberryControllerAC" to instances of type "ac"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "ac") {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("ac")) {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    // Assign activity "RaspberryControllerAC" to instances of type "Led"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "Led") {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("Led")) {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    // Assign activity "RaspberryControllerAC" to instances of type "Raspberry"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "Raspberry") {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("Raspberry")) {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    // Assign activity "RaspberryControllerAC" to instances of type "Camera"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "Camera") {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("Camera")) {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    // Assign activity "RaspberryControllerAC" to instances of type "cm"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "cm") {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("cm")) {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    // Assign activity "RaspberryControllerAC" to instances of type "tc"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "tc") {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("tc")) {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    // Assign activity "RaspberryControllerAC" to instances of type "sqlite"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "sqlite") {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("sqlite")) {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    // Assign activity "RaspberryControllerAC" to instances of type "f"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "f") {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("f")) {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    // Assign activity "RaspberryControllerAC" to instances of type "acc"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "acc") {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("acc")) {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    // Assign activity "RaspberryControllerAC" to instances of type "rc"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "rc") {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("rc")) {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    // Assign activity "RaspberryControllerAC" to instances of type "rg"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "rg") {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("rg")) {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    // Assign activity "RaspberryControllerAC" to instances of type "gg"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "gg") {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("gg")) {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    // Assign activity "RaspberryControllerAC" to instances of type "hc"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "hc") {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("hc")) {
-        c.activityName = "RaspberryControllerAC";
-      }
-    });
-    // Assign activity "TemperatureControllerAC" to instances of type "tc"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "tc") {
-        c.activityName = "TemperatureControllerAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("tc")) {
-        c.activityName = "TemperatureControllerAC";
-      }
-    });
-    // Assign activity "UpdateContextSensorsAC" to instances of type "spw"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "spw") {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("spw")) {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    // Assign activity "UpdateContextSensorsAC" to instances of type "rrs"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "rrs") {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("rrs")) {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    // Assign activity "UpdateContextSensorsAC" to instances of type "ocb"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "ocb") {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("ocb")) {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    // Assign activity "UpdateContextSensorsAC" to instances of type "ths"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "ths") {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("ths")) {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    // Assign activity "UpdateContextSensorsAC" to instances of type "ps"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "ps") {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("ps")) {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    // Assign activity "UpdateContextSensorsAC" to instances of type "psql"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "psql") {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("psql")) {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    // Assign activity "UpdateContextSensorsAC" to instances of type "ac"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "ac") {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("ac")) {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    // Assign activity "UpdateContextSensorsAC" to instances of type "Led"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "Led") {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("Led")) {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    // Assign activity "UpdateContextSensorsAC" to instances of type "Raspberry"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "Raspberry") {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("Raspberry")) {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    // Assign activity "UpdateContextSensorsAC" to instances of type "Camera"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "Camera") {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("Camera")) {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    // Assign activity "UpdateContextSensorsAC" to instances of type "cm"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "cm") {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("cm")) {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    // Assign activity "UpdateContextSensorsAC" to instances of type "tc"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "tc") {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("tc")) {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    // Assign activity "UpdateContextSensorsAC" to instances of type "sqlite"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "sqlite") {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("sqlite")) {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    // Assign activity "UpdateContextSensorsAC" to instances of type "f"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "f") {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("f")) {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    // Assign activity "UpdateContextSensorsAC" to instances of type "acc"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "acc") {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("acc")) {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    // Assign activity "UpdateContextSensorsAC" to instances of type "rc"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "rc") {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("rc")) {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    // Assign activity "UpdateContextSensorsAC" to instances of type "rg"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "rg") {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("rg")) {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    // Assign activity "UpdateContextSensorsAC" to instances of type "gg"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "gg") {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("gg")) {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    // Assign activity "UpdateContextSensorsAC" to instances of type "hc"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "hc") {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("hc")) {
-        c.activityName = "UpdateContextSensorsAC";
-      }
-    });
-  }
-
   // Get model metrics for debugging and analysis
   getMetrics() {
     const metrics = {
@@ -1629,26 +1195,8 @@ class SysADLArchitecture extends Model {
   }
 }
 
-const __portAliases = {};
 function createModel(){ 
   const model = new SysADLArchitecture();
-  
-  // Generic registries for connector validation and transformations
-  model.transformationRegistry = {
-    // Common temperature conversions
-    fahrenheitToCelsius: (f) => (f - 32) * 5/9,
-    celsiusToFahrenheit: (c) => (c * 9/5) + 32
-  };
-  
-  model.typeValidators = {
-    'FahrenheitTemperature': (v) => typeof v === 'number' && v >= -459.67,
-    'CelsiusTemperature': (v) => typeof v === 'number' && v >= -273.15,
-    'Boolean': (v) => typeof v === 'boolean',
-    'Command': (v) => ['On', 'Off'].includes(v),
-    'Int': (v) => typeof v === 'number' && Number.isInteger(v),
-    'Real': (v) => typeof v === 'number',
-    'String': (v) => typeof v === 'string'
-  };
   
   model.typeRegistry = {
     'InfraredCode': 'EN_InfraredCode',
@@ -1706,4 +1254,4 @@ function createModel(){
   return model;
 }
 
-module.exports = { createModel, SysADLArchitecture, __portAliases, EN_InfraredCode, EN_TypeSensor, DT_DataSensor, DT_RestFulRaspeberry, DT_Sensor, DT_Measurement, DT_Schedule, DT_Location, DT_Building, DT_Room, DT_SmartPlaceComponents_AirConditioner, DT_ContextInformation, DT_UpdateDB, DT_FrameList, DT_Intervention, PT_SmartPlacePorts_ValueOPT, PT_SmartPlacePorts_ValueIPT, PT_SmartPlacePorts_ReservationResponseIPT, PT_SmartPlacePorts_ReservationResponseOPT, PT_SmartPlacePorts_RequestOPT, PT_SmartPlacePorts_RequestIPT, PT_SmartPlacePorts_InfraredSignalIPT, PT_SmartPlacePorts_InfraredSignalOPT, PT_SmartPlacePorts_ContextInformationOPT, PT_SmartPlacePorts_ContextInformationIPT, PT_SmartPlacePorts_UndefinedOPT, PT_SmartPlacePorts_UndefinedIPT, PT_SmartPlacePorts_CommandIPT, PT_SmartPlacePorts_CommandOPT, PT_SmartPlacePorts_RestfulRaspberryIPT, PT_SmartPlacePorts_RestfulRaspberryOPT, PT_SmartPlacePorts_DataBaseRespOPT, PT_SmartPlacePorts_DataBaseRespIPT, PT_SmartPlacePorts_ScheduleOPT, PT_SmartPlacePorts_ScheduleIPT, PT_SmartPlacePorts_UpdateIPT, PT_SmartPlacePorts_UpdateOPT, PT_SmartPlacePorts_FrameListIPT, PT_SmartPlacePorts_FrameListOPT, PT_SmartPlacePorts_DataBaseO2I, PT_SmartPlacePorts_DataBaseI2O, PT_SmartPlacePorts_ReservationInformationO2I, PT_SmartPlacePorts_ReservationInformationI2O, PT_SmartPlacePorts_ContextO2I, PT_SmartPlacePorts_ContextI2O };
+module.exports = { createModel, SysADLArchitecture, EN_InfraredCode, EN_TypeSensor, DT_DataSensor, DT_RestFulRaspeberry, DT_Sensor, DT_Measurement, DT_Schedule, DT_Location, DT_Building, DT_Room, DT_SmartPlaceComponents_AirConditioner, DT_ContextInformation, DT_UpdateDB, DT_FrameList, DT_Intervention, PT_SmartPlacePorts_ValueOPT, PT_SmartPlacePorts_ValueIPT, PT_SmartPlacePorts_ReservationResponseIPT, PT_SmartPlacePorts_ReservationResponseOPT, PT_SmartPlacePorts_RequestOPT, PT_SmartPlacePorts_RequestIPT, PT_SmartPlacePorts_InfraredSignalIPT, PT_SmartPlacePorts_InfraredSignalOPT, PT_SmartPlacePorts_ContextInformationOPT, PT_SmartPlacePorts_ContextInformationIPT, PT_SmartPlacePorts_UndefinedOPT, PT_SmartPlacePorts_UndefinedIPT, PT_SmartPlacePorts_CommandIPT, PT_SmartPlacePorts_CommandOPT, PT_SmartPlacePorts_RestfulRaspberryIPT, PT_SmartPlacePorts_RestfulRaspberryOPT, PT_SmartPlacePorts_DataBaseRespOPT, PT_SmartPlacePorts_DataBaseRespIPT, PT_SmartPlacePorts_ScheduleOPT, PT_SmartPlacePorts_ScheduleIPT, PT_SmartPlacePorts_UpdateIPT, PT_SmartPlacePorts_UpdateOPT, PT_SmartPlacePorts_FrameListIPT, PT_SmartPlacePorts_FrameListOPT, PT_SmartPlacePorts_DataBaseO2I, PT_SmartPlacePorts_DataBaseI2O, PT_SmartPlacePorts_ReservationInformationO2I, PT_SmartPlacePorts_ReservationInformationI2O, PT_SmartPlacePorts_ContextO2I, PT_SmartPlacePorts_ContextI2O };

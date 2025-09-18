@@ -26,6 +26,7 @@ class CN_Elements_FarToCelCN extends Connector {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
+      activityName: "FarToCelAC",
       participantSchema: {
         f: {
           portClass: 'PT_Elements_FTempOPT',
@@ -89,7 +90,7 @@ class CP_Elements_SensorCP extends Component {
 }
 class CP_Elements_TempMonitorCP extends Component {
   constructor(name, opts={}) {
-      super(name, { ...opts, isBoundary: true });
+      super(name, { ...opts, isBoundary: true, activityName: "TempMonitorAC" });
       // Add ports from component definition
       this.addPort(new PT_Elements_CTempIPT("s1", "in", { owner: name }));
       this.addPort(new PT_Elements_CTempIPT("s2", "in", { owner: name }));
@@ -268,33 +269,6 @@ class SysADLModel extends Model {
     this.registerActivity("TempMonitorAC", act_TempMonitorAC_TempMonitorCP);
   }
 
-  // Auto-assign activity references after model setup
-  assignActivityReferences() {
-    this.injectModelReference(); // Ensure model references are set
-    // Assign activity "FarToCelAC" to instances of type "FarToCelCN"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "FarToCelCN") {
-        c.activityName = "FarToCelAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("FarToCelCN")) {
-        c.activityName = "FarToCelAC";
-      }
-    });
-    // Assign activity "TempMonitorAC" to instances of type "TempMonitorCP"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "TempMonitorCP") {
-        c.activityName = "TempMonitorAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("TempMonitorCP")) {
-        c.activityName = "TempMonitorAC";
-      }
-    });
-  }
-
   // Get model metrics for debugging and analysis
   getMetrics() {
     const metrics = {
@@ -317,26 +291,8 @@ class SysADLModel extends Model {
   }
 }
 
-const __portAliases = {};
 function createModel(){ 
   const model = new SysADLModel();
-  
-  // Generic registries for connector validation and transformations
-  model.transformationRegistry = {
-    // Common temperature conversions
-    fahrenheitToCelsius: (f) => (f - 32) * 5/9,
-    celsiusToFahrenheit: (c) => (c * 9/5) + 32
-  };
-  
-  model.typeValidators = {
-    'FahrenheitTemperature': (v) => typeof v === 'number' && v >= -459.67,
-    'CelsiusTemperature': (v) => typeof v === 'number' && v >= -273.15,
-    'Boolean': (v) => typeof v === 'boolean',
-    'Command': (v) => ['On', 'Off'].includes(v),
-    'Int': (v) => typeof v === 'number' && Number.isInteger(v),
-    'Real': (v) => typeof v === 'number',
-    'String': (v) => typeof v === 'string'
-  };
   
   model.typeRegistry = {
   };
@@ -353,4 +309,4 @@ function createModel(){
   return model;
 }
 
-module.exports = { createModel, SysADLModel, __portAliases, PT_Elements_CTempIPT, PT_Elements_CTempOPT, PT_Elements_FTempOPT };
+module.exports = { createModel, SysADLModel, PT_Elements_CTempIPT, PT_Elements_CTempOPT, PT_Elements_FTempOPT };

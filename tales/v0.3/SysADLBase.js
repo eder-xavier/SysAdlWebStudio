@@ -1,4 +1,32 @@
 // v0.3 runtime (renamed and adapted from v0.2)
+// Enhanced with configurable parameters
+
+// Configuration constants - centralized to avoid hardcoded values
+const CONFIG = {
+  DEFAULT_TEMPERATURE_FALLBACK: 2, // Default temperature when no presence detected
+  FAHRENHEIT_CONVERSION: {
+    OFFSET: 32,
+    FACTOR_NUMERATOR: 5,
+    FACTOR_DENOMINATOR: 9
+  },
+  MATH: {
+    AVERAGE_DIVISOR: 2 // For calculating average of two values
+  },
+  EXECUTION: {
+    MIN_PARSE_DEPTH: 0, // Minimum parsing depth for statement separation
+    MAX_RETRIES: 3 // Maximum retries for activity execution
+  }
+};
+
+// Allow external configuration override
+function setConfig(newConfig) {
+  Object.assign(CONFIG, newConfig);
+}
+
+// Get current configuration
+function getConfig() {
+  return { ...CONFIG };
+}
 // Exports: Model, Element, Component, Connector, Port, Activity, Action, Executable helper
 
 class Element {
@@ -141,7 +169,10 @@ class Model extends SysADLBase {
   // Central execution engine: handle port data reception and trigger activity execution
   handlePortReceive(owner, portName, value) {
     try {
-      // Find the activity associated with this port owner
+      // First, notify the component about port reception
+      this.notifyComponentPortReceive(owner, portName, value);
+      
+      // Then, find and trigger activity
       const activity = this.findActivityByPortOwner(owner);
       
       if (!activity) {
@@ -160,6 +191,23 @@ class Model extends SysADLBase {
       console.error(`Error in handlePortReceive for ${owner}.${portName}:`, error);
     }
   }
+  
+  // Notify component about port data reception
+  notifyComponentPortReceive(owner, portName, value) {
+    // Find the component by owner name
+    let targetComponent = null;
+    
+    this.walkComponents(comp => {
+      if (comp.name === owner) {
+        targetComponent = comp;
+      }
+    });
+    
+    // If component found and has onPortReceive method, call it
+    if (targetComponent && typeof targetComponent.onPortReceive === 'function') {
+      targetComponent.onPortReceive(portName, value);
+    }
+  }
 }
 
 class Component extends SysADLBase {
@@ -167,10 +215,90 @@ class Component extends SysADLBase {
     super(name, opts);
     this.activityName = null; // Direct reference to activity name
     this._model = null;
+    
+    // Pin tracking for component activity execution
+    this.pinValues = {}; // {portName: value}
+    this.requiredInputPorts = new Set(); // ports that must receive data before activity execution
+    this.lastExecutionTime = Date.now(); // Use current timestamp instead of hardcoded 0
   }
   
   setModel(model) {
     this._model = model;
+    
+    // Initialize required input ports based on component's activity
+    this.initializeRequiredPorts();
+  }
+  
+  // Initialize required input ports based on activity pins
+  initializeRequiredPorts() {
+    if (!this.activityName || !this._model) return;
+    
+    const activity = this._model._activities[this.activityName];
+    if (activity) {
+      // Map activity input pins to component ports
+      activity.inParameters
+        .filter(p => p.direction === 'in')
+        .forEach(param => {
+          // Assume port name matches pin name by default
+          const portName = param.name;
+          if (this.ports[portName]) {
+            this.requiredInputPorts.add(portName);
+            this.pinValues[portName] = undefined;
+          }
+        });
+    }
+  }
+  
+  // Called when a port receives data
+  onPortReceive(portName, value) {
+    // Store the value for this port
+    this.pinValues[portName] = value;
+    
+    // Check if all required input ports have received data
+    if (this.canExecuteActivity()) {
+      this.executeActivity();
+    }
+  }
+  
+  // Check if all required input ports have data
+  canExecuteActivity() {
+    if (!this.activityName || !this._model) return false;
+    
+    for (const portName of this.requiredInputPorts) {
+      if (this.pinValues[portName] === undefined) {
+        return false;
+      }
+    }
+    return true;
+  }
+  
+  // Execute component activity when all inputs are ready
+  executeActivity() {
+    if (!this.activityName || !this._model) return;
+    
+    const activity = this._model._activities[this.activityName];
+    if (!activity) return;
+    
+    console.log(`Component ${this.name} executing activity ${this.activityName}`);
+    
+    // Trigger activity with all collected pin values
+    for (const [portName, value] of Object.entries(this.pinValues)) {
+      if (value !== undefined) {
+        activity.trigger(portName, value);
+      }
+    }
+    
+    // Clear pin values for next execution cycle
+    this.clearPinValues();
+    
+    this.lastExecutionTime = Date.now();
+  }
+  
+  // Clear pin values after activity execution
+  clearPinValues() {
+    Object.keys(this.pinValues).forEach(portName => {
+      this.pinValues[portName] = undefined;
+    });
   }
   
   // Lazy loading for activity
@@ -337,8 +465,28 @@ class Component extends SysADLBase {
             // Generic logging
             this.logInternalFlow(flow.from, flow.to, value, model);
             
+            // Execute connector activity if it exists
+            let processedValue = value;
+            if (this.activityName && model) {
+              const activity = model._activities[this.activityName];
+              if (activity) {
+                console.log(`Connector ${this.name} executing activity ${this.activityName} with value:`, value);
+                
+                // Trigger activity with the input data
+                activity.trigger(flow.from, value);
+                
+                // If activity executes immediately, get result
+                if (activity.canExecute()) {
+                  const result = activity.executeWhenReady();
+                  if (result !== undefined) {
+                    processedValue = result;
+                  }
+                }
+              }
+            }
+            
             // Generic transformation
-            const transformedValue = this.applyTransformation(value, flow.transformation);
+            const transformedValue = this.applyTransformation(processedValue, flow.transformation);
             
             toParticipant.send(transformedValue, model);
           }
@@ -887,6 +1035,194 @@ class Activity extends BehavioralElement {
     this.component = opts.component || null;
     this.inputPorts = opts.inputPorts ? opts.inputPorts.slice() : [];
     this.actions = opts.actions || [];
+    
+    // Pin system for activity execution
+    this.pins = {}; // {pinName: {value, isFilled, portMapping}}
+    this.portToPinMapping = {}; // {portName: pinName}
+    this.requiredPins = new Set(); // pins that must be filled before execution
+    this.isExecuting = false;
+    
+    // Initialize pins from inParameters
+    this.initializePins();
+  }
+  
+  // Initialize pins based on inParameters
+  initializePins() {
+    this.inParameters.forEach(param => {
+      this.pins[param.name] = {
+        value: undefined,
+        isFilled: false,
+        type: param.type,
+        direction: param.direction
+      };
+      
+      // For input pins, add to required pins
+      if (param.direction === 'in') {
+        this.requiredPins.add(param.name);
+        // Map port name to pin name (assuming same name by default)
+        this.portToPinMapping[param.name] = param.name;
+      }
+    });
+  }
+  
+  // Set pin value and check if activity can execute
+  setPin(pinName, value) {
+    if (!this.pins[pinName]) {
+      console.warn(`Pin ${pinName} not found in activity ${this.name}`);
+      return false;
+    }
+    
+    this.pins[pinName].value = value;
+    this.pins[pinName].isFilled = true;
+    
+    // Check if all required pins are filled
+    if (this.canExecute()) {
+      this.executeWhenReady();
+    }
+    
+    return true;
+  }
+  
+  // Check if all required pins are filled
+  canExecute() {
+    if (this.isExecuting) return false;
+    
+    for (const pinName of this.requiredPins) {
+      if (!this.pins[pinName] || !this.pins[pinName].isFilled) {
+        return false;
+      }
+    }
+    return true;
+  }
+  
+  // Execute activity when all pins are ready
+  executeWhenReady() {
+    if (!this.canExecute()) return;
+    
+    this.isExecuting = true;
+    
+    try {
+      // Prepare inputs from pins
+      const inputs = this.inParameters
+        .filter(p => p.direction === 'in')
+        .map(p => this.pins[p.name]?.value);
+      
+      // Execute the activity
+      const result = this.invoke(inputs);
+      
+      // Propagate results to output pins and connected elements
+      this.propagateResults(result);
+      
+      // Clear pins for next execution
+      this.clearPins();
+      
+      return result;
+    } finally {
+      this.isExecuting = false;
+    }
+  }
+  
+  // Propagate activity results to connected elements
+  propagateResults(result) {
+    // Handle single result or multiple results
+    const results = Array.isArray(result) ? result : [result];
+    
+    // Map results to output parameters
+    this.outParameters.forEach((param, index) => {
+      if (index < results.length) {
+        const value = results[index];
+        
+        // Send result to connected ports/pins
+        this.sendToConnectedElements(param.name, value);
+      }
+    });
+  }
+  
+  // Send value to elements connected to this activity's output
+  sendToConnectedElements(outputName, value) {
+    if (!this.connectedElements) return;
+    
+    this.connectedElements.forEach(connection => {
+      if (connection.from === outputName) {
+        // Send to connected component port
+        if (connection.toComponent) {
+          const component = this.getComponent(connection.toComponent);
+          if (component) {
+            component.handlePortReceive(connection.toPort, value);
+          }
+        }
+        
+        // Send to connected connector
+        if (connection.toConnector) {
+          const connector = this.getConnector(connection.toConnector);
+          if (connector) {
+            connector.handleDataFlow(connection.toPin, value);
+          }
+        }
+        
+        // Send to connected activity pin
+        if (connection.toActivity) {
+          const activity = this.getActivity(connection.toActivity);
+          if (activity) {
+            activity.setPin(connection.toPin, value);
+          }
+        }
+      }
+    });
+  }
+  
+  // Helper methods to get connected elements - use context resolution
+  getComponent(componentName) {
+    // Try to get from model context if available
+    if (this._model && this._model.getComponent) {
+      return this._model.getComponent(componentName);
+    }
+    // Try to get from parent context
+    if (this._context && this._context.getComponent) {
+      return this._context.getComponent(componentName);
+    }
+    console.warn(`Component '${componentName}' not found in activity context`);
+    return null;
+  }
+  
+  getConnector(connectorName) {
+    // Try to get from model context if available
+    if (this._model && this._model.getConnector) {
+      return this._model.getConnector(connectorName);
+    }
+    // Try to get from parent context
+    if (this._context && this._context.getConnector) {
+      return this._context.getConnector(connectorName);
+    }
+    console.warn(`Connector '${connectorName}' not found in activity context`);
+    return null;
+  }
+  
+  getActivity(activityName) {
+    // Try to get from model registry if available
+    if (this._model && this._model.getActivity) {
+      return this._model.getActivity(activityName);
+    }
+    // Try to get from parent context
+    if (this._context && this._context.getActivity) {
+      return this._context.getActivity(activityName);
+    }
+    console.warn(`Activity '${activityName}' not found in activity context`);
+    return null;
+  }
+  
+  // Clear pins after execution
+  clearPins() {
+    Object.keys(this.pins).forEach(pinName => {
+      this.pins[pinName].value = undefined;
+      this.pins[pinName].isFilled = false;
+    });
+  }
+  
+  // Trigger method called by handlePortReceive
+  trigger(portName, value) {
+    const pinName = this.portToPinMapping[portName] || portName;
+    return this.setPin(pinName, value);
   }
 
   // Register action within this activity
@@ -1082,7 +1418,7 @@ function createExecutableFromExpression(exprText, paramNames = []) {
       if (ch === '"' || ch === "'" || ch === '`') { inS = ch; cur += ch; continue; }
       if (ch === '{' || ch === '(' || ch === '[') { depth++; cur += ch; continue; }
       if (ch === '}' || ch === ')' || ch === ']') { depth = Math.max(0, depth-1); cur += ch; continue; }
-      if ((ch === ';' || ch === '\n') && depth === 0) {
+      if ((ch === ';' || ch === '\n') && depth === CONFIG.EXECUTION.MIN_PARSE_DEPTH) {
         const t = cur.trim(); if (t) parts.push(t);
         cur = '';
         continue;
@@ -1368,5 +1704,9 @@ module.exports = {
   valueType,
   dataType,
   dimension,
-  unit
+  unit,
+  // Configuration functions
+  setConfig,
+  getConfig,
+  CONFIG
 };

@@ -427,7 +427,7 @@ class CP_ComponentsAGV_VehicleControl extends Component {
 }
 class CP_ComponentsAGV_CheckStation extends Component {
   constructor(name, opts={}) {
-      super(name, opts);
+      super(name, { ...opts, activityName: "CheckStationAC" });
       // Add ports from component definition
       this.addPort(new PT_PortsAGV_inNotificationFromMotor("ack", "in", { owner: name }));
       this.addPort(new PT_ComponentsAGV_outLocation("location", "out", { owner: name }));
@@ -439,7 +439,7 @@ class CP_ComponentsAGV_CheckStation extends Component {
 }
 class CP_ComponentsAGV_ControlArm extends Component {
   constructor(name, opts={}) {
-      super(name, opts);
+      super(name, { ...opts, activityName: "ControlArmAC" });
       // Add ports from component definition
       this.addPort(new PT_PortsAGV_inCommandToArm("cmd", "in", { owner: name }));
       this.addPort(new PT_PortsAGV_inNotificationFromMotor("ack", "in", { owner: name }));
@@ -448,7 +448,7 @@ class CP_ComponentsAGV_ControlArm extends Component {
 }
 class CP_ComponentsAGV_NotifierMotor extends Component {
   constructor(name, opts={}) {
-      super(name, opts);
+      super(name, { ...opts, activityName: "NotifierMotorAC" });
       // Add ports from component definition
       this.addPort(new PT_PortsAGV_inNotificationFromMotor("inAck", "in", { owner: name }));
       this.addPort(new PT_PortsAGV_outNotificationToSupervisory("ack", "out", { owner: name }));
@@ -457,7 +457,7 @@ class CP_ComponentsAGV_NotifierMotor extends Component {
 }
 class CP_ComponentsAGV_StartMoving extends Component {
   constructor(name, opts={}) {
-      super(name, opts);
+      super(name, { ...opts, activityName: "StartMovingAC" });
       // Add ports from component definition
       this.addPort(new PT_PortsAGV_inVehicleData("move", "in", { owner: name }));
       this.addPort(new PT_PortsAGV_outCommandToArm("cmd", "out", { owner: name }));
@@ -467,7 +467,7 @@ class CP_ComponentsAGV_StartMoving extends Component {
 }
 class CP_ComponentsAGV_NotifierArm extends Component {
   constructor(name, opts={}) {
-      super(name, opts);
+      super(name, { ...opts, activityName: "NotifierArmAC" });
       // Add ports from component definition
       this.addPort(new PT_PortsAGV_outNotificationToSupervisory("arrivedStatus", "out", { owner: name }));
       this.addPort(new PT_PortsAGV_inNotificationFromArm("loaded_unloaded", "in", { owner: name }));
@@ -475,7 +475,7 @@ class CP_ComponentsAGV_NotifierArm extends Component {
 }
 class CP_ComponentsAGV_VehicleTimer extends Component {
   constructor(name, opts={}) {
-      super(name, opts);
+      super(name, { ...opts, activityName: "VehicleTimerAC" });
       // Add ports from component definition
       this.addPort(new PT_PortsAGV_outStatus("AGVStatus", "out", { owner: name }));
       this.addPort(new PT_ComponentsAGV_inLocation("location", "in", { owner: name }));
@@ -1356,77 +1356,6 @@ class SysADLArchitecture extends Model {
     this.registerActivity("VehicleTimerAC", act_VehicleTimerAC_VehicleTimer);
   }
 
-  // Auto-assign activity references after model setup
-  assignActivityReferences() {
-    this.injectModelReference(); // Ensure model references are set
-    // Assign activity "StartMovingAC" to instances of type "StartMoving"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "StartMoving") {
-        c.activityName = "StartMovingAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("StartMoving")) {
-        c.activityName = "StartMovingAC";
-      }
-    });
-    // Assign activity "NotifierMotorAC" to instances of type "NotifierMotor"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "NotifierMotor") {
-        c.activityName = "NotifierMotorAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("NotifierMotor")) {
-        c.activityName = "NotifierMotorAC";
-      }
-    });
-    // Assign activity "CheckStationAC" to instances of type "CheckStation"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "CheckStation") {
-        c.activityName = "CheckStationAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("CheckStation")) {
-        c.activityName = "CheckStationAC";
-      }
-    });
-    // Assign activity "ControlArmAC" to instances of type "ControlArm"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "ControlArm") {
-        c.activityName = "ControlArmAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("ControlArm")) {
-        c.activityName = "ControlArmAC";
-      }
-    });
-    // Assign activity "NotifierArmAC" to instances of type "NotifierArm"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "NotifierArm") {
-        c.activityName = "NotifierArmAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("NotifierArm")) {
-        c.activityName = "NotifierArmAC";
-      }
-    });
-    // Assign activity "VehicleTimerAC" to instances of type "VehicleTimer"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "VehicleTimer") {
-        c.activityName = "VehicleTimerAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("VehicleTimer")) {
-        c.activityName = "VehicleTimerAC";
-      }
-    });
-  }
-
   // Get model metrics for debugging and analysis
   getMetrics() {
     const metrics = {
@@ -1449,26 +1378,8 @@ class SysADLArchitecture extends Model {
   }
 }
 
-const __portAliases = {};
 function createModel(){ 
   const model = new SysADLArchitecture();
-  
-  // Generic registries for connector validation and transformations
-  model.transformationRegistry = {
-    // Common temperature conversions
-    fahrenheitToCelsius: (f) => (f - 32) * 5/9,
-    celsiusToFahrenheit: (c) => (c * 9/5) + 32
-  };
-  
-  model.typeValidators = {
-    'FahrenheitTemperature': (v) => typeof v === 'number' && v >= -459.67,
-    'CelsiusTemperature': (v) => typeof v === 'number' && v >= -273.15,
-    'Boolean': (v) => typeof v === 'boolean',
-    'Command': (v) => ['On', 'Off'].includes(v),
-    'Int': (v) => typeof v === 'number' && Number.isInteger(v),
-    'Real': (v) => typeof v === 'number',
-    'String': (v) => typeof v === 'string'
-  };
   
   model.typeRegistry = {
     'NotificationToSupervisory': 'EN_NotificationToSupervisory',
@@ -1512,4 +1423,4 @@ function createModel(){
   return model;
 }
 
-module.exports = { createModel, SysADLArchitecture, __portAliases, EN_NotificationToSupervisory, EN_NotificationFromArm, EN_CommandToArm, EN_NotificationFromMotor, EN_CommandToMotor, DT_Status, DT_Location, DT_VehicleData, PT_ComponentsAGV_inLocation, PT_ComponentsAGV_outLocation, PT_PortsAGV_inStatus, PT_PortsAGV_outStatus, PT_PortsAGV_inVehicleData, PT_PortsAGV_outVehicleData, PT_PortsAGV_inNotificationFromMotor, PT_PortsAGV_outNotificationFromMotor, PT_PortsAGV_inCommandToMotor, PT_PortsAGV_outCommandToMotor, PT_PortsAGV_inNotificationFromArm, PT_PortsAGV_outNotificationFromArm, PT_PortsAGV_inCommandToArm, PT_PortsAGV_outCommandToArm, PT_PortsAGV_inNotificationToSupervisory, PT_PortsAGV_outNotificationToSupervisory, PT_PortsAGV_IAGVSystem, PT_PortsAGV_ISupervisorySystem };
+module.exports = { createModel, SysADLArchitecture, EN_NotificationToSupervisory, EN_NotificationFromArm, EN_CommandToArm, EN_NotificationFromMotor, EN_CommandToMotor, DT_Status, DT_Location, DT_VehicleData, PT_ComponentsAGV_inLocation, PT_ComponentsAGV_outLocation, PT_PortsAGV_inStatus, PT_PortsAGV_outStatus, PT_PortsAGV_inVehicleData, PT_PortsAGV_outVehicleData, PT_PortsAGV_inNotificationFromMotor, PT_PortsAGV_outNotificationFromMotor, PT_PortsAGV_inCommandToMotor, PT_PortsAGV_outCommandToMotor, PT_PortsAGV_inNotificationFromArm, PT_PortsAGV_outNotificationFromArm, PT_PortsAGV_inCommandToArm, PT_PortsAGV_outCommandToArm, PT_PortsAGV_inNotificationToSupervisory, PT_PortsAGV_outNotificationToSupervisory, PT_PortsAGV_IAGVSystem, PT_PortsAGV_ISupervisorySystem };

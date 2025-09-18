@@ -55,6 +55,7 @@ class CN_Connectors_FahrenheitToCelsiusCN extends Connector {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
+      activityName: "FahrenheitToCelsiusAC",
       participantSchema: {
         Ft: {
           portClass: 'PT_Ports_FTemperatureOPT',
@@ -214,7 +215,7 @@ class CP_Components_RoomTemperatureControllerCP extends Component {
 }
 class CP_Components_SensorsMonitorCP extends Component {
   constructor(name, opts={}) {
-      super(name, opts);
+      super(name, { ...opts, activityName: "CalculateAverageTemperatureAC" });
       // Add ports from component definition
       this.addPort(new PT_Ports_CTemperatureIPT("s1", "in", { owner: name }));
       this.addPort(new PT_Ports_CTemperatureIPT("s2", "in", { owner: name }));
@@ -223,7 +224,7 @@ class CP_Components_SensorsMonitorCP extends Component {
 }
 class CP_Components_CommanderCP extends Component {
   constructor(name, opts={}) {
-      super(name, opts);
+      super(name, { ...opts, activityName: "DecideCommandAC" });
       // Add ports from component definition
       this.addPort(new PT_Ports_CTemperatureIPT("target2", "in", { owner: name }));
       this.addPort(new PT_Ports_CTemperatureIPT("average2", "in", { owner: name }));
@@ -233,7 +234,7 @@ class CP_Components_CommanderCP extends Component {
 }
 class CP_Components_PresenceCheckerCP extends Component {
   constructor(name, opts={}) {
-      super(name, opts);
+      super(name, { ...opts, activityName: "CheckPresenceToSetTemperatureAC" });
       // Add ports from component definition
       this.addPort(new PT_Ports_PresenceIPT("detected", "in", { owner: name }));
       this.addPort(new PT_Ports_CTemperatureIPT("userTemp", "in", { owner: name }));
@@ -680,55 +681,6 @@ class SysADLModel extends Model {
     this.registerActivity("FahrenheitToCelsiusAC", act_FahrenheitToCelsiusAC_FahrenheitToCelsiusCN);
   }
 
-  // Auto-assign activity references after model setup
-  assignActivityReferences() {
-    this.injectModelReference(); // Ensure model references are set
-    // Assign activity "CalculateAverageTemperatureAC" to instances of type "SensorsMonitorCP"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "SensorsMonitorCP") {
-        c.activityName = "CalculateAverageTemperatureAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("SensorsMonitorCP")) {
-        c.activityName = "CalculateAverageTemperatureAC";
-      }
-    });
-    // Assign activity "CheckPresenceToSetTemperatureAC" to instances of type "PresenceCheckerCP"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "PresenceCheckerCP") {
-        c.activityName = "CheckPresenceToSetTemperatureAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("PresenceCheckerCP")) {
-        c.activityName = "CheckPresenceToSetTemperatureAC";
-      }
-    });
-    // Assign activity "DecideCommandAC" to instances of type "CommanderCP"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "CommanderCP") {
-        c.activityName = "DecideCommandAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("CommanderCP")) {
-        c.activityName = "DecideCommandAC";
-      }
-    });
-    // Assign activity "FahrenheitToCelsiusAC" to instances of type "FahrenheitToCelsiusCN"
-    this.walkComponents(c => {
-      if (c.props && c.props.sysadlDefinition === "FahrenheitToCelsiusCN") {
-        c.activityName = "FahrenheitToCelsiusAC";
-      }
-    });
-    this.walkConnectors(c => {
-      if (c.constructor.name.includes("FahrenheitToCelsiusCN")) {
-        c.activityName = "FahrenheitToCelsiusAC";
-      }
-    });
-  }
-
   // Get model metrics for debugging and analysis
   getMetrics() {
     const metrics = {
@@ -751,26 +703,8 @@ class SysADLModel extends Model {
   }
 }
 
-const __portAliases = {};
 function createModel(){ 
   const model = new SysADLModel();
-  
-  // Generic registries for connector validation and transformations
-  model.transformationRegistry = {
-    // Common temperature conversions
-    fahrenheitToCelsius: (f) => (f - 32) * 5/9,
-    celsiusToFahrenheit: (c) => (c * 9/5) + 32
-  };
-  
-  model.typeValidators = {
-    'FahrenheitTemperature': (v) => typeof v === 'number' && v >= -459.67,
-    'CelsiusTemperature': (v) => typeof v === 'number' && v >= -273.15,
-    'Boolean': (v) => typeof v === 'boolean',
-    'Command': (v) => ['On', 'Off'].includes(v),
-    'Int': (v) => typeof v === 'number' && Number.isInteger(v),
-    'Real': (v) => typeof v === 'number',
-    'String': (v) => typeof v === 'string'
-  };
   
   model.typeRegistry = {
     'temperature': 'VT_types_temperature',
@@ -797,4 +731,4 @@ function createModel(){
   return model;
 }
 
-module.exports = { createModel, SysADLModel, __portAliases, VT_types_temperature, VT_types_FahrenheitTemperature, VT_types_CelsiusTemperature, EN_types_Command, DT_types_Commands, DM_types_Temperature, UN_types_Celsius, UN_types_Fahrenheit, PT_Ports_FTemperatureOPT, PT_Ports_PresenceIPT, PT_Ports_PresenceOPT, PT_Ports_CTemperatureIPT, PT_Ports_CommandIPT, PT_Ports_CommandOPT, PT_Ports_CTemperatureOPT };
+module.exports = { createModel, SysADLModel, VT_types_temperature, VT_types_FahrenheitTemperature, VT_types_CelsiusTemperature, EN_types_Command, DT_types_Commands, DM_types_Temperature, UN_types_Celsius, UN_types_Fahrenheit, PT_Ports_FTemperatureOPT, PT_Ports_PresenceIPT, PT_Ports_PresenceOPT, PT_Ports_CTemperatureIPT, PT_Ports_CommandIPT, PT_Ports_CommandOPT, PT_Ports_CTemperatureOPT };
