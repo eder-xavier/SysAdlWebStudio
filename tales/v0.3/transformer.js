@@ -755,7 +755,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
         
         if (isComposite) {
           // Extract participants from connector definition to determine port parameters
-          const participants = connDef.participants || [];
+          const participants = connDef.ports || connDef.participants || [];
           const portParams = participants.length > 0 ? participants.map((p, index) => `port${index + 1}`).join(', ') : '';
           const portNames = participants.length > 0 ? participants.map((p, index) => `port${index + 1}`) : [];
           
@@ -860,23 +860,60 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
             classLines.push(`    this.connectors["${subName}"] = this.${subName};`);
           }
         } else {
-          // Simple connector constructor with port parameters
-          classLines.push(`  constructor(name, fromPort, toPort, opts = {}) {`);
-          classLines.push(`    super(name, opts);`);
+          // Simple connector with schema-based initialization
+          classLines.push(`  constructor(name, opts = {}) {`);
+          classLines.push(`    super(name, {`);
+          classLines.push(`      ...opts,`);
           
-          // Add flows information as comment  
-          if (connDef.flows && Array.isArray(connDef.flows)) {
-            classLines.push(`    // Flows: ${connDef.flows.map(f => `${f.flowType || f.type || 'Flow'} from ${f.source} to ${f.destination}`).join(', ')}`);
-          } else {
-            // Add participants information as comment for simple connectors
-            if (connDef.participants && Array.isArray(connDef.participants)) {
-              classLines.push(`    // Participants: ${connDef.participants.map(p => `${p.name || p.id}: ${p.type || p.portType || p.definition}`).join(', ')}`);
-            }
+          // Generate participantSchema
+          if ((connDef.ports || connDef.participants) && Array.isArray(connDef.ports || connDef.participants) && (connDef.ports || connDef.participants).length >= 2) {
+            classLines.push(`      participantSchema: {`);
+            
+            (connDef.ports || connDef.participants).forEach((participant, index) => {
+              const participantName = participant.name || participant.id || `participant${index}`;
+              const portClass = getPackagePrefix(participant.definition || participant.type || participant.portType, 'PT') + (participant.definition || participant.type || participant.portType);
+              
+              // Determine direction based on participant role (isReverse means ~ in SysADL)
+              const direction = participant.isReverse ? 'out' : 'in'; // reverse means ~ in SysADL
+              const role = index === 0 ? 'source' : 'target';
+              
+              // Extract data type from flows or infer from port definition
+              let dataType = 'any';
+              if (connDef.flows && Array.isArray(connDef.flows) && connDef.flows.length > 0) {
+                dataType = connDef.flows[0].flowType || connDef.flows[0].type || 'any';
+              }
+              
+              classLines.push(`        ${participantName}: {`);
+              classLines.push(`          portClass: '${portClass}',`);
+              classLines.push(`          direction: '${direction}',`);
+              classLines.push(`          dataType: '${dataType}',`);
+              classLines.push(`          role: '${role}'`);
+              classLines.push(`        }${index < (connDef.ports || connDef.participants).length - 1 ? ',' : ''}`);
+            });
+            
+            classLines.push(`      },`);
           }
           
-          classLines.push(`    if (fromPort && toPort) {`);
-          classLines.push(`      this.bind(fromPort, toPort);`);
-          classLines.push(`    }`);
+          // Generate flowSchema
+          if (connDef.flows && Array.isArray(connDef.flows) && connDef.flows.length > 0) {
+            classLines.push(`      flowSchema: [`);
+            
+            connDef.flows.forEach((flow, index) => {
+              const fromParticipant = flow.source || ((connDef.ports || connDef.participants) && (connDef.ports || connDef.participants)[0] && ((connDef.ports || connDef.participants)[0].name || (connDef.ports || connDef.participants)[0].id)) || 'from';
+              const toParticipant = flow.destination || ((connDef.ports || connDef.participants) && (connDef.ports || connDef.participants)[1] && ((connDef.ports || connDef.participants)[1].name || (connDef.ports || connDef.participants)[1].id)) || 'to';
+              const dataType = flow.flowType || flow.type || 'any';
+              
+              classLines.push(`        {`);
+              classLines.push(`          from: '${fromParticipant}',`);
+              classLines.push(`          to: '${toParticipant}',`);
+              classLines.push(`          dataType: '${dataType}'`);
+              classLines.push(`        }${index < connDef.flows.length - 1 ? ',' : ''}`);
+            });
+            
+            classLines.push(`      ]`);
+          }
+          
+          classLines.push(`    });`);
         }
         
         classLines.push(`  }`);
@@ -1477,7 +1514,15 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
                 fromAccess = findComponentForPort(fromPort, true);
                 toAccess = findComponentForPort(toPort, false);
                 
-                connectorInstantiation = `new ${connectorClass}(${JSON.stringify(cname)}, ${fromAccess}, ${toAccess})`;
+                connectorInstantiation = `new ${connectorClass}(${JSON.stringify(cname)})`;
+                
+                // Add binding after connector creation
+                if (fromAccess && toAccess) {
+                  lines.push(`    ${connectorOwner}.addConnector(${connectorInstantiation});`);
+                  lines.push(`    const ${cname} = ${connectorOwner}.connectors[${JSON.stringify(cname)}];`);
+                  lines.push(`    ${cname}.bind(${fromAccess}, ${toAccess});`);
+                  continue; // Skip the normal addConnector call
+                }
               } else {
                 // Fallback for simple without clear from/to
                 connectorInstantiation = `new ${connectorClass}(${JSON.stringify(cname)})`;
@@ -2722,10 +2767,65 @@ function extractExecutableParams(body) {
   } catch(e) {
     lines.push('const __portAliases = {};');
   }
-  lines.push(`function createModel(){ return new ${sanitizeId(modelName)}(); }`);
-  
+  lines.push(`function createModel(){ `);
+  lines.push(`  const model = new ${sanitizeId(modelName)}();`);
+  lines.push(`  `);
+  lines.push(`  // Generic registries for connector validation and transformations`);
+  lines.push(`  model.transformationRegistry = {`);
+  lines.push(`    // Common temperature conversions`);
+  lines.push(`    fahrenheitToCelsius: (f) => (f - 32) * 5/9,`);
+  lines.push(`    celsiusToFahrenheit: (c) => (c * 9/5) + 32`);
+  lines.push(`  };`);
+  lines.push(`  `);
+  lines.push(`  model.typeValidators = {`);
+  lines.push(`    'FahrenheitTemperature': (v) => typeof v === 'number' && v >= -459.67,`);
+  lines.push(`    'CelsiusTemperature': (v) => typeof v === 'number' && v >= -273.15,`);
+  lines.push(`    'Boolean': (v) => typeof v === 'boolean',`);
+  lines.push(`    'Command': (v) => ['On', 'Off'].includes(v),`);
+  lines.push(`    'Int': (v) => typeof v === 'number' && Number.isInteger(v),`);
+  lines.push(`    'Real': (v) => typeof v === 'number',`);
+  lines.push(`    'String': (v) => typeof v === 'string'`);
+  lines.push(`  };`);
+  lines.push(`  `);
   // Define primitive types that are already available in SysADLBase
   const primitiveTypes = new Set(['Int', 'Boolean', 'String', 'Real', 'Void']);
+  
+  lines.push(`  model.typeRegistry = {`);
+  // Generate type mappings based on actual types found
+  Object.keys(embeddedTypes.valueTypes || {}).forEach(typeName => {
+    if (!primitiveTypes.has(typeName)) {
+      const prefixedName = getPackagePrefix(typeName, 'VT') + typeName;
+      lines.push(`    '${typeName}': '${prefixedName}',`);
+    }
+  });
+  Object.keys(embeddedTypes.enumerations || {}).forEach(enumName => {
+    const prefixedName = getPackagePrefix(enumName, 'EN') + enumName;
+    lines.push(`    '${enumName}': '${prefixedName}',`);
+  });
+  lines.push(`  };`);
+  lines.push(`  `);
+  lines.push(`  // Module context for class resolution`);
+  lines.push(`  model._moduleContext = {`);
+  
+  // Add port classes to module context
+  Object.keys(embeddedTypes.ports || {}).forEach(portName => {
+    const prefixedName = getPackagePrefix(portName, 'PT') + portName;
+    lines.push(`    ${prefixedName},`);
+  });
+  
+  // Add connector classes to module context  
+  if (connectorDefMap && Object.keys(connectorDefMap).length > 0) {
+    Object.keys(connectorDefMap).forEach(connName => {
+      const prefixedName = getPackagePrefix(connName, 'CN') + connName;
+      lines.push(`    ${prefixedName},`);
+    });
+  }
+  
+  lines.push(`  };`);
+  lines.push(`  `);
+  lines.push(`  return model;`);
+  lines.push(`}`);
+  lines.push('');
   
   // Create arrays of prefixed names for exports
   const filteredValueTypes = Object.keys(embeddedTypes.valueTypes || {})

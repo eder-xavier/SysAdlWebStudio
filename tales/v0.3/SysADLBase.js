@@ -104,6 +104,62 @@ class Model extends SysADLBase {
     this.walkComponents(comp => comp.setModel(this));
     this.walkConnectors(conn => conn.setModel(this));
   }
+  
+  // Find activity associated with a port owner (component/connector)
+  findActivityByPortOwner(owner) {
+    let foundActivity = null;
+    
+    // First, try to find component with this owner name that has activityName
+    this.walkComponents(comp => {
+      if (comp.name === owner && comp.activityName) {
+        foundActivity = this._activities[comp.activityName];
+      }
+    });
+    
+    if (foundActivity) return foundActivity;
+    
+    // Then, try to find connector with this owner name that has activityName  
+    this.walkConnectors(conn => {
+      if (conn.name === owner && conn.activityName) {
+        foundActivity = this._activities[conn.activityName];
+      }
+    });
+    
+    if (foundActivity) return foundActivity;
+    
+    // Fallback: search activities that have this owner in their component property
+    for (const activity of Object.values(this._activities)) {
+      if (activity.props && activity.props.component === owner) {
+        foundActivity = activity;
+        break;
+      }
+    }
+    
+    return foundActivity;
+  }
+  
+  // Central execution engine: handle port data reception and trigger activity execution
+  handlePortReceive(owner, portName, value) {
+    try {
+      // Find the activity associated with this port owner
+      const activity = this.findActivityByPortOwner(owner);
+      
+      if (!activity) {
+        console.warn(`No activity found for port owner: ${owner}`);
+        return;
+      }
+      
+      // Trigger the activity with port data
+      if (typeof activity.trigger === 'function') {
+        activity.trigger(portName, value);
+      } else {
+        console.warn(`Activity ${activity.name} does not have trigger method`);
+      }
+      
+    } catch (error) {
+      console.error(`Error in handlePortReceive for ${owner}.${portName}:`, error);
+    }
+  }
 }
 
 class Component extends SysADLBase {
@@ -128,10 +184,41 @@ class Component extends SysADLBase {
     this.participants = [];
     this.activityName = null; // Direct reference to activity name
     this._model = null;
+    
+    // Generic schemas provided externally (no hardcoded values)
+    this.participantSchema = opts.participantSchema || {};
+    this.flowSchema = opts.flowSchema || [];
+    this.internalConnectors = opts.internalConnectors || [];
+    this.internalParticipants = {};
+    this.internalConnectorInstances = {};
+    
+    // Initialize generic structure if schema provided
+    if (Object.keys(this.participantSchema).length > 0) {
+      // Delay initialization until setModel is called
+      this._needsInitialization = true;
+    }
   }
   
   setModel(model) {
     this._model = model;
+    
+    // Store reference to module context for class resolution
+    if (model && model._moduleContext) {
+      this._moduleContext = model._moduleContext;
+    }
+    
+    // Initialize if needed now that classes are available
+    if (this._needsInitialization) {
+      this.initializeInternalParticipants();
+      this.setupInternalFlows();
+      this.setupInternalConnectors();
+      this._needsInitialization = false;
+    }
+    
+    // Set model for internal connector instances
+    Object.values(this.internalConnectorInstances).forEach(connector => {
+      connector.setModel(model);
+    });
   }
   
   // Lazy loading for activity
@@ -142,8 +229,198 @@ class Component extends SysADLBase {
   
   addParticipant(p){ this.participants.push(p); }
   
-  // Bind two ports together in this connector
-  bind(fromPort, toPort) {
+  // GENERIC: Initialize internal participants based on schema
+  initializeInternalParticipants() {
+    Object.entries(this.participantSchema).forEach(([name, schema]) => {
+      console.log(`Initializing participant ${name} with portClass ${schema.portClass}`);
+      
+      if (schema.portType === 'composite') {
+        // Create composite port
+        const CompositePortClass = this.resolvePortClass(schema.portClass);
+        console.log(`Resolved composite port class:`, CompositePortClass);
+        this.internalParticipants[name] = new CompositePortClass(name, { 
+          owner: this.name,
+          connectorRole: schema.role 
+        });
+        
+        // Initialize sub-ports for composite port
+        this.initializeSubPorts(name, schema);
+      } else {
+        // Simple port (current behavior)
+        const PortClass = this.resolvePortClass(schema.portClass);
+        console.log(`Resolved simple port class:`, PortClass);
+        console.log(`PortClass type:`, typeof PortClass);
+        console.log(`PortClass constructor:`, PortClass && PortClass.constructor);
+        
+        if (!PortClass || typeof PortClass !== 'function') {
+          console.error(`Invalid port class for ${name}: ${schema.portClass}`);
+          return;
+        }
+        
+        this.internalParticipants[name] = new PortClass(name, { 
+          owner: this.name,
+          connectorRole: schema.role 
+        });
+      }
+    });
+  }
+  
+  // GENERIC: Initialize sub-ports for composite ports
+  initializeSubPorts(participantName, schema) {
+    const compositePort = this.internalParticipants[participantName];
+    
+    if (schema.subPorts) {
+      Object.entries(schema.subPorts).forEach(([subPortName, subPortClass]) => {
+        const SubPortClass = this.resolvePortClass(subPortClass);
+        const subPort = new SubPortClass(subPortName, {
+          owner: `${this.name}.${participantName}`,
+          parent: compositePort
+        });
+        
+        compositePort.addSubPort(subPortName, subPort);
+      });
+    }
+  }
+  
+  // GENERIC: Resolve port class dynamically
+  resolvePortClass(className) {
+    console.log(`Resolving port class: ${className}`);
+    console.log(`Module context available:`, !!this._moduleContext);
+    console.log(`Module context keys:`, this._moduleContext ? Object.keys(this._moduleContext) : 'none');
+    
+    // Try different resolution strategies
+    const tryEval = () => {
+      try {
+        // Try to get from module context first
+        if (this._moduleContext && this._moduleContext[className]) {
+          console.log(`Found in module context:`, this._moduleContext[className]);
+          return this._moduleContext[className];
+        }
+        
+        // Try to get from require.cache or global context
+        const ModuleName = className;
+        if (global[ModuleName]) {
+          console.log(`Found in global:`, global[ModuleName]);
+          return global[ModuleName];
+        }
+        
+        // Try eval in different contexts
+        const result = eval(`(typeof ${ModuleName} !== 'undefined') ? ${ModuleName} : null`);
+        console.log(`Found via eval:`, result);
+        return result;
+      } catch (e) {
+        console.warn(`Could not resolve port class: ${className}`, e.message);
+        return null;
+      }
+    };
+    
+    const result = global[className] || 
+           (this._model && this._model.classRegistry && this._model.classRegistry[className]) ||
+           tryEval();
+           
+    console.log(`Final result for ${className}:`, result);
+    return result;
+  }
+  
+  // GENERIC: Setup internal flows based on schema
+  setupInternalFlows() {
+    this.flowSchema.forEach(flow => {
+      const fromParticipant = this.internalParticipants[flow.from];
+      const toParticipant = this.internalParticipants[flow.to];
+      
+      if (fromParticipant && toParticipant) {
+        fromParticipant.bindTo({
+          receive: (value, model) => {
+            // Generic validation
+            this.validateDataFlow(flow.from, flow.to, value, flow.dataType);
+            
+            // Generic logging
+            this.logInternalFlow(flow.from, flow.to, value, model);
+            
+            // Generic transformation
+            const transformedValue = this.applyTransformation(value, flow.transformation);
+            
+            toParticipant.send(transformedValue, model);
+          }
+        });
+      }
+    });
+  }
+  
+  // GENERIC: Setup internal connectors
+  setupInternalConnectors() {
+    this.internalConnectors.forEach(connectorDef => {
+      // Create instance of sub-connector
+      const ConnectorClass = this.resolveConnectorClass(connectorDef.type);
+      const connector = new ConnectorClass(connectorDef.name);
+      
+      // Configure bindings
+      connectorDef.bindings.forEach(binding => {
+        const fromPort = this.resolveInternalPort(binding.from);
+        const toPort = this.resolveInternalPort(binding.to);
+        
+        if (fromPort && toPort) {
+          connector.bind(fromPort, toPort);
+        }
+      });
+      
+      this.internalConnectorInstances[connectorDef.name] = connector;
+    });
+  }
+  
+  // GENERIC: Resolve internal ports (including sub-ports)
+  resolveInternalPort(portPath) {
+    const parts = portPath.split('.');
+    
+    if (parts.length === 2) {
+      // Format: "participant.subPort"
+      const [participantName, subPortName] = parts;
+      const participant = this.internalParticipants[participantName];
+      
+      if (participant && participant.getSubPort) {
+        return participant.getSubPort(subPortName);
+      }
+    }
+    
+    return null;
+  }
+  
+  // GENERIC: Resolve connector class
+  resolveConnectorClass(className) {
+    return global[className] || 
+           (this._model && this._model.classRegistry && this._model.classRegistry[className]) ||
+           eval(className);
+  }
+  
+  // GENERIC: Bind external ports with validation
+  bind(externalFromPort, externalToPort) {
+    const participants = Object.keys(this.participantSchema);
+    
+    if (participants.length === 0) {
+      // Fallback to legacy behavior if no schema
+      return this.bindLegacy(externalFromPort, externalToPort);
+    }
+    
+    // Generic strategy: first participant = source, second = target
+    const fromParticipantName = participants[0];
+    const toParticipantName = participants[1];
+    
+    // Handle composite ports
+    if (this.participantSchema[fromParticipantName]?.portType === 'composite') {
+      this.bindCompositePort(fromParticipantName, externalFromPort);
+    } else {
+      this.performBinding(fromParticipantName, externalFromPort, 'source');
+    }
+    
+    if (this.participantSchema[toParticipantName]?.portType === 'composite') {
+      this.bindCompositePort(toParticipantName, externalToPort);
+    } else {
+      this.performBinding(toParticipantName, externalToPort, 'target');
+    }
+  }
+  
+  // LEGACY: Maintain compatibility for connectors without schema
+  bindLegacy(fromPort, toPort) {
     if (!fromPort || !toPort) return;
     this.participants = this.participants || [];
     
@@ -154,6 +431,156 @@ class Component extends SysADLBase {
     if (!this.participants.some(p => p === toPort)) {
       this.participants.push(toPort);
     }
+  }
+  
+  // GENERIC: Perform binding based on direction
+  performBinding(participantName, externalPort, bindingDirection) {
+    if (!externalPort || !this.internalParticipants[participantName]) return;
+    
+    // Validate port compatibility
+    this.validatePortBinding(participantName, externalPort);
+    
+    if (bindingDirection === 'source') {
+      externalPort.bindTo(this.internalParticipants[participantName]);
+    } else {
+      this.internalParticipants[participantName].bindTo(externalPort);
+    }
+  }
+  
+  // GENERIC: Bind composite ports
+  bindCompositePort(participantName, externalCompositePort) {
+    const schema = this.participantSchema[participantName];
+    const internalCompositePort = this.internalParticipants[participantName];
+    
+    // Validate composite port compatibility
+    this.validateCompositePortBinding(participantName, externalCompositePort);
+    
+    // Bind composite ports
+    if (schema.role === 'source' || schema.direction === 'out') {
+      externalCompositePort.bindTo(internalCompositePort);
+    } else {
+      internalCompositePort.bindTo(externalCompositePort);
+    }
+  }
+  
+  // GENERIC: Validate port binding
+  validatePortBinding(participantName, externalPort) {
+    if (!externalPort) return;
+    
+    const schema = this.participantSchema[participantName];
+    if (!schema) {
+      throw new Error(`Unknown participant: ${participantName} in connector ${this.name}`);
+    }
+    
+    const validations = [
+      {
+        condition: () => externalPort.constructor.name === schema.portClass,
+        message: `Expected ${schema.portClass}, got ${externalPort.constructor.name}`
+      },
+      {
+        condition: () => externalPort.direction === schema.direction,
+        message: `Expected direction '${schema.direction}', got '${externalPort.direction}'`
+      },
+      {
+        condition: () => this.validateDataType(externalPort.expectedType, schema.dataType),
+        message: `Expected data type '${schema.dataType}', got '${externalPort.expectedType}'`
+      }
+    ];
+    
+    validations.forEach(validation => {
+      if (!validation.condition()) {
+        throw new TypeError(`${this.name}.${participantName}: ${validation.message}`);
+      }
+    });
+  }
+  
+  // GENERIC: Validate composite port binding
+  validateCompositePortBinding(participantName, externalPort) {
+    const schema = this.participantSchema[participantName];
+    
+    if (!externalPort.isComposite) {
+      throw new TypeError(
+        `Connector ${this.name}: Expected composite port for ${participantName}, ` +
+        `but got simple port`
+      );
+    }
+    
+    // Verify sub-port compatibility
+    if (schema.subPorts) {
+      Object.entries(schema.subPorts).forEach(([subPortName, expectedClass]) => {
+        const externalSubPort = externalPort.getSubPort(subPortName);
+        if (externalSubPort && externalSubPort.constructor.name !== expectedClass) {
+          throw new TypeError(
+            `Connector ${this.name}: Sub-port ${participantName}.${subPortName} ` +
+            `expected ${expectedClass}, got ${externalSubPort.constructor.name}`
+          );
+        }
+      });
+    }
+  }
+  
+  // GENERIC: Validate data type (delegated to model)
+  validateDataType(actualType, expectedType) {
+    const normalizedExpected = this.normalizeTypeName(expectedType);
+    return actualType === normalizedExpected || 
+           actualType === expectedType;
+  }
+  
+  // GENERIC: Normalize type names using model registry
+  normalizeTypeName(sysadlTypeName) {
+    // Use model's type registry (injected externally)
+    if (this._model && this._model.typeRegistry) {
+      return this._model.typeRegistry[sysadlTypeName] || sysadlTypeName;
+    }
+    return sysadlTypeName;
+  }
+  
+  // GENERIC: Validate data flow (delegated to model)
+  validateDataFlow(fromParticipant, toParticipant, value, expectedType) {
+    if (!this.isValidDataType(value, expectedType)) {
+      throw new TypeError(
+        `Connector ${this.name}: Invalid data type in flow from ${fromParticipant} to ${toParticipant}. ` +
+        `Expected ${expectedType}, got ${typeof value} (${value})`
+      );
+    }
+  }
+  
+  // GENERIC: Type validation using model validators
+  isValidDataType(value, expectedType) {
+    // Use validators from model (injected externally)
+    if (this._model && this._model.typeValidators) {
+      const validator = this._model.typeValidators[expectedType];
+      return validator ? validator(value) : true; // Default: accept any value
+    }
+    
+    // Generic fallback
+    return value !== undefined && value !== null;
+  }
+  
+  // GENERIC: Apply transformations using model registry
+  applyTransformation(value, transformationName) {
+    if (!transformationName) return value;
+    
+    // Use transformation registry from model (injected externally)
+    if (this._model && this._model.transformationRegistry) {
+      const transformation = this._model.transformationRegistry[transformationName];
+      return transformation ? transformation(value) : value;
+    }
+    
+    return value; // No transformation if not registered
+  }
+  
+  // GENERIC: Log internal flows
+  logInternalFlow(from, to, value, model) {
+    model?.logEvent({
+      elementType: 'connector_flow',
+      connector: this.name,
+      from: from,
+      to: to,
+      value: value,
+      dataType: typeof value,
+      when: Date.now()
+    });
   }
 }
 
@@ -415,6 +842,42 @@ class Action extends BehavioralElement {
 
     return result;
   }
+  
+  // Execute action with pin mapping (used by Activity.trigger)
+  execute(pinMap) {
+    try {
+      // Use delegates to map pins to executable parameters
+      const executableParams = {};
+      
+      // If action has delegates, use them to map pins to parameters
+      if (this.props && this.props.delegates) {
+        for (const delegate of this.props.delegates) {
+          if (pinMap.hasOwnProperty(delegate.from)) {
+            executableParams[delegate.to] = pinMap[delegate.from];
+          }
+        }
+      } else {
+        // If no delegates, use pin names directly as parameter names
+        Object.assign(executableParams, pinMap);
+      }
+      
+      // Execute all registered executables with mapped parameters
+      let result;
+      for (const executable of this.executables) {
+        if (typeof executable.execute === 'function') {
+          result = executable.execute(executableParams);
+        } else if (typeof executable.executableFunction === 'function') {
+          result = executable.executableFunction(executableParams);
+        }
+      }
+      
+      return result;
+      
+    } catch (error) {
+      console.error(`Error executing action ${this.name}:`, error);
+      return null;
+    }
+  }
 }
 
 // Enhanced Activity class with pins as parameters
@@ -475,6 +938,51 @@ class Activity extends BehavioralElement {
       });
     }
     return last;
+  }
+  
+  // Map port name to corresponding pin using delegates
+  mapPortToPin(portName) {
+    if (!this.props || !this.props.delegates) {
+      return portName; // fallback to port name itself
+    }
+    
+    // Look for delegate that maps this port to a pin
+    for (const delegate of this.props.delegates) {
+      if (delegate.from === portName) {
+        return delegate.to;
+      }
+    }
+    
+    // If no mapping found, return port name as pin name
+    return portName;
+  }
+  
+  // Trigger activity execution from port data reception
+  trigger(portName, value) {
+    try {
+      // Map port name to pin using delegates
+      const pinName = this.mapPortToPin(portName);
+      
+      // Create pin mapping for action execution
+      const pinMap = { [pinName]: value };
+      
+      // Execute all actions in this activity with the pin data
+      let lastResult = null;
+      for (const action of this.actions) {
+        if (typeof action.execute === 'function') {
+          lastResult = action.execute(pinMap);
+        } else if (typeof action.invoke === 'function') {
+          // Fallback to existing invoke method
+          lastResult = action.invoke([value]);
+        }
+      }
+      
+      return lastResult;
+      
+    } catch (error) {
+      console.error(`Error triggering activity ${this.name} with port ${portName}:`, error);
+      return null;
+    }
   }
 }
 

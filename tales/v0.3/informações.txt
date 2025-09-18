@@ -18,18 +18,38 @@ DB_     DataBuffer      DB_                         -
 RQ_     Requirements    RQ_                         -
 
 
-DT_	    DataType	    
-EN_	    Enum	        
-VT_	    ValueType	     	
-DM_ 	Dimension	    
-UN_	    Unit	         
-CP_	    Component	     
-PT_	    Port	         
-CN_	    Connector	     
-AC_	    Activity	     
-AN_	    Action	         
-EX_	    Executable	     
-PI_     Pins             
-CT_     Constraints      
-DB_     DataBuffer       
-RQ_     Requirements    
+DT_	    DataType	    DT_<PackageName>_<ElementName>
+EN_	    Enum	        EN_<PackageName>_<ElementName>
+VT_	    ValueType	    VT_<PackageName>_<ElementName>	
+DM_ 	Dimension	    DM_<PackageName>_<ElementName>
+UN_	    Unit	        UN_<PackageName>_<ElementName>
+CP_	    Component	    CP_<PackageName>_<ElementName>
+PT_	    Port	        PT_<PackageName>_<ElementName>
+CN_	    Connector	    CN_<PackageName>_<ElementName>
+AC_	    Activity	    AC_<PackageName>_<ElementName>
+AN_	    Action	        AN_<PackageName>_<ElementName>
+EX_	    Executable	    EX_<PackageName>_<ElementName>
+PI_     Pins            PI_<PackageName>_<ElementName>
+CT_     Constraints     CT_<PackageName>_<ElementName>
+DB_     DataBuffer      DB_<PackageName>_<ElementName>
+RQ_     Requirements    RQ_<PackageName>_<ElementName>
+PR_     Protocols       PR_<PackageName>_<ElementName>
+
+NOVA CONVENÇÃO DE NOMENCLATURA (v0.3+):
+═══════════════════════════════════════════════════════════════
+Para evitar conflitos entre packages, todos os elementos transformados 
+para JavaScript devem incluir o nome do package além do prefixo:
+
+Formato: <PREFIXO>_<PACKAGE>_<ELEMENTO>
+
+Exemplos:
+- Package: SmartHome, Component: AirConditioner → CP_SmartHome_AirConditioner
+- Package: Industrial, Enum: States → EN_Industrial_States  
+- Package: Sensors, ValueType: Temperature → VT_Sensors_Temperature
+- Package: Control, Activity: Monitor → AC_Control_Monitor
+
+Benefícios:
+✅ Elimina conflitos entre packages diferentes
+✅ Facilita identificação da origem do elemento
+✅ Mantém namespace claro e organizado
+✅ Permite reutilização segura de nomes

@@ -23,21 +23,59 @@ class PT_Elements_FTempOPT extends SimplePort {
 
 // Connectors
 class CN_Elements_FarToCelCN extends Connector {
-  constructor(name, fromPort, toPort, opts = {}) {
-    super(name, opts);
-    // Flows: Real from f to c
-    if (fromPort && toPort) {
-      this.bind(fromPort, toPort);
-    }
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      participantSchema: {
+        f: {
+          portClass: 'PT_Elements_FTempOPT',
+          direction: 'out',
+          dataType: 'Real',
+          role: 'source'
+        },
+        c: {
+          portClass: 'PT_Elements_CTempIPT',
+          direction: 'out',
+          dataType: 'Real',
+          role: 'target'
+        }
+      },
+      flowSchema: [
+        {
+          from: 'f',
+          to: 'c',
+          dataType: 'Real'
+        }
+      ]
+    });
   }
 }
 class CN_Elements_CelToCelCN extends Connector {
-  constructor(name, fromPort, toPort, opts = {}) {
-    super(name, opts);
-    // Flows: Real from c1 to c2
-    if (fromPort && toPort) {
-      this.bind(fromPort, toPort);
-    }
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      participantSchema: {
+        c1: {
+          portClass: 'PT_Elements_CTempOPT',
+          direction: 'out',
+          dataType: 'Real',
+          role: 'source'
+        },
+        c2: {
+          portClass: 'PT_Elements_CTempIPT',
+          direction: 'out',
+          dataType: 'Real',
+          role: 'target'
+        }
+      },
+      flowSchema: [
+        {
+          from: 'c1',
+          to: 'c2',
+          dataType: 'Real'
+        }
+      ]
+    });
   }
 }
 
@@ -202,9 +240,15 @@ class SysADLModel extends Model {
     this.SystemCP.tempMon = new CP_Elements_TempMonitorCP("tempMon", { isBoundary: true, sysadlDefinition: "TempMonitorCP" });
     this.SystemCP.addComponent(this.SystemCP.tempMon);
 
-    this.SystemCP.addConnector(new CN_Elements_FarToCelCN("c1", this.getPort("temp1"), this.SystemCP.tempMon.getPort("s1")));
-    this.SystemCP.addConnector(new CN_Elements_FarToCelCN("c2", this.getPort("temp2"), this.SystemCP.tempMon.getPort("s2")));
-    this.SystemCP.addConnector(new CN_Elements_CelToCelCN("c3", this.SystemCP.tempMon.getPort("average"), this.getPort("avg")));
+    this.SystemCP.addConnector(new CN_Elements_FarToCelCN("c1"));
+    const c1 = this.SystemCP.connectors["c1"];
+    c1.bind(this.getPort("temp1"), this.SystemCP.tempMon.getPort("s1"));
+    this.SystemCP.addConnector(new CN_Elements_FarToCelCN("c2"));
+    const c2 = this.SystemCP.connectors["c2"];
+    c2.bind(this.getPort("temp2"), this.SystemCP.tempMon.getPort("s2"));
+    this.SystemCP.addConnector(new CN_Elements_CelToCelCN("c3"));
+    const c3 = this.SystemCP.connectors["c3"];
+    c3.bind(this.SystemCP.tempMon.getPort("average"), this.getPort("avg"));
 
     const act_FarToCelAC_FarToCelCN = new AC_Elements_FarToCelAC("FarToCelAC", { component: "FarToCelCN", inputPorts: [], delegates: [{"from":"far","to":"far"},{"from":"cel","to":"ftoc"}] });
     const action_FarToCelAN_FarToCelAC_FarToCelCN = new AN_Elements_FarToCelAN("FarToCelAN", { delegates: [{"from":"far","to":"f"},{"from":"FarToCelAN","to":"c"}] });
@@ -274,5 +318,39 @@ class SysADLModel extends Model {
 }
 
 const __portAliases = {};
-function createModel(){ return new SysADLModel(); }
+function createModel(){ 
+  const model = new SysADLModel();
+  
+  // Generic registries for connector validation and transformations
+  model.transformationRegistry = {
+    // Common temperature conversions
+    fahrenheitToCelsius: (f) => (f - 32) * 5/9,
+    celsiusToFahrenheit: (c) => (c * 9/5) + 32
+  };
+  
+  model.typeValidators = {
+    'FahrenheitTemperature': (v) => typeof v === 'number' && v >= -459.67,
+    'CelsiusTemperature': (v) => typeof v === 'number' && v >= -273.15,
+    'Boolean': (v) => typeof v === 'boolean',
+    'Command': (v) => ['On', 'Off'].includes(v),
+    'Int': (v) => typeof v === 'number' && Number.isInteger(v),
+    'Real': (v) => typeof v === 'number',
+    'String': (v) => typeof v === 'string'
+  };
+  
+  model.typeRegistry = {
+  };
+  
+  // Module context for class resolution
+  model._moduleContext = {
+    PT_Elements_CTempIPT,
+    PT_Elements_CTempOPT,
+    PT_Elements_FTempOPT,
+    CN_Elements_FarToCelCN,
+    CN_Elements_CelToCelCN,
+  };
+  
+  return model;
+}
+
 module.exports = { createModel, SysADLModel, __portAliases, PT_Elements_CTempIPT, PT_Elements_CTempOPT, PT_Elements_FTempOPT };

@@ -52,39 +52,115 @@ class PT_Ports_CTemperatureOPT extends SimplePort {
 
 // Connectors
 class CN_Connectors_FahrenheitToCelsiusCN extends Connector {
-  constructor(name, fromPort, toPort, opts = {}) {
-    super(name, opts);
-    // Flows: FahrenheitTemperature from Ft to Ct
-    if (fromPort && toPort) {
-      this.bind(fromPort, toPort);
-    }
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      participantSchema: {
+        Ft: {
+          portClass: 'PT_Ports_FTemperatureOPT',
+          direction: 'out',
+          dataType: 'FahrenheitTemperature',
+          role: 'source'
+        },
+        Ct: {
+          portClass: 'PT_Ports_CTemperatureIPT',
+          direction: 'out',
+          dataType: 'FahrenheitTemperature',
+          role: 'target'
+        }
+      },
+      flowSchema: [
+        {
+          from: 'Ft',
+          to: 'Ct',
+          dataType: 'FahrenheitTemperature'
+        }
+      ]
+    });
   }
 }
 class CN_Connectors_PresenceCN extends Connector {
-  constructor(name, fromPort, toPort, opts = {}) {
-    super(name, opts);
-    // Flows: Boolean from pOut to pIn
-    if (fromPort && toPort) {
-      this.bind(fromPort, toPort);
-    }
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      participantSchema: {
+        pOut: {
+          portClass: 'PT_Ports_PresenceOPT',
+          direction: 'out',
+          dataType: 'Boolean',
+          role: 'source'
+        },
+        pIn: {
+          portClass: 'PT_Ports_PresenceIPT',
+          direction: 'out',
+          dataType: 'Boolean',
+          role: 'target'
+        }
+      },
+      flowSchema: [
+        {
+          from: 'pOut',
+          to: 'pIn',
+          dataType: 'Boolean'
+        }
+      ]
+    });
   }
 }
 class CN_Connectors_CommandCN extends Connector {
-  constructor(name, fromPort, toPort, opts = {}) {
-    super(name, opts);
-    // Flows: Command from commandOut to commandIn
-    if (fromPort && toPort) {
-      this.bind(fromPort, toPort);
-    }
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      participantSchema: {
+        commandOut: {
+          portClass: 'PT_Ports_CommandOPT',
+          direction: 'out',
+          dataType: 'Command',
+          role: 'source'
+        },
+        commandIn: {
+          portClass: 'PT_Ports_CommandIPT',
+          direction: 'out',
+          dataType: 'Command',
+          role: 'target'
+        }
+      },
+      flowSchema: [
+        {
+          from: 'commandOut',
+          to: 'commandIn',
+          dataType: 'Command'
+        }
+      ]
+    });
   }
 }
 class CN_Connectors_CTemperatureCN extends Connector {
-  constructor(name, fromPort, toPort, opts = {}) {
-    super(name, opts);
-    // Flows: CelsiusTemperature from CtOut to ctIn
-    if (fromPort && toPort) {
-      this.bind(fromPort, toPort);
-    }
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      participantSchema: {
+        CtOut: {
+          portClass: 'PT_Ports_CTemperatureOPT',
+          direction: 'out',
+          dataType: 'CelsiusTemperature',
+          role: 'source'
+        },
+        ctIn: {
+          portClass: 'PT_Ports_CTemperatureIPT',
+          direction: 'out',
+          dataType: 'CelsiusTemperature',
+          role: 'target'
+        }
+      },
+      flowSchema: [
+        {
+          from: 'CtOut',
+          to: 'ctIn',
+          dataType: 'CelsiusTemperature'
+        }
+      ]
+    });
   }
 }
 
@@ -533,14 +609,30 @@ class SysADLModel extends Model {
     this.RTCSystemCFD.rtc.sm = new CP_Components_SensorsMonitorCP("sm", { sysadlDefinition: "SensorsMonitorCP" });
     this.RTCSystemCFD.rtc.addComponent(this.RTCSystemCFD.rtc.sm);
 
-    this.RTCSystemCFD.rtc.addConnector(new CN_Connectors_CTemperatureCN("target", this.RTCSystemCFD.rtc.pc.getPort("target"), this.RTCSystemCFD.rtc.cm.getPort("target2")));
-    this.RTCSystemCFD.rtc.addConnector(new CN_Connectors_CTemperatureCN("average", this.RTCSystemCFD.rtc.sm.getPort("average"), this.RTCSystemCFD.rtc.cm.getPort("average2")));
-    this.RTCSystemCFD.addConnector(new CN_Connectors_FahrenheitToCelsiusCN("c1", this.getPort("current1"), this.RTCSystemCFD.rtc.getPort("localtemp1")));
-    this.RTCSystemCFD.addConnector(new CN_Connectors_CTemperatureCN("uc", this.RTCSystemCFD.ui.getPort("desired"), this.RTCSystemCFD.rtc.pc.getPort("userTemp")));
-    this.RTCSystemCFD.addConnector(new CN_Connectors_CommandCN("cc2", this.RTCSystemCFD.rtc.cm.getPort("cooling"), this.RTCSystemCFD.a2.getPort("controllerC")));
-    this.RTCSystemCFD.addConnector(new CN_Connectors_PresenceCN("pc", this.getPort("detectedS"), this.RTCSystemCFD.s3.getPort("detected")));
-    this.RTCSystemCFD.addConnector(new CN_Connectors_FahrenheitToCelsiusCN("c2", this.getPort("current2"), this.RTCSystemCFD.rtc.getPort("localTemp2")));
-    this.RTCSystemCFD.addConnector(new CN_Connectors_CommandCN("cc1", this.RTCSystemCFD.rtc.cm.getPort("heating"), this.RTCSystemCFD.a1.getPort("controllerH")));
+    this.RTCSystemCFD.rtc.addConnector(new CN_Connectors_CTemperatureCN("target"));
+    const target = this.RTCSystemCFD.rtc.connectors["target"];
+    target.bind(this.RTCSystemCFD.rtc.pc.getPort("target"), this.RTCSystemCFD.rtc.cm.getPort("target2"));
+    this.RTCSystemCFD.rtc.addConnector(new CN_Connectors_CTemperatureCN("average"));
+    const average = this.RTCSystemCFD.rtc.connectors["average"];
+    average.bind(this.RTCSystemCFD.rtc.sm.getPort("average"), this.RTCSystemCFD.rtc.cm.getPort("average2"));
+    this.RTCSystemCFD.addConnector(new CN_Connectors_FahrenheitToCelsiusCN("c1"));
+    const c1 = this.RTCSystemCFD.connectors["c1"];
+    c1.bind(this.getPort("current1"), this.RTCSystemCFD.rtc.getPort("localtemp1"));
+    this.RTCSystemCFD.addConnector(new CN_Connectors_CTemperatureCN("uc"));
+    const uc = this.RTCSystemCFD.connectors["uc"];
+    uc.bind(this.RTCSystemCFD.ui.getPort("desired"), this.RTCSystemCFD.rtc.pc.getPort("userTemp"));
+    this.RTCSystemCFD.addConnector(new CN_Connectors_CommandCN("cc2"));
+    const cc2 = this.RTCSystemCFD.connectors["cc2"];
+    cc2.bind(this.RTCSystemCFD.rtc.cm.getPort("cooling"), this.RTCSystemCFD.a2.getPort("controllerC"));
+    this.RTCSystemCFD.addConnector(new CN_Connectors_PresenceCN("pc"));
+    const pc = this.RTCSystemCFD.connectors["pc"];
+    pc.bind(this.getPort("detectedS"), this.RTCSystemCFD.s3.getPort("detected"));
+    this.RTCSystemCFD.addConnector(new CN_Connectors_FahrenheitToCelsiusCN("c2"));
+    const c2 = this.RTCSystemCFD.connectors["c2"];
+    c2.bind(this.getPort("current2"), this.RTCSystemCFD.rtc.getPort("localTemp2"));
+    this.RTCSystemCFD.addConnector(new CN_Connectors_CommandCN("cc1"));
+    const cc1 = this.RTCSystemCFD.connectors["cc1"];
+    cc1.bind(this.RTCSystemCFD.rtc.cm.getPort("heating"), this.RTCSystemCFD.a1.getPort("controllerH"));
 
     const act_CalculateAverageTemperatureAC_SensorsMonitorCP = new AC_Components_CalculateAverageTemperatureAC("CalculateAverageTemperatureAC", { component: "SensorsMonitorCP", inputPorts: [], delegates: [{"from":"s1","to":"s1"},{"from":"s2","to":"s2"},{"from":"average","to":"CalcAvTemp"}] });
     const action_CalculateAverageTemperatureAN_CalculateAverageTemperatureAC_SensorsMonitorCP = new AN_Components_CalculateAverageTemperatureAN("CalculateAverageTemperatureAN", { delegates: [] });
@@ -660,5 +752,49 @@ class SysADLModel extends Model {
 }
 
 const __portAliases = {};
-function createModel(){ return new SysADLModel(); }
+function createModel(){ 
+  const model = new SysADLModel();
+  
+  // Generic registries for connector validation and transformations
+  model.transformationRegistry = {
+    // Common temperature conversions
+    fahrenheitToCelsius: (f) => (f - 32) * 5/9,
+    celsiusToFahrenheit: (c) => (c * 9/5) + 32
+  };
+  
+  model.typeValidators = {
+    'FahrenheitTemperature': (v) => typeof v === 'number' && v >= -459.67,
+    'CelsiusTemperature': (v) => typeof v === 'number' && v >= -273.15,
+    'Boolean': (v) => typeof v === 'boolean',
+    'Command': (v) => ['On', 'Off'].includes(v),
+    'Int': (v) => typeof v === 'number' && Number.isInteger(v),
+    'Real': (v) => typeof v === 'number',
+    'String': (v) => typeof v === 'string'
+  };
+  
+  model.typeRegistry = {
+    'temperature': 'VT_types_temperature',
+    'FahrenheitTemperature': 'VT_types_FahrenheitTemperature',
+    'CelsiusTemperature': 'VT_types_CelsiusTemperature',
+    'Command': 'EN_types_Command',
+  };
+  
+  // Module context for class resolution
+  model._moduleContext = {
+    PT_Ports_FTemperatureOPT,
+    PT_Ports_PresenceIPT,
+    PT_Ports_PresenceOPT,
+    PT_Ports_CTemperatureIPT,
+    PT_Ports_CommandIPT,
+    PT_Ports_CommandOPT,
+    PT_Ports_CTemperatureOPT,
+    CN_Connectors_FahrenheitToCelsiusCN,
+    CN_Connectors_PresenceCN,
+    CN_Connectors_CommandCN,
+    CN_Connectors_CTemperatureCN,
+  };
+  
+  return model;
+}
+
 module.exports = { createModel, SysADLModel, __portAliases, VT_types_temperature, VT_types_FahrenheitTemperature, VT_types_CelsiusTemperature, EN_types_Command, DT_types_Commands, DM_types_Temperature, UN_types_Celsius, UN_types_Fahrenheit, PT_Ports_FTemperatureOPT, PT_Ports_PresenceIPT, PT_Ports_PresenceOPT, PT_Ports_CTemperatureIPT, PT_Ports_CommandIPT, PT_Ports_CommandOPT, PT_Ports_CTemperatureOPT };

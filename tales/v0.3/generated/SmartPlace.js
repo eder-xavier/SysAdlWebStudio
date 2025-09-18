@@ -192,96 +192,249 @@ class PT_SmartPlacePorts_ContextI2O extends CompositePort {
 
 // Connectors
 class CN_SmartPlaceConnectors_UndefinedCN extends Connector {
-  constructor(name, fromPort, toPort, opts = {}) {
-    super(name, opts);
-    // Flows: Void from undO to undI
-    if (fromPort && toPort) {
-      this.bind(fromPort, toPort);
-    }
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      participantSchema: {
+        undO: {
+          portClass: 'PT_SmartPlacePorts_UndefinedOPT',
+          direction: 'out',
+          dataType: 'Void',
+          role: 'source'
+        },
+        undI: {
+          portClass: 'PT_SmartPlacePorts_UndefinedIPT',
+          direction: 'out',
+          dataType: 'Void',
+          role: 'target'
+        }
+      },
+      flowSchema: [
+        {
+          from: 'undO',
+          to: 'undI',
+          dataType: 'Void'
+        }
+      ]
+    });
   }
 }
 class CN_SmartPlaceConnectors_SendValueCN extends Connector {
-  constructor(name, fromPort, toPort, opts = {}) {
-    super(name, opts);
-    // Flows: Int from vO to vI
-    if (fromPort && toPort) {
-      this.bind(fromPort, toPort);
-    }
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      participantSchema: {
+        vO: {
+          portClass: 'PT_SmartPlacePorts_ValueOPT',
+          direction: 'out',
+          dataType: 'Int',
+          role: 'source'
+        },
+        vI: {
+          portClass: 'PT_SmartPlacePorts_ValueIPT',
+          direction: 'out',
+          dataType: 'Int',
+          role: 'target'
+        }
+      },
+      flowSchema: [
+        {
+          from: 'vO',
+          to: 'vI',
+          dataType: 'Int'
+        }
+      ]
+    });
   }
 }
 class CN_SmartPlaceConnectors_InfraCodeCN extends Connector {
-  constructor(name, fromPort, toPort, opts = {}) {
-    super(name, opts);
-    // Flows: InfraredCode from cmdO to cmdI
-    if (fromPort && toPort) {
-      this.bind(fromPort, toPort);
-    }
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      participantSchema: {
+        cmdI: {
+          portClass: 'PT_SmartPlacePorts_CommandIPT',
+          direction: 'out',
+          dataType: 'InfraredCode',
+          role: 'source'
+        },
+        cmdO: {
+          portClass: 'PT_SmartPlacePorts_CommandOPT',
+          direction: 'out',
+          dataType: 'InfraredCode',
+          role: 'target'
+        }
+      },
+      flowSchema: [
+        {
+          from: 'cmdO',
+          to: 'cmdI',
+          dataType: 'InfraredCode'
+        }
+      ]
+    });
   }
 }
 class CN_SmartPlaceConnectors_CmdRestfulCN extends Connector {
-  constructor(name, fromPort, toPort, opts = {}) {
-    super(name, opts);
-    // Flows: RestFulRaspeberry from restO to restI
-    if (fromPort && toPort) {
-      this.bind(fromPort, toPort);
-    }
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      participantSchema: {
+        restI: {
+          portClass: 'PT_SmartPlacePorts_RestfulRaspberryIPT',
+          direction: 'out',
+          dataType: 'RestFulRaspeberry',
+          role: 'source'
+        },
+        restO: {
+          portClass: 'PT_SmartPlacePorts_RestfulRaspberryOPT',
+          direction: 'out',
+          dataType: 'RestFulRaspeberry',
+          role: 'target'
+        }
+      },
+      flowSchema: [
+        {
+          from: 'restO',
+          to: 'restI',
+          dataType: 'RestFulRaspeberry'
+        }
+      ]
+    });
   }
 }
 class CN_SmartPlaceConnectors_SendReservationInfoCN extends Connector {
-  constructor(name, fromPort, toPort, opts = {}) {
-    super(name, opts);
-    // Flows: Boolean from rRespO to rrRespI
-    if (fromPort && toPort) {
-      this.bind(fromPort, toPort);
-    }
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      participantSchema: {
+        rrRespI: {
+          portClass: 'PT_SmartPlacePorts_ValueIPT',
+          direction: 'out',
+          dataType: 'Boolean',
+          role: 'source'
+        },
+        rRespO: {
+          portClass: 'PT_SmartPlacePorts_ValueOPT',
+          direction: 'out',
+          dataType: 'Boolean',
+          role: 'target'
+        }
+      },
+      flowSchema: [
+        {
+          from: 'rRespO',
+          to: 'rrRespI',
+          dataType: 'Boolean'
+        }
+      ]
+    });
   }
 }
 class CN_SmartPlaceConnectors_RequestCN extends Connector {
-  constructor(name, fromPort, toPort, opts = {}) {
-    super(name, opts);
-    // Flows: String from rReqO to rReqI
-    if (fromPort && toPort) {
-      this.bind(fromPort, toPort);
-    }
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      participantSchema: {
+        rReqO: {
+          portClass: 'PT_SmartPlacePorts_RequestOPT',
+          direction: 'out',
+          dataType: 'String',
+          role: 'source'
+        },
+        rReqI: {
+          portClass: 'PT_SmartPlacePorts_RequestIPT',
+          direction: 'out',
+          dataType: 'String',
+          role: 'target'
+        }
+      },
+      flowSchema: [
+        {
+          from: 'rReqO',
+          to: 'rReqI',
+          dataType: 'String'
+        }
+      ]
+    });
   }
 }
 class CN_SmartPlaceConnectors_SendContextCN extends Connector {
-  constructor(name, fromPort, toPort, opts = {}) {
-    super(name, opts);
-    // Flows: ContextInformation from ciO to ciI
-    if (fromPort && toPort) {
-      this.bind(fromPort, toPort);
-    }
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      participantSchema: {
+        ciI: {
+          portClass: 'PT_SmartPlacePorts_ContextInformationIPT',
+          direction: 'out',
+          dataType: 'ContextInformation',
+          role: 'source'
+        },
+        ciO: {
+          portClass: 'PT_SmartPlacePorts_ContextInformationOPT',
+          direction: 'out',
+          dataType: 'ContextInformation',
+          role: 'target'
+        }
+      },
+      flowSchema: [
+        {
+          from: 'ciO',
+          to: 'ciI',
+          dataType: 'ContextInformation'
+        }
+      ]
+    });
   }
 }
 class CN_SmartPlaceConnectors_InfraredSignalCN extends Connector {
-  constructor(name, fromPort, toPort, opts = {}) {
-    super(name, opts);
-    // Flows: Void from isO to isI
-    if (fromPort && toPort) {
-      this.bind(fromPort, toPort);
-    }
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      participantSchema: {
+        isI: {
+          portClass: 'PT_SmartPlacePorts_InfraredSignalIPT',
+          direction: 'out',
+          dataType: 'Void',
+          role: 'source'
+        },
+        isO: {
+          portClass: 'PT_SmartPlacePorts_InfraredSignalOPT',
+          direction: 'out',
+          dataType: 'Void',
+          role: 'target'
+        }
+      },
+      flowSchema: [
+        {
+          from: 'isO',
+          to: 'isI',
+          dataType: 'Void'
+        }
+      ]
+    });
   }
 }
 class CN_SmartPlaceConnectors_ReservationCN extends Connector {
-  constructor(name, opts = {}) {
+  constructor(name, port1, port2, opts = {}) {
     super(name, opts);
     // Composite connector with internal connectors
+    this.port1 = port1;
+    this.port2 = port2;
     this.rri = new CN_SmartPlaceConnectors_RequestCN("rri");
     this.sri = new CN_SmartPlaceConnectors_SendReservationInfoCN("sri");
     
     // Extract sub-ports and bind to internal connectors
-    if (arguments.length > 1) {
-      const portArgs = Array.from(arguments).slice(1, -1); // exclude name and opts
+    if (port1 && port2) {
       // RequestCN: rReqO -> rReqI
       this.rri.bind(
-        portArgs[0] && portArgs[0].getSubPort('rReqO'),
-        portArgs[1] && portArgs[1].getSubPort('rReqI')
+        this.port1.getSubPort('rReqO'),
+        this.port2.getSubPort('rReqI')
       );
       // SendReservationInfoCN: rRespO -> rrRespI
       this.sri.bind(
-        portArgs[0] && portArgs[0].getSubPort('rRespO'),
-        portArgs[1] && portArgs[1].getSubPort('rrRespI')
+        this.port1.getSubPort('rRespO'),
+        this.port2.getSubPort('rrRespI')
       );
     }
     
@@ -292,24 +445,25 @@ class CN_SmartPlaceConnectors_ReservationCN extends Connector {
   }
 }
 class CN_SmartPlaceConnectors_QueryDataBaseCN extends Connector {
-  constructor(name, opts = {}) {
+  constructor(name, port1, port2, opts = {}) {
     super(name, opts);
     // Composite connector with internal connectors
+    this.port1 = port1;
+    this.port2 = port2;
     this.req = new CN_SmartPlaceConnectors_RequestCN("req");
     this.resp = new CN_SmartPlaceConnectors_SendPostgreSQLInfoCN("resp");
     
     // Extract sub-ports and bind to internal connectors
-    if (arguments.length > 1) {
-      const portArgs = Array.from(arguments).slice(1, -1); // exclude name and opts
+    if (port1 && port2) {
       // RequestCN: rReqO -> rReqI
       this.req.bind(
-        portArgs[0] && portArgs[0].getSubPort('rReqO'),
-        portArgs[1] && portArgs[1].getSubPort('rReqI')
+        this.port1.getSubPort('rReqO'),
+        this.port2.getSubPort('rReqI')
       );
       // SendPostgreSQLInfoCN: psqlO -> psqlI
       this.resp.bind(
-        portArgs[0] && portArgs[0].getSubPort('psqlO'),
-        portArgs[1] && portArgs[1].getSubPort('psqlI')
+        this.port1.getSubPort('psqlO'),
+        this.port2.getSubPort('psqlI')
       );
     }
     
@@ -320,51 +474,109 @@ class CN_SmartPlaceConnectors_QueryDataBaseCN extends Connector {
   }
 }
 class CN_SmartPlaceConnectors_SendPostgreSQLInfoCN extends Connector {
-  constructor(name, fromPort, toPort, opts = {}) {
-    super(name, opts);
-    // Flows: String from psqlO to psqlI
-    if (fromPort && toPort) {
-      this.bind(fromPort, toPort);
-    }
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      participantSchema: {
+        psqlO: {
+          portClass: 'PT_SmartPlacePorts_DataBaseRespOPT',
+          direction: 'out',
+          dataType: 'String',
+          role: 'source'
+        },
+        psqlI: {
+          portClass: 'PT_SmartPlacePorts_DataBaseRespIPT',
+          direction: 'out',
+          dataType: 'String',
+          role: 'target'
+        }
+      },
+      flowSchema: [
+        {
+          from: 'psqlO',
+          to: 'psqlI',
+          dataType: 'String'
+        }
+      ]
+    });
   }
 }
 class CN_SmartPlaceConnectors_ScheduleCN extends Connector {
-  constructor(name, fromPort, toPort, opts = {}) {
-    super(name, opts);
-    // Flows: Schedule from dO to dI
-    if (fromPort && toPort) {
-      this.bind(fromPort, toPort);
-    }
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      participantSchema: {
+        dO: {
+          portClass: 'PT_SmartPlacePorts_ScheduleOPT',
+          direction: 'out',
+          dataType: 'Schedule',
+          role: 'source'
+        },
+        dI: {
+          portClass: 'PT_SmartPlacePorts_ScheduleIPT',
+          direction: 'out',
+          dataType: 'Schedule',
+          role: 'target'
+        }
+      },
+      flowSchema: [
+        {
+          from: 'dO',
+          to: 'dI',
+          dataType: 'Schedule'
+        }
+      ]
+    });
   }
 }
 class CN_SmartPlaceConnectors_FrameListCN extends Connector {
-  constructor(name, fromPort, toPort, opts = {}) {
-    super(name, opts);
-    // Flows: FrameList from fO to fI
-    if (fromPort && toPort) {
-      this.bind(fromPort, toPort);
-    }
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      participantSchema: {
+        fI: {
+          portClass: 'PT_SmartPlacePorts_FrameListIPT',
+          direction: 'out',
+          dataType: 'FrameList',
+          role: 'source'
+        },
+        fO: {
+          portClass: 'PT_SmartPlacePorts_FrameListOPT',
+          direction: 'out',
+          dataType: 'FrameList',
+          role: 'target'
+        }
+      },
+      flowSchema: [
+        {
+          from: 'fO',
+          to: 'fI',
+          dataType: 'FrameList'
+        }
+      ]
+    });
   }
 }
 class CN_SmartPlaceConnectors_ContextCN extends Connector {
-  constructor(name, opts = {}) {
+  constructor(name, port1, port2, opts = {}) {
     super(name, opts);
     // Composite connector with internal connectors
+    this.port1 = port1;
+    this.port2 = port2;
     this.req = new CN_SmartPlaceConnectors_RequestCN("req");
     this.resp = new CN_SmartPlaceConnectors_SendContextCN("resp");
     
     // Extract sub-ports and bind to internal connectors
-    if (arguments.length > 1) {
-      const portArgs = Array.from(arguments).slice(1, -1); // exclude name and opts
+    if (port1 && port2) {
       // RequestCN: rReqO -> rReqI
       this.req.bind(
-        portArgs[0] && portArgs[0].getSubPort('rReqO'),
-        portArgs[1] && portArgs[1].getSubPort('rReqI')
+        this.port1.getSubPort('rReqO'),
+        this.port2.getSubPort('rReqI')
       );
       // SendContextCN: ciO -> ciI
       this.resp.bind(
-        portArgs[0] && portArgs[0].getSubPort('ciO'),
-        portArgs[1] && portArgs[1].getSubPort('ciI')
+        this.port1.getSubPort('ciO'),
+        this.port2.getSubPort('ciI')
       );
     }
     
@@ -838,20 +1050,48 @@ class SysADLArchitecture extends Model {
     this.SmartPlace.Raspberry.tc = new CP_SmartPlaceComponents_TemperatureController("tc", { sysadlDefinition: "TemperatureController" });
     this.SmartPlace.Raspberry.addComponent(this.SmartPlace.Raspberry.tc);
 
-    this.SmartPlace.ac.addConnector(new CN_SmartPlaceConnectors_UndefinedCN("u", this.SmartPlace.getPort("uF"), this.SmartPlace.getPort("uAcc")));
-    this.SmartPlace.Raspberry.addConnector(new CN_SmartPlaceConnectors_SendValueCN("countPeople", this.SmartPlace.getPort("numPeopleCm"), this.SmartPlace.getPort("numPeopleTc")));
-    this.SmartPlace.Raspberry.addConnector(new CN_SmartPlaceConnectors_ReservationCN("rn", this.SmartPlace.getPort("riTc"), this.SmartPlace.rrs.getPort("ri")));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_QueryDataBaseCN("qdb", this.getPort("dbSpw"), this.SmartPlace.spw.getPort("db")));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendPostgreSQLInfoCN("spsqli", this.getPort("uSpw"), this.SmartPlace.spw.getPort("u")));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendContextCN("ci1", this.getPort("coSpw"), this.SmartPlace.ocb.getPort("ci")));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_ContextCN("c", this.SmartPlace.spw.getPort("ctx"), this.getPort("ctxSpw")));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_CmdRestfulCN("cr", this.SmartPlace.spw.getPort("rr"), this.getPort("rrSpw")));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendValueCN("sendPresence", this.getPort("presencePs"), this.SmartPlace.ps.getPort("presence")));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_FrameListCN("fl", this.getPort("fCam"), this.SmartPlace.Raspberry.getPort("f")));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendValueCN("sendTempHumi", this.getPort("temperatureThs"), this.SmartPlace.ths.getPort("temperature")));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_ReservationCN("rn", this.SmartPlace.rrs.getPort("ri"), this.getPort("riRrs")));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_InfraCodeCN("ic", this.SmartPlace.Led.getPort("c"), this.getPort("cLed")));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_InfraredSignalCN("is", this.getPort("isLed"), this.getPort("isAc")));
+    this.SmartPlace.ac.addConnector(new CN_SmartPlaceConnectors_UndefinedCN("u"));
+    const u = this.SmartPlace.ac.connectors["u"];
+    u.bind(this.SmartPlace.getPort("uF"), this.SmartPlace.getPort("uAcc"));
+    this.SmartPlace.Raspberry.addConnector(new CN_SmartPlaceConnectors_SendValueCN("countPeople"));
+    const countPeople = this.SmartPlace.Raspberry.connectors["countPeople"];
+    countPeople.bind(this.SmartPlace.getPort("numPeopleCm"), this.SmartPlace.getPort("numPeopleTc"));
+    this.SmartPlace.Raspberry.addConnector(new CN_SmartPlaceConnectors_ReservationCN("rn"));
+    const rn = this.SmartPlace.Raspberry.connectors["rn"];
+    rn.bind(this.SmartPlace.getPort("riTc"), this.SmartPlace.rrs.getPort("ri"));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_QueryDataBaseCN("qdb"));
+    const qdb = this.SmartPlace.connectors["qdb"];
+    qdb.bind(this.getPort("dbSpw"), this.SmartPlace.spw.getPort("db"));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendPostgreSQLInfoCN("spsqli"));
+    const spsqli = this.SmartPlace.connectors["spsqli"];
+    spsqli.bind(this.getPort("uSpw"), this.SmartPlace.spw.getPort("u"));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendContextCN("ci1"));
+    const ci1 = this.SmartPlace.connectors["ci1"];
+    ci1.bind(this.getPort("coSpw"), this.SmartPlace.ocb.getPort("ci"));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_ContextCN("c"));
+    const c = this.SmartPlace.connectors["c"];
+    c.bind(this.SmartPlace.spw.getPort("ctx"), this.getPort("ctxSpw"));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_CmdRestfulCN("cr"));
+    const cr = this.SmartPlace.connectors["cr"];
+    cr.bind(this.SmartPlace.spw.getPort("rr"), this.getPort("rrSpw"));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendValueCN("sendPresence"));
+    const sendPresence = this.SmartPlace.connectors["sendPresence"];
+    sendPresence.bind(this.getPort("presencePs"), this.SmartPlace.ps.getPort("presence"));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_FrameListCN("fl"));
+    const fl = this.SmartPlace.connectors["fl"];
+    fl.bind(this.getPort("fCam"), this.SmartPlace.Raspberry.getPort("f"));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendValueCN("sendTempHumi"));
+    const sendTempHumi = this.SmartPlace.connectors["sendTempHumi"];
+    sendTempHumi.bind(this.getPort("temperatureThs"), this.SmartPlace.ths.getPort("temperature"));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_ReservationCN("rn"));
+    const rn = this.SmartPlace.connectors["rn"];
+    rn.bind(this.SmartPlace.rrs.getPort("ri"), this.getPort("riRrs"));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_InfraCodeCN("ic"));
+    const ic = this.SmartPlace.connectors["ic"];
+    ic.bind(this.SmartPlace.Led.getPort("c"), this.getPort("cLed"));
+    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_InfraredSignalCN("is"));
+    const is = this.SmartPlace.connectors["is"];
+    is.bind(this.getPort("isLed"), this.getPort("isAc"));
 
     const act_RaspberryControllerAC_spw = new AC_SmartPlaceComponents_RaspberryControllerAC("RaspberryControllerAC", { component: "spw", inputPorts: ["u"], delegates: [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}] });
     this.registerActivity("RaspberryControllerAC", act_RaspberryControllerAC_spw);
@@ -1390,5 +1630,80 @@ class SysADLArchitecture extends Model {
 }
 
 const __portAliases = {};
-function createModel(){ return new SysADLArchitecture(); }
+function createModel(){ 
+  const model = new SysADLArchitecture();
+  
+  // Generic registries for connector validation and transformations
+  model.transformationRegistry = {
+    // Common temperature conversions
+    fahrenheitToCelsius: (f) => (f - 32) * 5/9,
+    celsiusToFahrenheit: (c) => (c * 9/5) + 32
+  };
+  
+  model.typeValidators = {
+    'FahrenheitTemperature': (v) => typeof v === 'number' && v >= -459.67,
+    'CelsiusTemperature': (v) => typeof v === 'number' && v >= -273.15,
+    'Boolean': (v) => typeof v === 'boolean',
+    'Command': (v) => ['On', 'Off'].includes(v),
+    'Int': (v) => typeof v === 'number' && Number.isInteger(v),
+    'Real': (v) => typeof v === 'number',
+    'String': (v) => typeof v === 'string'
+  };
+  
+  model.typeRegistry = {
+    'InfraredCode': 'EN_InfraredCode',
+    'TypeSensor': 'EN_TypeSensor',
+  };
+  
+  // Module context for class resolution
+  model._moduleContext = {
+    PT_SmartPlacePorts_ValueOPT,
+    PT_SmartPlacePorts_ValueIPT,
+    PT_SmartPlacePorts_ReservationResponseIPT,
+    PT_SmartPlacePorts_ReservationResponseOPT,
+    PT_SmartPlacePorts_RequestOPT,
+    PT_SmartPlacePorts_RequestIPT,
+    PT_SmartPlacePorts_InfraredSignalIPT,
+    PT_SmartPlacePorts_InfraredSignalOPT,
+    PT_SmartPlacePorts_ContextInformationOPT,
+    PT_SmartPlacePorts_ContextInformationIPT,
+    PT_SmartPlacePorts_UndefinedOPT,
+    PT_SmartPlacePorts_UndefinedIPT,
+    PT_SmartPlacePorts_CommandIPT,
+    PT_SmartPlacePorts_CommandOPT,
+    PT_SmartPlacePorts_RestfulRaspberryIPT,
+    PT_SmartPlacePorts_RestfulRaspberryOPT,
+    PT_SmartPlacePorts_DataBaseRespOPT,
+    PT_SmartPlacePorts_DataBaseRespIPT,
+    PT_SmartPlacePorts_ScheduleOPT,
+    PT_SmartPlacePorts_ScheduleIPT,
+    PT_SmartPlacePorts_UpdateIPT,
+    PT_SmartPlacePorts_UpdateOPT,
+    PT_SmartPlacePorts_FrameListIPT,
+    PT_SmartPlacePorts_FrameListOPT,
+    PT_SmartPlacePorts_DataBaseO2I,
+    PT_SmartPlacePorts_DataBaseI2O,
+    PT_SmartPlacePorts_ReservationInformationO2I,
+    PT_SmartPlacePorts_ReservationInformationI2O,
+    PT_SmartPlacePorts_ContextO2I,
+    PT_SmartPlacePorts_ContextI2O,
+    CN_SmartPlaceConnectors_UndefinedCN,
+    CN_SmartPlaceConnectors_SendValueCN,
+    CN_SmartPlaceConnectors_InfraCodeCN,
+    CN_SmartPlaceConnectors_CmdRestfulCN,
+    CN_SmartPlaceConnectors_SendReservationInfoCN,
+    CN_SmartPlaceConnectors_RequestCN,
+    CN_SmartPlaceConnectors_SendContextCN,
+    CN_SmartPlaceConnectors_InfraredSignalCN,
+    CN_SmartPlaceConnectors_ReservationCN,
+    CN_SmartPlaceConnectors_QueryDataBaseCN,
+    CN_SmartPlaceConnectors_SendPostgreSQLInfoCN,
+    CN_SmartPlaceConnectors_ScheduleCN,
+    CN_SmartPlaceConnectors_FrameListCN,
+    CN_SmartPlaceConnectors_ContextCN,
+  };
+  
+  return model;
+}
+
 module.exports = { createModel, SysADLArchitecture, __portAliases, EN_InfraredCode, EN_TypeSensor, DT_DataSensor, DT_RestFulRaspeberry, DT_Sensor, DT_Measurement, DT_Schedule, DT_Location, DT_Building, DT_Room, DT_SmartPlaceComponents_AirConditioner, DT_ContextInformation, DT_UpdateDB, DT_FrameList, DT_Intervention, PT_SmartPlacePorts_ValueOPT, PT_SmartPlacePorts_ValueIPT, PT_SmartPlacePorts_ReservationResponseIPT, PT_SmartPlacePorts_ReservationResponseOPT, PT_SmartPlacePorts_RequestOPT, PT_SmartPlacePorts_RequestIPT, PT_SmartPlacePorts_InfraredSignalIPT, PT_SmartPlacePorts_InfraredSignalOPT, PT_SmartPlacePorts_ContextInformationOPT, PT_SmartPlacePorts_ContextInformationIPT, PT_SmartPlacePorts_UndefinedOPT, PT_SmartPlacePorts_UndefinedIPT, PT_SmartPlacePorts_CommandIPT, PT_SmartPlacePorts_CommandOPT, PT_SmartPlacePorts_RestfulRaspberryIPT, PT_SmartPlacePorts_RestfulRaspberryOPT, PT_SmartPlacePorts_DataBaseRespOPT, PT_SmartPlacePorts_DataBaseRespIPT, PT_SmartPlacePorts_ScheduleOPT, PT_SmartPlacePorts_ScheduleIPT, PT_SmartPlacePorts_UpdateIPT, PT_SmartPlacePorts_UpdateOPT, PT_SmartPlacePorts_FrameListIPT, PT_SmartPlacePorts_FrameListOPT, PT_SmartPlacePorts_DataBaseO2I, PT_SmartPlacePorts_DataBaseI2O, PT_SmartPlacePorts_ReservationInformationO2I, PT_SmartPlacePorts_ReservationInformationI2O, PT_SmartPlacePorts_ContextO2I, PT_SmartPlacePorts_ContextI2O };
