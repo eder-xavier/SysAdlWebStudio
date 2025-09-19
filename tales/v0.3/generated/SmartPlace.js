@@ -592,10 +592,10 @@ class CP_SmartPlaceComponents_SmartPlaceWeb extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_ContextInformationOPT("co", "out", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_RestfulRaspberryIPT("rr", "in", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ContextInformationOPT("co", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_RestfulRaspberryIPT("rr", { owner: name }));
       this.addPort(new PT_SmartPlacePorts_DataBaseO2I("db", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_UpdateOPT("u", "out", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_UpdateOPT("u", { owner: name }));
       this.addPort(new PT_SmartPlacePorts_ContextO2I("ctx", { owner: name }));
     }
 }
@@ -610,7 +610,7 @@ class CP_SmartPlaceComponents_OrionContextBroker extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_ContextInformationIPT("ci", "in", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ContextInformationIPT("ci", { owner: name }));
       this.addPort(new PT_SmartPlacePorts_ContextI2O("ctx", { owner: name }));
     }
 }
@@ -618,14 +618,14 @@ class CP_SmartPlaceComponents_TemperatureAndHumiditySensor extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_ValueOPT("temperature", "out", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ValueOPT("temperature", { owner: name }));
     }
 }
 class CP_SmartPlaceComponents_PresenceSensor extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_ValueOPT("presence", "out", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ValueOPT("presence", { owner: name }));
     }
 }
 class CP_SmartPlaceComponents_DB_PostgreSQL extends Component {
@@ -633,61 +633,61 @@ class CP_SmartPlaceComponents_DB_PostgreSQL extends Component {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
       this.addPort(new PT_SmartPlacePorts_DataBaseI2O("db", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_UpdateIPT("u", "in", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_UpdateIPT("u", { owner: name }));
     }
 }
 class CP_SmartPlaceComponents_AirConditioner extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_InfraredSignalIPT("is", "in", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_InfraredSignalIPT("is", { owner: name }));
     }
 }
 class CP_SmartPlaceComponents_Led extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true, activityName: "RaspberryControllerAC" });
       // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_CommandIPT("c", "in", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_InfraredSignalOPT("is", "out", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_CommandIPT("c", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_InfraredSignalOPT("is", { owner: name }));
     }
 }
 class CP_SmartPlaceComponents_Raspberry extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, activityName: "RaspberryControllerAC" });
       // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_CommandOPT("c", "out", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_CommandOPT("c", { owner: name }));
       this.addPort(new PT_SmartPlacePorts_ReservationInformationO2I("ri", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_FrameListIPT("f", "in", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_ValueIPT("temperature", "in", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_ValueIPT("presence", "in", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_RestfulRaspberryOPT("rr", "out", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_FrameListIPT("f", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ValueIPT("temperature", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ValueIPT("presence", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_RestfulRaspberryOPT("rr", { owner: name }));
     }
 }
 class CP_SmartPlaceComponents_Camera extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true, activityName: "RaspberryControllerAC" });
       // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_FrameListOPT("f", "out", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_FrameListOPT("f", { owner: name }));
     }
 }
 class CP_SmartPlaceComponents_CamMonitor extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_FrameListIPT("f", "in", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_ValueOPT("numPeople", "out", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_FrameListIPT("f", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ValueOPT("numPeople", { owner: name }));
     }
 }
 class CP_SmartPlaceComponents_TemperatureController extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_ValueIPT("presence", "in", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_RestfulRaspberryOPT("rrasp", "out", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ValueIPT("presence", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_RestfulRaspberryOPT("rrasp", { owner: name }));
       this.addPort(new PT_SmartPlacePorts_ReservationInformationO2I("ri", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_ValueIPT("temperature", "in", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_ValueIPT("numPeople", "in", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_CommandOPT("c", "out", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ValueIPT("temperature", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ValueIPT("numPeople", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_CommandOPT("c", { owner: name }));
     }
 }
 class CP_SmartPlaceComponents_DB_SQLite extends Component {
@@ -695,37 +695,37 @@ class CP_SmartPlaceComponents_DB_SQLite extends Component {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
       this.addPort(new PT_SmartPlacePorts_ReservationInformationI2O("ri", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_ReservationResponseIPT("rresp", "in", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ReservationResponseIPT("rresp", { owner: name }));
     }
 }
 class CP_SmartPlaceComponents_Fotosensor extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_UndefinedOPT("u", "out", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_InfraredSignalIPT("is", "in", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_UndefinedOPT("u", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_InfraredSignalIPT("is", { owner: name }));
     }
 }
 class CP_SmartPlaceComponents_AirConditionerController extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_UndefinedIPT("u", "in", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_UndefinedIPT("u", { owner: name }));
     }
 }
 class CP_SmartPlaceComponents_RegistrationController extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_ContextInformationOPT("ci", "out", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_ContextInformationIPT("regUi", "in", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ContextInformationOPT("ci", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ContextInformationIPT("regUi", { owner: name }));
     }
 }
 class CP_SmartPlaceComponents_ReportGenerator extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_ContextInformationIPT("a", "in", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_ContextInformationIPT("a", { owner: name }));
     }
 }
 class CP_SmartPlaceComponents_GraphicsGenerator extends Component {
@@ -740,8 +740,8 @@ class CP_SmartPlaceComponents_HistoricController extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_RestfulRaspberryIPT("rr", "in", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_UpdateOPT("u", "out", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_RestfulRaspberryIPT("rr", { owner: name }));
+      this.addPort(new PT_SmartPlacePorts_UpdateOPT("u", { owner: name }));
       this.addPort(new PT_SmartPlacePorts_ContextO2I("ctx", { owner: name }));
     }
 }

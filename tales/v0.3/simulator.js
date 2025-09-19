@@ -198,7 +198,11 @@ async function run() {
     const argv = process.argv.slice(2);
     const argPath = argv[0];
     const modelPath = resolveModelPath(argPath);
-    const opts = { loop: argv.includes('--loop') || argv.includes('-l'), stream: argv.includes('--stream') };
+    const opts = { 
+      loop: argv.includes('--loop') || argv.includes('-l'), 
+      stream: argv.includes('--stream'),
+      trace: argv.includes('--trace')
+    };
     const countIndex = argv.indexOf('--count');
     const intervalIndex = argv.indexOf('--interval');
     const portsIndex = argv.indexOf('--ports');
@@ -225,6 +229,13 @@ async function run() {
   const mod = loaded.mod;
   const m = loaded.model;
   console.log('Model instantiated:', m.name);
+  
+  // Enable execution tracing if --trace flag is present
+  if (opts.trace && typeof m.enableTrace === 'function') {
+    m.enableTrace();
+    console.log('Execution tracing enabled');
+  }
+  
   const portAliases = mod && mod.__portAliases ? mod.__portAliases : {};
   // helper for readable timestamp
   const nowISO = () => (new Date()).toISOString();
@@ -344,7 +355,20 @@ async function run() {
             emitStep({ element: p.component + '.' + p.port, type: 'port', input: null, output: null, extra: { error: e && e.message } });
           }
         }
-        if (tick >= count) { if (typeof m.dumpLog === 'function') { console.log('\n--- Model Log (final) ---'); m.dumpLog(); } process.exit(0); }
+        if (tick >= count) { 
+          // Output execution trace if enabled
+          if (opts.trace && typeof m.getExecutionTrace === 'function') {
+            console.log('\n--- Execution Trace ---');
+            const trace = m.getExecutionTrace();
+            console.log(JSON.stringify(trace, null, 2));
+          }
+          
+          if (typeof m.dumpLog === 'function') { 
+            console.log('\n--- Model Log (final) ---'); 
+            m.dumpLog(); 
+          } 
+          process.exit(0); 
+        }
       };
   handle();
       if (count > 1) setInterval(handle, interval);
@@ -375,6 +399,14 @@ async function run() {
       }
       // single-shot mode: no loop, but we still want stream-like output of any logs
       // if model exposes a getLog, those entries were already printed above; also print a summary event
+      
+      // Output execution trace if enabled
+      if (opts.trace && typeof m.getExecutionTrace === 'function') {
+        console.log('\n--- Execution Trace ---');
+        const trace = m.getExecutionTrace();
+        console.log(JSON.stringify(trace, null, 2));
+      }
+      
       console.log('[EVENT]', 'simulation_end', JSON.stringify(normalizeEntry({ model: m.name })));
     }
   } catch (e) { console.error(e.message); process.exit(1); }

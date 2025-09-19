@@ -1,11 +1,3 @@
+./transform_all.sh
 
-
-node tales/v0.3/simulator.js tales/v0.3/generated/Simple.js --payload '{"s1.temp1":32,"s2.temp2":50}'
-
-
-node transformer.js ../Simple.sysadl
-node transformer.js ../AGV.sysadl
-node transformer.js ../SmartPlace.sysadl
-node transformer.js ../RTC.sysadl
-
-node simulator.js generated/Simple.js --payload '{"SystemCP.s1.current": 77, "SystemCP.s2.current": 68}'
+node simulator.js generated/Simple.js --trace --payload '{"s1":20,"s2":30}'

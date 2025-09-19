@@ -1106,12 +1106,8 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
         ctorLines.push('    // Add ports from component definition');
         for (const port of compPorts) {
           const portTypeClass = getPackagePrefix(port.type, 'PT') + port.type;
-          // Include direction if available, otherwise let the PT_ class determine it
-          if (port.direction) {
-            ctorLines.push(`    this.addPort(new ${portTypeClass}("${port.name}", "${port.direction}", { owner: name }));`);
-          } else {
-            ctorLines.push(`    this.addPort(new ${portTypeClass}("${port.name}", { owner: name }));`);
-          }
+          // Port classes already define direction, so don't pass it as parameter
+          ctorLines.push(`    this.addPort(new ${portTypeClass}("${port.name}", { owner: name }));`);
         }
       }
       

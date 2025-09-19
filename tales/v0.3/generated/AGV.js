@@ -378,7 +378,7 @@ class CP_ComponentsAGV_AGVSystem extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_PortsAGV_outStatus("sendStatus", "out", { owner: name }));
+      this.addPort(new PT_PortsAGV_outStatus("sendStatus", { owner: name }));
       this.addPort(new PT_PortsAGV_IAGVSystem("in_outDataAGV", { owner: name }));
     }
 }
@@ -386,42 +386,42 @@ class CP_ComponentsAGV_DisplaySystem extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_PortsAGV_inStatus("receiveStatus", "in", { owner: name }));
+      this.addPort(new PT_PortsAGV_inStatus("receiveStatus", { owner: name }));
     }
 }
 class CP_ComponentsAGV_Motor extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_PortsAGV_inCommandToMotor("start_stop", "in", { owner: name }));
-      this.addPort(new PT_PortsAGV_outNotificationFromMotor("started_stopped", "out", { owner: name }));
+      this.addPort(new PT_PortsAGV_inCommandToMotor("start_stop", { owner: name }));
+      this.addPort(new PT_PortsAGV_outNotificationFromMotor("started_stopped", { owner: name }));
     }
 }
 class CP_ComponentsAGV_ArrivalSensor extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_ComponentsAGV_outLocation("arrivalDetected", "out", { owner: name }));
+      this.addPort(new PT_ComponentsAGV_outLocation("arrivalDetected", { owner: name }));
     }
 }
 class CP_ComponentsAGV_RobotArm extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_PortsAGV_inCommandToArm("start", "in", { owner: name }));
-      this.addPort(new PT_PortsAGV_outNotificationFromArm("started", "out", { owner: name }));
+      this.addPort(new PT_PortsAGV_inCommandToArm("start", { owner: name }));
+      this.addPort(new PT_PortsAGV_outNotificationFromArm("started", { owner: name }));
     }
 }
 class CP_ComponentsAGV_VehicleControl extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_PortsAGV_outStatus("sendStatus", "out", { owner: name }));
-      this.addPort(new PT_ComponentsAGV_inLocation("arrivalDetected", "in", { owner: name }));
-      this.addPort(new PT_PortsAGV_outCommandToArm("startArm", "out", { owner: name }));
-      this.addPort(new PT_PortsAGV_inNotificationFromArm("startedArm", "in", { owner: name }));
-      this.addPort(new PT_PortsAGV_inNotificationFromMotor("started_stopped", "in", { owner: name }));
-      this.addPort(new PT_PortsAGV_outCommandToMotor("start_stop", "out", { owner: name }));
+      this.addPort(new PT_PortsAGV_outStatus("sendStatus", { owner: name }));
+      this.addPort(new PT_ComponentsAGV_inLocation("arrivalDetected", { owner: name }));
+      this.addPort(new PT_PortsAGV_outCommandToArm("startArm", { owner: name }));
+      this.addPort(new PT_PortsAGV_inNotificationFromArm("startedArm", { owner: name }));
+      this.addPort(new PT_PortsAGV_inNotificationFromMotor("started_stopped", { owner: name }));
+      this.addPort(new PT_PortsAGV_outCommandToMotor("start_stop", { owner: name }));
       this.addPort(new PT_PortsAGV_IAGVSystem("in_outDataAGV", { owner: name }));
     }
 }
@@ -429,58 +429,58 @@ class CP_ComponentsAGV_CheckStation extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, activityName: "CheckStationAC" });
       // Add ports from component definition
-      this.addPort(new PT_PortsAGV_inNotificationFromMotor("ack", "in", { owner: name }));
-      this.addPort(new PT_ComponentsAGV_outLocation("location", "out", { owner: name }));
-      this.addPort(new PT_ComponentsAGV_inLocation("destination", "in", { owner: name }));
-      this.addPort(new PT_PortsAGV_outCommandToMotor("stop", "out", { owner: name }));
-      this.addPort(new PT_ComponentsAGV_inLocation("arrivalDetected", "in", { owner: name }));
-      this.addPort(new PT_PortsAGV_outNotificationToSupervisory("passed", "out", { owner: name }));
+      this.addPort(new PT_PortsAGV_inNotificationFromMotor("ack", { owner: name }));
+      this.addPort(new PT_ComponentsAGV_outLocation("location", { owner: name }));
+      this.addPort(new PT_ComponentsAGV_inLocation("destination", { owner: name }));
+      this.addPort(new PT_PortsAGV_outCommandToMotor("stop", { owner: name }));
+      this.addPort(new PT_ComponentsAGV_inLocation("arrivalDetected", { owner: name }));
+      this.addPort(new PT_PortsAGV_outNotificationToSupervisory("passed", { owner: name }));
     }
 }
 class CP_ComponentsAGV_ControlArm extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, activityName: "ControlArmAC" });
       // Add ports from component definition
-      this.addPort(new PT_PortsAGV_inCommandToArm("cmd", "in", { owner: name }));
-      this.addPort(new PT_PortsAGV_inNotificationFromMotor("ack", "in", { owner: name }));
-      this.addPort(new PT_PortsAGV_outCommandToArm("startArm", "out", { owner: name }));
+      this.addPort(new PT_PortsAGV_inCommandToArm("cmd", { owner: name }));
+      this.addPort(new PT_PortsAGV_inNotificationFromMotor("ack", { owner: name }));
+      this.addPort(new PT_PortsAGV_outCommandToArm("startArm", { owner: name }));
     }
 }
 class CP_ComponentsAGV_NotifierMotor extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, activityName: "NotifierMotorAC" });
       // Add ports from component definition
-      this.addPort(new PT_PortsAGV_inNotificationFromMotor("inAck", "in", { owner: name }));
-      this.addPort(new PT_PortsAGV_outNotificationToSupervisory("ack", "out", { owner: name }));
-      this.addPort(new PT_PortsAGV_outNotificationFromMotor("outAck", "out", { owner: name }));
+      this.addPort(new PT_PortsAGV_inNotificationFromMotor("inAck", { owner: name }));
+      this.addPort(new PT_PortsAGV_outNotificationToSupervisory("ack", { owner: name }));
+      this.addPort(new PT_PortsAGV_outNotificationFromMotor("outAck", { owner: name }));
     }
 }
 class CP_ComponentsAGV_StartMoving extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, activityName: "StartMovingAC" });
       // Add ports from component definition
-      this.addPort(new PT_PortsAGV_inVehicleData("move", "in", { owner: name }));
-      this.addPort(new PT_PortsAGV_outCommandToArm("cmd", "out", { owner: name }));
-      this.addPort(new PT_ComponentsAGV_outLocation("destination", "out", { owner: name }));
-      this.addPort(new PT_PortsAGV_outCommandToMotor("start", "out", { owner: name }));
+      this.addPort(new PT_PortsAGV_inVehicleData("move", { owner: name }));
+      this.addPort(new PT_PortsAGV_outCommandToArm("cmd", { owner: name }));
+      this.addPort(new PT_ComponentsAGV_outLocation("destination", { owner: name }));
+      this.addPort(new PT_PortsAGV_outCommandToMotor("start", { owner: name }));
     }
 }
 class CP_ComponentsAGV_NotifierArm extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, activityName: "NotifierArmAC" });
       // Add ports from component definition
-      this.addPort(new PT_PortsAGV_outNotificationToSupervisory("arrivedStatus", "out", { owner: name }));
-      this.addPort(new PT_PortsAGV_inNotificationFromArm("loaded_unloaded", "in", { owner: name }));
+      this.addPort(new PT_PortsAGV_outNotificationToSupervisory("arrivedStatus", { owner: name }));
+      this.addPort(new PT_PortsAGV_inNotificationFromArm("loaded_unloaded", { owner: name }));
     }
 }
 class CP_ComponentsAGV_VehicleTimer extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, activityName: "VehicleTimerAC" });
       // Add ports from component definition
-      this.addPort(new PT_PortsAGV_outStatus("AGVStatus", "out", { owner: name }));
-      this.addPort(new PT_ComponentsAGV_inLocation("location", "in", { owner: name }));
-      this.addPort(new PT_ComponentsAGV_inLocation("destination", "in", { owner: name }));
-      this.addPort(new PT_PortsAGV_inCommandToArm("cmd", "in", { owner: name }));
+      this.addPort(new PT_PortsAGV_outStatus("AGVStatus", { owner: name }));
+      this.addPort(new PT_ComponentsAGV_inLocation("location", { owner: name }));
+      this.addPort(new PT_ComponentsAGV_inLocation("destination", { owner: name }));
+      this.addPort(new PT_PortsAGV_inCommandToArm("cmd", { owner: name }));
     }
 }
 class CP_ComponentsAGV_FactoryAutomationSystem extends Component { }

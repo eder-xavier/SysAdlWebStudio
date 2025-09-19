@@ -74,6 +74,43 @@ class Model extends SysADLBase {
     super(name);
     this._activities = {};
     this._pendingInputs = {};
+    this._executionTrace = [];
+    this._traceEnabled = false;
+    this._executionCounter = 0;
+  }
+
+  // Enable/disable execution tracing
+  enableTrace() { this._traceEnabled = true; }
+  disableTrace() { this._traceEnabled = false; }
+  
+  // Log structured execution step
+  traceExecution(elementType, elementName, operation, input = null, output = null, metadata = {}) {
+    if (!this._traceEnabled) return;
+    
+    const traceEntry = {
+      sequence: this._executionCounter++,
+      timestamp: Date.now(),
+      iso_time: new Date().toISOString(),
+      element_type: elementType,
+      element_name: elementName,
+      operation: operation,
+      input: input,
+      output: output,
+      metadata: metadata
+    };
+    
+    this._executionTrace.push(traceEntry);
+    console.log('[TRACE]', JSON.stringify(traceEntry));
+    return traceEntry;
+  }
+  
+  // Get execution trace
+  getExecutionTrace() { return this._executionTrace.slice(); }
+  
+  // Clear execution trace
+  clearTrace() { 
+    this._executionTrace = []; 
+    this._executionCounter = 0;
   }
 
   registerActivity(key, activity) {
@@ -169,6 +206,14 @@ class Model extends SysADLBase {
   // Central execution engine: handle port data reception and trigger activity execution
   handlePortReceive(owner, portName, value) {
     try {
+      // Trace port reception at component level
+      if (this._traceEnabled) {
+        this.traceExecution('component_port', `${owner}.${portName}`, 'receive', value, null, {
+          component: owner,
+          port: portName
+        });
+      }
+      
       // First, notify the component about port reception
       this.notifyComponentPortReceive(owner, portName, value);
       
@@ -178,6 +223,14 @@ class Model extends SysADLBase {
       if (!activity) {
         console.warn(`No activity found for port owner: ${owner}`);
         return;
+      }
+
+      // Trace activity lookup
+      if (this._traceEnabled) {
+        this.traceExecution('activity_lookup', activity.name, 'found_for_component', value, null, {
+          component: owner,
+          trigger_port: portName
+        });
       }
       
       // Trigger the activity with port data
@@ -213,7 +266,7 @@ class Model extends SysADLBase {
 class Component extends SysADLBase {
   constructor(name, opts = {}) {
     super(name, opts);
-    this.activityName = null; // Direct reference to activity name
+    this.activityName = opts.activityName || null; // Apply activityName from options
     this._model = null;
     
     // Pin tracking for component activity execution
@@ -459,6 +512,16 @@ class Component extends SysADLBase {
       if (fromParticipant && toParticipant) {
         fromParticipant.bindTo({
           receive: (value, model) => {
+            // Trace connector flow start
+            if (model && model._traceEnabled) {
+              model.traceExecution('connector_flow', `${this.name}_${flow.from}_to_${flow.to}`, 'flow_start', value, null, {
+                connector: this.name,
+                from: flow.from,
+                to: flow.to,
+                data_type: flow.dataType
+              });
+            }
+            
             // Generic validation
             this.validateDataFlow(flow.from, flow.to, value, flow.dataType);
             
@@ -472,6 +535,14 @@ class Component extends SysADLBase {
               if (activity) {
                 console.log(`Connector ${this.name} executing activity ${this.activityName} with value:`, value);
                 
+                // Trace activity trigger from connector
+                if (model._traceEnabled) {
+                  model.traceExecution('activity_trigger', activity.name, 'trigger_from_connector', value, null, {
+                    connector: this.name,
+                    trigger_port: flow.from
+                  });
+                }
+                
                 // Trigger activity with the input data
                 activity.trigger(flow.from, value);
                 
@@ -480,6 +551,13 @@ class Component extends SysADLBase {
                   const result = activity.executeWhenReady();
                   if (result !== undefined) {
                     processedValue = result;
+                    
+                    // Trace activity result to connector
+                    if (model._traceEnabled) {
+                      model.traceExecution('activity_result', activity.name, 'result_to_connector', value, processedValue, {
+                        connector: this.name
+                      });
+                    }
                   }
                 }
               }
@@ -488,7 +566,24 @@ class Component extends SysADLBase {
             // Generic transformation
             const transformedValue = this.applyTransformation(processedValue, flow.transformation);
             
+            // Trace transformation if applied
+            if (transformedValue !== processedValue && model && model._traceEnabled) {
+              model.traceExecution('transformation', `${this.name}_${flow.transformation}`, 'apply', processedValue, transformedValue, {
+                flow: `${flow.from}_to_${flow.to}`,
+                connector: this.name
+              });
+            }
+            
             toParticipant.send(transformedValue, model);
+            
+            // Trace connector flow end
+            if (model && model._traceEnabled) {
+              model.traceExecution('connector_flow', `${this.name}_${flow.from}_to_${flow.to}`, 'flow_end', value, transformedValue, {
+                connector: this.name,
+                from: flow.from,
+                to: flow.to
+              });
+            }
           }
         });
       }
@@ -742,10 +837,33 @@ class Port extends Element {
   }
 
   send(v, model){
+    // Trace port data transmission
+    if (model && model._traceEnabled) {
+      model.traceExecution('port', `${this.owner}.${this.name}`, 'send', v, null, {
+        direction: this.direction,
+        type: this.expectedType,
+        owner: this.owner,
+        has_binding: !!this.binding
+      });
+    }
+    
     // Type validation removed
     model && model.logEvent && model.logEvent({ elementType: 'port_send', component: this.owner, name: this.name, inputs: [v], when: Date.now() });
     this.last = v;
-    if (this.binding && typeof this.binding.receive === 'function') this.binding.receive(v, model);
+    
+    // Call connector binding if present
+    if (this.binding && typeof this.binding.receive === 'function') {
+      // Trace connector invocation
+      if (model && model._traceEnabled) {
+        model.traceExecution('connector_binding', 'binding', 'invoke', v, null, {
+          from_port: `${this.owner}.${this.name}`,
+          binding_type: this.binding.constructor.name
+        });
+      }
+      
+      this.binding.receive(v, model);
+    }
+    
     if (model) {
       // notify model of receive to trigger activities on this component
       model.handlePortReceive(this.owner, this.name, v);
@@ -753,6 +871,15 @@ class Port extends Element {
   }
 
   receive(v, model){
+    // Trace port data reception
+    if (model && model._traceEnabled) {
+      model.traceExecution('port', `${this.owner}.${this.name}`, 'receive', v, null, {
+        direction: this.direction,
+        type: this.expectedType,
+        owner: this.owner
+      });
+    }
+    
     // Type validation removed
     model && model.logEvent && model.logEvent({ elementType: 'port_receive', component: this.owner, name: this.name, inputs: [v], when: Date.now() });
     this.last = v;
@@ -960,11 +1087,27 @@ class Action extends BehavioralElement {
   invoke(inputs, model) {
     this.validateParameters(inputs);
     
+    // Trace action execution start
+    if (model && model._traceEnabled) {
+      model.traceExecution('action', this.name, 'invoke_start', inputs, null, {
+        executable_name: this.executableName,
+        constraints_count: this.constraints.length,
+        executables_count: this.executables.length
+      });
+    }
+    
     // Process constraints first
     for (const constraint of this.constraints) {
       const constraintResult = constraint.evaluate(inputs, model);
       if (!constraintResult) {
         throw new Error(`Constraint ${constraint.name} failed in action ${this.name}`);
+      }
+      
+      // Trace constraint evaluation
+      if (model && model._traceEnabled) {
+        model.traceExecution('constraint', constraint.name, 'evaluate', inputs, constraintResult, {
+          action: this.name
+        });
       }
     }
 
@@ -972,6 +1115,13 @@ class Action extends BehavioralElement {
     let result;
     for (const executable of this.executables) {
       result = executable.execute(inputs, model);
+      
+      // Trace executable execution
+      if (model && model._traceEnabled) {
+        model.traceExecution('executable', executable.name, 'execute', inputs, result, {
+          action: this.name
+        });
+      }
     }
 
     // Legacy compatibility: fallback to old executable handling
@@ -981,11 +1131,33 @@ class Action extends BehavioralElement {
     
     if (this.executableFn) {
       result = this.executableFn.apply(null, inputs);
+      
+      // Trace legacy executable
+      if (model && model._traceEnabled) {
+        model.traceExecution('executable', this.executableName, 'execute_legacy', inputs, result, {
+          action: this.name
+        });
+      }
     } else if (this.rawBody) {
       const paramNames = this.inParameters.map(p => p.name);
       const fn = createExecutableFromExpression(this.rawBody, paramNames);
       this.executableFn = fn;
       result = fn.apply(null, inputs);
+      
+      // Trace raw body execution
+      if (model && model._traceEnabled) {
+        model.traceExecution('executable', `${this.name}_raw`, 'execute_raw', inputs, result, {
+          action: this.name,
+          raw_body: this.rawBody
+        });
+      }
+    }
+
+    // Trace action execution end
+    if (model && model._traceEnabled) {
+      model.traceExecution('action', this.name, 'invoke_end', inputs, result, {
+        executable_name: this.executableName
+      });
     }
 
     return result;
@@ -1041,6 +1213,7 @@ class Activity extends BehavioralElement {
     
     super(name, fullOpts);
     this.component = fullOpts.component;
+    this.componentName = fullOpts.component; // Explicit componentName property
     this.inputPorts = fullOpts.inputPorts;
     this.delegates = fullOpts.delegates;
     this.actions = fullOpts.actions || [];
@@ -1084,6 +1257,16 @@ class Activity extends BehavioralElement {
     this.pins[pinName].value = value;
     this.pins[pinName].isFilled = true;
     
+    // Trace pin filling
+    if (this.model && this.model._traceEnabled) {
+      this.model.traceExecution('activity', this.name, 'pin_set', value, null, {
+        pin_name: pinName,
+        component: this.component,
+        pins_filled: Object.keys(this.pins).filter(p => this.pins[p].isFilled).length,
+        pins_total: Object.keys(this.pins).length
+      });
+    }
+    
     // Check if all required pins are filled
     if (this.canExecute()) {
       this.executeWhenReady();
@@ -1115,9 +1298,28 @@ class Activity extends BehavioralElement {
       const inputs = this.inParameters
         .filter(p => p.direction === 'in')
         .map(p => this.pins[p.name]?.value);
+
+      // Trace activity execution start
+      if (this.model && this.model._traceEnabled) {
+        this.model.traceExecution('activity', this.name, 'execute_start', inputs, null, {
+          component: this.component,
+          input_ports: this.inputPorts,
+          pin_values: Object.fromEntries(
+            Object.entries(this.pins).map(([k, v]) => [k, v.value])
+          )
+        });
+      }
       
       // Execute the activity
       const result = this.invoke(inputs);
+      
+      // Trace activity execution end
+      if (this.model && this.model._traceEnabled) {
+        this.model.traceExecution('activity', this.name, 'execute_end', inputs, result, {
+          component: this.component,
+          actions_count: this.actions.length
+        });
+      }
       
       // Propagate results to output pins and connected elements
       this.propagateResults(result);
@@ -1230,6 +1432,16 @@ class Activity extends BehavioralElement {
   
   // Trigger method called by handlePortReceive
   trigger(portName, value) {
+    // Trace activity trigger
+    if (this._model && this._model._traceEnabled) {
+      this._model.traceExecution('activity', this.name, 'trigger', value, null, {
+        trigger_port: portName,
+        component: this.componentName,
+        pins_filled: Object.keys(this.pins).length,
+        pins_total: this.pinDelegations.length
+      });
+    }
+    
     const pinName = this.portToPinMapping[portName] || portName;
     return this.setPin(pinName, value);
   }

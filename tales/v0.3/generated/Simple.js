@@ -85,23 +85,23 @@ class CP_Elements_SensorCP extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_Elements_FTempOPT("current", "in", { owner: name }));
+      this.addPort(new PT_Elements_FTempOPT("current", { owner: name }));
     }
 }
 class CP_Elements_TempMonitorCP extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true, activityName: "TempMonitorAC" });
       // Add ports from component definition
-      this.addPort(new PT_Elements_CTempIPT("s1", "in", { owner: name }));
-      this.addPort(new PT_Elements_CTempIPT("s2", "in", { owner: name }));
-      this.addPort(new PT_Elements_CTempOPT("average", "out", { owner: name }));
+      this.addPort(new PT_Elements_CTempIPT("s1", { owner: name }));
+      this.addPort(new PT_Elements_CTempIPT("s2", { owner: name }));
+      this.addPort(new PT_Elements_CTempOPT("average", { owner: name }));
     }
 }
 class CP_Elements_StdOutCP extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_Elements_CTempIPT("c3", "in", { owner: name }));
+      this.addPort(new PT_Elements_CTempIPT("c3", { owner: name }));
     }
 }
 class CP_Elements_SystemCP extends Component { }
@@ -244,7 +244,7 @@ class SysADLModel extends Model {
     this.SystemCP.addComponent(this.SystemCP.s2);
     this.SystemCP.stdOut = new CP_Elements_StdOutCP("stdOut", { isBoundary: true, sysadlDefinition: "StdOutCP" });
     this.SystemCP.addComponent(this.SystemCP.stdOut);
-    this.SystemCP.tempMon = new CP_Elements_TempMonitorCP("tempMon", { isBoundary: true, sysadlDefinition: "TempMonitorCP" });
+    this.SystemCP.tempMon = new CP_Elements_TempMonitorCP("tempMon", { isBoundary: true, sysadlDefinition: "TempMonitorCP", activityName: "TempMonitorAC" });
     this.SystemCP.addComponent(this.SystemCP.tempMon);
 
     this.SystemCP.addConnector(new CN_Elements_FarToCelCN("c1"));

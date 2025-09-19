@@ -170,75 +170,75 @@ class CP_Components_TemperatureSensorCP extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_Ports_FTemperatureOPT("current", "out", { owner: name }));
+      this.addPort(new PT_Ports_FTemperatureOPT("current", { owner: name }));
     }
 }
 class CP_Components_PresenceSensorCP extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_Ports_PresenceOPT("detected", "out", { owner: name }));
+      this.addPort(new PT_Ports_PresenceOPT("detected", { owner: name }));
     }
 }
 class CP_Components_UserInterfaceCP extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_Ports_CTemperatureOPT("desired", "out", { owner: name }));
+      this.addPort(new PT_Ports_CTemperatureOPT("desired", { owner: name }));
     }
 }
 class CP_Components_CoolerCP extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_Ports_CommandIPT("controllerC", "in", { owner: name }));
+      this.addPort(new PT_Ports_CommandIPT("controllerC", { owner: name }));
     }
 }
 class CP_Components_HeaterCP extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_Ports_CommandIPT("controllerH", "in", { owner: name }));
+      this.addPort(new PT_Ports_CommandIPT("controllerH", { owner: name }));
     }
 }
 class CP_Components_RoomTemperatureControllerCP extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_Ports_PresenceIPT("detectedRTC", "in", { owner: name }));
-      this.addPort(new PT_Ports_CTemperatureIPT("localtemp1", "in", { owner: name }));
-      this.addPort(new PT_Ports_CTemperatureIPT("localTemp2", "in", { owner: name }));
-      this.addPort(new PT_Ports_CTemperatureIPT("userTempRTC", "in", { owner: name }));
-      this.addPort(new PT_Ports_CommandOPT("heatingRTC", "out", { owner: name }));
-      this.addPort(new PT_Ports_CommandOPT("coolingRTC", "out", { owner: name }));
+      this.addPort(new PT_Ports_PresenceIPT("detectedRTC", { owner: name }));
+      this.addPort(new PT_Ports_CTemperatureIPT("localtemp1", { owner: name }));
+      this.addPort(new PT_Ports_CTemperatureIPT("localTemp2", { owner: name }));
+      this.addPort(new PT_Ports_CTemperatureIPT("userTempRTC", { owner: name }));
+      this.addPort(new PT_Ports_CommandOPT("heatingRTC", { owner: name }));
+      this.addPort(new PT_Ports_CommandOPT("coolingRTC", { owner: name }));
     }
 }
 class CP_Components_SensorsMonitorCP extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, activityName: "CalculateAverageTemperatureAC" });
       // Add ports from component definition
-      this.addPort(new PT_Ports_CTemperatureIPT("s1", "in", { owner: name }));
-      this.addPort(new PT_Ports_CTemperatureIPT("s2", "in", { owner: name }));
-      this.addPort(new PT_Ports_CTemperatureOPT("average", "out", { owner: name }));
+      this.addPort(new PT_Ports_CTemperatureIPT("s1", { owner: name }));
+      this.addPort(new PT_Ports_CTemperatureIPT("s2", { owner: name }));
+      this.addPort(new PT_Ports_CTemperatureOPT("average", { owner: name }));
     }
 }
 class CP_Components_CommanderCP extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, activityName: "DecideCommandAC" });
       // Add ports from component definition
-      this.addPort(new PT_Ports_CTemperatureIPT("target2", "in", { owner: name }));
-      this.addPort(new PT_Ports_CTemperatureIPT("average2", "in", { owner: name }));
-      this.addPort(new PT_Ports_CommandOPT("heating", "out", { owner: name }));
-      this.addPort(new PT_Ports_CommandOPT("cooling", "out", { owner: name }));
+      this.addPort(new PT_Ports_CTemperatureIPT("target2", { owner: name }));
+      this.addPort(new PT_Ports_CTemperatureIPT("average2", { owner: name }));
+      this.addPort(new PT_Ports_CommandOPT("heating", { owner: name }));
+      this.addPort(new PT_Ports_CommandOPT("cooling", { owner: name }));
     }
 }
 class CP_Components_PresenceCheckerCP extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, activityName: "CheckPresenceToSetTemperatureAC" });
       // Add ports from component definition
-      this.addPort(new PT_Ports_PresenceIPT("detected", "in", { owner: name }));
-      this.addPort(new PT_Ports_CTemperatureIPT("userTemp", "in", { owner: name }));
-      this.addPort(new PT_Ports_CTemperatureOPT("target", "out", { owner: name }));
+      this.addPort(new PT_Ports_PresenceIPT("detected", { owner: name }));
+      this.addPort(new PT_Ports_CTemperatureIPT("userTemp", { owner: name }));
+      this.addPort(new PT_Ports_CTemperatureOPT("target", { owner: name }));
     }
 }
 class CP_Components_RTCSystemCFD extends Component { }
