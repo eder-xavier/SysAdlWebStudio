@@ -1,32 +1,6 @@
 // v0.3 runtime (renamed and adapted from v0.2)
-// Enhanced with configurable parameters
+// Generic SysADL runtime without domain-specific configurations
 
-// Configuration constants - centralized to avoid hardcoded values
-const CONFIG = {
-  DEFAULT_TEMPERATURE_FALLBACK: 2, // Default temperature when no presence detected
-  FAHRENHEIT_CONVERSION: {
-    OFFSET: 32,
-    FACTOR_NUMERATOR: 5,
-    FACTOR_DENOMINATOR: 9
-  },
-  MATH: {
-    AVERAGE_DIVISOR: 2 // For calculating average of two values
-  },
-  EXECUTION: {
-    MIN_PARSE_DEPTH: 0, // Minimum parsing depth for statement separation
-    MAX_RETRIES: 3 // Maximum retries for activity execution
-  }
-};
-
-// Allow external configuration override
-function setConfig(newConfig) {
-  Object.assign(CONFIG, newConfig);
-}
-
-// Get current configuration
-function getConfig() {
-  return { ...CONFIG };
-}
 // Exports: Model, Element, Component, Connector, Port, Activity, Action, Executable helper
 
 class Element {
@@ -1639,7 +1613,7 @@ function createExecutableFromExpression(exprText, paramNames = []) {
       if (ch === '"' || ch === "'" || ch === '`') { inS = ch; cur += ch; continue; }
       if (ch === '{' || ch === '(' || ch === '[') { depth++; cur += ch; continue; }
       if (ch === '}' || ch === ')' || ch === ']') { depth = Math.max(0, depth-1); cur += ch; continue; }
-      if ((ch === ';' || ch === '\n') && depth === CONFIG.EXECUTION.MIN_PARSE_DEPTH) {
+      if ((ch === ';' || ch === '\n') && depth === 0) {
         const t = cur.trim(); if (t) parts.push(t);
         cur = '';
         continue;
@@ -1925,9 +1899,5 @@ module.exports = {
   valueType,
   dataType,
   dimension,
-  unit,
-  // Configuration functions
-  setConfig,
-  getConfig,
-  CONFIG
+  unit
 };
