@@ -244,7 +244,7 @@ class SysADLModel extends Model {
     this.SystemCP.addComponent(this.SystemCP.s2);
     this.SystemCP.stdOut = new CP_Elements_StdOutCP("stdOut", { isBoundary: true, sysadlDefinition: "StdOutCP" });
     this.SystemCP.addComponent(this.SystemCP.stdOut);
-    this.SystemCP.tempMon = new CP_Elements_TempMonitorCP("tempMon", { isBoundary: true, sysadlDefinition: "TempMonitorCP", activityName: "TempMonitorAC" });
+    this.SystemCP.tempMon = new CP_Elements_TempMonitorCP("tempMon", { isBoundary: true, sysadlDefinition: "TempMonitorCP" });
     this.SystemCP.addComponent(this.SystemCP.tempMon);
 
     this.SystemCP.addConnector(new CN_Elements_FarToCelCN("c1"));

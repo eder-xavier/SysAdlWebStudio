@@ -2103,6 +2103,36 @@ class Entity extends Element {
   }
 }
 
+// Connection class - represents connections between entities in environments
+class Connection extends Element {
+  constructor(name, opts = {}) {
+    super(name, opts);
+    this.connectionType = opts.connectionType || 'connection';
+    this.from = opts.from || null; // Source entity/role
+    this.to = opts.to || null; // Target entity/role
+    this.bindings = opts.bindings || {}; // Connection-specific bindings
+    this.properties = opts.properties || {}; // Connection properties
+  }
+
+  // Set connection property
+  setProperty(propName, value) {
+    this.properties[propName] = value;
+  }
+
+  // Get connection property
+  getProperty(propName) {
+    return this.properties[propName];
+  }
+
+  // Validate connection endpoints
+  validate() {
+    if (!this.from || !this.to) {
+      throw new Error(`Connection ${this.name} must have both 'from' and 'to' endpoints`);
+    }
+    return true;
+  }
+}
+
 // Event class - represents events that can occur in scenarios
 class Event extends Element {
   constructor(name, opts = {}) {
@@ -2592,6 +2622,81 @@ class ScenarioExecution extends Element {
   }
 }
 
+// Events Definitions Container Class
+class EventsDefinitions extends Element {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      elementType: 'EventsDefinitions'
+    });
+    
+    this.targetConfiguration = opts.targetConfiguration || null;
+    this.events = opts.events || {};
+  }
+  
+  addEvent(name, eventDef) {
+    this.events[name] = eventDef;
+  }
+  
+  getEvent(name) {
+    return this.events[name];
+  }
+  
+  getAllEvents() {
+    return Object.keys(this.events);
+  }
+}
+
+// Scene Definitions Container Class
+class SceneDefinitions extends Element {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      elementType: 'SceneDefinitions'
+    });
+    
+    this.targetEvents = opts.targetEvents || null;
+    this.scenes = opts.scenes || {};
+  }
+  
+  addScene(name, sceneDef) {
+    this.scenes[name] = sceneDef;
+  }
+  
+  getScene(name) {
+    return this.scenes[name];
+  }
+  
+  getAllScenes() {
+    return Object.keys(this.scenes);
+  }
+}
+
+// Scenario Definitions Container Class
+class ScenarioDefinitions extends Element {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      elementType: 'ScenarioDefinitions'
+    });
+    
+    this.targetScenes = opts.targetScenes || null;
+    this.scenarios = opts.scenarios || {};
+  }
+  
+  addScenario(name, scenarioDef) {
+    this.scenarios[name] = scenarioDef;
+  }
+  
+  getScenario(name) {
+    return this.scenarios[name];
+  }
+  
+  getAllScenarios() {
+    return Object.keys(this.scenarios);
+  }
+}
+
 // Export everything
 module.exports = {
   Model,
@@ -2615,6 +2720,9 @@ module.exports = {
   EnvironmentDefinition,
   EnvironmentConfiguration,
   ScenarioExecution,
+  EventsDefinitions,
+  SceneDefinitions,
+  ScenarioDefinitions,
   // Built-in primitive types
   Int,
   Boolean: SysADLBoolean,

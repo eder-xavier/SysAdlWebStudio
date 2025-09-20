@@ -791,8 +791,8 @@ EnvironmentDefinition MyFactory {
 
 	Entity def Supervisory {
 		roles {
-			Role inNotification   
-			Role outCommand   
+			Role def inNotification   
+			Role def outCommand   
 		}
 	}
 
