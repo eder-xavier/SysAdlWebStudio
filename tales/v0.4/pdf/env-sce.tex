@@ -1,0 +1,84 @@
+\subsection{Scenario Viewpoint} \label{vp-sce}
+
+The \textit{Scenario Viewpoint} enables the modeling of event occurrences within an environment to simulate its execution and interactions. A scenario defines the behavior of entities by specifying events that include actions performed by entities, interactions among entities, and entity states that trigger or condition other events. The viewpoint is described using two diagrams: \textit{BDD} and \textit{Sequence Diagrams (SD)}. They represent the definition of scenarios, scenes, and events that govern the overall environment's behavior. The BDD defines the use of the \textit{Entity} instances from the environment to build the \textit{Scenes} and the \textit{Scenarios}. A \textit{Scene} is composed of \textit{Events} that trigger other events that the entities can react to. A Scenario is a composition of scenes. Different scenarios provide different ways to simulate the architecture in the environment. The \textit{SD} defines the execution sequence for scenarios and models \textit{Events} within a \textit{ScenarioExecution}. 
+
+The \textit{EventsDefinitions} defines the events that may occur related to an \textit{EnvironmentConfiguration} (Listing~\ref{lst-ex-event-def}, line 1). \textit{Events} can represent either actions or states of entities, as well as interactions between them. Thus, actions and states are specializations of an event. Events are defined in association with specific entities, meaning that for each \textit{Entity instance}, the corresponding associated events must be specified (Listing~\ref{lst-ex-event-def}, line 2 and line 9), where \texttt{supervisor} (line 2) \texttt{stationA} (line 9) are instances of entities defined in the \textit{EnvironmentConfiguration} named \texttt{MyFactoryConfiguration}. 
+
+Each event can be initiated by a trigger (\texttt{cmdSupervisor}, in line 4) or by a condition (\texttt{agv1.sensor == stationA}, in line 10), defined in the event's \texttt{ON} clause, which executes the block defined in the \texttt{THEN} clause. 
+Each \texttt{THEN} block specifies a name (\texttt{cmdAGV2toC} on line 4, and \texttt{AGV1locationStationA} on line 11), so that it can be triggered by other events.
+In each \texttt{THEN} block, you may allocate values to the entities' \textit{Roles} and utilize \textit{Connections} to transmit the values among the \textit{Roles}.
+An event can have multiple \texttt{ON} clauses, and it can execute multiple \texttt{THEN} clauses.
+
+\begin{lstlisting}[caption=Example of EventsDefinitions elements declarations, label={lst-ex-event-def}]
+EventsDefinitions MyEvents to MyFactoryConfiguration {
+  Event def SupervisoryEvents for supervisor {
+    ON cmdSupervisor 
+      THEN cmdAGV2toC {
+        supervisor.outCommand.destination=stationC;
+        supervisor.outCommand.armCommand=idle;
+        :Command(supervisor, agv2); 
+  }   }      
+  Event def StationAEvents for stationA {		 
+    ON agv1.sensor == stationA
+      THEN AGV1locationStationA {
+        agv1.location = stationA.signal; 
+} }   } 
+\end{lstlisting}
+
+Following on from describing the events, it is necessary to define \textit{Scenes}, which consist of a set of events surrounded by the initial and terminal events. The definitions of scenes are described in \textit{SceneDefinitions} (Listing~\ref{lst-ex-scene-def}, line 1), and must define their name (\texttt{MyScenes}) and the corresponding set of events (\texttt{MyEvents}). 
+
+A \textit{Scene} is constructed, defining pre-conditions and post-conditions blocks. \texttt{Pre-condition} clause describes the initial states under which events will be executed in the \textit{Scene} (Listing~\ref{lst-ex-scene-def}, lines 3-5), and reference elements instantiated in \textit{EnvironmentConfiguration}. \texttt{Post-condition} clause specifies the expected states or actions following the execution of the \textit{Scene} (Listing~\ref{lst-ex-scene-def}, lines 8-10). \textit{Post-condition} clause will be used in the verification and validation of a scene execution and for a scenario composition. For instance, in a scenario, the pre-conditions of the following scene must match its predecessor. 
+
+The \texttt{start} clause define the initial \textit{Event} for the \textit{Scene} (Listing~\ref{lst-ex-scene-def}, line 6). The \texttt{finish} clause define the terminal \textit{Event} for the \textit{Scene} (Listing~\ref{lst-ex-scene-def}, line 7). All events triggered between them are defined in the event chain under \textit{EventDefinition}.
+
+\begin{lstlisting}[caption=Example of SceneDefinitions elements declarations, label={lst-ex-scene-def}]
+SceneDefinitions MyScenes to MyEvents {
+  Scene def SCN_MoveAGV1toA on { 
+    pre-condition {
+      agv1.location == stationC.ID;
+      part.location == stationA.ID; }
+    start cmdSupervisor;
+    finish AGV1NotifArriveA;
+    post-condition {
+      agv1.location == stationA.ID;
+      part.location == stationA.ID; }
+} }
+
+\end{lstlisting}
+
+A \textit{Scenario} is composed of a set of \textit{Scenes}. Upon defining the scenes, the scenario is described in the \textit{ScenarioDefinitions} and referring to the set of \textit{SceneDefinitions}, as depicted in Listing~\ref{lst-ex-scenario-def}, line 1, where  \texttt{MyScenarios} is the name of the set of \textit{Scenarios} using the \textit{Scenes} defined in \texttt{MyScenes}. 
+
+A scenario defines the flow of control of scenes in sequences Listing~\ref{lst-ex-scenario-def}, lines 2-7), loops, conditional branches, or other programming elements Listing~\ref{lst-ex-scenario-def}, lines 8-14). It is also possible for a scenario to execute other scenarios. 
+
+\begin{lstlisting}[caption=Example of ScenarioDefinitions elements declarations, label={lst-ex-scenario-def}]
+ScenarioDefinitions MyScenarios to MyScenes {
+  Scenario def Scenario1 { 
+    SCN_MoveAGV1toA;
+    SCN_MoveAGV2toC;
+    SCN_AGV1movePartToC;
+    SCN_AGV2movePartToE; }
+  Scenario def Scenario3 { 
+     let i: Integer = 1;
+     while (i < 5) {
+       SCN_MoveAGV1toA;
+       SCN_AGV1movePartToC;
+       i++;
+} }  }
+\end{lstlisting}
+
+Finally, the \textit{ScenarioExecution} specifies the instances of the defined \textit{ScenarioDefinition} that will be included in the simulation (Listing~\ref{lst-ex-scenario-exec}). The execution of a \textit{Scenario} governs the execution of its constituent \textit{Scenes}. These executions can also be organized into sequences, loops, or conditional branches, and can use variables. To facilitate repetitive execution, we use the \texttt{repeat <n>} command, where <n> is the number of times to repeat the execution, as shown in line 9. The \textit{ScenarioExecution} can refer to all elements instanced in \textit{EnvironmentConfiguration}, \textit{EventsDefinitions}, \textit{SceneDefinitions}, and \textit{ScenarioDefinitions}. 
+
+\begin{lstlisting}[caption=Example of ScenarioExecution elements declarations, label={lst-ex-scenario-exec}]
+ScenarioExecution to MyScenarios {
+  agv1.location = stationC.ID;
+  agv2.location = stationD.ID;
+  part.location = stationA.ID; 
+  Scenario1;
+  Scenario2;
+  Scenario3;
+  Scenario4;
+  repeat 5 Scenario1; 
+} 
+\end{lstlisting}
+
+These language elements were initially inspired by OpenSCENARIO~\cite{ASAMOpenSCENARIO}, specialized in describing scenarios and events for driving and traffic simulation. We draw inspiration from the model of many events that may take place during a simulation. However, we have adapted it for applications beyond driving and traffic, proposing its use in broad situations. We also took concepts from JavaScript event listeners~\cite{ecma262-2024}, but we changed the syntax to be more expressive in our context.
