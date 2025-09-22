@@ -3,6 +3,9 @@
 const path = require('path');
 const fs = require('fs');
 
+// Import reactive system for enhanced monitoring
+const { ReactiveConditionWatcher } = require('./sysadl-framework/ReactiveConditionWatcher');
+
 // Function to resolve model path
 function resolveModelPath(arg) {
   if (!arg) {
@@ -163,7 +166,58 @@ function setupEnvironmentLogging(model) {
   }
 }
 
-// Main simulation function
+// Function to setup reactive monitoring system
+function setupReactiveMonitoring(model, options) {
+  try {
+    console.log('\n🚀 Initializing Reactive Monitoring System...');
+    
+    // Initialize reactive system if model supports it
+    if (model.conditionWatcher) {
+      console.log('✓ Model already has ReactiveConditionWatcher - enhanced monitoring active');
+      
+      // Setup automatic state change detection
+      if (model.state && typeof model.state === 'object') {
+        console.log('✓ State monitoring enabled - tracking property changes');
+        
+        // Monitor key state changes and log them
+        const originalState = JSON.stringify(model.state, null, 2);
+        console.log('📊 Initial state snapshot:');
+        console.log(originalState);
+        
+        // Set up periodic state monitoring if streaming
+        if (options.stream) {
+          let lastStateString = originalState;
+          const stateMonitor = setInterval(() => {
+            const currentStateString = JSON.stringify(model.state, null, 2);
+            if (currentStateString !== lastStateString) {
+              console.log('\n🔄 State Change Detected:');
+              console.log(currentStateString);
+              lastStateString = currentStateString;
+            }
+          }, 100); // Check every 100ms
+          
+          // Store monitor for cleanup
+          model._stateMonitor = stateMonitor;
+        }
+      }
+      
+      // Display registered conditions if available
+      if (model.conditionWatcher.conditions && model.conditionWatcher.conditions.size > 0) {
+        console.log(`✓ ${model.conditionWatcher.conditions.size} reactive conditions registered:`);
+        for (const [id, condition] of model.conditionWatcher.conditions) {
+          console.log(`  - ${id}: "${condition.expression}"`);
+        }
+      }
+    } else {
+      console.log('ℹ️  Model does not have ReactiveConditionWatcher - basic monitoring only');
+    }
+    
+    console.log('🎯 Reactive monitoring setup complete!\n');
+  } catch (error) {
+    console.warn('⚠️  Error setting up reactive monitoring:', error.message);
+  }
+}
+
 async function runSimulation() {
   const args = process.argv.slice(2);
   let modelPath = args[0];
@@ -206,6 +260,9 @@ async function runSimulation() {
     if (type === 'environment') {
       setupEnvironmentLogging(model);
       listEnvironmentElements(model);
+      
+      // Initialize reactive monitoring system
+      setupReactiveMonitoring(model, options);
     }
 
     // Enable tracing if requested

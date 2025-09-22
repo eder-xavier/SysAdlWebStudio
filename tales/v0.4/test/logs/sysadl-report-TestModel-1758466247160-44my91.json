@@ -1,0 +1,991 @@
+{
+  "sessionInfo": {
+    "modelName": "TestModel",
+    "sessionId": "TestModel-1758466247160-44my91",
+    "startTime": 1758466247161,
+    "endTime": 1758466249197,
+    "totalDuration": 2036,
+    "totalExecutions": 22
+  },
+  "executionSummary": {
+    "byElementType": {
+      "event_injection_request": {
+        "count": 6,
+        "totalDuration": 1,
+        "averageDuration": 0.16666666666666666,
+        "successCount": 3,
+        "failureCount": 0,
+        "successRate": "50.00%"
+      },
+      "event_injection": {
+        "count": 7,
+        "totalDuration": 1,
+        "averageDuration": 0.14285714285714285,
+        "successCount": 7,
+        "failureCount": 0,
+        "successRate": "100.00%"
+      },
+      "scene_execution_request": {
+        "count": 4,
+        "totalDuration": 2012,
+        "averageDuration": 503,
+        "successCount": 2,
+        "failureCount": 0,
+        "successRate": "50.00%"
+      },
+      "unknown": {
+        "count": 4,
+        "totalDuration": 2014,
+        "averageDuration": 503.5,
+        "successCount": 2,
+        "failureCount": 0,
+        "successRate": "50.00%"
+      },
+      "session_start": {
+        "count": 1,
+        "totalDuration": 0,
+        "averageDuration": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "successRate": "0.00%"
+      }
+    },
+    "byResult": {
+      "started": {
+        "count": 8,
+        "percentage": "36.36%"
+      },
+      "success": {
+        "count": 14,
+        "percentage": "63.64%"
+      }
+    },
+    "performanceMetrics": {
+      "totalExecutions": 22,
+      "averageDuration": 575.4285714285714,
+      "medianDuration": 2,
+      "minDuration": 1,
+      "maxDuration": 2010,
+      "p95Duration": 2010,
+      "p99Duration": 2010
+    },
+    "errorSummary": {},
+    "warningSummary": {},
+    "stateChangeSummary": {}
+  },
+  "detailedLog": [
+    {
+      "executionId": "exec_1758466247163_u9kqrn",
+      "sessionId": "TestModel-1758466247160-44my91",
+      "timestamp": 1758466247163,
+      "executionTime": 2,
+      "elementType": "event_injection_request",
+      "elementName": "TestStartEvent",
+      "elementPath": "Model.TestModel.injectEvent",
+      "initialState": null,
+      "finalState": null,
+      "stateChanges": [],
+      "triggerEvent": null,
+      "executionResult": "started",
+      "executionDuration": 0,
+      "preConditions": [],
+      "postConditions": [],
+      "conditionResults": [],
+      "parentExecution": null,
+      "childExecutions": [],
+      "eventChain": [],
+      "errors": [],
+      "warnings": [],
+      "memoryUsage": {
+        "rss": 29392896,
+        "heapTotal": 4898816,
+        "heapUsed": 4552960,
+        "external": 1418791,
+        "arrayBuffers": 10715
+      },
+      "cpuUsage": {
+        "user": 43628,
+        "system": 16031
+      },
+      "metadata": {
+        "parameters": {
+          "message": "Starting Phase 4 test",
+          "priority": "high"
+        },
+        "options": {}
+      },
+      "retryCount": 0,
+      "isRetry": false
+    },
+    {
+      "executionId": "exec_1758466247169_qx891o",
+      "sessionId": "TestModel-1758466247160-44my91",
+      "timestamp": 1758466247169,
+      "executionTime": 8,
+      "elementType": "event_injection",
+      "elementName": "TestStartEvent",
+      "elementPath": "EventInjector.TestStartEvent",
+      "initialState": null,
+      "finalState": null,
+      "stateChanges": [],
+      "triggerEvent": null,
+      "executionResult": "success",
+      "executionDuration": 0,
+      "preConditions": [],
+      "postConditions": [],
+      "conditionResults": [],
+      "parentExecution": null,
+      "childExecutions": [],
+      "eventChain": [
+        "TestStartEvent"
+      ],
+      "errors": [],
+      "warnings": [],
+      "memoryUsage": {
+        "rss": 30191616,
+        "heapTotal": 4898816,
+        "heapUsed": 4576560,
+        "external": 1419047,
+        "arrayBuffers": 10931
+      },
+      "cpuUsage": {
+        "user": 45132,
+        "system": 16752
+      },
+      "metadata": {
+        "eventId": "event_TestStartEvent_1758466247167_2skm6h",
+        "parameters": {
+          "message": "Starting Phase 4 test",
+          "priority": "high"
+        },
+        "source": "EventInjector"
+      },
+      "retryCount": 0,
+      "isRetry": false
+    },
+    {
+      "executionId": "exec_1758466247169_n5ip6o",
+      "sessionId": "TestModel-1758466247160-44my91",
+      "timestamp": 1758466247169,
+      "executionTime": 8,
+      "elementType": "event_injection_request",
+      "elementName": "TestStartEvent",
+      "elementPath": "Model.TestModel.injectEvent",
+      "initialState": null,
+      "finalState": null,
+      "stateChanges": [],
+      "triggerEvent": null,
+      "executionResult": "success",
+      "executionDuration": 0,
+      "preConditions": [],
+      "postConditions": [],
+      "conditionResults": [],
+      "parentExecution": null,
+      "childExecutions": [],
+      "eventChain": [],
+      "errors": [],
+      "warnings": [],
+      "memoryUsage": {
+        "rss": 30265344,
+        "heapTotal": 4898816,
+        "heapUsed": 4591296,
+        "external": 1419247,
+        "arrayBuffers": 11131
+      },
+      "cpuUsage": {
+        "user": 45770,
+        "system": 16893
+      },
+      "metadata": {
+        "eventId": "event_TestStartEvent_1758466247167_2skm6h"
+      },
+      "retryCount": 0,
+      "isRetry": false
+    },
+    {
+      "executionId": "exec_1758466247173_wycdwg",
+      "sessionId": "TestModel-1758466247160-44my91",
+      "timestamp": 1758466247173,
+      "executionTime": 12,
+      "elementType": "scene_execution_request",
+      "elementName": "TestScene",
+      "elementPath": "Model.TestModel.executeScene",
+      "initialState": null,
+      "finalState": null,
+      "stateChanges": [],
+      "triggerEvent": null,
+      "executionResult": "started",
+      "executionDuration": 0,
+      "preConditions": [],
+      "postConditions": [],
+      "conditionResults": [],
+      "parentExecution": null,
+      "childExecutions": [],
+      "eventChain": [],
+      "errors": [],
+      "warnings": [],
+      "memoryUsage": {
+        "rss": 30707712,
+        "heapTotal": 4898816,
+        "heapUsed": 4636224,
+        "external": 1419447,
+        "arrayBuffers": 11331
+      },
+      "cpuUsage": {
+        "user": 48481,
+        "system": 17171
+      },
+      "metadata": {
+        "context": {}
+      },
+      "retryCount": 0,
+      "isRetry": false
+    },
+    {
+      "executionId": "exec_1758466247173_nzxoj3",
+      "sessionId": "TestModel-1758466247160-44my91",
+      "timestamp": 1758466247173,
+      "executionTime": 12,
+      "elementType": "unknown",
+      "elementName": "unnamed",
+      "elementPath": "",
+      "initialState": null,
+      "finalState": null,
+      "stateChanges": [],
+      "triggerEvent": null,
+      "executionResult": "started",
+      "executionDuration": 0,
+      "preConditions": [],
+      "postConditions": [],
+      "conditionResults": [],
+      "parentExecution": null,
+      "childExecutions": [],
+      "eventChain": [],
+      "errors": [],
+      "warnings": [],
+      "memoryUsage": {
+        "rss": 30748672,
+        "heapTotal": 4898816,
+        "heapUsed": 4654856,
+        "external": 1419647,
+        "arrayBuffers": 11531
+      },
+      "cpuUsage": {
+        "user": 48797,
+        "system": 17201
+      },
+      "metadata": {},
+      "retryCount": 0,
+      "isRetry": false
+    },
+    {
+      "executionId": "exec_1758466247174_kmriy6",
+      "sessionId": "TestModel-1758466247160-44my91",
+      "timestamp": 1758466247174,
+      "executionTime": 13,
+      "elementType": "event_injection",
+      "elementName": "TestStartEvent",
+      "elementPath": "EventInjector.TestStartEvent",
+      "initialState": null,
+      "finalState": null,
+      "stateChanges": [],
+      "triggerEvent": null,
+      "executionResult": "success",
+      "executionDuration": 0,
+      "preConditions": [],
+      "postConditions": [],
+      "conditionResults": [],
+      "parentExecution": null,
+      "childExecutions": [],
+      "eventChain": [
+        "TestStartEvent"
+      ],
+      "errors": [],
+      "warnings": [],
+      "memoryUsage": {
+        "rss": 30826496,
+        "heapTotal": 4898816,
+        "heapUsed": 4681744,
+        "external": 1419847,
+        "arrayBuffers": 11731
+      },
+      "cpuUsage": {
+        "user": 49390,
+        "system": 17262
+      },
+      "metadata": {
+        "eventId": "event_TestStartEvent_1758466247174_44qo4d",
+        "parameters": {},
+        "source": "EventInjector"
+      },
+      "retryCount": 0,
+      "isRetry": false
+    },
+    {
+      "executionId": "exec_1758466247180_qyio2l",
+      "sessionId": "TestModel-1758466247160-44my91",
+      "timestamp": 1758466247180,
+      "executionTime": 19,
+      "elementType": "session_start",
+      "elementName": "ExecutionLogger",
+      "elementPath": "Session.TestModel-1758466247160-44my91",
+      "initialState": null,
+      "finalState": null,
+      "stateChanges": [],
+      "triggerEvent": null,
+      "executionResult": "started",
+      "executionDuration": 0,
+      "preConditions": [],
+      "postConditions": [],
+      "conditionResults": [],
+      "parentExecution": null,
+      "childExecutions": [],
+      "eventChain": [],
+      "errors": [],
+      "warnings": [],
+      "memoryUsage": {
+        "rss": 32681984,
+        "heapTotal": 5947392,
+        "heapUsed": 4238440,
+        "external": 1429439,
+        "arrayBuffers": 20123
+      },
+      "cpuUsage": {
+        "user": 51383,
+        "system": 18223
+      },
+      "metadata": {},
+      "retryCount": 0,
+      "isRetry": false
+    },
+    {
+      "executionId": "exec_1758466249175_70unmf",
+      "sessionId": "TestModel-1758466247160-44my91",
+      "timestamp": 1758466249175,
+      "executionTime": 2014,
+      "elementType": "event_injection_request",
+      "elementName": "TestFinishEvent",
+      "elementPath": "Model.TestModel.injectEvent",
+      "initialState": null,
+      "finalState": null,
+      "stateChanges": [],
+      "triggerEvent": null,
+      "executionResult": "started",
+      "executionDuration": 0,
+      "preConditions": [],
+      "postConditions": [],
+      "conditionResults": [],
+      "parentExecution": null,
+      "childExecutions": [],
+      "eventChain": [],
+      "errors": [],
+      "warnings": [],
+      "memoryUsage": {
+        "rss": 36331520,
+        "heapTotal": 5947392,
+        "heapUsed": 4303480,
+        "external": 1428639,
+        "arrayBuffers": 20523
+      },
+      "cpuUsage": {
+        "user": 63306,
+        "system": 20687
+      },
+      "metadata": {
+        "parameters": {
+          "result": "success",
+          "duration": 2500
+        },
+        "options": {}
+      },
+      "retryCount": 0,
+      "isRetry": false
+    },
+    {
+      "executionId": "exec_1758466249180_cpyr3u",
+      "sessionId": "TestModel-1758466247160-44my91",
+      "timestamp": 1758466249180,
+      "executionTime": 2019,
+      "elementType": "event_injection",
+      "elementName": "TestFinishEvent",
+      "elementPath": "EventInjector.TestFinishEvent",
+      "initialState": null,
+      "finalState": null,
+      "stateChanges": [],
+      "triggerEvent": null,
+      "executionResult": "success",
+      "executionDuration": 1,
+      "preConditions": [],
+      "postConditions": [],
+      "conditionResults": [],
+      "parentExecution": null,
+      "childExecutions": [],
+      "eventChain": [
+        "TestFinishEvent"
+      ],
+      "errors": [],
+      "warnings": [],
+      "memoryUsage": {
+        "rss": 36438016,
+        "heapTotal": 6209536,
+        "heapUsed": 4579912,
+        "external": 1428839,
+        "arrayBuffers": 20723
+      },
+      "cpuUsage": {
+        "user": 66976,
+        "system": 21797
+      },
+      "metadata": {
+        "eventId": "event_TestStartEvent_1758466249177_0ss9l2",
+        "parameters": {
+          "result": "success",
+          "duration": 2500
+        },
+        "source": "EventInjector"
+      },
+      "retryCount": 0,
+      "isRetry": false
+    },
+    {
+      "executionId": "exec_1758466249182_5scpg5",
+      "sessionId": "TestModel-1758466247160-44my91",
+      "timestamp": 1758466249182,
+      "executionTime": 2021,
+      "elementType": "event_injection_request",
+      "elementName": "TestFinishEvent",
+      "elementPath": "Model.TestModel.injectEvent",
+      "initialState": null,
+      "finalState": null,
+      "stateChanges": [],
+      "triggerEvent": null,
+      "executionResult": "success",
+      "executionDuration": 1,
+      "preConditions": [],
+      "postConditions": [],
+      "conditionResults": [],
+      "parentExecution": null,
+      "childExecutions": [],
+      "eventChain": [],
+      "errors": [],
+      "warnings": [],
+      "memoryUsage": {
+        "rss": 36511744,
+        "heapTotal": 6209536,
+        "heapUsed": 4598336,
+        "external": 1429039,
+        "arrayBuffers": 20923
+      },
+      "cpuUsage": {
+        "user": 68676,
+        "system": 22389
+      },
+      "metadata": {
+        "eventId": "event_TestStartEvent_1758466249177_0ss9l2"
+      },
+      "retryCount": 0,
+      "isRetry": false
+    },
+    {
+      "executionId": "exec_1758466249183_teyx1x",
+      "sessionId": "TestModel-1758466247160-44my91",
+      "timestamp": 1758466249183,
+      "executionTime": 2022,
+      "elementType": "unknown",
+      "elementName": "unnamed",
+      "elementPath": "",
+      "initialState": null,
+      "finalState": null,
+      "stateChanges": [],
+      "triggerEvent": null,
+      "executionResult": "success",
+      "executionDuration": 2010,
+      "preConditions": [],
+      "postConditions": [],
+      "conditionResults": [],
+      "parentExecution": null,
+      "childExecutions": [],
+      "eventChain": [],
+      "errors": [],
+      "warnings": [],
+      "memoryUsage": {
+        "rss": 36552704,
+        "heapTotal": 6209536,
+        "heapUsed": 4610152,
+        "external": 1429239,
+        "arrayBuffers": 21123
+      },
+      "cpuUsage": {
+        "user": 69642,
+        "system": 22946
+      },
+      "metadata": {},
+      "retryCount": 0,
+      "isRetry": false
+    },
+    {
+      "executionId": "exec_1758466249186_1f1i75",
+      "sessionId": "TestModel-1758466247160-44my91",
+      "timestamp": 1758466249186,
+      "executionTime": 2025,
+      "elementType": "scene_execution_request",
+      "elementName": "TestScene",
+      "elementPath": "Model.TestModel.executeScene",
+      "initialState": null,
+      "finalState": null,
+      "stateChanges": [],
+      "triggerEvent": null,
+      "executionResult": "success",
+      "executionDuration": 2010,
+      "preConditions": [],
+      "postConditions": [],
+      "conditionResults": [],
+      "parentExecution": null,
+      "childExecutions": [],
+      "eventChain": [],
+      "errors": [],
+      "warnings": [],
+      "memoryUsage": {
+        "rss": 36630528,
+        "heapTotal": 6209536,
+        "heapUsed": 4622472,
+        "external": 1429439,
+        "arrayBuffers": 21323
+      },
+      "cpuUsage": {
+        "user": 70985,
+        "system": 23817
+      },
+      "metadata": {
+        "sceneId": "scene_TestScene_1758466247173_7bo8ij"
+      },
+      "retryCount": 0,
+      "isRetry": false
+    },
+    {
+      "executionId": "exec_1758466249190_xh6cok",
+      "sessionId": "TestModel-1758466247160-44my91",
+      "timestamp": 1758466249190,
+      "executionTime": 2029,
+      "elementType": "scene_execution_request",
+      "elementName": "ComplexScene",
+      "elementPath": "Model.TestModel.executeScene",
+      "initialState": null,
+      "finalState": null,
+      "stateChanges": [],
+      "triggerEvent": null,
+      "executionResult": "started",
+      "executionDuration": 0,
+      "preConditions": [],
+      "postConditions": [],
+      "conditionResults": [],
+      "parentExecution": null,
+      "childExecutions": [],
+      "eventChain": [],
+      "errors": [],
+      "warnings": [],
+      "memoryUsage": {
+        "rss": 36827136,
+        "heapTotal": 6209536,
+        "heapUsed": 4670488,
+        "external": 1437831,
+        "arrayBuffers": 29715
+      },
+      "cpuUsage": {
+        "user": 74692,
+        "system": 24962
+      },
+      "metadata": {
+        "context": {}
+      },
+      "retryCount": 0,
+      "isRetry": false
+    },
+    {
+      "executionId": "exec_1758466249193_6ct8ku",
+      "sessionId": "TestModel-1758466247160-44my91",
+      "timestamp": 1758466249193,
+      "executionTime": 2032,
+      "elementType": "unknown",
+      "elementName": "unnamed",
+      "elementPath": "",
+      "initialState": null,
+      "finalState": null,
+      "stateChanges": [],
+      "triggerEvent": null,
+      "executionResult": "started",
+      "executionDuration": 2,
+      "preConditions": [],
+      "postConditions": [],
+      "conditionResults": [],
+      "parentExecution": null,
+      "childExecutions": [],
+      "eventChain": [],
+      "errors": [],
+      "warnings": [],
+      "memoryUsage": {
+        "rss": 36888576,
+        "heapTotal": 6209536,
+        "heapUsed": 4685752,
+        "external": 1438031,
+        "arrayBuffers": 29915
+      },
+      "cpuUsage": {
+        "user": 76463,
+        "system": 25291
+      },
+      "metadata": {},
+      "retryCount": 0,
+      "isRetry": false
+    },
+    {
+      "executionId": "exec_1758466249193_waob1e",
+      "sessionId": "TestModel-1758466247160-44my91",
+      "timestamp": 1758466249193,
+      "executionTime": 2032,
+      "elementType": "event_injection_request",
+      "elementName": "ComplexEvent1",
+      "elementPath": "Model.TestModel.injectEvent",
+      "initialState": null,
+      "finalState": null,
+      "stateChanges": [],
+      "triggerEvent": null,
+      "executionResult": "started",
+      "executionDuration": 0,
+      "preConditions": [],
+      "postConditions": [],
+      "conditionResults": [],
+      "parentExecution": null,
+      "childExecutions": [],
+      "eventChain": [],
+      "errors": [],
+      "warnings": [],
+      "memoryUsage": {
+        "rss": 36913152,
+        "heapTotal": 6209536,
+        "heapUsed": 4699448,
+        "external": 1438231,
+        "arrayBuffers": 30115
+      },
+      "cpuUsage": {
+        "user": 76651,
+        "system": 25348
+      },
+      "metadata": {
+        "parameters": {
+          "data": "complex test data",
+          "sequence": 1
+        },
+        "options": {}
+      },
+      "retryCount": 0,
+      "isRetry": false
+    },
+    {
+      "executionId": "exec_1758466249193_4yrnna",
+      "sessionId": "TestModel-1758466247160-44my91",
+      "timestamp": 1758466249193,
+      "executionTime": 2032,
+      "elementType": "event_injection",
+      "elementName": "ComplexEvent1",
+      "elementPath": "EventInjector.ComplexEvent1",
+      "initialState": null,
+      "finalState": null,
+      "stateChanges": [],
+      "triggerEvent": null,
+      "executionResult": "success",
+      "executionDuration": 0,
+      "preConditions": [],
+      "postConditions": [],
+      "conditionResults": [],
+      "parentExecution": null,
+      "childExecutions": [],
+      "eventChain": [
+        "ComplexEvent1"
+      ],
+      "errors": [],
+      "warnings": [],
+      "memoryUsage": {
+        "rss": 36937728,
+        "heapTotal": 6209536,
+        "heapUsed": 4721424,
+        "external": 1438431,
+        "arrayBuffers": 30315
+      },
+      "cpuUsage": {
+        "user": 76894,
+        "system": 25391
+      },
+      "metadata": {
+        "eventId": "event_TestStartEvent_1758466249193_epicbo",
+        "parameters": {
+          "data": "complex test data",
+          "sequence": 1
+        },
+        "source": "EventInjector"
+      },
+      "retryCount": 0,
+      "isRetry": false
+    },
+    {
+      "executionId": "exec_1758466249193_z3v2ka",
+      "sessionId": "TestModel-1758466247160-44my91",
+      "timestamp": 1758466249193,
+      "executionTime": 2032,
+      "elementType": "unknown",
+      "elementName": "unnamed",
+      "elementPath": "",
+      "initialState": null,
+      "finalState": null,
+      "stateChanges": [],
+      "triggerEvent": null,
+      "executionResult": "success",
+      "executionDuration": 2,
+      "preConditions": [],
+      "postConditions": [],
+      "conditionResults": [],
+      "parentExecution": null,
+      "childExecutions": [],
+      "eventChain": [],
+      "errors": [],
+      "warnings": [],
+      "memoryUsage": {
+        "rss": 36950016,
+        "heapTotal": 6209536,
+        "heapUsed": 4736392,
+        "external": 1446823,
+        "arrayBuffers": 38707
+      },
+      "cpuUsage": {
+        "user": 77047,
+        "system": 25424
+      },
+      "metadata": {},
+      "retryCount": 0,
+      "isRetry": false
+    },
+    {
+      "executionId": "exec_1758466249194_tjhyr4",
+      "sessionId": "TestModel-1758466247160-44my91",
+      "timestamp": 1758466249194,
+      "executionTime": 2033,
+      "elementType": "event_injection_request",
+      "elementName": "ComplexEvent1",
+      "elementPath": "Model.TestModel.injectEvent",
+      "initialState": null,
+      "finalState": null,
+      "stateChanges": [],
+      "triggerEvent": null,
+      "executionResult": "success",
+      "executionDuration": 0,
+      "preConditions": [],
+      "postConditions": [],
+      "conditionResults": [],
+      "parentExecution": null,
+      "childExecutions": [],
+      "eventChain": [],
+      "errors": [],
+      "warnings": [],
+      "memoryUsage": {
+        "rss": 36970496,
+        "heapTotal": 6209536,
+        "heapUsed": 4747872,
+        "external": 1447023,
+        "arrayBuffers": 38907
+      },
+      "cpuUsage": {
+        "user": 77435,
+        "system": 25520
+      },
+      "metadata": {
+        "eventId": "event_TestStartEvent_1758466249193_epicbo"
+      },
+      "retryCount": 0,
+      "isRetry": false
+    },
+    {
+      "executionId": "exec_1758466249194_a8wcpg",
+      "sessionId": "TestModel-1758466247160-44my91",
+      "timestamp": 1758466249194,
+      "executionTime": 2033,
+      "elementType": "scene_execution_request",
+      "elementName": "ComplexScene",
+      "elementPath": "Model.TestModel.executeScene",
+      "initialState": null,
+      "finalState": null,
+      "stateChanges": [],
+      "triggerEvent": null,
+      "executionResult": "success",
+      "executionDuration": 2,
+      "preConditions": [],
+      "postConditions": [],
+      "conditionResults": [],
+      "parentExecution": null,
+      "childExecutions": [],
+      "eventChain": [],
+      "errors": [],
+      "warnings": [],
+      "memoryUsage": {
+        "rss": 36986880,
+        "heapTotal": 6209536,
+        "heapUsed": 4758064,
+        "external": 1447223,
+        "arrayBuffers": 39107
+      },
+      "cpuUsage": {
+        "user": 77674,
+        "system": 25560
+      },
+      "metadata": {
+        "sceneId": "scene_ComplexScene_1758466249191_c0bovo"
+      },
+      "retryCount": 0,
+      "isRetry": false
+    },
+    {
+      "executionId": "exec_1758466249195_cv71nw",
+      "sessionId": "TestModel-1758466247160-44my91",
+      "timestamp": 1758466249195,
+      "executionTime": 2034,
+      "elementType": "event_injection",
+      "elementName": "TestStartEvent",
+      "elementPath": "EventInjector.TestStartEvent",
+      "initialState": null,
+      "finalState": null,
+      "stateChanges": [],
+      "triggerEvent": null,
+      "executionResult": "success",
+      "executionDuration": 0,
+      "preConditions": [],
+      "postConditions": [],
+      "conditionResults": [],
+      "parentExecution": null,
+      "childExecutions": [],
+      "eventChain": [
+        "TestStartEvent"
+      ],
+      "errors": [],
+      "warnings": [],
+      "memoryUsage": {
+        "rss": 37056512,
+        "heapTotal": 6209536,
+        "heapUsed": 4789584,
+        "external": 1447423,
+        "arrayBuffers": 39307
+      },
+      "cpuUsage": {
+        "user": 78532,
+        "system": 25643
+      },
+      "metadata": {
+        "eventId": "event_TestStartEvent_1758466249195_c4c9kl",
+        "parameters": {
+          "message": "Batch event 1",
+          "priority": "low"
+        },
+        "source": "EventInjector"
+      },
+      "retryCount": 0,
+      "isRetry": false
+    },
+    {
+      "executionId": "exec_1758466249195_8jwmw4",
+      "sessionId": "TestModel-1758466247160-44my91",
+      "timestamp": 1758466249195,
+      "executionTime": 2034,
+      "elementType": "event_injection",
+      "elementName": "TestStartEvent",
+      "elementPath": "EventInjector.TestStartEvent",
+      "initialState": null,
+      "finalState": null,
+      "stateChanges": [],
+      "triggerEvent": null,
+      "executionResult": "success",
+      "executionDuration": 0,
+      "preConditions": [],
+      "postConditions": [],
+      "conditionResults": [],
+      "parentExecution": null,
+      "childExecutions": [],
+      "eventChain": [
+        "TestStartEvent"
+      ],
+      "errors": [],
+      "warnings": [],
+      "memoryUsage": {
+        "rss": 37068800,
+        "heapTotal": 6209536,
+        "heapUsed": 4801464,
+        "external": 1447623,
+        "arrayBuffers": 39507
+      },
+      "cpuUsage": {
+        "user": 78619,
+        "system": 25680
+      },
+      "metadata": {
+        "eventId": "event_TestStartEvent_1758466249195_tzbrn4",
+        "parameters": {
+          "message": "Batch event 2",
+          "priority": "medium"
+        },
+        "source": "EventInjector"
+      },
+      "retryCount": 0,
+      "isRetry": false
+    },
+    {
+      "executionId": "exec_1758466249195_h97b1w",
+      "sessionId": "TestModel-1758466247160-44my91",
+      "timestamp": 1758466249195,
+      "executionTime": 2034,
+      "elementType": "event_injection",
+      "elementName": "TestStartEvent",
+      "elementPath": "EventInjector.TestStartEvent",
+      "initialState": null,
+      "finalState": null,
+      "stateChanges": [],
+      "triggerEvent": null,
+      "executionResult": "success",
+      "executionDuration": 0,
+      "preConditions": [],
+      "postConditions": [],
+      "conditionResults": [],
+      "parentExecution": null,
+      "childExecutions": [],
+      "eventChain": [
+        "TestStartEvent"
+      ],
+      "errors": [],
+      "warnings": [],
+      "memoryUsage": {
+        "rss": 37081088,
+        "heapTotal": 6209536,
+        "heapUsed": 4813504,
+        "external": 1456015,
+        "arrayBuffers": 47899
+      },
+      "cpuUsage": {
+        "user": 78699,
+        "system": 25706
+      },
+      "metadata": {
+        "eventId": "event_TestStartEvent_1758466249195_g8iqsq",
+        "parameters": {
+          "message": "Batch event 3",
+          "priority": "high"
+        },
+        "source": "EventInjector"
+      },
+      "retryCount": 0,
+      "isRetry": false
+    }
+  ],
+  "analysisRecommendations": [],
+  "systemMetrics": {
+    "peakMemoryUsage": 4813504,
+    "averageExecutionTime": 212,
+    "errorRate": "0.00%",
+    "successRate": "100.00%"
+  }
+}

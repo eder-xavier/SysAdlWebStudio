@@ -1,0 +1,697 @@
+/**
+ * Event Injector for SysADL
+ * 
+ * Generic event injection system that works across any domain (AGV, RTC, IoT, etc.)
+ * Provides controlled event injection with timing, validation, and comprehensive logging.
+ * 
+ * Features:
+ * - Domain-agnostic event injection
+ * - Event scheduling and timing control
+ * - Event validation and parameter checking
+ * - Event chain  }
+
+  /**
+   * Validate event before injection
+   */onitoring
+ * - Comprehensive logging integration
+ * - Event queuing and batch processing
+ * - Conditional event injection
+ */
+
+class EventInjector {
+  constructor(sysadlBase, options = {}) {
+    this.sysadlBase = sysadlBase;
+    
+    // Configuration
+    this.config = {
+      enableValidation: options.enableValidation !== false,
+      enableLogging: options.enableLogging !== false,
+      enableQueuing: options.enableQueuing !== false,
+      maxQueueSize: options.maxQueueSize || 1000,
+      defaultDelay: options.defaultDelay || 0,
+      batchSize: options.batchSize || 10,
+      batchInterval: options.batchInterval || 100,
+      enableRetries: options.enableRetries !== false,
+      maxRetries: options.maxRetries || 3,
+      retryDelay: options.retryDelay || 1000,
+      debugMode: options.debugMode || false
+    };
+
+    // Event management
+    this.eventQueue = [];
+    this.scheduledEvents = new Map(); // eventId -> timeout
+    this.eventHistory = [];
+    this.activeEvents = new Map(); // eventId -> event data
+    this.eventDefinitions = new Map(); // eventName -> definition
+    
+    // Statistics
+    this.stats = {
+      totalEventsInjected: 0,
+      successfulEvents: 0,
+      failedEvents: 0,
+      queuedEvents: 0,
+      scheduledEvents: 0,
+      averageInjectionTime: 0,
+      totalInjectionTime: 0
+    };
+
+    // Event system access
+    this.eventEmitter = this.sysadlBase.eventSystemManager 
+      ? this.sysadlBase.eventSystemManager.getGlobalEmitter()
+      : null;
+
+    if (!this.eventEmitter) {
+      console.warn('⚠️  No event system found - EventInjector running in simulation mode');
+      // Create a local EventEmitter for simulation mode
+      const { EventEmitter } = require('events');
+      this.eventEmitter = new EventEmitter();
+      this.simulationMode = true;
+    } else {
+      this.simulationMode = false;
+    }
+
+    // Start batch processing if enabled
+    if (this.config.enableQueuing) {
+      this.startBatchProcessing();
+    }
+
+    console.log('⚡ EventInjector initialized - ready for event injection');
+  }
+
+  /**
+   * Register an event definition for validation and documentation
+   */
+  registerEventDefinition(eventName, definition) {
+    if (!eventName || !definition) {
+      throw new Error('Event name and definition are required');
+    }
+
+    const eventDef = {
+      name: eventName,
+      parameters: definition.parameters || [],
+      description: definition.description || '',
+      category: definition.category || 'general',
+      required: definition.required || [],
+      optional: definition.optional || [],
+      validation: definition.validation || null,
+      triggers: definition.triggers || [],
+      effects: definition.effects || [],
+      domain: definition.domain || 'generic'
+    };
+
+    this.eventDefinitions.set(eventName, eventDef);
+    
+    if (this.config.debugMode) {
+      console.log(`✅ Event definition registered: ${eventName}`);
+    }
+
+    return eventDef;
+  }
+
+  /**
+   * Inject an event into the system
+   */
+  async injectEvent(eventName, parameters = {}, timestamp = null, options = {}) {
+    const eventId = this.generateEventId(eventName);
+    const injectionStartTime = Date.now();
+    
+    try {
+      // Create event object
+      const event = {
+        eventId,
+        eventName,
+        parameters,
+        timestamp: timestamp || Date.now(),
+        injectionTime: injectionStartTime,
+        source: 'EventInjector',
+        status: 'injecting',
+        retryCount: 0,
+        options: {
+          delay: options.delay || this.config.defaultDelay,
+          validate: options.validate !== false && this.config.enableValidation,
+          queue: options.queue !== false && this.config.enableQueuing,
+          priority: options.priority || 'normal',
+          timeout: options.timeout || 30000,
+          retries: options.retries !== undefined ? options.retries : this.config.maxRetries,
+          metadata: options.metadata || {}
+        }
+      };
+
+      // Validate event if enabled
+      if (event.options.validate) {
+        await this.validateEvent(event);
+      }
+
+      // Queue or inject immediately
+      if (event.options.queue && event.options.delay > 0) {
+        return this.queueEvent(event);
+      } else if (event.options.delay > 0) {
+        return this.scheduleEvent(event);
+      } else {
+        return this.executeInjection(event);
+      }
+
+    } catch (error) {
+      this.logEventInjection({
+        eventId,
+        eventName,
+        duration: Date.now() - injectionStartTime,
+        error: error.message
+      }, 'validation_failed');
+      throw error;
+    }
+  }
+
+  /**
+   * Inject multiple events in sequence or parallel
+   */
+  async injectEventBatch(events, options = {}) {
+    const batchId = this.generateBatchId();
+    const batchStartTime = Date.now();
+    
+    if (!Array.isArray(events) || events.length === 0) {
+      throw new Error('Events array is required and must not be empty');
+    }
+
+    const batchOptions = {
+      parallel: options.parallel || false,
+      stopOnError: options.stopOnError !== false,
+      delay: options.delay || 0,
+      maxConcurrency: options.maxConcurrency || 5
+    };
+
+    console.log(`📦 Injecting event batch: ${batchId} (${events.length} events, ${batchOptions.parallel ? 'parallel' : 'sequential'})`);
+
+    try {
+      let results;
+      
+      if (batchOptions.parallel) {
+        results = await this.injectEventsParallel(events, batchOptions);
+      } else {
+        results = await this.injectEventsSequential(events, batchOptions);
+      }
+
+      const batchDuration = Date.now() - batchStartTime;
+      const successCount = results.filter(r => r.success).length;
+      
+      console.log(`✅ Event batch completed: ${batchId} (${successCount}/${events.length} successful, ${batchDuration}ms)`);
+
+      return {
+        batchId,
+        success: successCount === events.length,
+        results,
+        duration: batchDuration,
+        successCount,
+        failureCount: events.length - successCount
+      };
+
+    } catch (error) {
+      console.error(`❌ Event batch failed: ${batchId} - ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Schedule an event for future injection
+   */
+  scheduleEvent(event) {
+    const delay = event.options.delay;
+    
+    console.log(`⏰ Scheduling event: ${event.eventName} (delay: ${delay}ms)`);
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        this.scheduledEvents.delete(event.eventId);
+        await this.executeInjection(event);
+      } catch (error) {
+        console.error(`❌ Scheduled event failed: ${event.eventName} - ${error.message}`);
+      }
+    }, delay);
+
+    this.scheduledEvents.set(event.eventId, timeoutId);
+    this.stats.scheduledEvents++;
+
+    return {
+      eventId: event.eventId,
+      scheduled: true,
+      delay,
+      executeAt: Date.now() + delay
+    };
+  }
+
+  /**
+   * Queue an event for batch processing
+   */
+  queueEvent(event) {
+    if (this.eventQueue.length >= this.config.maxQueueSize) {
+      throw new Error(`Event queue is full (max: ${this.config.maxQueueSize})`);
+    }
+
+    this.eventQueue.push(event);
+    this.stats.queuedEvents++;
+    
+    if (this.config.debugMode) {
+      console.log(`📋 Event queued: ${event.eventName} (queue size: ${this.eventQueue.length})`);
+    }
+
+    return {
+      eventId: event.eventId,
+      queued: true,
+      queuePosition: this.eventQueue.length,
+      estimatedExecuteAt: Date.now() + (this.eventQueue.length * this.config.batchInterval)
+    };
+  }
+
+  /**
+   * Execute event injection
+   */
+  async executeInjection(event) {
+    const executionStartTime = Date.now();
+    
+    try {
+      // Mark as active
+      this.activeEvents.set(event.eventId, event);
+      event.status = 'executing';
+
+      console.log(`⚡ Injecting event: ${event.eventName} (${event.eventId})`);
+
+      // Log injection start
+      if (this.config.enableLogging) {
+        this.logEventInjection(event, 'started');
+      }
+
+      // Emit event to the system
+      const eventResult = await this.emitEvent(event);
+
+      // Calculate timing
+      const injectionDuration = Date.now() - executionStartTime;
+
+      // Update statistics
+      this.updateStatistics(injectionDuration, true);
+
+      // Log successful injection
+      event.status = 'completed';
+      event.result = eventResult;
+      event.duration = injectionDuration;
+
+      if (this.config.enableLogging) {
+        this.logEventInjection(event, 'success');
+      }
+
+      console.log(`✅ Event injected: ${event.eventName} (${injectionDuration}ms)`);
+
+      return {
+        eventId: event.eventId,
+        success: true,
+        duration: injectionDuration,
+        result: eventResult,
+        timestamp: event.timestamp
+      };
+
+    } catch (error) {
+      // Handle injection failure
+      const injectionDuration = Date.now() - executionStartTime;
+      
+      event.status = 'failed';
+      event.error = error.message;
+      event.duration = injectionDuration;
+
+      this.updateStatistics(injectionDuration, false);
+
+      if (this.config.enableLogging) {
+        this.logEventInjection(event, 'failure');
+      }
+
+      // Retry if configured
+      if (this.config.enableRetries && event.retryCount < event.options.retries) {
+        return this.retryEventInjection(event);
+      }
+
+      console.error(`❌ Event injection failed: ${event.eventName} - ${error.message}`);
+      throw error;
+
+    } finally {
+      // Cleanup
+      this.activeEvents.delete(event.eventId);
+      this.eventHistory.push({
+        eventId: event.eventId,
+        eventName: event.eventName,
+        timestamp: event.timestamp,
+        status: event.status,
+        duration: event.duration || 0
+      });
+    }
+  }
+
+  /**
+   * Emit event to the system
+   */
+  async emitEvent(event) {
+    // Emit to the event system (either real or simulation)
+    const eventData = {
+      eventId: event.eventId,
+      eventName: event.eventName,
+      parameters: event.parameters,
+      timestamp: event.timestamp,
+      source: 'EventInjector',
+      metadata: event.options.metadata
+    };
+
+    try {
+      // Always emit the event
+      this.eventEmitter.emit(event.eventName, eventData);
+      
+      return {
+        simulated: this.simulationMode,
+        eventName: event.eventName,
+        parameters: event.parameters,
+        emitted: true
+      };
+    } catch (error) {
+      throw new Error(`Failed to emit event ${event.eventName}: ${error.message}`);
+    }
+  }
+      // Emit the event
+      this.eventEmitter.emit(event.eventName, eventData);
+      
+      // Also emit generic event injection notification
+      this.eventEmitter.emit('event_injected', eventData);
+
+      return {
+        emitted: true,
+        eventName: event.eventName,
+        listeners: this.eventEmitter.listenerCount(event.eventName)
+      };
+
+    } catch (error) {
+      throw new Error(`Event emission failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Validate event before injection
+   */
+  async validateEvent(event) {
+    const definition = this.eventDefinitions.get(event.eventName);
+    
+    if (!definition) {
+      if (this.config.debugMode) {
+        console.warn(`⚠️  No definition found for event: ${event.eventName}`);
+      }
+      return; // Allow events without definitions
+    }
+
+    // Validate required parameters
+    if (definition.required && definition.required.length > 0) {
+      for (const requiredParam of definition.required) {
+        if (!(requiredParam in event.parameters)) {
+          throw new Error(`Required parameter missing: ${requiredParam}`);
+        }
+      }
+    }
+
+    // Run custom validation if provided
+    if (definition.validation && typeof definition.validation === 'function') {
+      try {
+        const isValid = await definition.validation(event.parameters, event);
+        if (!isValid) {
+          throw new Error('Custom validation failed');
+        }
+      } catch (error) {
+        throw new Error(`Validation error: ${error.message}`);
+      }
+    }
+
+    if (this.config.debugMode) {
+      console.log(`✅ Event validation passed: ${event.eventName}`);
+    }
+  }
+
+  /**
+   * Retry failed event injection
+   */
+  async retryEventInjection(event) {
+    event.retryCount++;
+    const retryDelay = this.config.retryDelay * event.retryCount; // Exponential backoff
+    
+    console.log(`🔄 Retrying event: ${event.eventName} (attempt ${event.retryCount + 1}, delay: ${retryDelay}ms)`);
+
+    await this.sleep(retryDelay);
+    
+    return this.executeInjection(event);
+  }
+
+  /**
+   * Inject events in parallel
+   */
+  async injectEventsParallel(events, options) {
+    const maxConcurrency = options.maxConcurrency || 5;
+    const results = [];
+    
+    // Process events in chunks to limit concurrency
+    for (let i = 0; i < events.length; i += maxConcurrency) {
+      const chunk = events.slice(i, i + maxConcurrency);
+      
+      const chunkPromises = chunk.map(async (eventSpec) => {
+        try {
+          const result = await this.injectEvent(
+            eventSpec.eventName,
+            eventSpec.parameters,
+            eventSpec.timestamp,
+            eventSpec.options
+          );
+          return { ...result, eventName: eventSpec.eventName };
+        } catch (error) {
+          if (options.stopOnError) {
+            throw error;
+          }
+          return { 
+            eventName: eventSpec.eventName, 
+            success: false, 
+            error: error.message 
+          };
+        }
+      });
+
+      const chunkResults = await Promise.all(chunkPromises);
+      results.push(...chunkResults);
+
+      // Add delay between chunks if specified
+      if (options.delay > 0 && i + maxConcurrency < events.length) {
+        await this.sleep(options.delay);
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Inject events sequentially
+   */
+  async injectEventsSequential(events, options) {
+    const results = [];
+    
+    for (const eventSpec of events) {
+      try {
+        const result = await this.injectEvent(
+          eventSpec.eventName,
+          eventSpec.parameters,
+          eventSpec.timestamp,
+          eventSpec.options
+        );
+        
+        results.push({ ...result, eventName: eventSpec.eventName });
+
+        // Add delay between events if specified
+        if (options.delay > 0) {
+          await this.sleep(options.delay);
+        }
+
+      } catch (error) {
+        const errorResult = { 
+          eventName: eventSpec.eventName, 
+          success: false, 
+          error: error.message 
+        };
+        
+        results.push(errorResult);
+
+        if (options.stopOnError) {
+          throw error;
+        }
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Start batch processing for queued events
+   */
+  startBatchProcessing() {
+    if (this.batchInterval) {
+      clearInterval(this.batchInterval);
+    }
+
+    this.batchInterval = setInterval(async () => {
+      await this.processBatch();
+    }, this.config.batchInterval);
+
+    console.log(`📦 Batch processing started (interval: ${this.config.batchInterval}ms, batch size: ${this.config.batchSize})`);
+  }
+
+  /**
+   * Process a batch of queued events
+   */
+  async processBatch() {
+    if (this.eventQueue.length === 0) {
+      return;
+    }
+
+    const batchSize = Math.min(this.config.batchSize, this.eventQueue.length);
+    const batch = this.eventQueue.splice(0, batchSize);
+
+    if (this.config.debugMode) {
+      console.log(`📦 Processing batch: ${batch.length} events`);
+    }
+
+    for (const event of batch) {
+      try {
+        await this.executeInjection(event);
+      } catch (error) {
+        console.error(`❌ Batch event failed: ${event.eventName} - ${error.message}`);
+      }
+    }
+  }
+
+  /**
+   * Log event injection
+   */
+  logEventInjection(event, phase) {
+    if (!this.config.enableLogging || !this.sysadlBase.logger) {
+      return;
+    }
+
+    this.sysadlBase.logger.logExecution({
+      type: 'event_injection',
+      name: event.eventName,
+      path: `EventInjector.${event.eventName}`,
+      result: phase,
+      duration: event.duration || 0,
+      metadata: {
+        eventId: event.eventId,
+        parameters: event.parameters,
+        retryCount: event.retryCount,
+        source: 'EventInjector'
+      },
+      errors: event.error ? [event.error] : [],
+      eventChain: [event.eventName]
+    });
+  }
+
+  /**
+   * Update statistics
+   */
+  updateStatistics(duration, success) {
+    this.stats.totalEventsInjected++;
+    
+    if (success) {
+      this.stats.successfulEvents++;
+    } else {
+      this.stats.failedEvents++;
+    }
+
+    this.stats.totalInjectionTime += duration;
+    this.stats.averageInjectionTime = this.stats.totalInjectionTime / this.stats.totalEventsInjected;
+  }
+
+  /**
+   * Get injection statistics
+   */
+  getStatistics() {
+    return {
+      ...this.stats,
+      currentQueueSize: this.eventQueue.length,
+      activeEvents: this.activeEvents.size,
+      scheduledEvents: this.scheduledEvents.size,
+      registeredDefinitions: this.eventDefinitions.size,
+      successRate: this.stats.totalEventsInjected > 0 
+        ? (this.stats.successfulEvents / this.stats.totalEventsInjected * 100).toFixed(2) + '%'
+        : '0%'
+    };
+  }
+
+  /**
+   * Get event history
+   */
+  getEventHistory(limit = 100) {
+    return this.eventHistory.slice(-limit);
+  }
+
+  /**
+   * Cancel scheduled event
+   */
+  cancelScheduledEvent(eventId) {
+    const timeoutId = this.scheduledEvents.get(eventId);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      this.scheduledEvents.delete(eventId);
+      console.log(`🚫 Scheduled event cancelled: ${eventId}`);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Clear event queue
+   */
+  clearQueue() {
+    const clearedCount = this.eventQueue.length;
+    this.eventQueue = [];
+    console.log(`🧹 Event queue cleared: ${clearedCount} events removed`);
+    return clearedCount;
+  }
+
+  /**
+   * Utility functions
+   */
+  generateEventId(eventName) {
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 8);
+    return `event_${eventName}_${timestamp}_${random}`;
+  }
+
+  generateBatchId() {
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 8);
+    return `batch_${timestamp}_${random}`;
+  }
+
+  sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Cleanup resources
+   */
+  cleanup() {
+    // Stop batch processing
+    if (this.batchInterval) {
+      clearInterval(this.batchInterval);
+      this.batchInterval = null;
+    }
+
+    // Cancel all scheduled events
+    for (const [eventId, timeoutId] of this.scheduledEvents) {
+      clearTimeout(timeoutId);
+    }
+    this.scheduledEvents.clear();
+
+    // Clear queue
+    this.clearQueue();
+
+    console.log('🧹 EventInjector cleanup completed');
+  }
+}
+
+module.exports = { EventInjector };
