@@ -14,6 +14,12 @@ const { ExecutionLogger } = require('./ExecutionLogger');
 const EventInjector = require('./EventInjector');
 const { SceneExecutor } = require('./SceneExecutor');
 
+// Import Phase 5 & 6 components
+const { ScenarioExecutor } = require('./ScenarioExecutor');
+const { ExecutionController } = require('./ExecutionController');
+const { ReactiveStateManager } = require('./ReactiveStateManager');
+const { ReactiveConditionWatcher } = require('./ReactiveConditionWatcher');
+
 // Global Event System Manager
 class EventSystemManager {
   constructor() {
@@ -131,10 +137,36 @@ class Model extends SysADLBase {
       debugMode: false
     });
     
-    // Add expression evaluator reference
+    // Initialize expression evaluator first (needed by other components)
     this.expressionEvaluator = new ExpressionEvaluator();
     
-    console.log(`🎬 Model initialized with Phase 4 components: ${name}`);
+    // Phase 5 & 6 Components Integration
+    this.stateManager = new ReactiveStateManager();
+    
+    this.conditionWatcher = new ReactiveConditionWatcher(this, {
+      stateManager: this.stateManager,
+      expressionEvaluator: this.expressionEvaluator,
+      debugMode: false
+    });
+    
+    this.scenarioExecutor = new ScenarioExecutor(this, {
+      stateManager: this.stateManager,
+      conditionWatcher: this.conditionWatcher,
+      enableReactiveIntegration: true,
+      debugMode: false
+    });
+    
+    this.executionController = new ExecutionController(this, {
+      stateManager: this.stateManager,
+      conditionWatcher: this.conditionWatcher,
+      scenarioExecutor: this.scenarioExecutor,
+      enableSimulationControls: true,
+      enableVisualization: true,
+      enableAnalytics: true,
+      debugMode: false
+    });
+    
+    console.log(`🎬 Model initialized with Phase 4-6 components: ${name}`);
   }
 
   /**
@@ -398,6 +430,368 @@ class Model extends SysADLBase {
   }
 
   // ============= END PHASE 4 METHODS =============
+
+  // ============= PHASE 5-6 METHODS: SCENARIO EXECUTION & ORCHESTRATION =============
+  
+  /**
+   * Execute a scenario with programming structures support
+   */
+  async executeScenario(scenario, context = {}) {
+    this.logger.logExecution({
+      type: 'scenario_execution',
+      name: scenario.name || 'anonymous',
+      path: `Model.${this.name}.executeScenario`,
+      result: 'started',
+      metadata: { context }
+    });
+
+    try {
+      const result = await this.scenarioExecutor.executeScenario(scenario, context);
+      
+      this.logger.logExecution({
+        type: 'scenario_execution',
+        name: scenario.name || 'anonymous',
+        path: `Model.${this.name}.executeScenario`,
+        result: 'success',
+        duration: result.duration,
+        metadata: { 
+          variablesUsed: result.variablesUsed,
+          statements: result.statements 
+        }
+      });
+
+      return result;
+    } catch (error) {
+      this.logger.logExecution({
+        type: 'scenario_execution',
+        name: scenario.name || 'anonymous',
+        path: `Model.${this.name}.executeScenario`,
+        result: 'error',
+        error: error.message
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Execute a ScenarioExecution block with orchestration
+   */
+  async executeScenarioExecution(scenarioExecution, globalContext = {}) {
+    this.logger.logExecution({
+      type: 'scenario_execution_orchestration',
+      name: scenarioExecution.name || 'anonymous',
+      path: `Model.${this.name}.executeScenarioExecution`,
+      result: 'started',
+      metadata: { globalContext }
+    });
+
+    try {
+      const result = await this.executionController.executeScenarioExecution(scenarioExecution, globalContext);
+      
+      this.logger.logExecution({
+        type: 'scenario_execution_orchestration',
+        name: scenarioExecution.name || 'anonymous',
+        path: `Model.${this.name}.executeScenarioExecution`,
+        result: 'success',
+        duration: result.duration,
+        metadata: { 
+          executionMode: result.executionMode,
+          scenariosExecuted: result.scenariosExecuted,
+          statistics: result.statistics
+        }
+      });
+
+      return result;
+    } catch (error) {
+      this.logger.logExecution({
+        type: 'scenario_execution_orchestration',
+        name: scenarioExecution.name || 'anonymous',
+        path: `Model.${this.name}.executeScenarioExecution`,
+        result: 'error',
+        error: error.message
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Start simulation with scenario execution
+   */
+  async startSimulation(scenarioExecution, options = {}) {
+    try {
+      // Start execution and then play
+      const result = await this.executeScenarioExecution(scenarioExecution, options);
+      this.executionController.play();
+      
+      this.logger.logExecution({
+        type: 'simulation_control',
+        name: 'start',
+        path: `Model.${this.name}.startSimulation`,
+        result: 'success'
+      });
+      
+      return { status: 'simulation_started', ...result };
+    } catch (error) {
+      this.logger.logExecution({
+        type: 'simulation_control',
+        name: 'start',
+        path: `Model.${this.name}.startSimulation`,
+        result: 'error',
+        error: error.message
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Pause running simulation
+   */
+  async pauseSimulation() {
+    try {
+      this.executionController.pause();
+      
+      this.logger.logExecution({
+        type: 'simulation_control',
+        name: 'pause',
+        path: `Model.${this.name}.pauseSimulation`,
+        result: 'success'
+      });
+      
+      return { status: 'simulation_paused' };
+    } catch (error) {
+      this.logger.logExecution({
+        type: 'simulation_control',
+        name: 'pause',
+        path: `Model.${this.name}.pauseSimulation`,
+        result: 'error',
+        error: error.message
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Resume paused simulation
+   */
+  async resumeSimulation() {
+    try {
+      this.executionController.play();
+      
+      this.logger.logExecution({
+        type: 'simulation_control',
+        name: 'resume',
+        path: `Model.${this.name}.resumeSimulation`,
+        result: 'success'
+      });
+      
+      return { status: 'simulation_resumed' };
+    } catch (error) {
+      this.logger.logExecution({
+        type: 'simulation_control',
+        name: 'resume',
+        path: `Model.${this.name}.resumeSimulation`,
+        result: 'error',
+        error: error.message
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Stop running simulation
+   */
+  async stopSimulation() {
+    try {
+      this.executionController.stop();
+      
+      this.logger.logExecution({
+        type: 'simulation_control',
+        name: 'stop',
+        path: `Model.${this.name}.stopSimulation`,
+        result: 'success'
+      });
+      
+      return { status: 'simulation_stopped' };
+    } catch (error) {
+      this.logger.logExecution({
+        type: 'simulation_control',
+        name: 'stop',
+        path: `Model.${this.name}.stopSimulation`,
+        result: 'error',
+        error: error.message
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Execute a single simulation step
+   */
+  async stepSimulation() {
+    try {
+      const result = this.executionController.step();
+      
+      this.logger.logExecution({
+        type: 'simulation_control',
+        name: 'step',
+        path: `Model.${this.name}.stepSimulation`,
+        result: 'success',
+        metadata: { stepResult: result }
+      });
+      
+      return result;
+    } catch (error) {
+      this.logger.logExecution({
+        type: 'simulation_control',
+        name: 'step',
+        path: `Model.${this.name}.stepSimulation`,
+        result: 'error',
+        error: error.message
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Set simulation speed
+   */
+  setSimulationSpeed(speed) {
+    try {
+      this.executionController.setSpeed(speed);
+      
+      this.logger.logExecution({
+        type: 'simulation_control',
+        name: 'set_speed',
+        path: `Model.${this.name}.setSimulationSpeed`,
+        result: 'success',
+        metadata: { speed }
+      });
+      
+      return { status: 'speed_set', speed };
+    } catch (error) {
+      this.logger.logExecution({
+        type: 'simulation_control',
+        name: 'set_speed',
+        path: `Model.${this.name}.setSimulationSpeed`,
+        result: 'error',
+        error: error.message
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Get current simulation status
+   */
+  getSimulationStatus() {
+    try {
+      const status = this.executionController.getSimulationState();
+      
+      this.logger.logExecution({
+        type: 'simulation_query',
+        name: 'get_status',
+        path: `Model.${this.name}.getSimulationStatus`,
+        result: 'success',
+        metadata: { status }
+      });
+      
+      return status;
+    } catch (error) {
+      this.logger.logExecution({
+        type: 'simulation_query',
+        name: 'get_status',
+        path: `Model.${this.name}.getSimulationStatus`,
+        result: 'error',
+        error: error.message
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Subscribe to reactive state changes
+   */
+  subscribeToState(path, callback) {
+    try {
+      const subscription = this.stateManager.subscribe(path, callback);
+      
+      this.logger.logExecution({
+        type: 'reactive_subscription',
+        name: 'subscribe',
+        path: `Model.${this.name}.subscribeToState`,
+        result: 'success',
+        metadata: { statePath: path }
+      });
+      
+      return subscription;
+    } catch (error) {
+      this.logger.logExecution({
+        type: 'reactive_subscription',
+        name: 'subscribe',
+        path: `Model.${this.name}.subscribeToState`,
+        result: 'error',
+        error: error.message
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Watch condition reactively
+   */
+  watchCondition(condition, callback) {
+    try {
+      const watcher = this.conditionWatcher.watchCondition(condition, callback);
+      
+      this.logger.logExecution({
+        type: 'reactive_condition',
+        name: 'watch',
+        path: `Model.${this.name}.watchCondition`,
+        result: 'success',
+        metadata: { condition: condition.toString() }
+      });
+      
+      return watcher;
+    } catch (error) {
+      this.logger.logExecution({
+        type: 'reactive_condition',
+        name: 'watch',
+        path: `Model.${this.name}.watchCondition`,
+        result: 'error',
+        error: error.message
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Get reactive state proxy
+   */
+  getReactiveState() {
+    try {
+      const state = this.stateManager.state;
+      
+      this.logger.logExecution({
+        type: 'reactive_state',
+        name: 'get_state',
+        path: `Model.${this.name}.getReactiveState`,
+        result: 'success'
+      });
+      
+      return state;
+    } catch (error) {
+      this.logger.logExecution({
+        type: 'reactive_state',
+        name: 'get_state',
+        path: `Model.${this.name}.getReactiveState`,
+        result: 'error',
+        error: error.message
+      });
+      throw error;
+    }
+  }
+
+  // ============= END PHASE 5-6 METHODS =============
 
   registerActivity(key, activity) {
     if (!key) return;

@@ -15,6 +15,7 @@ mkdir -p generated
 SYSADL_FILES=(
     "Simple.sysadl"
     "AGV.sysadl" 
+    "AGV-completo.sysadl"
     "RTC.sysadl"
     "SmartPlace.sysadl"
 )

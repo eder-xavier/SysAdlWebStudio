@@ -3166,14 +3166,92 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
   for (const { element, className } of eventDefinitions) {
     const eventsName = element.name || element.id || 'UnnamedEvents';
     const targetName = element.config || element.target || element.to || 'UnnamedConfiguration';
+    const { events, eventClasses } = extractEvents(element);
+    
     lines.push(`// Events Definitions: ${eventsName}`);
     lines.push(`class ${className} extends EventsDefinitions {`);
     lines.push(`  constructor(name = '${eventsName}', opts = {}) {`);
     lines.push(`    super(name, {`);
     lines.push(`      ...opts,`);
-    lines.push(`      targetConfiguration: '${targetName}',`);
-    lines.push(`      events: ${JSON.stringify(extractEvents(element))}`);
+    lines.push(`      targetConfiguration: '${targetName}'`);
     lines.push(`    });`);
+    lines.push('');
+    
+    // Generate individual event properties and methods
+    for (const eventClass of eventClasses) {
+      lines.push(`    // ${eventClass.name} Event Definition`);
+      lines.push(`    this.${eventClass.name} = {`);
+      lines.push(`      name: '${eventClass.name}',`);
+      lines.push(`      type: '${eventClass.type}',`);
+      lines.push(`      target: '${eventClass.target}',`);
+      lines.push(`      rules: [`);
+      
+      for (const rule of eventClass.rules) {
+        lines.push(`        {`);
+        lines.push(`          trigger: '${rule.trigger}',`);
+        lines.push(`          actions: [`);
+        for (const action of rule.actions) {
+          lines.push(`            { name: '${action.name}', body: [] },`);
+        }
+        lines.push(`          ],`);
+        lines.push(`          execute: (context) => {`);
+        lines.push(`            console.log('Executing ${eventClass.name}: ${rule.trigger} -> ${rule.actions.map(a => a.name).join(', ')}');`);
+        lines.push(`            // Custom logic for ${rule.trigger} trigger`);
+        if (rule.actions.length > 0) {
+          lines.push(`            const results = [];`);
+          for (const action of rule.actions) {
+            lines.push(`            results.push(this.execute${action.name}(context));`);
+          }
+          lines.push(`            return results;`);
+        } else {
+          lines.push(`            return true;`);
+        }
+        lines.push(`          }`);
+        lines.push(`        },`);
+      }
+      
+      lines.push(`      ],`);
+      lines.push(`      hasRule: (triggerName) => {`);
+      lines.push(`        return this.${eventClass.name}.rules.some(rule => rule.trigger === triggerName);`);
+      lines.push(`      },`);
+      lines.push(`      executeRule: (triggerName, context) => {`);
+      lines.push(`        const rule = this.${eventClass.name}.rules.find(r => r.trigger === triggerName);`);
+      lines.push(`        return rule ? rule.execute(context) : null;`);
+      lines.push(`      }`);
+      lines.push(`    };`);
+      lines.push('');
+    }
+    
+    // Close constructor
+    lines.push(`  }`);
+    lines.push('');
+    
+    // Generate action methods
+    const allActions = new Set();
+    for (const eventClass of eventClasses) {
+      for (const rule of eventClass.rules) {
+        for (const action of rule.actions) {
+          allActions.add(action.name);
+        }
+      }
+    }
+    
+    for (const actionName of allActions) {
+      lines.push(`  execute${actionName}(context) {`);
+      lines.push(`    console.log('Executing action: ${actionName}');`);
+      lines.push(`    // Implement ${actionName} logic here`);
+      lines.push(`    return { action: '${actionName}', status: 'executed', context };`);
+      lines.push(`  }`);
+      lines.push('');
+    }
+    
+    lines.push(`  // Global event execution method`);
+    lines.push(`  executeEvent(eventName, triggerName, context) {`);
+    lines.push(`    if (this[eventName] && this[eventName].hasRule(triggerName)) {`);
+    lines.push(`      return this[eventName].executeRule(triggerName, context);`);
+    lines.push(`    }`);
+    lines.push(`    console.warn(\`Event \${eventName} or trigger \${triggerName} not found\`);`);
+    lines.push(`    return null;`);
     lines.push(`  }`);
     lines.push(`}`);
     lines.push('');
@@ -3488,46 +3566,67 @@ function extractProperties(element) {
 
 function extractEvents(element) {
   const events = {};
+  const eventClasses = [];
   
-  if (!element || !element.body) return events;
+  if (!element || !element.eventDefs) return { events, eventClasses };
   
-  // Look for Event def nodes in EventsDefinitions
-  traverse(element, node => {
-    if (node && node.type === 'EventDef') {
-      const eventName = node.name || (node.id && node.id.name) || node.id;
-      if (eventName) {
+  // Process EventDef nodes directly from eventDefs array
+  for (const eventDef of element.eventDefs) {
+    if (eventDef && eventDef.type === 'EventDef') {
+      const eventDefName = eventDef.name || (eventDef.id && eventDef.id.name) || eventDef.id;
+      if (eventDefName) {
         const eventRules = [];
         
-        // Extract ON...THEN rules
-        if (node.rules && Array.isArray(node.rules)) {
-          for (const rule of node.rules) {
-            eventRules.push({
-              trigger: rule.trigger || rule.on,
-              action: rule.action || rule.then,
-              conditions: rule.conditions || []
-            });
+        // Extract ON...THEN rules from triggers
+        if (eventDef.triggers && Array.isArray(eventDef.triggers)) {
+          for (const trigger of eventDef.triggers) {
+            if (trigger.type === 'TriggerBlock') {
+              const triggerName = trigger.condition ? trigger.condition.name : 'unknown';
+              const actions = [];
+              
+              // Extract THEN actions
+              if (trigger.actions && Array.isArray(trigger.actions)) {
+                for (const action of trigger.actions) {
+                  if (action.type === 'ActionBlock') {
+                    actions.push({
+                      name: action.name,
+                      body: action.body || []
+                    });
+                  }
+                }
+              }
+              
+              eventRules.push({
+                trigger: triggerName,
+                actions: actions,
+                conditions: trigger.condition ? [trigger.condition] : []
+              });
+            }
           }
         }
         
-        events[eventName] = {
-          type: 'rule-based',
-          parameters: [],
+        // Create individual event class structure
+        const eventClass = {
+          name: eventDefName,
+          target: eventDef.target,
           rules: eventRules,
-          condition: `function(context) { 
-            // Auto-generated condition from rules
-            return true; 
-          }`,
-          action: `function(context) { 
-            // Auto-generated action from rules
-            console.log('Event ${eventName} triggered');
-            return true; 
-          }`
+          type: 'rule-based'
+        };
+        
+        eventClasses.push(eventClass);
+        
+        // Simplified structure for backward compatibility
+        events[eventDefName] = {
+          type: 'rule-based',
+          target: eventDef.target,
+          parameters: [],
+          rules: eventRules
         };
       }
     }
-  });
+  }
   
-  return events;
+  return { events, eventClasses };
 }
 
 function extractScenes(element) {

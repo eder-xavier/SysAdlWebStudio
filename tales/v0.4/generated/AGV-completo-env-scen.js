@@ -207,9 +207,721 @@ class MyEvents extends EventsDefinitions {
   constructor(name = 'MyEvents', opts = {}) {
     super(name, {
       ...opts,
-      targetConfiguration: 'MyFactoryConfiguration',
-      events: {}
+      targetConfiguration: 'MyFactoryConfiguration'
     });
+
+    // SupervisoryEvents Event Definition
+    this.SupervisoryEvents = {
+      name: 'SupervisoryEvents',
+      type: 'rule-based',
+      target: 'supervisor',
+      rules: [
+        {
+          trigger: 'cmdSupervisor',
+          actions: [
+            { name: 'cmdAGV2toC', body: [] },
+            { name: 'cmdAGV1toA', body: [] },
+          ],
+          execute: (context) => {
+            console.log('Executing SupervisoryEvents: cmdSupervisor -> cmdAGV2toC, cmdAGV1toA');
+            // Custom logic for cmdSupervisor trigger
+            const results = [];
+            results.push(this.executecmdAGV2toC(context));
+            results.push(this.executecmdAGV1toA(context));
+            return results;
+          }
+        },
+        {
+          trigger: 'AGV1NotifLoad',
+          actions: [
+            { name: 'cmdAGV1toC', body: [] },
+          ],
+          execute: (context) => {
+            console.log('Executing SupervisoryEvents: AGV1NotifLoad -> cmdAGV1toC');
+            // Custom logic for AGV1NotifLoad trigger
+            const results = [];
+            results.push(this.executecmdAGV1toC(context));
+            return results;
+          }
+        },
+        {
+          trigger: 'AGV1NotifArriveA',
+          actions: [
+            { name: 'cmdAGV1loadA', body: [] },
+          ],
+          execute: (context) => {
+            console.log('Executing SupervisoryEvents: AGV1NotifArriveA -> cmdAGV1loadA');
+            // Custom logic for AGV1NotifArriveA trigger
+            const results = [];
+            results.push(this.executecmdAGV1loadA(context));
+            return results;
+          }
+        },
+        {
+          trigger: 'AGV1NotifArriveC',
+          actions: [
+            { name: 'cmdAGV1UnloadA', body: [] },
+          ],
+          execute: (context) => {
+            console.log('Executing SupervisoryEvents: AGV1NotifArriveC -> cmdAGV1UnloadA');
+            // Custom logic for AGV1NotifArriveC trigger
+            const results = [];
+            results.push(this.executecmdAGV1UnloadA(context));
+            return results;
+          }
+        },
+        {
+          trigger: 'AGV1NotifArriveAUnoaded',
+          actions: [
+            { name: 'cmdAGV2loadC', body: [] },
+          ],
+          execute: (context) => {
+            console.log('Executing SupervisoryEvents: AGV1NotifArriveAUnoaded -> cmdAGV2loadC');
+            // Custom logic for AGV1NotifArriveAUnoaded trigger
+            const results = [];
+            results.push(this.executecmdAGV2loadC(context));
+            return results;
+          }
+        },
+        {
+          trigger: 'AGV2NotifLoad',
+          actions: [
+            { name: 'cmdAGV2toE', body: [] },
+          ],
+          execute: (context) => {
+            console.log('Executing SupervisoryEvents: AGV2NotifLoad -> cmdAGV2toE');
+            // Custom logic for AGV2NotifLoad trigger
+            const results = [];
+            results.push(this.executecmdAGV2toE(context));
+            return results;
+          }
+        },
+        {
+          trigger: 'AGV2NotifArriveE',
+          actions: [
+            { name: 'cmdAGV2UnloadE', body: [] },
+          ],
+          execute: (context) => {
+            console.log('Executing SupervisoryEvents: AGV2NotifArriveE -> cmdAGV2UnloadE');
+            // Custom logic for AGV2NotifArriveE trigger
+            const results = [];
+            results.push(this.executecmdAGV2UnloadE(context));
+            return results;
+          }
+        },
+      ],
+      hasRule: (triggerName) => {
+        return this.SupervisoryEvents.rules.some(rule => rule.trigger === triggerName);
+      },
+      executeRule: (triggerName, context) => {
+        const rule = this.SupervisoryEvents.rules.find(r => r.trigger === triggerName);
+        return rule ? rule.execute(context) : null;
+      }
+    };
+
+    // AGV1Events Event Definition
+    this.AGV1Events = {
+      name: 'AGV1Events',
+      type: 'rule-based',
+      target: 'agv1',
+      rules: [
+        {
+          trigger: 'cmdAGV1toA',
+          actions: [
+            { name: 'AGV1NotifTravelA', body: [] },
+          ],
+          execute: (context) => {
+            console.log('Executing AGV1Events: cmdAGV1toA -> AGV1NotifTravelA');
+            // Custom logic for cmdAGV1toA trigger
+            const results = [];
+            results.push(this.executeAGV1NotifTravelA(context));
+            return results;
+          }
+        },
+        {
+          trigger: 'AGV1locationStationB',
+          actions: [
+            { name: 'AGV1NotifPassB', body: [] },
+          ],
+          execute: (context) => {
+            console.log('Executing AGV1Events: AGV1locationStationB -> AGV1NotifPassB');
+            // Custom logic for AGV1locationStationB trigger
+            const results = [];
+            results.push(this.executeAGV1NotifPassB(context));
+            return results;
+          }
+        },
+        {
+          trigger: 'AGV1locationStationC',
+          actions: [
+            { name: 'AGV1NotifArriveC', body: [] },
+          ],
+          execute: (context) => {
+            console.log('Executing AGV1Events: AGV1locationStationC -> AGV1NotifArriveC');
+            // Custom logic for AGV1locationStationC trigger
+            const results = [];
+            results.push(this.executeAGV1NotifArriveC(context));
+            return results;
+          }
+        },
+        {
+          trigger: 'AGV1locationStationA',
+          actions: [
+            { name: 'AGV1NotifArriveA', body: [] },
+          ],
+          execute: (context) => {
+            console.log('Executing AGV1Events: AGV1locationStationA -> AGV1NotifArriveA');
+            // Custom logic for AGV1locationStationA trigger
+            const results = [];
+            results.push(this.executeAGV1NotifArriveA(context));
+            return results;
+          }
+        },
+        {
+          trigger: 'AGV1atachPartX',
+          actions: [
+            { name: 'AGV1NotifLoad', body: [] },
+          ],
+          execute: (context) => {
+            console.log('Executing AGV1Events: AGV1atachPartX -> AGV1NotifLoad');
+            // Custom logic for AGV1atachPartX trigger
+            const results = [];
+            results.push(this.executeAGV1NotifLoad(context));
+            return results;
+          }
+        },
+        {
+          trigger: 'AGV1detachPartX',
+          actions: [
+            { name: 'AGV1NotifArriveAUnoaded', body: [] },
+          ],
+          execute: (context) => {
+            console.log('Executing AGV1Events: AGV1detachPartX -> AGV1NotifArriveAUnoaded');
+            // Custom logic for AGV1detachPartX trigger
+            const results = [];
+            results.push(this.executeAGV1NotifArriveAUnoaded(context));
+            return results;
+          }
+        },
+      ],
+      hasRule: (triggerName) => {
+        return this.AGV1Events.rules.some(rule => rule.trigger === triggerName);
+      },
+      executeRule: (triggerName, context) => {
+        const rule = this.AGV1Events.rules.find(r => r.trigger === triggerName);
+        return rule ? rule.execute(context) : null;
+      }
+    };
+
+    // AGV2Events Event Definition
+    this.AGV2Events = {
+      name: 'AGV2Events',
+      type: 'rule-based',
+      target: 'agv2',
+      rules: [
+        {
+          trigger: 'cmdAGV2toC',
+          actions: [
+            { name: 'AGV2NotifTravelC', body: [] },
+          ],
+          execute: (context) => {
+            console.log('Executing AGV2Events: cmdAGV2toC -> AGV2NotifTravelC');
+            // Custom logic for cmdAGV2toC trigger
+            const results = [];
+            results.push(this.executeAGV2NotifTravelC(context));
+            return results;
+          }
+        },
+        {
+          trigger: 'AGV2locationStationC',
+          actions: [
+            { name: 'AGV2NotifArriveC', body: [] },
+          ],
+          execute: (context) => {
+            console.log('Executing AGV2Events: AGV2locationStationC -> AGV2NotifArriveC');
+            // Custom logic for AGV2locationStationC trigger
+            const results = [];
+            results.push(this.executeAGV2NotifArriveC(context));
+            return results;
+          }
+        },
+        {
+          trigger: 'AGV2atachPartX',
+          actions: [
+            { name: 'AGV2NotifLoad', body: [] },
+          ],
+          execute: (context) => {
+            console.log('Executing AGV2Events: AGV2atachPartX -> AGV2NotifLoad');
+            // Custom logic for AGV2atachPartX trigger
+            const results = [];
+            results.push(this.executeAGV2NotifLoad(context));
+            return results;
+          }
+        },
+        {
+          trigger: 'AGV2locationStationD',
+          actions: [
+            { name: 'AGV2NotifPassD', body: [] },
+          ],
+          execute: (context) => {
+            console.log('Executing AGV2Events: AGV2locationStationD -> AGV2NotifPassD');
+            // Custom logic for AGV2locationStationD trigger
+            const results = [];
+            results.push(this.executeAGV2NotifPassD(context));
+            return results;
+          }
+        },
+        {
+          trigger: 'AGV2locationStationE',
+          actions: [
+            { name: 'AGV2NotifArriveE', body: [] },
+          ],
+          execute: (context) => {
+            console.log('Executing AGV2Events: AGV2locationStationE -> AGV2NotifArriveE');
+            // Custom logic for AGV2locationStationE trigger
+            const results = [];
+            results.push(this.executeAGV2NotifArriveE(context));
+            return results;
+          }
+        },
+        {
+          trigger: 'AGV2detachPartX',
+          actions: [
+            { name: 'AGV2NotifArriveAUnoaded', body: [] },
+          ],
+          execute: (context) => {
+            console.log('Executing AGV2Events: AGV2detachPartX -> AGV2NotifArriveAUnoaded');
+            // Custom logic for AGV2detachPartX trigger
+            const results = [];
+            results.push(this.executeAGV2NotifArriveAUnoaded(context));
+            return results;
+          }
+        },
+      ],
+      hasRule: (triggerName) => {
+        return this.AGV2Events.rules.some(rule => rule.trigger === triggerName);
+      },
+      executeRule: (triggerName, context) => {
+        const rule = this.AGV2Events.rules.find(r => r.trigger === triggerName);
+        return rule ? rule.execute(context) : null;
+      }
+    };
+
+    // StationAEvents Event Definition
+    this.StationAEvents = {
+      name: 'StationAEvents',
+      type: 'rule-based',
+      target: 'stationA',
+      rules: [
+        {
+          trigger: 'agv1.sensor',
+          actions: [
+            { name: 'AGV1locationStationA', body: [] },
+          ],
+          execute: (context) => {
+            console.log('Executing StationAEvents: agv1.sensor -> AGV1locationStationA');
+            // Custom logic for agv1.sensor trigger
+            const results = [];
+            results.push(this.executeAGV1locationStationA(context));
+            return results;
+          }
+        },
+      ],
+      hasRule: (triggerName) => {
+        return this.StationAEvents.rules.some(rule => rule.trigger === triggerName);
+      },
+      executeRule: (triggerName, context) => {
+        const rule = this.StationAEvents.rules.find(r => r.trigger === triggerName);
+        return rule ? rule.execute(context) : null;
+      }
+    };
+
+    // StationBEvents Event Definition
+    this.StationBEvents = {
+      name: 'StationBEvents',
+      type: 'rule-based',
+      target: 'stationB',
+      rules: [
+        {
+          trigger: 'agv1.sensor',
+          actions: [
+            { name: 'AGV1locationStationB', body: [] },
+          ],
+          execute: (context) => {
+            console.log('Executing StationBEvents: agv1.sensor -> AGV1locationStationB');
+            // Custom logic for agv1.sensor trigger
+            const results = [];
+            results.push(this.executeAGV1locationStationB(context));
+            return results;
+          }
+        },
+      ],
+      hasRule: (triggerName) => {
+        return this.StationBEvents.rules.some(rule => rule.trigger === triggerName);
+      },
+      executeRule: (triggerName, context) => {
+        const rule = this.StationBEvents.rules.find(r => r.trigger === triggerName);
+        return rule ? rule.execute(context) : null;
+      }
+    };
+
+    // StationCEvents Event Definition
+    this.StationCEvents = {
+      name: 'StationCEvents',
+      type: 'rule-based',
+      target: 'stationC',
+      rules: [
+        {
+          trigger: 'agv1.sensor',
+          actions: [
+            { name: 'AGV1locationStationC', body: [] },
+          ],
+          execute: (context) => {
+            console.log('Executing StationCEvents: agv1.sensor -> AGV1locationStationC');
+            // Custom logic for agv1.sensor trigger
+            const results = [];
+            results.push(this.executeAGV1locationStationC(context));
+            return results;
+          }
+        },
+        {
+          trigger: 'agv2.sensor',
+          actions: [
+            { name: 'AGV2locationStationC', body: [] },
+          ],
+          execute: (context) => {
+            console.log('Executing StationCEvents: agv2.sensor -> AGV2locationStationC');
+            // Custom logic for agv2.sensor trigger
+            const results = [];
+            results.push(this.executeAGV2locationStationC(context));
+            return results;
+          }
+        },
+      ],
+      hasRule: (triggerName) => {
+        return this.StationCEvents.rules.some(rule => rule.trigger === triggerName);
+      },
+      executeRule: (triggerName, context) => {
+        const rule = this.StationCEvents.rules.find(r => r.trigger === triggerName);
+        return rule ? rule.execute(context) : null;
+      }
+    };
+
+    // StationDEvents Event Definition
+    this.StationDEvents = {
+      name: 'StationDEvents',
+      type: 'rule-based',
+      target: 'stationD',
+      rules: [
+        {
+          trigger: 'agv2.sensor',
+          actions: [
+            { name: 'AGV2locationStationD', body: [] },
+          ],
+          execute: (context) => {
+            console.log('Executing StationDEvents: agv2.sensor -> AGV2locationStationD');
+            // Custom logic for agv2.sensor trigger
+            const results = [];
+            results.push(this.executeAGV2locationStationD(context));
+            return results;
+          }
+        },
+      ],
+      hasRule: (triggerName) => {
+        return this.StationDEvents.rules.some(rule => rule.trigger === triggerName);
+      },
+      executeRule: (triggerName, context) => {
+        const rule = this.StationDEvents.rules.find(r => r.trigger === triggerName);
+        return rule ? rule.execute(context) : null;
+      }
+    };
+
+    // StationEEvents Event Definition
+    this.StationEEvents = {
+      name: 'StationEEvents',
+      type: 'rule-based',
+      target: 'stationE',
+      rules: [
+        {
+          trigger: 'agv2.sensor',
+          actions: [
+            { name: 'agv2locationStationE', body: [] },
+          ],
+          execute: (context) => {
+            console.log('Executing StationEEvents: agv2.sensor -> agv2locationStationE');
+            // Custom logic for agv2.sensor trigger
+            const results = [];
+            results.push(this.executeagv2locationStationE(context));
+            return results;
+          }
+        },
+      ],
+      hasRule: (triggerName) => {
+        return this.StationEEvents.rules.some(rule => rule.trigger === triggerName);
+      },
+      executeRule: (triggerName, context) => {
+        const rule = this.StationEEvents.rules.find(r => r.trigger === triggerName);
+        return rule ? rule.execute(context) : null;
+      }
+    };
+
+    // PartXEvents Event Definition
+    this.PartXEvents = {
+      name: 'PartXEvents',
+      type: 'rule-based',
+      target: 'part',
+      rules: [
+        {
+          trigger: 'cmdAGV1loadA',
+          actions: [
+            { name: 'AGV1atachPartX', body: [] },
+          ],
+          execute: (context) => {
+            console.log('Executing PartXEvents: cmdAGV1loadA -> AGV1atachPartX');
+            // Custom logic for cmdAGV1loadA trigger
+            const results = [];
+            results.push(this.executeAGV1atachPartX(context));
+            return results;
+          }
+        },
+        {
+          trigger: 'cmdAGV1UnloadA',
+          actions: [
+            { name: 'AGV1detachPartX', body: [] },
+          ],
+          execute: (context) => {
+            console.log('Executing PartXEvents: cmdAGV1UnloadA -> AGV1detachPartX');
+            // Custom logic for cmdAGV1UnloadA trigger
+            const results = [];
+            results.push(this.executeAGV1detachPartX(context));
+            return results;
+          }
+        },
+        {
+          trigger: 'cmdAGV2loadC',
+          actions: [
+            { name: 'AGV2atachPartX', body: [] },
+          ],
+          execute: (context) => {
+            console.log('Executing PartXEvents: cmdAGV2loadC -> AGV2atachPartX');
+            // Custom logic for cmdAGV2loadC trigger
+            const results = [];
+            results.push(this.executeAGV2atachPartX(context));
+            return results;
+          }
+        },
+        {
+          trigger: 'cmdAGV2UnloadE',
+          actions: [
+            { name: 'AGV2detachPartX', body: [] },
+          ],
+          execute: (context) => {
+            console.log('Executing PartXEvents: cmdAGV2UnloadE -> AGV2detachPartX');
+            // Custom logic for cmdAGV2UnloadE trigger
+            const results = [];
+            results.push(this.executeAGV2detachPartX(context));
+            return results;
+          }
+        },
+      ],
+      hasRule: (triggerName) => {
+        return this.PartXEvents.rules.some(rule => rule.trigger === triggerName);
+      },
+      executeRule: (triggerName, context) => {
+        const rule = this.PartXEvents.rules.find(r => r.trigger === triggerName);
+        return rule ? rule.execute(context) : null;
+      }
+    };
+
+  }
+
+  executecmdAGV2toC(context) {
+    console.log('Executing action: cmdAGV2toC');
+    // Implement cmdAGV2toC logic here
+    return { action: 'cmdAGV2toC', status: 'executed', context };
+  }
+
+  executecmdAGV1toA(context) {
+    console.log('Executing action: cmdAGV1toA');
+    // Implement cmdAGV1toA logic here
+    return { action: 'cmdAGV1toA', status: 'executed', context };
+  }
+
+  executecmdAGV1toC(context) {
+    console.log('Executing action: cmdAGV1toC');
+    // Implement cmdAGV1toC logic here
+    return { action: 'cmdAGV1toC', status: 'executed', context };
+  }
+
+  executecmdAGV1loadA(context) {
+    console.log('Executing action: cmdAGV1loadA');
+    // Implement cmdAGV1loadA logic here
+    return { action: 'cmdAGV1loadA', status: 'executed', context };
+  }
+
+  executecmdAGV1UnloadA(context) {
+    console.log('Executing action: cmdAGV1UnloadA');
+    // Implement cmdAGV1UnloadA logic here
+    return { action: 'cmdAGV1UnloadA', status: 'executed', context };
+  }
+
+  executecmdAGV2loadC(context) {
+    console.log('Executing action: cmdAGV2loadC');
+    // Implement cmdAGV2loadC logic here
+    return { action: 'cmdAGV2loadC', status: 'executed', context };
+  }
+
+  executecmdAGV2toE(context) {
+    console.log('Executing action: cmdAGV2toE');
+    // Implement cmdAGV2toE logic here
+    return { action: 'cmdAGV2toE', status: 'executed', context };
+  }
+
+  executecmdAGV2UnloadE(context) {
+    console.log('Executing action: cmdAGV2UnloadE');
+    // Implement cmdAGV2UnloadE logic here
+    return { action: 'cmdAGV2UnloadE', status: 'executed', context };
+  }
+
+  executeAGV1NotifTravelA(context) {
+    console.log('Executing action: AGV1NotifTravelA');
+    // Implement AGV1NotifTravelA logic here
+    return { action: 'AGV1NotifTravelA', status: 'executed', context };
+  }
+
+  executeAGV1NotifPassB(context) {
+    console.log('Executing action: AGV1NotifPassB');
+    // Implement AGV1NotifPassB logic here
+    return { action: 'AGV1NotifPassB', status: 'executed', context };
+  }
+
+  executeAGV1NotifArriveC(context) {
+    console.log('Executing action: AGV1NotifArriveC');
+    // Implement AGV1NotifArriveC logic here
+    return { action: 'AGV1NotifArriveC', status: 'executed', context };
+  }
+
+  executeAGV1NotifArriveA(context) {
+    console.log('Executing action: AGV1NotifArriveA');
+    // Implement AGV1NotifArriveA logic here
+    return { action: 'AGV1NotifArriveA', status: 'executed', context };
+  }
+
+  executeAGV1NotifLoad(context) {
+    console.log('Executing action: AGV1NotifLoad');
+    // Implement AGV1NotifLoad logic here
+    return { action: 'AGV1NotifLoad', status: 'executed', context };
+  }
+
+  executeAGV1NotifArriveAUnoaded(context) {
+    console.log('Executing action: AGV1NotifArriveAUnoaded');
+    // Implement AGV1NotifArriveAUnoaded logic here
+    return { action: 'AGV1NotifArriveAUnoaded', status: 'executed', context };
+  }
+
+  executeAGV2NotifTravelC(context) {
+    console.log('Executing action: AGV2NotifTravelC');
+    // Implement AGV2NotifTravelC logic here
+    return { action: 'AGV2NotifTravelC', status: 'executed', context };
+  }
+
+  executeAGV2NotifArriveC(context) {
+    console.log('Executing action: AGV2NotifArriveC');
+    // Implement AGV2NotifArriveC logic here
+    return { action: 'AGV2NotifArriveC', status: 'executed', context };
+  }
+
+  executeAGV2NotifLoad(context) {
+    console.log('Executing action: AGV2NotifLoad');
+    // Implement AGV2NotifLoad logic here
+    return { action: 'AGV2NotifLoad', status: 'executed', context };
+  }
+
+  executeAGV2NotifPassD(context) {
+    console.log('Executing action: AGV2NotifPassD');
+    // Implement AGV2NotifPassD logic here
+    return { action: 'AGV2NotifPassD', status: 'executed', context };
+  }
+
+  executeAGV2NotifArriveE(context) {
+    console.log('Executing action: AGV2NotifArriveE');
+    // Implement AGV2NotifArriveE logic here
+    return { action: 'AGV2NotifArriveE', status: 'executed', context };
+  }
+
+  executeAGV2NotifArriveAUnoaded(context) {
+    console.log('Executing action: AGV2NotifArriveAUnoaded');
+    // Implement AGV2NotifArriveAUnoaded logic here
+    return { action: 'AGV2NotifArriveAUnoaded', status: 'executed', context };
+  }
+
+  executeAGV1locationStationA(context) {
+    console.log('Executing action: AGV1locationStationA');
+    // Implement AGV1locationStationA logic here
+    return { action: 'AGV1locationStationA', status: 'executed', context };
+  }
+
+  executeAGV1locationStationB(context) {
+    console.log('Executing action: AGV1locationStationB');
+    // Implement AGV1locationStationB logic here
+    return { action: 'AGV1locationStationB', status: 'executed', context };
+  }
+
+  executeAGV1locationStationC(context) {
+    console.log('Executing action: AGV1locationStationC');
+    // Implement AGV1locationStationC logic here
+    return { action: 'AGV1locationStationC', status: 'executed', context };
+  }
+
+  executeAGV2locationStationC(context) {
+    console.log('Executing action: AGV2locationStationC');
+    // Implement AGV2locationStationC logic here
+    return { action: 'AGV2locationStationC', status: 'executed', context };
+  }
+
+  executeAGV2locationStationD(context) {
+    console.log('Executing action: AGV2locationStationD');
+    // Implement AGV2locationStationD logic here
+    return { action: 'AGV2locationStationD', status: 'executed', context };
+  }
+
+  executeagv2locationStationE(context) {
+    console.log('Executing action: agv2locationStationE');
+    // Implement agv2locationStationE logic here
+    return { action: 'agv2locationStationE', status: 'executed', context };
+  }
+
+  executeAGV1atachPartX(context) {
+    console.log('Executing action: AGV1atachPartX');
+    // Implement AGV1atachPartX logic here
+    return { action: 'AGV1atachPartX', status: 'executed', context };
+  }
+
+  executeAGV1detachPartX(context) {
+    console.log('Executing action: AGV1detachPartX');
+    // Implement AGV1detachPartX logic here
+    return { action: 'AGV1detachPartX', status: 'executed', context };
+  }
+
+  executeAGV2atachPartX(context) {
+    console.log('Executing action: AGV2atachPartX');
+    // Implement AGV2atachPartX logic here
+    return { action: 'AGV2atachPartX', status: 'executed', context };
+  }
+
+  executeAGV2detachPartX(context) {
+    console.log('Executing action: AGV2detachPartX');
+    // Implement AGV2detachPartX logic here
+    return { action: 'AGV2detachPartX', status: 'executed', context };
+  }
+
+  // Global event execution method
+  executeEvent(eventName, triggerName, context) {
+    if (this[eventName] && this[eventName].hasRule(triggerName)) {
+      return this[eventName].executeRule(triggerName, context);
+    }
+    console.warn(`Event ${eventName} or trigger ${triggerName} not found`);
+    return null;
   }
 }
 
@@ -231,6 +943,28 @@ class MyScenarios extends ScenarioDefinitions {
       ...opts,
       targetScenes: 'MyScenes',
       scenarios: {}
+    });
+  }
+}
+
+// Event: events
+class events extends Event {
+  constructor(name = 'events', opts = {}) {
+    super(name, {
+      ...opts,
+      eventType: 'simple',
+      parameters: []
+    });
+  }
+}
+
+// Event: eventClasses
+class eventClasses extends Event {
+  constructor(name = 'eventClasses', opts = {}) {
+    super(name, {
+      ...opts,
+      eventType: 'simple',
+      parameters: []
     });
   }
 }

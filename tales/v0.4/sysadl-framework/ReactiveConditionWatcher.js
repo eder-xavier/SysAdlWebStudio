@@ -13,7 +13,7 @@
 
 const { ReactiveStateManager } = require('./ReactiveStateManager');
 const { DependencyTracker } = require('./DependencyTracker');
-const { ExpressionEvaluator } = require('./SysADLBase');
+const SysADLBase = require('./SysADLBase');
 
 class ReactiveConditionWatcher {
   constructor(sysadlBase, options = {}) {
@@ -22,7 +22,12 @@ class ReactiveConditionWatcher {
     // Initialize reactive components
     this.stateManager = options.stateManager || new ReactiveStateManager();
     this.dependencyTracker = new DependencyTracker();
-    this.expressionEvaluator = new ExpressionEvaluator();
+    
+    // ExpressionEvaluator must be provided due to circular dependency
+    if (!options.expressionEvaluator) {
+      throw new Error('ReactiveConditionWatcher requires expressionEvaluator in options');
+    }
+    this.expressionEvaluator = options.expressionEvaluator;
     
     // Condition management
     this.conditions = new Map(); // conditionId -> condition config
@@ -299,7 +304,9 @@ class ReactiveConditionWatcher {
     
     // Clean up
     const condition = this.conditions.get(conditionId);
-    this.stats.activeSubscriptions -= condition.dependencies.length;
+    if (condition && condition.dependencies) {
+      this.stats.activeSubscriptions -= condition.dependencies.length;
+    }
     
     this.conditions.delete(conditionId);
     this.subscriptions.delete(conditionId);
