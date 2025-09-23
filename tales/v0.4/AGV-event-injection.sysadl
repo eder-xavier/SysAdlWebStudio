@@ -1,0 +1,92 @@
+Model AGVEventInjectionTest;
+
+// Simplified AGV model for event injection testing
+
+EnvironmentDefinition TestFactory {
+  Entity def Vehicle {
+    properties {
+      Property def location
+      Property def speed
+    }
+    roles {
+      Role def sensor
+    }
+  }
+  
+  Entity def Station {
+    properties {
+      Property def ID
+    }
+  }
+}
+
+EnvironmentConfiguration TestFactoryConfig to TestFactory {
+  agv1: Vehicle;
+  stationA: Station;
+  stationB: Station;
+  
+  stationA.ID = "StationA";
+  stationB.ID = "StationB";
+}
+
+EventsDefinitions TestEvents to TestFactoryConfig {
+  Event def VehicleEvents for agv1 {
+    ON sensorFailure
+      THEN handleFailure {
+        agv1.speed = 0;
+      }
+    ON emergencyStop
+      THEN stopVehicle {
+        agv1.speed = 0;
+        agv1.location = agv1.location;
+      }
+    ON obstacleDetected
+      THEN avoidObstacle {
+        agv1.speed = agv1.speed / 2;
+      }
+  }
+}
+
+SceneDefinitions TestScenes to TestEvents {
+  Scene def MoveToA on {
+    pre-condition {
+      agv1.location == stationA.ID;
+    }
+    start moveCommand;
+    finish arrivalNotification;
+    post-condition {
+      agv1.location == stationA.ID;
+    }
+  }
+}
+
+ScenarioDefinitions TestScenarios to TestScenes {
+  Scenario def SimpleMovement {
+    MoveToA;
+  }
+  
+  Scenario def MovementWithEvents {
+    MoveToA;
+    // Event injections would be handled in ScenarioExecution
+  }
+}
+
+ScenarioExecution to TestScenarios {
+  // State initialization
+  agv1.location = stationB.ID;
+  agv1.speed = 10;
+  
+  // Event injection syntax (to be parsed)
+  inject sensorFailure after 2000ms;
+  inject emergencyStop when agv1.speed > 15;
+  inject_batch [obstacleDetected, sensorFailure] sequential;
+  
+  // Scenario execution
+  SimpleMovement;
+  
+  inject obstacleDetected before MovementWithEvents;
+  
+  MovementWithEvents;
+  
+  repeat 3 SimpleMovement;
+}

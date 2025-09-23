@@ -1521,11 +1521,37 @@ DataTypeDef
 
   ScenarioExecution
     = "ScenarioExecution" _ "to" _ defs:QualifiedName _ "{" _
-        items:( _ it:(Assignment / SceneRef / ExecutionEntry) { return it; } )*
+        items:( _ it:(Assignment / SceneRef / ExecutionEntry / EventInjection / EventInjectionBatch) { return it; } )*
       _ "}"
       {
         return { type: "ScenarioExecution", defs, items, location: location() };
       }
+
+  EventInjection
+    = "inject" _ eventName:QualifiedName _ timing:EventTiming? _ ";"
+      { return { type: "EventInjection", eventName, timing, location: location() }; }
+
+  EventInjectionBatch
+    = "inject_batch" _ "[" _ events:EventNameList _ "]" _ mode:("parallel" / "sequential")? _ ";"
+      { return { type: "EventInjectionBatch", events, mode: mode || "sequential", location: location() }; }
+
+  EventNameList
+    = head:QualifiedName tail:(_ "," _ e:QualifiedName { return e; })*
+      { return [head, ...tail]; }
+
+  EventTiming
+    = "after" _ delay:INT _ unit:("ms" / "s")
+      { return { type: "delay", value: unit === "s" ? delay * 1000 : delay }; }
+    / "when" _ condition:BooleanExpression
+      { return { type: "condition", expression: condition }; }
+    / "before" _ scenario:QualifiedName
+      { return { type: "before", scenario }; }
+    / "after" _ scenario:QualifiedName
+      { return { type: "after", scenario }; }
+
+  BooleanExpression
+    = left:ID _ operator:(">" / "<" / ">=" / "<=" / "==" / "!=") _ right:(ID / INT)
+      { return { type: "BinaryExpression", left, operator, right, location: location() }; }
 
   ExecutionEntry
       = repeat:("repeat" _ t:INT { return t; })? _ scenario:QualifiedName _ ";"

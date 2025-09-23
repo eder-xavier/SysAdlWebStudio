@@ -1,0 +1,523 @@
+{
+  "type": "Model",
+  "name": "AGVEventInjectionSimple",
+  "involvedElements": [],
+  "members": [
+    {
+      "type": "EnvironmentDefinition",
+      "name": "TestFactory",
+      "entities": [
+        {
+          "type": "EntityDef",
+          "name": "Vehicle",
+          "compositions": [],
+          "propertyDefs": [
+            {
+              "type": "PropertyDef",
+              "name": "location",
+              "location": {
+                "source": {
+                  "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-simple-test.sysadl",
+                  "text": "Model AGVEventInjectionSimple;\n\n// Test basic event injection framework integration\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON testEvent\n      THEN handleTest {\n        agv1.location = agv1.location;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def TestScene on {\n    pre-condition {\n      agv1.location == agv1.location;\n    }\n    start testEvent;\n    finish testEvent;\n    post-condition {\n      agv1.location == agv1.location;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def TestScenario {\n    TestScene;\n  }\n}\n\nScenarioExecution to TestScenarios {\n  agv1.location = \"test\";\n  TestScenario;\n}"
+                },
+                "start": {
+                  "offset": 167,
+                  "line": 8,
+                  "column": 7
+                },
+                "end": {
+                  "offset": 188,
+                  "line": 8,
+                  "column": 28
+                }
+              }
+            }
+          ],
+          "roles": [],
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-simple-test.sysadl",
+              "text": "Model AGVEventInjectionSimple;\n\n// Test basic event injection framework integration\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON testEvent\n      THEN handleTest {\n        agv1.location = agv1.location;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def TestScene on {\n    pre-condition {\n      agv1.location == agv1.location;\n    }\n    start testEvent;\n    finish testEvent;\n    post-condition {\n      agv1.location == agv1.location;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def TestScenario {\n    TestScene;\n  }\n}\n\nScenarioExecution to TestScenarios {\n  agv1.location = \"test\";\n  TestScenario;\n}"
+            },
+            "start": {
+              "offset": 123,
+              "line": 6,
+              "column": 3
+            },
+            "end": {
+              "offset": 198,
+              "line": 10,
+              "column": 4
+            }
+          }
+        }
+      ],
+      "connections": [],
+      "location": {
+        "source": {
+          "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-simple-test.sysadl",
+          "text": "Model AGVEventInjectionSimple;\n\n// Test basic event injection framework integration\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON testEvent\n      THEN handleTest {\n        agv1.location = agv1.location;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def TestScene on {\n    pre-condition {\n      agv1.location == agv1.location;\n    }\n    start testEvent;\n    finish testEvent;\n    post-condition {\n      agv1.location == agv1.location;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def TestScenario {\n    TestScene;\n  }\n}\n\nScenarioExecution to TestScenarios {\n  agv1.location = \"test\";\n  TestScenario;\n}"
+        },
+        "start": {
+          "offset": 85,
+          "line": 5,
+          "column": 1
+        },
+        "end": {
+          "offset": 200,
+          "line": 11,
+          "column": 2
+        }
+      }
+    },
+    {
+      "type": "EnvironmentConfiguration",
+      "name": "TestFactoryConfig",
+      "definition": "TestFactory",
+      "mappings": [
+        {
+          "type": "Instantiation",
+          "instance": "agv1",
+          "entityType": "Vehicle",
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-simple-test.sysadl",
+              "text": "Model AGVEventInjectionSimple;\n\n// Test basic event injection framework integration\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON testEvent\n      THEN handleTest {\n        agv1.location = agv1.location;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def TestScene on {\n    pre-condition {\n      agv1.location == agv1.location;\n    }\n    start testEvent;\n    finish testEvent;\n    post-condition {\n      agv1.location == agv1.location;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def TestScenario {\n    TestScene;\n  }\n}\n\nScenarioExecution to TestScenarios {\n  agv1.location = \"test\";\n  TestScenario;\n}"
+            },
+            "start": {
+              "offset": 264,
+              "line": 14,
+              "column": 3
+            },
+            "end": {
+              "offset": 279,
+              "line": 15,
+              "column": 1
+            }
+          }
+        }
+      ],
+      "location": {
+        "source": {
+          "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-simple-test.sysadl",
+          "text": "Model AGVEventInjectionSimple;\n\n// Test basic event injection framework integration\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON testEvent\n      THEN handleTest {\n        agv1.location = agv1.location;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def TestScene on {\n    pre-condition {\n      agv1.location == agv1.location;\n    }\n    start testEvent;\n    finish testEvent;\n    post-condition {\n      agv1.location == agv1.location;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def TestScenario {\n    TestScene;\n  }\n}\n\nScenarioExecution to TestScenarios {\n  agv1.location = \"test\";\n  TestScenario;\n}"
+        },
+        "start": {
+          "offset": 202,
+          "line": 13,
+          "column": 1
+        },
+        "end": {
+          "offset": 280,
+          "line": 15,
+          "column": 2
+        }
+      }
+    },
+    {
+      "type": "EventsDefinitions",
+      "name": "TestEvents",
+      "config": "TestFactoryConfig",
+      "eventDefs": [
+        {
+          "type": "EventDef",
+          "name": "VehicleEvents",
+          "target": "agv1",
+          "triggers": [
+            {
+              "type": "TriggerBlock",
+              "condition": {
+                "type": "ConditionBlock",
+                "name": "testEvent",
+                "value": null,
+                "location": {
+                  "source": {
+                    "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-simple-test.sysadl",
+                    "text": "Model AGVEventInjectionSimple;\n\n// Test basic event injection framework integration\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON testEvent\n      THEN handleTest {\n        agv1.location = agv1.location;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def TestScene on {\n    pre-condition {\n      agv1.location == agv1.location;\n    }\n    start testEvent;\n    finish testEvent;\n    post-condition {\n      agv1.location == agv1.location;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def TestScenario {\n    TestScene;\n  }\n}\n\nScenarioExecution to TestScenarios {\n  agv1.location = \"test\";\n  TestScenario;\n}"
+                  },
+                  "start": {
+                    "offset": 378,
+                    "line": 19,
+                    "column": 8
+                  },
+                  "end": {
+                    "offset": 394,
+                    "line": 20,
+                    "column": 7
+                  }
+                }
+              },
+              "actions": [
+                {
+                  "type": "ActionBlock",
+                  "name": "handleTest",
+                  "statements": [
+                    {
+                      "type": "Assignment",
+                      "left": "agv1.location",
+                      "right": {
+                        "type": "NameExpression",
+                        "name": "agv1.location",
+                        "location": {
+                          "source": {
+                            "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-simple-test.sysadl",
+                            "text": "Model AGVEventInjectionSimple;\n\n// Test basic event injection framework integration\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON testEvent\n      THEN handleTest {\n        agv1.location = agv1.location;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def TestScene on {\n    pre-condition {\n      agv1.location == agv1.location;\n    }\n    start testEvent;\n    finish testEvent;\n    post-condition {\n      agv1.location == agv1.location;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def TestScenario {\n    TestScene;\n  }\n}\n\nScenarioExecution to TestScenarios {\n  agv1.location = \"test\";\n  TestScenario;\n}"
+                          },
+                          "start": {
+                            "offset": 436,
+                            "line": 21,
+                            "column": 25
+                          },
+                          "end": {
+                            "offset": 449,
+                            "line": 21,
+                            "column": 38
+                          }
+                        }
+                      },
+                      "location": {
+                        "source": {
+                          "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-simple-test.sysadl",
+                          "text": "Model AGVEventInjectionSimple;\n\n// Test basic event injection framework integration\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON testEvent\n      THEN handleTest {\n        agv1.location = agv1.location;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def TestScene on {\n    pre-condition {\n      agv1.location == agv1.location;\n    }\n    start testEvent;\n    finish testEvent;\n    post-condition {\n      agv1.location == agv1.location;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def TestScenario {\n    TestScene;\n  }\n}\n\nScenarioExecution to TestScenarios {\n  agv1.location = \"test\";\n  TestScenario;\n}"
+                        },
+                        "start": {
+                          "offset": 420,
+                          "line": 21,
+                          "column": 9
+                        },
+                        "end": {
+                          "offset": 450,
+                          "line": 21,
+                          "column": 39
+                        }
+                      }
+                    }
+                  ],
+                  "location": {
+                    "source": {
+                      "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-simple-test.sysadl",
+                      "text": "Model AGVEventInjectionSimple;\n\n// Test basic event injection framework integration\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON testEvent\n      THEN handleTest {\n        agv1.location = agv1.location;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def TestScene on {\n    pre-condition {\n      agv1.location == agv1.location;\n    }\n    start testEvent;\n    finish testEvent;\n    post-condition {\n      agv1.location == agv1.location;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def TestScenario {\n    TestScene;\n  }\n}\n\nScenarioExecution to TestScenarios {\n  agv1.location = \"test\";\n  TestScenario;\n}"
+                    },
+                    "start": {
+                      "offset": 399,
+                      "line": 20,
+                      "column": 12
+                    },
+                    "end": {
+                      "offset": 458,
+                      "line": 22,
+                      "column": 8
+                    }
+                  }
+                }
+              ],
+              "location": {
+                "source": {
+                  "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-simple-test.sysadl",
+                  "text": "Model AGVEventInjectionSimple;\n\n// Test basic event injection framework integration\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON testEvent\n      THEN handleTest {\n        agv1.location = agv1.location;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def TestScene on {\n    pre-condition {\n      agv1.location == agv1.location;\n    }\n    start testEvent;\n    finish testEvent;\n    post-condition {\n      agv1.location == agv1.location;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def TestScenario {\n    TestScene;\n  }\n}\n\nScenarioExecution to TestScenarios {\n  agv1.location = \"test\";\n  TestScenario;\n}"
+                },
+                "start": {
+                  "offset": 375,
+                  "line": 19,
+                  "column": 5
+                },
+                "end": {
+                  "offset": 458,
+                  "line": 22,
+                  "column": 8
+                }
+              }
+            }
+          ],
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-simple-test.sysadl",
+              "text": "Model AGVEventInjectionSimple;\n\n// Test basic event injection framework integration\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON testEvent\n      THEN handleTest {\n        agv1.location = agv1.location;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def TestScene on {\n    pre-condition {\n      agv1.location == agv1.location;\n    }\n    start testEvent;\n    finish testEvent;\n    post-condition {\n      agv1.location == agv1.location;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def TestScenario {\n    TestScene;\n  }\n}\n\nScenarioExecution to TestScenarios {\n  agv1.location = \"test\";\n  TestScenario;\n}"
+            },
+            "start": {
+              "offset": 336,
+              "line": 18,
+              "column": 3
+            },
+            "end": {
+              "offset": 462,
+              "line": 23,
+              "column": 4
+            }
+          }
+        }
+      ],
+      "location": {
+        "source": {
+          "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-simple-test.sysadl",
+          "text": "Model AGVEventInjectionSimple;\n\n// Test basic event injection framework integration\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON testEvent\n      THEN handleTest {\n        agv1.location = agv1.location;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def TestScene on {\n    pre-condition {\n      agv1.location == agv1.location;\n    }\n    start testEvent;\n    finish testEvent;\n    post-condition {\n      agv1.location == agv1.location;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def TestScenario {\n    TestScene;\n  }\n}\n\nScenarioExecution to TestScenarios {\n  agv1.location = \"test\";\n  TestScenario;\n}"
+        },
+        "start": {
+          "offset": 282,
+          "line": 17,
+          "column": 1
+        },
+        "end": {
+          "offset": 464,
+          "line": 24,
+          "column": 2
+        }
+      }
+    },
+    {
+      "type": "SceneDefinitions",
+      "name": "TestScenes",
+      "events": "TestEvents",
+      "scenes": [
+        {
+          "type": "SceneDef",
+          "name": "TestScene",
+          "preconds": [
+            {
+              "type": "ConditionBlock",
+              "name": "agv1.location",
+              "value": "agv1.location",
+              "location": {
+                "source": {
+                  "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-simple-test.sysadl",
+                  "text": "Model AGVEventInjectionSimple;\n\n// Test basic event injection framework integration\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON testEvent\n      THEN handleTest {\n        agv1.location = agv1.location;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def TestScene on {\n    pre-condition {\n      agv1.location == agv1.location;\n    }\n    start testEvent;\n    finish testEvent;\n    post-condition {\n      agv1.location == agv1.location;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def TestScenario {\n    TestScene;\n  }\n}\n\nScenarioExecution to TestScenarios {\n  agv1.location = \"test\";\n  TestScenario;\n}"
+                },
+                "start": {
+                  "offset": 563,
+                  "line": 29,
+                  "column": 7
+                },
+                "end": {
+                  "offset": 594,
+                  "line": 29,
+                  "column": 38
+                }
+              }
+            }
+          ],
+          "start": "testEvent",
+          "finish": "testEvent",
+          "postconds": [
+            {
+              "type": "ConditionBlock",
+              "name": "agv1.location",
+              "value": "agv1.location",
+              "location": {
+                "source": {
+                  "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-simple-test.sysadl",
+                  "text": "Model AGVEventInjectionSimple;\n\n// Test basic event injection framework integration\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON testEvent\n      THEN handleTest {\n        agv1.location = agv1.location;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def TestScene on {\n    pre-condition {\n      agv1.location == agv1.location;\n    }\n    start testEvent;\n    finish testEvent;\n    post-condition {\n      agv1.location == agv1.location;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def TestScenario {\n    TestScene;\n  }\n}\n\nScenarioExecution to TestScenarios {\n  agv1.location = \"test\";\n  TestScenario;\n}"
+                },
+                "start": {
+                  "offset": 671,
+                  "line": 34,
+                  "column": 7
+                },
+                "end": {
+                  "offset": 702,
+                  "line": 34,
+                  "column": 38
+                }
+              }
+            }
+          ],
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-simple-test.sysadl",
+              "text": "Model AGVEventInjectionSimple;\n\n// Test basic event injection framework integration\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON testEvent\n      THEN handleTest {\n        agv1.location = agv1.location;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def TestScene on {\n    pre-condition {\n      agv1.location == agv1.location;\n    }\n    start testEvent;\n    finish testEvent;\n    post-condition {\n      agv1.location == agv1.location;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def TestScenario {\n    TestScene;\n  }\n}\n\nScenarioExecution to TestScenarios {\n  agv1.location = \"test\";\n  TestScenario;\n}"
+            },
+            "start": {
+              "offset": 512,
+              "line": 27,
+              "column": 3
+            },
+            "end": {
+              "offset": 712,
+              "line": 36,
+              "column": 4
+            }
+          }
+        }
+      ],
+      "location": {
+        "source": {
+          "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-simple-test.sysadl",
+          "text": "Model AGVEventInjectionSimple;\n\n// Test basic event injection framework integration\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON testEvent\n      THEN handleTest {\n        agv1.location = agv1.location;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def TestScene on {\n    pre-condition {\n      agv1.location == agv1.location;\n    }\n    start testEvent;\n    finish testEvent;\n    post-condition {\n      agv1.location == agv1.location;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def TestScenario {\n    TestScene;\n  }\n}\n\nScenarioExecution to TestScenarios {\n  agv1.location = \"test\";\n  TestScenario;\n}"
+        },
+        "start": {
+          "offset": 466,
+          "line": 26,
+          "column": 1
+        },
+        "end": {
+          "offset": 714,
+          "line": 37,
+          "column": 2
+        }
+      }
+    },
+    {
+      "type": "ScenarioDefinitions",
+      "name": "TestScenarios",
+      "scenes": "TestScenes",
+      "scenarios": [
+        {
+          "type": "ScenarioDef",
+          "name": "TestScenario",
+          "body": [
+            {
+              "type": "ScenarioRef",
+              "name": "TestScene",
+              "location": {
+                "source": {
+                  "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-simple-test.sysadl",
+                  "text": "Model AGVEventInjectionSimple;\n\n// Test basic event injection framework integration\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON testEvent\n      THEN handleTest {\n        agv1.location = agv1.location;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def TestScene on {\n    pre-condition {\n      agv1.location == agv1.location;\n    }\n    start testEvent;\n    finish testEvent;\n    post-condition {\n      agv1.location == agv1.location;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def TestScenario {\n    TestScene;\n  }\n}\n\nScenarioExecution to TestScenarios {\n  agv1.location = \"test\";\n  TestScenario;\n}"
+                },
+                "start": {
+                  "offset": 800,
+                  "line": 41,
+                  "column": 5
+                },
+                "end": {
+                  "offset": 813,
+                  "line": 42,
+                  "column": 3
+                }
+              }
+            }
+          ],
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-simple-test.sysadl",
+              "text": "Model AGVEventInjectionSimple;\n\n// Test basic event injection framework integration\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON testEvent\n      THEN handleTest {\n        agv1.location = agv1.location;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def TestScene on {\n    pre-condition {\n      agv1.location == agv1.location;\n    }\n    start testEvent;\n    finish testEvent;\n    post-condition {\n      agv1.location == agv1.location;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def TestScenario {\n    TestScene;\n  }\n}\n\nScenarioExecution to TestScenarios {\n  agv1.location = \"test\";\n  TestScenario;\n}"
+            },
+            "start": {
+              "offset": 768,
+              "line": 40,
+              "column": 3
+            },
+            "end": {
+              "offset": 814,
+              "line": 42,
+              "column": 4
+            }
+          }
+        }
+      ],
+      "location": {
+        "source": {
+          "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-simple-test.sysadl",
+          "text": "Model AGVEventInjectionSimple;\n\n// Test basic event injection framework integration\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON testEvent\n      THEN handleTest {\n        agv1.location = agv1.location;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def TestScene on {\n    pre-condition {\n      agv1.location == agv1.location;\n    }\n    start testEvent;\n    finish testEvent;\n    post-condition {\n      agv1.location == agv1.location;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def TestScenario {\n    TestScene;\n  }\n}\n\nScenarioExecution to TestScenarios {\n  agv1.location = \"test\";\n  TestScenario;\n}"
+        },
+        "start": {
+          "offset": 716,
+          "line": 39,
+          "column": 1
+        },
+        "end": {
+          "offset": 816,
+          "line": 43,
+          "column": 2
+        }
+      }
+    },
+    {
+      "type": "ScenarioExecution",
+      "defs": "TestScenarios",
+      "items": [
+        {
+          "type": "Assignment",
+          "left": "agv1.location",
+          "right": {
+            "type": "StringLiteral",
+            "value": "test",
+            "location": {
+              "source": {
+                "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-simple-test.sysadl",
+                "text": "Model AGVEventInjectionSimple;\n\n// Test basic event injection framework integration\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON testEvent\n      THEN handleTest {\n        agv1.location = agv1.location;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def TestScene on {\n    pre-condition {\n      agv1.location == agv1.location;\n    }\n    start testEvent;\n    finish testEvent;\n    post-condition {\n      agv1.location == agv1.location;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def TestScenario {\n    TestScene;\n  }\n}\n\nScenarioExecution to TestScenarios {\n  agv1.location = \"test\";\n  TestScenario;\n}"
+              },
+              "start": {
+                "offset": 873,
+                "line": 46,
+                "column": 19
+              },
+              "end": {
+                "offset": 879,
+                "line": 46,
+                "column": 25
+              }
+            }
+          },
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-simple-test.sysadl",
+              "text": "Model AGVEventInjectionSimple;\n\n// Test basic event injection framework integration\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON testEvent\n      THEN handleTest {\n        agv1.location = agv1.location;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def TestScene on {\n    pre-condition {\n      agv1.location == agv1.location;\n    }\n    start testEvent;\n    finish testEvent;\n    post-condition {\n      agv1.location == agv1.location;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def TestScenario {\n    TestScene;\n  }\n}\n\nScenarioExecution to TestScenarios {\n  agv1.location = \"test\";\n  TestScenario;\n}"
+            },
+            "start": {
+              "offset": 857,
+              "line": 46,
+              "column": 3
+            },
+            "end": {
+              "offset": 880,
+              "line": 46,
+              "column": 26
+            }
+          }
+        },
+        {
+          "type": "SceneRef",
+          "ref": "TestScenario",
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-simple-test.sysadl",
+              "text": "Model AGVEventInjectionSimple;\n\n// Test basic event injection framework integration\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON testEvent\n      THEN handleTest {\n        agv1.location = agv1.location;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def TestScene on {\n    pre-condition {\n      agv1.location == agv1.location;\n    }\n    start testEvent;\n    finish testEvent;\n    post-condition {\n      agv1.location == agv1.location;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def TestScenario {\n    TestScene;\n  }\n}\n\nScenarioExecution to TestScenarios {\n  agv1.location = \"test\";\n  TestScenario;\n}"
+            },
+            "start": {
+              "offset": 883,
+              "line": 47,
+              "column": 3
+            },
+            "end": {
+              "offset": 896,
+              "line": 47,
+              "column": 16
+            }
+          }
+        }
+      ],
+      "location": {
+        "source": {
+          "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-simple-test.sysadl",
+          "text": "Model AGVEventInjectionSimple;\n\n// Test basic event injection framework integration\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON testEvent\n      THEN handleTest {\n        agv1.location = agv1.location;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def TestScene on {\n    pre-condition {\n      agv1.location == agv1.location;\n    }\n    start testEvent;\n    finish testEvent;\n    post-condition {\n      agv1.location == agv1.location;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def TestScenario {\n    TestScene;\n  }\n}\n\nScenarioExecution to TestScenarios {\n  agv1.location = \"test\";\n  TestScenario;\n}"
+        },
+        "start": {
+          "offset": 818,
+          "line": 45,
+          "column": 1
+        },
+        "end": {
+          "offset": 898,
+          "line": 48,
+          "column": 2
+        }
+      }
+    }
+  ],
+  "allocation": null,
+  "location": {
+    "source": {
+      "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-simple-test.sysadl",
+      "text": "Model AGVEventInjectionSimple;\n\n// Test basic event injection framework integration\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON testEvent\n      THEN handleTest {\n        agv1.location = agv1.location;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def TestScene on {\n    pre-condition {\n      agv1.location == agv1.location;\n    }\n    start testEvent;\n    finish testEvent;\n    post-condition {\n      agv1.location == agv1.location;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def TestScenario {\n    TestScene;\n  }\n}\n\nScenarioExecution to TestScenarios {\n  agv1.location = \"test\";\n  TestScenario;\n}"
+    },
+    "start": {
+      "offset": 0,
+      "line": 1,
+      "column": 1
+    },
+    "end": {
+      "offset": 898,
+      "line": 48,
+      "column": 2
+    }
+  }
+}
