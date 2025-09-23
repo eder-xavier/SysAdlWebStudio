@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>SysADL Sandbox</title>
+</head>
+<body>
+<script>
+// Sinaliza pronto ao parent
+window.parent && window.parent.postMessage({ type: 'sandbox-ready' }, '*');
+</script>
+
+<!-- Carrega parser e transformer originais -->
+<script src="./sysadl-parser.js"></script>
+<script src="./transformer.js"></script>
+
+<script>
+(function(){
+  // Utilidades de travessia/coleta "best-effort" (espelhadas do app.js)
+  function traverse(node, cb) {
+    try { cb(node); } catch(e) {}
+    if (!node || typeof node !== 'object') return;
+    for (const k in node) {
+      const v = node[k];
+      if (Array.isArray(v)) for (const it of v) traverse(it, cb);
+      else if (v && typeof v === 'object') traverse(v, cb);
+    }
+  }
+
+  function extractConfigurations(ast){
+    const out=[];
+    traverse(ast, n=>{
+      if (!n || typeof n !== 'object') return;
+      const t = (n.type || n.kind || '').toString().toLowerCase();
+      if (t === 'configuration') out.push(n);
+    });
+    return out;
+  }
+
+  function collectComponentUses(conf){
+    const uses = [];
+    traverse(conf, n=>{
+      if (!n || typeof n !== 'object') return;
+      const t = (n.type || n.kind || '').toString().toLowerCase();
+      if (t === 'componentuse' || (t === 'declaration' && n.category === 'component')) uses.push(n);
+      if (t.includes('component') && n.name && n.definition) uses.push(n);
+    });
+    return uses;
+  }
+  function collectPortUses(_c){ return []; }
+
+  function respond(msg) {
+    window.parent && window.parent.postMessage(msg, '*');
+  }
+
+  window.addEventListener('message', function(ev){
+    const data = ev && ev.data;
+    if (!data || data.type !== 'transform') return;
+    const source = String(data.source||'');
+    try {
+      if (!window.SysADLParser || !window.SysADLParser.parse) {
+        // parser gerado via peggy pode exportar diretamente parse
+        if (typeof window.parse === 'function') {
+          window.SysADLParser = { parse: window.parse };
+        } else {
+          throw new Error('Parser indisponível dentro do sandbox.');
+        }
+      }
+      const ast = window.SysADLParser.parse(source);
+
+      const T = window.Transformer;
+      if (!T || (!T.generateClassModule && !T.main)) {
+        throw new Error('Transformer indisponível dentro do sandbox.');
+      }
+
+      const conf = (extractConfigurations(ast)||[])[0] || {};
+      const compUses = collectComponentUses(conf);
+      const portUses = collectPortUses(conf);
+
+      // Insumos mínimos
+      const connectorBindings = [];
+      const executables = [];
+      const activitiesToRegister = [];
+      const rootDefs = [];
+      const parentMap = {};
+      const compInstanceDef = {};
+      const compDefMap = {};
+      const portDefMap = {};
+      const embeddedTypes = {};
+      const connectorDefMap = {};
+      const packageMap = {};
+
+      let js;
+      if (T.generateClassModule) {
+        // Chamada "compat": inclui ast e source no final para cobrir assinaturas diversas
+        js = T.generateClassModule(
+          'ModelFromUI',
+          compUses,
+          portUses,
+          connectorBindings,
+          executables,
+          activitiesToRegister,
+          rootDefs,
+          parentMap,
+          compInstanceDef,
+          compDefMap,
+          portDefMap,
+          embeddedTypes,
+          connectorDefMap,
+          packageMap,
+          ast,
+          source
+        );
+      } else if (T.main) {
+        js = T.main(ast);
+      } else {
+        throw new Error('Nenhuma API de geração reconhecida.');
+      }
+
+      respond({ type: 'transformResult', ok: true, code: String(js||'') });
+    } catch (err) {
+      let msg = err && err.message ? err.message : String(err);
+      let loc = err && err.location ? err.location : null;
+      respond({ type: 'transformResult', ok: false, error: msg, location: loc });
+    }
+  });
+})();
+</script>
+</body>
+</html>
