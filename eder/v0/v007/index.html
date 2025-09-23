@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>SysADL Simulator</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.9/codemirror.min.css" />
+</head>
+
+<body>
+  <h1>SysADL Simulator</h1>
+  <textarea id="input">
+Model RoomTemperatureControl;
+
+package RTCPkg {
+  datatype def Temperature {
+    value: Float
+    unit: String
+  }
+
+  enum ControlMode {
+    HEATING, COOLING, OFF
+  }
+
+  component def Sensor {
+    ports: temp:out:Temperature
+    activities: MeasureTemp()
+  }
+
+  component def Heater {
+    ports: control:in:ControlMode, status:out:String
+    activities: ActivateHeater(mode:ControlMode)
+  }
+
+  component def Cooler {
+    ports: control:in:ControlMode, status:out:String
+    activities: ActivateCooler(mode:ControlMode)
+  }
+
+  component def Controller {
+    ports: temp:in:Temperature, heaterCtrl:out:ControlMode, coolerCtrl:out:ControlMode
+    activities: RegulateTemp(temp:Temperature)
+  }
+
+  connector def SensorToController {
+    ports: Sensor.temp, Controller.temp
+  }
+
+  connector def ControllerToHeater {
+    ports: Controller.heaterCtrl, Heater.control
+  }
+
+  connector def ControllerToCooler {
+    ports: Controller.coolerCtrl, Cooler.control
+  }
+
+flow RTCPkg.Sensor.temp -> RTCPkg.Controller.temp;
+flow RTCPkg.Controller.heaterCtrl -> RTCPkg.Heater.control;
+flow RTCPkg.Controller.coolerCtrl -> RTCPkg.Cooler.control;
+
+  executable def Regulate (in temp:Float): out ControlMode
+  {
+    let targetTemp:Float = 22.0;
+    if (temp > targetTemp + 2.0) {
+      return COOLING;
+    } else if (temp < targetTemp - 2.0) {
+      return HEATING;
+    } else {
+      return OFF;
+    }
+  }
+
+  protocol TempControl {
+    always
+    receive temp:Temperature from Controller.temp;
+    send HEATING via Controller.heaterCtrl;
+    send COOLING via Controller.coolerCtrl;
+  }
+
+  constraint def TempRange {
+    pre: temp.value >= 0.0
+    post: mode != null
+  }
+
+  requirement def R1 (1.1) {
+    text = "System must maintain room temperature between 20°C and 24°C";
+    satisfied by Controller, Heater, Cooler;
+    condition: Controller.temp.value >= 20.0 && Controller.temp.value <= 24.0;
+  }
+}
+
+configuration {
+    components: s1:RTCPkg.Sensor, h1:RTCPkg.Heater, c1:RTCPkg.Cooler, ctrl1:RTCPkg.Controller;
+    connectors: conn1:RTCPkg.SensorToController, conn2:RTCPkg.ControllerToHeater, conn3:RTCPkg.ControllerToCooler;
+    protocols: RTCPkg.TempControl;
+}
+
+allocation RegulateTemp -> Regulate
+
+simulation {
+    flow RTCPkg.Sensor.temp = {"value":26, "unit":"Celsius"};
+    flow RTCPkg.Controller.heaterCtrl = "OFF";
+    flow RTCPkg.Controller.coolerCtrl = "COOLING";
+    executable RTCPkg.Regulate = [26];
+}
+
+
+
+  </textarea>
+  <button onclick="interpretSysADL()">Interpret</button>
+  <h2>Execution Log</h2>
+  <div id="log"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.9/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.9/mode/javascript/javascript.min.js"></script>
+  <script src="sysadl-runtime-classes.js"></script>
+  <script src="sysadl-utils.js"></script>
+  <script src="sysadl-parser.js"></script>
+  <script src="sysadl-interpreter.js"></script>
+  <script>
+    // Initialize CodeMirror (manter aqui ou em um arquivo de UI separado)
+    const textarea = document.getElementById("input");
+    const editor = CodeMirror.fromTextArea(textarea, {
+      mode: "javascript", // Altere para um modo que suporte destaque de sintaxe da sua linguagem, se houver um.
+      lineNumbers: true,
+      theme: "default"
+    });
+  </script>
+</body>
+
+</html>

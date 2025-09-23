@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SysADL RTC Simulator</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.9/codemirror.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+  <style>
+    #diagram {
+      width: 100%;
+      height: 600px;
+      border: 1px solid #ccc;
+      overflow: auto;
+    }
+    #log {
+      width: 100%;
+      height: 300px;
+      overflow-y: scroll;
+      border: 1px solid #ccc;
+      white-space: pre-wrap;
+      font-family: monospace;
+    }
+    .CodeMirror {
+      height: 400px;
+      border: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+  <h1>SysADL Simulator</h1>
+  <textarea id="input">
+Model RoomTemperatureControl;
+
+package RTCPkg {
+  datatype def Temperature {
+    value: Float
+    unit: String
+  }
+
+  enum ControlMode {
+    HEATING, COOLING, OFF
+  }
+
+  component def Sensor {
+    ports: temp:out:Temperature
+    activities: MeasureTemp()
+  }
+
+  component def Heater {
+    ports: control:in:ControlMode, status:out:String
+    activities: ActivateHeater(mode:ControlMode)
+  }
+
+  component def Cooler {
+    ports: control:in:ControlMode, status:out:String
+    activities: ActivateCooler(mode:ControlMode)
+  }
+
+  component def Controller {
+    ports: temp:in:Temperature, heaterCtrl:out:ControlMode, coolerCtrl:out:ControlMode
+    activities: RegulateTemp(temp:Temperature)
+  }
+
+  connector def SensorToController {
+    ports: RTCPkg.Sensor.temp, RTCPkg.Controller.temp
+  }
+
+  connector def ControllerToHeater {
+    ports: RTCPkg.Controller.heaterCtrl, RTCPkg.Heater.control
+  }
+
+  connector def ControllerToCooler {
+    ports: RTCPkg.Controller.coolerCtrl, RTCPkg.Cooler.control
+  }
+
+  executable def Regulate(in temp:Float): out ControlMode {
+    let targetTemp:Float = 22.0;
+    if (temp > targetTemp + 2.0) {
+      return COOLING;
+    } else if (temp < targetTemp - 2.0) {
+      return HEATING;
+    } else {
+      return OFF;
+    }
+  }
+
+  protocol TempControl {
+    always
+    receive temp:Temperature from RTCPkg.Controller.temp;
+    send "HEATING" via RTCPkg.Controller.heaterCtrl;
+    send "COOLING" via RTCPkg.Controller.coolerCtrl;
+  }
+
+  constraint def TempRange {
+    pre: temp.value >= 0.0
+    post: mode != null
+  }
+
+  requirement def R1(1.1) {
+    text = "System must maintain room temperature between 20°C and 24°C";
+    satisfied by RTCPkg.Controller, RTCPkg.Heater, RTCPkg.Cooler;
+    condition: RTCPkg.Controller.temp.value >= 20.0 && RTCPkg.Controller.temp.value <= 24.0;
+  }
+}
+
+flow RTCPkg.Sensor.temp -> RTCPkg.Controller.temp;
+flow RTCPkg.Controller.heaterCtrl -> RTCPkg.Heater.control;
+flow RTCPkg.Controller.coolerCtrl -> RTCPkg.Cooler.control;
+
+allocation RegulateTemp -> RTCPkg.Regulate
+
+configuration {
+  components: s1:RTCPkg.Sensor, h1:RTCPkg.Heater, c1:RTCPkg.Cooler, ctrl1:RTCPkg.Controller;
+  connectors: conn1:RTCPkg.SensorToController, conn2:RTCPkg.ControllerToHeater, conn3:RTCPkg.ControllerToCooler;
+  protocols: RTCPkg.TempControl;
+}
+
+simulation {
+  flow RTCPkg.Sensor.temp = {"value":26, "unit":"Celsius"};
+  flow RTCPkg.Controller.heaterCtrl = "OFF";
+  flow RTCPkg.Controller.coolerCtrl = "COOLING";
+  executable RTCPkg.Regulate = [26];
+}
+  </textarea>
+  <button onclick="interpretSysADL()">Run Simulation</button>
+  <h2>Simulation Diagram</h2>
+  <div id="diagram"></div>
+  <h2>Execution Log</h2>
+  <div id="log"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.9/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.9/mode/javascript/javascript.min.js"></script>
+  <script src="sysadl-runtime-classes.js"></script>
+  <script src="sysadl-utils.js"></script>
+  <script src="sysadl-parser.js"></script>
+  <script src="sysadl-interpreter.js"></script>
+  <script src="sysadl-visualizer.js"></script>
+<script>
+  // Initialize Mermaid.js
+  mermaid.initialize({ startOnLoad: false, securityLevel: 'loose' });
+
+  // Initialize CodeMirror
+  document.addEventListener("DOMContentLoaded", () => {
+    const textarea = document.getElementById("input");
+    const editor = CodeMirror.fromTextArea(textarea, {
+      mode: "javascript",
+      lineNumbers: true,
+      theme: "default"
+    });
+    window.editor = editor;
+
+    // Initialize visualizer
+    if (typeof visualizer !== "undefined") {
+      visualizer.initialize();
+    }
+  });
+</script>
+</body>
+</html>

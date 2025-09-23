@@ -1,0 +1,36 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background-color: #1e1e1e;
+    color: #f8f8f2;
+}
+h1 {
+    color: #ff79c6;
+}
+h2 {
+    color: #bd93f9;
+    margin-top: 20px;
+}
+#input-section {
+    margin-bottom: 20px;
+}
+#sysadl-editor, #log-output, #js-output {
+    border: 1px solid #444;
+    margin-bottom: 20px;
+}
+.CodeMirror {
+    height: 400px;
+    border-radius: 5px;
+}
+button {
+    background-color: #bd93f9;
+    color: #282a36;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-right: 10px;
+}
+button:hover {
+    background-color: #ff79c6;
+}

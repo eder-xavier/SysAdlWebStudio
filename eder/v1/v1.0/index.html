@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SysADL ▶ JS — Simulador (Template Web)</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://unpkg.com" crossorigin>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>SysADL ▶ JavaScript — Simulação</h1>
+    <div class="header-actions">
+      <label class="file-input">
+        <input id="fileInput" type="file" accept=".sysadl,.txt" />
+        <span>Carregar .sysadl</span>
+      </label>
+      <button id="btnExample" class="secondary">Carregar exemplo</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="panel">
+      <h2>1) Código SysADL</h2>
+      <div id="editor" class="editor" aria-label="Editor SysADL"></div>
+      <div class="toolbar">
+        <button id="btnTransform">Transformar ▶</button>
+        <div class="spacer"></div>
+        <label class="switch">
+          <input id="traceToggle" type="checkbox" />
+          <span>Traçar execução</span>
+        </label>
+        <label class="switch">
+          <span>Iterações</span>
+          <input id="loopCount" type="number" min="1" step="1" value="1" />
+        </label>
+        <button id="btnRun" class="success">Executar simulação</button>
+      </div>
+      <div id="parseErr" class="err" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="panel">
+      <h2>2) Código gerado</h2>
+      <details open class="codeblock">
+        <summary>Código da arquitetura (gerado do .sysadl)</summary>
+        <div class="actions">
+          <button id="copyArch">Copiar</button>
+          <button id="saveArch">Baixar .js</button>
+        </div>
+        <pre id="archOut" class="pre"></pre>
+      </details>
+
+      <details open class="codeblock">
+        <summary>Código da simulação (padrão)</summary>
+        <div class="actions">
+          <button id="copySim">Copiar</button>
+          <button id="saveSim">Baixar .js</button>
+        </div>
+        <pre id="simOut" class="pre"></pre>
+      </details>
+    </section>
+
+    <section class="panel">
+      <h2>3) Log / Saída da simulação</h2>
+      <div class="actions">
+        <button id="clearLog" class="secondary">Limpar</button>
+      </div>
+      <pre id="log" class="log"></pre>
+    </section>
+  </main>
+
+  <!-- Monaco (AMD loader) -->
+  <script>
+    window.amdRequire = window.require;
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+
+  <!-- Neutralizador de CommonJS -->
+  <script>
+    try { window.module = undefined; window.exports = undefined; } catch (e) {}
+  </script>
+
+  <!-- Helper esperado pelo simulator.js -->
+  <script>
+    var normalizeEntry = function(entry) {
+      try {
+        const seen = new WeakSet();
+        return JSON.parse(JSON.stringify(entry, (k, v) => {
+          if (typeof v === 'function') return `[Function ${v.name||'anonymous'}]`;
+          if (v instanceof Error) return { name: v.name, message: v.message };
+          if (typeof v === 'object' && v !== null) {
+            if (seen.has(v)) return '[Circular]';
+            seen.add(v);
+          }
+          return v;
+        }));
+      } catch (e) {
+        return { error: e && e.message ? e.message : String(e) };
+      }
+    };
+  </script>
+
+  <!-- Runtime base + simulador -->
+  <script src="./SysADLBase.js"></script>
+  <script src="./simulator.js"></script>
+
+  <!-- Fallback pós-carregamento -->
+  <script>
+    (function(){
+      try {
+        var g = (typeof globalThis!=='undefined') ? globalThis : window;
+        if (!g.Simulator && g.module && g.module.exports && (g.module.exports.run)) {
+          g.Simulator = g.module.exports;
+        }
+      } catch(e){}
+    })();
+  </script>
+
+  <!-- App (ESM) -->
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
