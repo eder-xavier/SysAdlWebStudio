@@ -129,7 +129,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   // Helper function to find common parent path from multiple paths
   // Helper function to find the component context from AST node using AST analysis
   function findComponentContextFromParentMap(node, instancePathMap, parentMap) {
-    console.log(`[DEBUG] findComponentContextFromParentMap called for node: ${node?.name || 'undefined'}`);
+    // DEBUG: findComponentContextFromParentMap called for node: ${node?.name || 'undefined'}
     if (!node) return 'this';
     
     // Strategy 1: Use AST to find connector definition location
@@ -191,7 +191,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   function findConnectorPlacementInAST(connectorName) {
     if (!ast) return null;
 
-    console.log(`[DEBUG] Looking for connector '${connectorName}' in AST...`);
+    // DEBUG: Looking for connector '${connectorName}' in AST...
 
     try {
       // The issue is that we're looking at ComponentDef (definitions) but connectors 
@@ -214,7 +214,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
               for (const connector of element.configuration.connectors) {
                 console.log(`[DEBUG] Connector: ${connector.name}`);
                 if (connector.name === connectorName) {
-                  console.log(`[DEBUG] Found connector '${connectorName}' in instance ${element.name}!`);
+                  // DEBUG: Found connector '${connectorName}' in instance ${element.name}!
                   return element.name; // Return the instance name where connector is defined
                 }
               }
@@ -3219,7 +3219,7 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
         }
         lines.push(`          ],`);
         lines.push(`          execute: (context) => {`);
-        lines.push(`            console.log('Executing ${eventClass.name}: ${rule.trigger} -> ${rule.actions.map(a => a.name).join(', ')}');`);
+        lines.push(`            if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing ${eventClass.name}: ${rule.trigger} -> ${rule.actions.map(a => a.name).join(', ')}');`);
         lines.push(`            // Custom logic for ${rule.trigger} trigger`);
         if (rule.actions.length > 0) {
           lines.push(`            const results = [];`);
@@ -3264,7 +3264,7 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
     
     for (const [actionName, action] of actionMap) {
       lines.push(`  execute${actionName}(context) {`);
-      lines.push(`    console.log('Executing action: ${actionName}');`);
+      lines.push(`    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: ${actionName}');`);
       
       // Add the actual action body code
       if (action.body && action.body.length > 0) {
@@ -3287,7 +3287,7 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
     lines.push(`    if (this[eventName] && this[eventName].hasRule(triggerName)) {`);
     lines.push(`      return this[eventName].executeRule(triggerName, context);`);
     lines.push(`    }`);
-    lines.push(`    console.warn(\`Event \${eventName} or trigger \${triggerName} not found\`);`);
+    lines.push(`    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\`⚠️ Event \${eventName} or trigger \${triggerName} not found\`);`);
     lines.push(`    return null;`);
     lines.push(`  }`);
     lines.push(`}`);
@@ -4007,7 +4007,7 @@ function convertStatementsToJS(statements) {
           codeLines.push(`  const ConnectionClass = context.environment.connections.find(c => c.name === '${connection}');`);
           codeLines.push(`  if (ConnectionClass) {`);
           codeLines.push(`    const connectionInstance = new ConnectionClass();`);
-          codeLines.push(`    console.log('Executing connection ${connection}:', [${argsList}]);`);
+          codeLines.push(`    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🔗 Executing connection ${connection}:', [${argsList}]);`);
           codeLines.push(`    // Execute message passing between entities`);
           codeLines.push(`    const fromEntityName = ${argsList.split(', ')[0]};`);
           codeLines.push(`    const toEntityName = ${argsList.split(', ')[1]};`);
@@ -4015,14 +4015,14 @@ function convertStatementsToJS(statements) {
           codeLines.push(`    const toEntity = context.entities ? context.entities[toEntityName] : null;`);
           codeLines.push(`    `);
           codeLines.push(`    if (fromEntity && toEntity) {`);
-          codeLines.push(`      console.log(\`Executing connection \${connectionInstance.connectionType} from \${fromEntity.name || fromEntityName} to \${toEntity.name || toEntityName}\`);`);
+          codeLines.push(`      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(\`🔗 Executing connection \${connectionInstance.connectionType} from \${fromEntity.name || fromEntityName} to \${toEntity.name || toEntityName}\`);`);
           codeLines.push(`      `);
           codeLines.push(`      // Simulate message passing based on connection definition`);
           codeLines.push(`      if (connectionInstance.from && connectionInstance.to) {`);
           codeLines.push(`        const fromRole = connectionInstance.from.split('.')[1]; // e.g., 'outCommand' from 'Supervisory.outCommand'`);
           codeLines.push(`        const toRole = connectionInstance.to.split('.')[1]; // e.g., 'inCommand' from 'Vehicle.inCommand'`);
           codeLines.push(`        `);
-          codeLines.push(`        console.log(\`Message flow: \${fromEntityName}.\${fromRole} -> \${toEntityName}.\${toRole}\`);`);
+          codeLines.push(`        if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(\`📨 Message flow: \${fromEntityName}.\${fromRole} -> \${toEntityName}.\${toRole}\`);`);
           codeLines.push(`        `);
           codeLines.push(`        // Trigger event or callback if available`);
           codeLines.push(`        if (typeof toEntity.receiveMessage === 'function') {`);
@@ -4033,13 +4033,13 @@ function convertStatementsToJS(statements) {
           codeLines.push(`        }`);
           codeLines.push(`      }`);
           codeLines.push(`    } else {`);
-          codeLines.push(`      console.warn('Connection ${connection}: entities not found in context:', fromEntityName, toEntityName);`);
+          codeLines.push(`      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection ${connection}: entities not found in context:', fromEntityName, toEntityName);`);
           codeLines.push(`    }`);
           codeLines.push(`  } else {`);
-          codeLines.push(`    console.warn('Connection class ${connection} not found in environment');`);
+          codeLines.push(`    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection class ${connection} not found in environment');`);
           codeLines.push(`  }`);
           codeLines.push(`} else {`);
-          codeLines.push(`  console.warn('Environment or connections not available in context');`);
+          codeLines.push(`  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Environment or connections not available in context');`);
           codeLines.push(`}`);
         } else {
           codeLines.push(`// Connection ${connection} with no arguments`);
