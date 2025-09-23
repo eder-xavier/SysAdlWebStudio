@@ -1,0 +1,1259 @@
+{
+  "type": "Model",
+  "name": "AGVEventInjectionTest",
+  "involvedElements": [],
+  "members": [
+    {
+      "type": "EnvironmentDefinition",
+      "name": "TestFactory",
+      "entities": [
+        {
+          "type": "EntityDef",
+          "name": "Vehicle",
+          "compositions": [],
+          "propertyDefs": [
+            {
+              "type": "PropertyDef",
+              "name": "location",
+              "location": {
+                "source": {
+                  "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                  "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+                },
+                "start": {
+                  "offset": 165,
+                  "line": 8,
+                  "column": 7
+                },
+                "end": {
+                  "offset": 186,
+                  "line": 8,
+                  "column": 28
+                }
+              }
+            },
+            {
+              "type": "PropertyDef",
+              "name": "speed",
+              "location": {
+                "source": {
+                  "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                  "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+                },
+                "start": {
+                  "offset": 193,
+                  "line": 9,
+                  "column": 7
+                },
+                "end": {
+                  "offset": 211,
+                  "line": 9,
+                  "column": 25
+                }
+              }
+            }
+          ],
+          "roles": [
+            {
+              "type": "RoleDef",
+              "roleType": "def",
+              "name": "sensor",
+              "location": {
+                "source": {
+                  "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                  "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+                },
+                "start": {
+                  "offset": 236,
+                  "line": 12,
+                  "column": 7
+                },
+                "end": {
+                  "offset": 251,
+                  "line": 12,
+                  "column": 22
+                }
+              }
+            }
+          ],
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+              "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+            },
+            "start": {
+              "offset": 121,
+              "line": 6,
+              "column": 3
+            },
+            "end": {
+              "offset": 261,
+              "line": 14,
+              "column": 4
+            }
+          }
+        },
+        {
+          "type": "EntityDef",
+          "name": "Station",
+          "compositions": [],
+          "propertyDefs": [
+            {
+              "type": "PropertyDef",
+              "name": "ID",
+              "location": {
+                "source": {
+                  "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                  "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+                },
+                "start": {
+                  "offset": 311,
+                  "line": 18,
+                  "column": 7
+                },
+                "end": {
+                  "offset": 326,
+                  "line": 18,
+                  "column": 22
+                }
+              }
+            }
+          ],
+          "roles": [],
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+              "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+            },
+            "start": {
+              "offset": 267,
+              "line": 16,
+              "column": 3
+            },
+            "end": {
+              "offset": 336,
+              "line": 20,
+              "column": 4
+            }
+          }
+        }
+      ],
+      "connections": [],
+      "location": {
+        "source": {
+          "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+          "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+        },
+        "start": {
+          "offset": 83,
+          "line": 5,
+          "column": 1
+        },
+        "end": {
+          "offset": 338,
+          "line": 21,
+          "column": 2
+        }
+      }
+    },
+    {
+      "type": "EnvironmentConfiguration",
+      "name": "TestFactoryConfig",
+      "definition": "TestFactory",
+      "mappings": [
+        {
+          "type": "Instantiation",
+          "instance": "agv1",
+          "entityType": "Vehicle",
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+              "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+            },
+            "start": {
+              "offset": 402,
+              "line": 24,
+              "column": 3
+            },
+            "end": {
+              "offset": 419,
+              "line": 25,
+              "column": 3
+            }
+          }
+        },
+        {
+          "type": "Instantiation",
+          "instance": "stationA",
+          "entityType": "Station",
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+              "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+            },
+            "start": {
+              "offset": 419,
+              "line": 25,
+              "column": 3
+            },
+            "end": {
+              "offset": 440,
+              "line": 26,
+              "column": 3
+            }
+          }
+        },
+        {
+          "type": "Instantiation",
+          "instance": "stationB",
+          "entityType": "Station",
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+              "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+            },
+            "start": {
+              "offset": 440,
+              "line": 26,
+              "column": 3
+            },
+            "end": {
+              "offset": 464,
+              "line": 28,
+              "column": 3
+            }
+          }
+        },
+        {
+          "type": "Assignment",
+          "left": "stationA.ID",
+          "right": {
+            "type": "StringLiteral",
+            "value": "StationA",
+            "location": {
+              "source": {
+                "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+              },
+              "start": {
+                "offset": 478,
+                "line": 28,
+                "column": 17
+              },
+              "end": {
+                "offset": 488,
+                "line": 28,
+                "column": 27
+              }
+            }
+          },
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+              "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+            },
+            "start": {
+              "offset": 464,
+              "line": 28,
+              "column": 3
+            },
+            "end": {
+              "offset": 489,
+              "line": 28,
+              "column": 28
+            }
+          }
+        },
+        {
+          "type": "Assignment",
+          "left": "stationB.ID",
+          "right": {
+            "type": "StringLiteral",
+            "value": "StationB",
+            "location": {
+              "source": {
+                "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+              },
+              "start": {
+                "offset": 506,
+                "line": 29,
+                "column": 17
+              },
+              "end": {
+                "offset": 516,
+                "line": 29,
+                "column": 27
+              }
+            }
+          },
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+              "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+            },
+            "start": {
+              "offset": 492,
+              "line": 29,
+              "column": 3
+            },
+            "end": {
+              "offset": 517,
+              "line": 29,
+              "column": 28
+            }
+          }
+        }
+      ],
+      "location": {
+        "source": {
+          "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+          "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+        },
+        "start": {
+          "offset": 340,
+          "line": 23,
+          "column": 1
+        },
+        "end": {
+          "offset": 519,
+          "line": 30,
+          "column": 2
+        }
+      }
+    },
+    {
+      "type": "EventsDefinitions",
+      "name": "TestEvents",
+      "config": "TestFactoryConfig",
+      "eventDefs": [
+        {
+          "type": "EventDef",
+          "name": "VehicleEvents",
+          "target": "agv1",
+          "triggers": [
+            {
+              "type": "TriggerBlock",
+              "condition": {
+                "type": "ConditionBlock",
+                "name": "sensorFailure",
+                "value": null,
+                "location": {
+                  "source": {
+                    "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                    "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+                  },
+                  "start": {
+                    "offset": 617,
+                    "line": 34,
+                    "column": 8
+                  },
+                  "end": {
+                    "offset": 637,
+                    "line": 35,
+                    "column": 7
+                  }
+                }
+              },
+              "actions": [
+                {
+                  "type": "ActionBlock",
+                  "name": "handleFailure",
+                  "statements": [
+                    {
+                      "type": "Assignment",
+                      "left": "agv1.speed",
+                      "right": {
+                        "type": "NaturalLiteral",
+                        "value": 0,
+                        "location": {
+                          "source": {
+                            "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                            "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+                          },
+                          "start": {
+                            "offset": 679,
+                            "line": 36,
+                            "column": 22
+                          },
+                          "end": {
+                            "offset": 680,
+                            "line": 36,
+                            "column": 23
+                          }
+                        }
+                      },
+                      "location": {
+                        "source": {
+                          "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                          "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+                        },
+                        "start": {
+                          "offset": 666,
+                          "line": 36,
+                          "column": 9
+                        },
+                        "end": {
+                          "offset": 681,
+                          "line": 36,
+                          "column": 24
+                        }
+                      }
+                    }
+                  ],
+                  "location": {
+                    "source": {
+                      "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                      "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+                    },
+                    "start": {
+                      "offset": 642,
+                      "line": 35,
+                      "column": 12
+                    },
+                    "end": {
+                      "offset": 689,
+                      "line": 37,
+                      "column": 8
+                    }
+                  }
+                }
+              ],
+              "location": {
+                "source": {
+                  "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                  "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+                },
+                "start": {
+                  "offset": 614,
+                  "line": 34,
+                  "column": 5
+                },
+                "end": {
+                  "offset": 689,
+                  "line": 37,
+                  "column": 8
+                }
+              }
+            },
+            {
+              "type": "TriggerBlock",
+              "condition": {
+                "type": "ConditionBlock",
+                "name": "emergencyStop",
+                "value": null,
+                "location": {
+                  "source": {
+                    "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                    "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+                  },
+                  "start": {
+                    "offset": 697,
+                    "line": 38,
+                    "column": 8
+                  },
+                  "end": {
+                    "offset": 717,
+                    "line": 39,
+                    "column": 7
+                  }
+                }
+              },
+              "actions": [
+                {
+                  "type": "ActionBlock",
+                  "name": "stopVehicle",
+                  "statements": [
+                    {
+                      "type": "Assignment",
+                      "left": "agv1.speed",
+                      "right": {
+                        "type": "NaturalLiteral",
+                        "value": 0,
+                        "location": {
+                          "source": {
+                            "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                            "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+                          },
+                          "start": {
+                            "offset": 757,
+                            "line": 40,
+                            "column": 22
+                          },
+                          "end": {
+                            "offset": 758,
+                            "line": 40,
+                            "column": 23
+                          }
+                        }
+                      },
+                      "location": {
+                        "source": {
+                          "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                          "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+                        },
+                        "start": {
+                          "offset": 744,
+                          "line": 40,
+                          "column": 9
+                        },
+                        "end": {
+                          "offset": 759,
+                          "line": 40,
+                          "column": 24
+                        }
+                      }
+                    },
+                    {
+                      "type": "Assignment",
+                      "left": "agv1.location",
+                      "right": {
+                        "type": "NameExpression",
+                        "name": "agv1.location",
+                        "location": {
+                          "source": {
+                            "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                            "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+                          },
+                          "start": {
+                            "offset": 784,
+                            "line": 41,
+                            "column": 25
+                          },
+                          "end": {
+                            "offset": 797,
+                            "line": 41,
+                            "column": 38
+                          }
+                        }
+                      },
+                      "location": {
+                        "source": {
+                          "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                          "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+                        },
+                        "start": {
+                          "offset": 768,
+                          "line": 41,
+                          "column": 9
+                        },
+                        "end": {
+                          "offset": 798,
+                          "line": 41,
+                          "column": 39
+                        }
+                      }
+                    }
+                  ],
+                  "location": {
+                    "source": {
+                      "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                      "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+                    },
+                    "start": {
+                      "offset": 722,
+                      "line": 39,
+                      "column": 12
+                    },
+                    "end": {
+                      "offset": 806,
+                      "line": 42,
+                      "column": 8
+                    }
+                  }
+                }
+              ],
+              "location": {
+                "source": {
+                  "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                  "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+                },
+                "start": {
+                  "offset": 694,
+                  "line": 38,
+                  "column": 5
+                },
+                "end": {
+                  "offset": 806,
+                  "line": 42,
+                  "column": 8
+                }
+              }
+            },
+            {
+              "type": "TriggerBlock",
+              "condition": {
+                "type": "ConditionBlock",
+                "name": "obstacleDetected",
+                "value": null,
+                "location": {
+                  "source": {
+                    "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                    "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+                  },
+                  "start": {
+                    "offset": 814,
+                    "line": 43,
+                    "column": 8
+                  },
+                  "end": {
+                    "offset": 837,
+                    "line": 44,
+                    "column": 7
+                  }
+                }
+              },
+              "actions": [
+                {
+                  "type": "ActionBlock",
+                  "name": "avoidObstacle",
+                  "statements": [
+                    {
+                      "type": "Assignment",
+                      "left": "agv1.speed",
+                      "right": {
+                        "type": "BinaryExpression",
+                        "operator": "/",
+                        "left": {
+                          "type": "NameExpression",
+                          "name": "agv1.speed",
+                          "location": {
+                            "source": {
+                              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                              "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+                            },
+                            "start": {
+                              "offset": 879,
+                              "line": 45,
+                              "column": 22
+                            },
+                            "end": {
+                              "offset": 889,
+                              "line": 45,
+                              "column": 32
+                            }
+                          }
+                        },
+                        "right": {
+                          "type": "NaturalLiteral",
+                          "value": 2,
+                          "location": {
+                            "source": {
+                              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                              "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+                            },
+                            "start": {
+                              "offset": 892,
+                              "line": 45,
+                              "column": 35
+                            },
+                            "end": {
+                              "offset": 893,
+                              "line": 45,
+                              "column": 36
+                            }
+                          }
+                        },
+                        "location": {
+                          "source": {
+                            "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                            "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+                          },
+                          "start": {
+                            "offset": 879,
+                            "line": 45,
+                            "column": 22
+                          },
+                          "end": {
+                            "offset": 893,
+                            "line": 45,
+                            "column": 36
+                          }
+                        }
+                      },
+                      "location": {
+                        "source": {
+                          "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                          "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+                        },
+                        "start": {
+                          "offset": 866,
+                          "line": 45,
+                          "column": 9
+                        },
+                        "end": {
+                          "offset": 894,
+                          "line": 45,
+                          "column": 37
+                        }
+                      }
+                    }
+                  ],
+                  "location": {
+                    "source": {
+                      "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                      "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+                    },
+                    "start": {
+                      "offset": 842,
+                      "line": 44,
+                      "column": 12
+                    },
+                    "end": {
+                      "offset": 902,
+                      "line": 46,
+                      "column": 8
+                    }
+                  }
+                }
+              ],
+              "location": {
+                "source": {
+                  "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                  "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+                },
+                "start": {
+                  "offset": 811,
+                  "line": 43,
+                  "column": 5
+                },
+                "end": {
+                  "offset": 902,
+                  "line": 46,
+                  "column": 8
+                }
+              }
+            }
+          ],
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+              "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+            },
+            "start": {
+              "offset": 575,
+              "line": 33,
+              "column": 3
+            },
+            "end": {
+              "offset": 906,
+              "line": 47,
+              "column": 4
+            }
+          }
+        }
+      ],
+      "location": {
+        "source": {
+          "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+          "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+        },
+        "start": {
+          "offset": 521,
+          "line": 32,
+          "column": 1
+        },
+        "end": {
+          "offset": 908,
+          "line": 48,
+          "column": 2
+        }
+      }
+    },
+    {
+      "type": "SceneDefinitions",
+      "name": "TestScenes",
+      "events": "TestEvents",
+      "scenes": [
+        {
+          "type": "SceneDef",
+          "name": "MoveToA",
+          "preconds": [
+            {
+              "type": "ConditionBlock",
+              "name": "agv1.location",
+              "value": "stationA.ID",
+              "location": {
+                "source": {
+                  "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                  "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+                },
+                "start": {
+                  "offset": 1005,
+                  "line": 53,
+                  "column": 7
+                },
+                "end": {
+                  "offset": 1034,
+                  "line": 53,
+                  "column": 36
+                }
+              }
+            }
+          ],
+          "start": "moveCommand",
+          "finish": "arrivalNotification",
+          "postconds": [
+            {
+              "type": "ConditionBlock",
+              "name": "agv1.location",
+              "value": "stationA.ID",
+              "location": {
+                "source": {
+                  "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                  "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+                },
+                "start": {
+                  "offset": 1123,
+                  "line": 58,
+                  "column": 7
+                },
+                "end": {
+                  "offset": 1152,
+                  "line": 58,
+                  "column": 36
+                }
+              }
+            }
+          ],
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+              "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+            },
+            "start": {
+              "offset": 956,
+              "line": 51,
+              "column": 3
+            },
+            "end": {
+              "offset": 1162,
+              "line": 60,
+              "column": 4
+            }
+          }
+        }
+      ],
+      "location": {
+        "source": {
+          "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+          "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+        },
+        "start": {
+          "offset": 910,
+          "line": 50,
+          "column": 1
+        },
+        "end": {
+          "offset": 1164,
+          "line": 61,
+          "column": 2
+        }
+      }
+    },
+    {
+      "type": "ScenarioDefinitions",
+      "name": "TestScenarios",
+      "scenes": "TestScenes",
+      "scenarios": [
+        {
+          "type": "ScenarioDef",
+          "name": "SimpleMovement",
+          "body": [
+            {
+              "type": "ScenarioRef",
+              "name": "MoveToA",
+              "location": {
+                "source": {
+                  "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                  "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+                },
+                "start": {
+                  "offset": 1252,
+                  "line": 65,
+                  "column": 5
+                },
+                "end": {
+                  "offset": 1263,
+                  "line": 66,
+                  "column": 3
+                }
+              }
+            }
+          ],
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+              "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+            },
+            "start": {
+              "offset": 1218,
+              "line": 64,
+              "column": 3
+            },
+            "end": {
+              "offset": 1264,
+              "line": 66,
+              "column": 4
+            }
+          }
+        },
+        {
+          "type": "ScenarioDef",
+          "name": "MovementWithEvents",
+          "body": [
+            {
+              "type": "ScenarioRef",
+              "name": "MoveToA",
+              "location": {
+                "source": {
+                  "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                  "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+                },
+                "start": {
+                  "offset": 1308,
+                  "line": 69,
+                  "column": 5
+                },
+                "end": {
+                  "offset": 1381,
+                  "line": 71,
+                  "column": 3
+                }
+              }
+            }
+          ],
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+              "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+            },
+            "start": {
+              "offset": 1270,
+              "line": 68,
+              "column": 3
+            },
+            "end": {
+              "offset": 1382,
+              "line": 71,
+              "column": 4
+            }
+          }
+        }
+      ],
+      "location": {
+        "source": {
+          "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+          "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+        },
+        "start": {
+          "offset": 1166,
+          "line": 63,
+          "column": 1
+        },
+        "end": {
+          "offset": 1384,
+          "line": 72,
+          "column": 2
+        }
+      }
+    },
+    {
+      "type": "ScenarioExecution",
+      "defs": "TestScenarios",
+      "items": [
+        {
+          "type": "Assignment",
+          "left": "agv1.location",
+          "right": {
+            "type": "NameExpression",
+            "name": "stationB.ID",
+            "location": {
+              "source": {
+                "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+              },
+              "start": {
+                "offset": 1467,
+                "line": 76,
+                "column": 19
+              },
+              "end": {
+                "offset": 1478,
+                "line": 76,
+                "column": 30
+              }
+            }
+          },
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+              "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+            },
+            "start": {
+              "offset": 1451,
+              "line": 76,
+              "column": 3
+            },
+            "end": {
+              "offset": 1479,
+              "line": 76,
+              "column": 31
+            }
+          }
+        },
+        {
+          "type": "Assignment",
+          "left": "agv1.speed",
+          "right": {
+            "type": "NaturalLiteral",
+            "value": 10,
+            "location": {
+              "source": {
+                "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+              },
+              "start": {
+                "offset": 1495,
+                "line": 77,
+                "column": 16
+              },
+              "end": {
+                "offset": 1497,
+                "line": 77,
+                "column": 18
+              }
+            }
+          },
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+              "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+            },
+            "start": {
+              "offset": 1482,
+              "line": 77,
+              "column": 3
+            },
+            "end": {
+              "offset": 1498,
+              "line": 77,
+              "column": 19
+            }
+          }
+        },
+        {
+          "type": "EventInjection",
+          "eventName": "sensorFailure",
+          "timing": {
+            "type": "delay",
+            "value": "2000"
+          },
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+              "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+            },
+            "start": {
+              "offset": 1547,
+              "line": 80,
+              "column": 3
+            },
+            "end": {
+              "offset": 1581,
+              "line": 80,
+              "column": 37
+            }
+          }
+        },
+        {
+          "type": "EventInjection",
+          "eventName": "emergencyStop",
+          "timing": {
+            "type": "condition",
+            "expression": {
+              "type": "BinaryExpression",
+              "left": "agv1.speed",
+              "operator": ">",
+              "right": "15",
+              "location": {
+                "source": {
+                  "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+                  "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+                },
+                "start": {
+                  "offset": 1610,
+                  "line": 81,
+                  "column": 29
+                },
+                "end": {
+                  "offset": 1625,
+                  "line": 81,
+                  "column": 44
+                }
+              }
+            }
+          },
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+              "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+            },
+            "start": {
+              "offset": 1584,
+              "line": 81,
+              "column": 3
+            },
+            "end": {
+              "offset": 1626,
+              "line": 81,
+              "column": 45
+            }
+          }
+        },
+        {
+          "type": "EventInjectionBatch",
+          "events": [
+            "obstacleDetected",
+            "sensorFailure"
+          ],
+          "mode": "sequential",
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+              "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+            },
+            "start": {
+              "offset": 1629,
+              "line": 82,
+              "column": 3
+            },
+            "end": {
+              "offset": 1687,
+              "line": 82,
+              "column": 61
+            }
+          }
+        },
+        {
+          "type": "SceneRef",
+          "ref": "SimpleMovement",
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+              "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+            },
+            "start": {
+              "offset": 1717,
+              "line": 85,
+              "column": 3
+            },
+            "end": {
+              "offset": 1732,
+              "line": 85,
+              "column": 18
+            }
+          }
+        },
+        {
+          "type": "EventInjection",
+          "eventName": "obstacleDetected",
+          "timing": {
+            "type": "before",
+            "scenario": "MovementWithEvents"
+          },
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+              "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+            },
+            "start": {
+              "offset": 1738,
+              "line": 87,
+              "column": 3
+            },
+            "end": {
+              "offset": 1788,
+              "line": 87,
+              "column": 53
+            }
+          }
+        },
+        {
+          "type": "SceneRef",
+          "ref": "MovementWithEvents",
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+              "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+            },
+            "start": {
+              "offset": 1794,
+              "line": 89,
+              "column": 3
+            },
+            "end": {
+              "offset": 1813,
+              "line": 89,
+              "column": 22
+            }
+          }
+        },
+        {
+          "type": "ExecutionEntry",
+          "repeat": "3",
+          "scenario": "SimpleMovement",
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+              "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+            },
+            "start": {
+              "offset": 1819,
+              "line": 91,
+              "column": 3
+            },
+            "end": {
+              "offset": 1843,
+              "line": 91,
+              "column": 27
+            }
+          }
+        }
+      ],
+      "location": {
+        "source": {
+          "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+          "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+        },
+        "start": {
+          "offset": 1386,
+          "line": 74,
+          "column": 1
+        },
+        "end": {
+          "offset": 1845,
+          "line": 92,
+          "column": 2
+        }
+      }
+    }
+  ],
+  "allocation": null,
+  "location": {
+    "source": {
+      "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/AGV-event-injection.sysadl",
+      "text": "Model AGVEventInjectionTest;\n\n// Simplified AGV model for event injection testing\n\nEnvironmentDefinition TestFactory {\n  Entity def Vehicle {\n    properties {\n      Property def location\n      Property def speed\n    }\n    roles {\n      Role def sensor\n    }\n  }\n  \n  Entity def Station {\n    properties {\n      Property def ID\n    }\n  }\n}\n\nEnvironmentConfiguration TestFactoryConfig to TestFactory {\n  agv1: Vehicle;\n  stationA: Station;\n  stationB: Station;\n  \n  stationA.ID = \"StationA\";\n  stationB.ID = \"StationB\";\n}\n\nEventsDefinitions TestEvents to TestFactoryConfig {\n  Event def VehicleEvents for agv1 {\n    ON sensorFailure\n      THEN handleFailure {\n        agv1.speed = 0;\n      }\n    ON emergencyStop\n      THEN stopVehicle {\n        agv1.speed = 0;\n        agv1.location = agv1.location;\n      }\n    ON obstacleDetected\n      THEN avoidObstacle {\n        agv1.speed = agv1.speed / 2;\n      }\n  }\n}\n\nSceneDefinitions TestScenes to TestEvents {\n  Scene def MoveToA on {\n    pre-condition {\n      agv1.location == stationA.ID;\n    }\n    start moveCommand;\n    finish arrivalNotification;\n    post-condition {\n      agv1.location == stationA.ID;\n    }\n  }\n}\n\nScenarioDefinitions TestScenarios to TestScenes {\n  Scenario def SimpleMovement {\n    MoveToA;\n  }\n  \n  Scenario def MovementWithEvents {\n    MoveToA;\n    // Event injections would be handled in ScenarioExecution\n  }\n}\n\nScenarioExecution to TestScenarios {\n  // State initialization\n  agv1.location = stationB.ID;\n  agv1.speed = 10;\n  \n  // Event injection syntax (to be parsed)\n  inject sensorFailure after 2000ms;\n  inject emergencyStop when agv1.speed > 15;\n  inject_batch [obstacleDetected, sensorFailure] sequential;\n  \n  // Scenario execution\n  SimpleMovement;\n  \n  inject obstacleDetected before MovementWithEvents;\n  \n  MovementWithEvents;\n  \n  repeat 3 SimpleMovement;\n}"
+    },
+    "start": {
+      "offset": 0,
+      "line": 1,
+      "column": 1
+    },
+    "end": {
+      "offset": 1845,
+      "line": 92,
+      "column": 2
+    }
+  }
+}

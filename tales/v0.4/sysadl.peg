@@ -1492,7 +1492,7 @@ DataTypeDef
       { return { type: "ScenarioDef", name, body: items, location: location() }; }
 
   ScenarioBody
-      = body:(SceneRef / LoopBlock / VarDecl) { return body; }
+      = body:(EventInjection / EventInjectionBatch / SceneRef / LoopBlock / VarDecl) { return body; }
 
   SceneRef
       = ref:QualifiedName _ ";"
@@ -1550,7 +1550,7 @@ DataTypeDef
       { return { type: "after", scenario }; }
 
   BooleanExpression
-    = left:ID _ operator:(">" / "<" / ">=" / "<=" / "==" / "!=") _ right:(ID / INT)
+    = left:QualifiedName _ operator:(">" / "<" / ">=" / "<=" / "==" / "!=") _ right:(QualifiedName / INT)
       { return { type: "BinaryExpression", left, operator, right, location: location() }; }
 
   ExecutionEntry

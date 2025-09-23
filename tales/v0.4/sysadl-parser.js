@@ -14994,7 +14994,7 @@ function peg$parse(input, options) {
     let s0, s1, s2, s3, s4, s5;
 
     s0 = peg$currPos;
-    s1 = peg$parseID();
+    s1 = peg$parseQualifiedName();
     if (s1 !== peg$FAILED) {
       s2 = peg$parse_();
       s3 = input.charAt(peg$currPos);
@@ -15042,7 +15042,7 @@ function peg$parse(input, options) {
       }
       if (s3 !== peg$FAILED) {
         s4 = peg$parse_();
-        s5 = peg$parseID();
+        s5 = peg$parseQualifiedName();
         if (s5 === peg$FAILED) {
           s5 = peg$parseINT();
         }
