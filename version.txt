@@ -1,7 +1,0 @@
-Separate the generated code in two separated files. 
-
-One with non executable code, just the architeture generated from sysADL,
-with types, generic and specific classes for ports, components, conectors.
-Futhermore this file will have bindings, bindings configuration, executables and constraints.
-
-And the second file will be the simulation file, with the funcion simulate and the main funcion.
