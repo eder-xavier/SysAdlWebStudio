@@ -1,6 +1,6 @@
 // App de orquestração (ESM)
 
-// 0) Importa o parser (ESM) e expõe no window
+// 0) Importa o parser (ESM) e expõe no window para o transformer usar
 import { parse as sysadlParse, SyntaxError as SysADLSyntaxError } from './sysadl-parser.js';
 window.SysADLParser = { parse: sysadlParse, SyntaxError: SysADLSyntaxError };
 
@@ -32,17 +32,32 @@ const els = {
   parseErr: document.getElementById('parseErr'),
 };
 
+// Fallbacks caso um ambiente injete `module.exports` no browser
+(function ensureGlobalsFromModuleExports(){
+  try {
+    if (!window.Transformer && window.module && window.module.exports && window.module.exports.generateClassModule) {
+      window.Transformer = window.module.exports;
+    }
+    if (!window.Simulator && window.module && window.module.exports && window.module.exports.run) {
+      window.Simulator = window.module.exports;
+    }
+  } catch (_e) {}
+})();
+
+
+
 // 3) Monaco init
 let editor;
 await monacoReady;
 editor = monaco.editor.create(els.editor, {
   value: `// Cole um modelo SysADL aqui e clique em Transformar ▶
+// Exemplo simples:
 model Sample
 configuration {
   component Sensor s1;
   component Display d1;
   connector Wire w1 (s1.out -> d1.in);
- }`.trim(),
+}`.trim(),
   language: 'plaintext',
   theme: 'vs-dark',
   automaticLayout: true,
@@ -60,88 +75,104 @@ function saveAs(filename, content){
   setTimeout(()=> URL.revokeObjectURL(url), 2000);
 }
 
-// 5) Shim CJS + require(SysADLBase) + path/fs/process para o browser
+// 5) Shim CJS + require(SysADLBase) para o browser
 function cjsPrelude(){
   return [
     'var module = { exports: {} };',
     'var exports = module.exports;',
-    "var process = { env: {} };",
-    "var __dirname = '/'; var __filename = '/generated.js';",
-    "var path = {",
-    "  sep: '/',",
-    "  resolve: function(){ return Array.from(arguments).join('/'); },",
-    "  join: function(){ return Array.from(arguments).join('/').replace(/\\/+/, '/'); },",
-    "  basename: function(p){ var a=p.split(/\\\\|\//); return a[a.length-1]||p; },",
-    "  extname: function(p){ var m=p.match(/\.[^/.]+$/); return m?m[0]:''; },",
-    "  dirname: function(p){ return p.split(/\\\\|\//).slice(0,-1).join('/'); },",
-    "  normalize: function(p){ return p.replace(/\\/+/, '/'); },",
-    "  isAbsolute: function(p){ return /^([a-zA-Z]:\\\\|\/)/.test(p); }",
-    "};",
-    "var fs = { existsSync: function(){return false;}, mkdirSync: function(){}, writeFileSync: function(){}, readFileSync: function(){ throw new Error('fs.readFileSync não suportado no browser'); } };",
-    "function require(p){",
-    "  if (!p) return {};",
-    "  if (p.indexOf('SysADLBase')!==-1) return window.SysADLBase;",
-    "  if (p==='path') return path;",
-    "  if (p==='fs') return fs;",
-    "  if (p==='process') return process;",
+    'function require(p){',
+    "  if (p && String(p).includes('SysADLBase')) return window.SysADLBase;",
     "  throw new Error('require não suportado no browser: '+p);",
-    "}"
+    '}'
   ].join('\n');
 }
 function cjsReturn(){
   return '\n;module.exports';
 }
 
-// 6) SANDBOX infra
-let sandboxFrame, sandboxReady = false;
-function ensureSandbox(){
-  return new Promise((resolve) => {
-    if (sandboxReady && sandboxFrame && sandboxFrame.contentWindow) return resolve();
-    sandboxFrame = document.createElement('iframe');
-    sandboxFrame.setAttribute('sandbox', 'allow-scripts');
-    sandboxFrame.style.display = 'none';
-    sandboxFrame.src = './sandbox.html';
-    const onMsg = (ev) => {
-      if (ev && ev.data && ev.data.type === 'sandbox-ready') {
-        sandboxReady = true;
-        window.removeEventListener('message', onMsg);
-        resolve();
-      }
-    };
-    window.addEventListener('message', onMsg);
-    document.body.appendChild(sandboxFrame);
-  });
-}
+// 6) Transformação (browser) usando as helpers expostas por transformer.js via window.Transformer
+async function transformSysADLToJS(source){
+  els.parseErr.textContent = '';
+  if(!window.Transformer){
+    throw new Error('Transformer não carregado. Verifique ./transformer.js');
+  }
+  const T = window.Transformer;
 
-async function transformViaSandbox(ast, source){
-  await ensureSandbox();
-  let transformerText = '';
+  // Parse
+  let ast;
   try {
-    const res = await fetch('./transformer.js', { cache: 'no-store' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    transformerText = await res.text();
-  } catch (e) {
-    return { ok:false, error: 'Falha ao carregar transformer.js: ' + (e?.message || String(e)) };
+    ast = window.SysADLParser.parse(source);
+  } catch (err) {
+    if (err && err.location) {
+      const { start } = err.location;
+      els.parseErr.textContent = `Erro de sintaxe (linha ${start.line}, coluna ${start.column}): ${err.message}`;
+    } else {
+      els.parseErr.textContent = 'Erro ao analisar SysADL: ' + (err?.message || String(err));
+    }
+    throw err;
   }
 
-  return new Promise((resolve) => {
-    const w = sandboxFrame.contentWindow;
-    const onMsg = (ev) => {
-      if (!ev || !ev.data || ev.data.type !== 'transformResult') return;
-      window.removeEventListener('message', onMsg);
-      resolve(ev.data);
-    };
-    window.addEventListener('message', onMsg);
-    w.postMessage({ type: 'transform', ast, source, transformer: transformerText }, '*');
-  });
+  // Attach parents (pequena utility local)
+  (function attachParents(node, parent=null){
+    if (!node || typeof node !== 'object') return;
+    Object.defineProperty(node, '__parent', { value: parent, enumerable:false, configurable:true });
+    for (const k of Object.keys(node)){
+      const v = node[k];
+      if (Array.isArray(v)) v.forEach(ch => attachParents(ch, node));
+      else if (v && typeof v === 'object') attachParents(v, node);
+    }
+  })(ast, null);
+
+  // Configuração (pega a primeira configuration do modelo)
+  const conf = (T.extractConfigurations(ast) || [])[0] || {};
+
+  // Coletas
+  const compUses = T.collectComponentUses ? T.collectComponentUses(conf) : [];
+  const portUses = T.collectPortUses ? T.collectPortUses(conf) : [];
+
+  // Insumos mínimos/placeholder
+  const connectorBindings = [];
+  const executables = [];
+  const activitiesToRegister = [];
+  const rootDefs = [];
+  const parentMap = {};
+  const compInstanceDef = {};
+  const compDefMap = {};
+  const portDefMap = {};
+  const embeddedTypes = {};
+  const connectorDefMap = {};
+  const packageMap = {};
+
+  // Geração
+  const js = T.generateClassModule(
+    'ModelFromUI',
+    compUses,
+    portUses,
+    connectorBindings,
+    executables,
+    activitiesToRegister,
+    rootDefs,
+    parentMap,
+    compInstanceDef,
+    compDefMap,
+    portDefMap,
+    embeddedTypes,
+    connectorDefMap,
+    packageMap,
+    ast
+  );
+
+  return js;
 }
 
-// 7) Snippet simulação
+// 7) Código de simulação padrão (snippet reutilizável pelo usuário)
 function buildSimulationSnippet(jsModuleVar='generated'){
   return `// Shim CJS para rodar no browser
 ${cjsPrelude()}
 
+//
 // ==== MÓDULO GERADO PELA TRANSFORMAÇÃO ====
+//
 ${jsModuleVar}
 
 // Retorna o objeto exportado do módulo gerado
@@ -149,8 +180,8 @@ ${jsModuleVar}
 `;
 }
 
-// 8) Execução (usa window.Simulator.run)
-async function runSimulation(generatedCode, { trace=false, loops=1 }={}){
+// 8) Execução (usa window.Simulator.run do arquivo simulator.js)
+function runSimulation(generatedCode, { trace=false, loops=1 }={}){
   const prelude = cjsPrelude();
   const suffix = cjsReturn();
   const code = prelude + '\n' + generatedCode + suffix;
@@ -162,9 +193,6 @@ async function runSimulation(generatedCode, { trace=false, loops=1 }={}){
   };
 
   try{
-    if (!window.Simulator || typeof window.Simulator.run !== 'function') {
-      throw new Error('Simulador não carregado.');
-    }
     const output = window.Simulator.run(code, options);
     els.log.textContent += output + '\n';
     els.log.scrollTop = els.log.scrollHeight;
@@ -177,30 +205,12 @@ async function runSimulation(generatedCode, { trace=false, loops=1 }={}){
 // 9) Handlers UI
 els.btnTransform.addEventListener('click', async () => {
   els.log.textContent = '';
-  els.parseErr.textContent = '';
   const src = editor.getValue();
-
-  // Parse no app
-  let ast;
-  try {
-    ast = window.SysADLParser.parse(src);
-  } catch (err) {
-    if (err && err.location) {
-      const { start } = err.location;
-      els.parseErr.textContent = `Erro de sintaxe (linha ${start.line}, coluna ${start.column}): ${err.message}`;
-    } else {
-      els.parseErr.textContent = 'Erro ao analisar SysADL: ' + (err?.message || String(err));
-    }
-    console.error(err);
-    return;
-  }
-
   try{
-    const r = await transformViaSandbox(ast, src);
-    if (!r.ok) { throw Object.assign(new Error(r.error||'Falha na transformação'), { location: r.location }); }
-    const js = r.code;
+    const js = await transformSysADLToJS(src);
     els.archOut.textContent = js;
 
+    // também mostramos o snippet de simulação padrão
     const snippet = buildSimulationSnippet('// (cole aqui o JS gerado acima)');
     els.simOut.textContent = snippet;
 

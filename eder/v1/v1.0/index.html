@@ -72,17 +72,21 @@
 
   <!-- Monaco (AMD loader) -->
   <script>
+    // Guard: AMD loader pode definir window.require — preservamos como amdRequire
     window.amdRequire = window.require;
   </script>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
 
-  <!-- Neutralizador de CommonJS -->
+  <!-- Runtime base + simulador + transformador (do usuário) -->
+  <!-- Neutralizar shims CommonJS de extensões (garantir branch de browser) -->
   <script>
     try { window.module = undefined; window.exports = undefined; } catch (e) {}
   </script>
 
-  <!-- Helper esperado pelo simulator.js -->
+  <!-- Helper ausente em simulator.js (fornecido como var global antes do arquivo) -->
   <script>
+    // Evita ReferenceError ao montar o objeto window.Simulator
+    // e padroniza a serialização do log
     var normalizeEntry = function(entry) {
       try {
         const seen = new WeakSet();
@@ -101,23 +105,11 @@
     };
   </script>
 
-  <!-- Runtime base + simulador -->
   <script src="./SysADLBase.js"></script>
   <script src="./simulator.js"></script>
+  <script src="./transformer.js"></script>
 
-  <!-- Fallback pós-carregamento -->
-  <script>
-    (function(){
-      try {
-        var g = (typeof globalThis!=='undefined') ? globalThis : window;
-        if (!g.Simulator && g.module && g.module.exports && (g.module.exports.run)) {
-          g.Simulator = g.module.exports;
-        }
-      } catch(e){}
-    })();
-  </script>
-
-  <!-- App (ESM) -->
+  <!-- App (ESM): importa o parser e expõe no window) -->
   <script type="module" src="./app.js"></script>
 </body>
 </html>
