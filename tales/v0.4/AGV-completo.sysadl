@@ -961,7 +961,10 @@ EventsDefinitions MyEvents to MyFactoryConfiguration {
     ON AGV2detachPartX				 
       THEN AGV2NotifArriveAUnoaded {
         agv2.outNotification.notification="unloaded";
-        :Notify(agv2, supervisor); }  
+        :Notify(agv2, supervisor); }
+    ON AGV2atStationD
+      THEN AGV2DetectedStationD {
+        agv2.sensor = stationD; }
   }
   Event def StationAEvents for stationA {		 
     ON agv1.sensor == stationA
@@ -985,6 +988,10 @@ EventsDefinitions MyEvents to MyFactoryConfiguration {
     ON agv2.sensor == stationD	
       THEN AGV2locationStationD {			 
         agv2.location = stationD.signal; }
+    // Evento para modificar sensor programaticamente
+    ON SetAGV2SensorStationD
+      THEN UpdateAGV2SensorToD {
+        agv2.sensor = stationD; }
   }
   Event def StationEEvents for stationE {		 
     ON agv2.sensor == stationE				
@@ -1082,7 +1089,14 @@ ScenarioDefinitions MyScenarios to MyScenes {
 ScenarioExecution to MyScenarios {
   agv1.location = stationC.ID;
   agv2.location = stationD.ID;
-  part.location = stationA.ID; 
+  part.location = stationA.ID;
+  
+  // ✅ Exemplo 1: Disparar após scene específica
+  inject AGV2atStationD after SCN_MoveAGV1toA;
+  
+  // ✅ Exemplo 2: Disparar quando condição for atendida  
+  inject SetAGV2SensorStationD when agv1.location == stationA.ID;
+  
   Scenario1;
   Scenario2;
   Scenario3;
