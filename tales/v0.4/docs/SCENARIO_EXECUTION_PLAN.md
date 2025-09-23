@@ -1,33 +1,612 @@
-# SysADL Scenario Execution Implementation Plan
-## Complete Generic Framework with Automatic Logging
+# 🎯 PLANO COMPLETO DE IMPLEMENTAÇÃO SYSADL
 
-### Overview
-This plan implements a complete scenario execution framework for SysADL that is **domain-agnostic** and works for any system type (AGV, RTC, IoT, etc.). The framework includes automatic comprehensive logging of all SysADL element executions.
+## **RESUMO EXECUTIVO**
+
+**Objetivo:** Implementar completamente a hierarquia SysADL: ScenarioExecution → Scenarios → Scenes → Events com suporte a estruturas de programação, Event Injection e framework reativo.
+
+**Status Atual:** Framework base 80% completo, faltam implementações específicas para parsing e code generation da hierarquia individual.
+
+**Duração Estimada:** 6 fases, ~3-4 semanas de desenvolvimento
+
+**Data de Início:** 23 de setembro de 2025
 
 ---
 
-## Phase 1: Generic Architecture Design (Days 1-3)
+## **🏗️ ARQUITETURA ATUAL - O QUE JÁ TEMOS**
 
-### Core Principles
-- **Domain Agnostic**: All components work for any SysADL model
-- **Generic Interfaces**: No domain-specific implementations in core framework
-- **Automatic Logging**: Comprehensive execution tracking without manual intervention
-- **All Messages in English**: System outputs, logs, and error messages
+### ✅ **Framework Completo Implementado:**
+- `EventInjector` - Injeção de eventos single, batch, scheduling, queuing
+- `ScenarioExecutor` - Execução de cenários com estruturas de programação
+- `ExecutionController` - Controlador mestre de execução
+- `ReactiveStateManager` & `ReactiveConditionWatcher` - Sistema reativo
+- `SceneExecutor` - Execução de cenas individuais
+- Classes base: `Scene`, `Scenario`, `ScenarioExecution`, `EventsDefinitions`
 
-### Architecture Components
+### ❌ **O que FALTA implementar:**
+- Parser para Scene/Scenario/ScenarioExecution individuais
+- Code generation para implementações específicas
+- Integração Event Injection com syntax SysADL
+- Estruturas de programação SysADL (while, for, let, if)
+- Validation framework para pre/post-conditions
 
+---
+
+## **🔧 FASE 1: PARSER FOUNDATION (Semana 1)**
+**Prioridade: CRÍTICA** - Base para tudo
+
+### 1.1 **Scene Individual Parser**
+**Status:** 🔴 Not Started
+**Arquivos:** `sysadl-parser.js`, `sysadl.peg`
+
+**Implementar:**
 ```javascript
-// SysADLBase.js - Generic Framework
-class SysADLBase {
-  constructor(modelName, configuration) {
-    this.logger = new ExecutionLogger(modelName);
-    this.conditionWatcher = new ReactiveConditionWatcher(this);
-    this.stateManager = new StateManager(this);
-    this.eventInjector = new EventInjector(this);
-    this.sceneExecutor = new SceneExecutor(this);
-    this.scenarioExecutor = new ScenarioExecutor(this);
-    this.executionController = new ExecutionController(this);
+// Target syntax to parse:
+Scene def SCN_MoveAGV1toA on { 
+  pre-condition {
+    agv1.location == stationC.ID;
+    part.location == stationA.ID; }
+  start cmdSupervisor;
+  finish AGV1NotifArriveA;
+  post-condition {
+    agv1.location == stationA.ID;
+    part.location == stationA.ID; }
+}
+```
+
+**Estrutura AST necessária:**
+```javascript
+{
+  type: 'SceneDefinition',
+  name: 'SCN_MoveAGV1toA',
+  preConditions: [
+    { type: 'Condition', expression: 'agv1.location == stationC.ID' },
+    { type: 'Condition', expression: 'part.location == stationA.ID' }
+  ],
+  startEvent: 'cmdSupervisor',
+  finishEvent: 'AGV1NotifArriveA',
+  postConditions: [
+    { type: 'Condition', expression: 'agv1.location == stationA.ID' },
+    { type: 'Condition', expression: 'part.location == stationA.ID' }
+  ]
+}
+```
+
+### 1.2 **Scenario Individual Parser**  
+**Status:** 🔴 Not Started
+**Arquivos:** `sysadl-parser.js`, `sysadl.peg`
+
+**Implementar:**
+```javascript
+// Target syntax to parse:
+Scenario def Scenario3 {
+  let i: Integer = 1;
+  while (i < 5) {
+    SCN_MoveAGV1toA;
+    SCN_AGV1movePartToC;
+    i++;
   }
+}
+```
+
+**Estrutura AST necessária:**
+```javascript
+{
+  type: 'ScenarioDefinition',
+  name: 'Scenario3',
+  statements: [
+    { 
+      type: 'VariableDeclaration', 
+      name: 'i', 
+      dataType: 'Integer', 
+      initialValue: 1 
+    },
+    {
+      type: 'WhileStatement',
+      condition: 'i < 5',
+      body: [
+        { type: 'SceneCall', name: 'SCN_MoveAGV1toA' },
+        { type: 'SceneCall', name: 'SCN_AGV1movePartToC' },
+        { type: 'Assignment', target: 'i', operation: '++' }
+      ]
+    }
+  ]
+}
+```
+
+### 1.3 **ScenarioExecution Complete Parser**
+**Status:** 🔴 Not Started
+**Arquivos:** `sysadl-parser.js`, `sysadl.peg`
+
+**Implementar:**
+```javascript
+// Target syntax to parse:
+ScenarioExecution to MyScenarios {
+  agv1.location = stationC.ID;
+  agv2.location = stationD.ID;
+  
+  // Event Injection syntax
+  inject sensorFailure after 5000ms;
+  inject emergencyStop when agv1.speed > maxSpeed;
+  inject_batch [testEvent1, testEvent2] parallel;
+  
+  Scenario1;
+  
+  inject obstacleDetected before Scenario2;
+  
+  Scenario2;
+  repeat 5 Scenario1;
+}
+```
+
+**Estrutura AST necessária:**
+```javascript
+{
+  type: 'ScenarioExecution',
+  targetScenarios: 'MyScenarios',
+  statements: [
+    { type: 'StateInitialization', target: 'agv1.location', value: 'stationC.ID' },
+    { type: 'StateInitialization', target: 'agv2.location', value: 'stationD.ID' },
+    { 
+      type: 'EventInjection', 
+      eventName: 'sensorFailure', 
+      timing: { type: 'delay', value: 5000 }
+    },
+    { 
+      type: 'EventInjection', 
+      eventName: 'emergencyStop', 
+      timing: { type: 'condition', expression: 'agv1.speed > maxSpeed' }
+    },
+    {
+      type: 'EventInjectionBatch',
+      events: ['testEvent1', 'testEvent2'],
+      mode: 'parallel'
+    },
+    { type: 'ScenarioCall', name: 'Scenario1' },
+    { 
+      type: 'EventInjection', 
+      eventName: 'obstacleDetected', 
+      timing: { type: 'before', target: 'Scenario2' }
+    },
+    { type: 'ScenarioCall', name: 'Scenario2' },
+    { type: 'RepeatStatement', target: 'Scenario1', count: 5 }
+  ]
+}
+```
+
+---
+
+## **⚙️ FASE 2: CODE GENERATION (Semana 1-2)**
+**Prioridade: CRÍTICA** - Implementação core
+
+### 2.1 **Scene Implementation Generator**
+**Status:** 🔴 Not Started
+**Arquivos:** `transformer.js`
+
+**Implementar geração JavaScript:**
+```javascript
+// Generated Scene class
+class SCN_MoveAGV1toA extends Scene {
+  constructor(name = 'SCN_MoveAGV1toA', opts = {}) {
+    super(name, {
+      ...opts,
+      sceneType: 'scene',
+      startEvent: 'cmdSupervisor',
+      finishEvent: 'AGV1NotifArriveA',
+      preConditions: [
+        () => this.validateCondition('agv1.location == stationC.ID'),
+        () => this.validateCondition('part.location == stationA.ID')
+      ],
+      postConditions: [
+        () => this.validateCondition('agv1.location == stationA.ID'),
+        () => this.validateCondition('part.location == stationA.ID')
+      ]
+    });
+  }
+
+  async execute() {
+    // Pre-condition validation
+    if (!await this.validatePreConditions()) {
+      throw new Error('Pre-conditions not met for SCN_MoveAGV1toA');
+    }
+
+    // Execute start event
+    await this.triggerStartEvent();
+
+    // Wait for finish event
+    await this.waitForFinishEvent();
+
+    // Post-condition validation
+    if (!await this.validatePostConditions()) {
+      throw new Error('Post-conditions not met for SCN_MoveAGV1toA');
+    }
+
+    return { success: true, scene: 'SCN_MoveAGV1toA' };
+  }
+}
+```
+
+### 2.2 **Scenario Implementation Generator**
+**Status:** 🔴 Not Started
+**Arquivos:** `transformer.js`
+
+**Implementar geração JavaScript:**
+```javascript
+// Generated Scenario class
+class Scenario3 extends Scenario {
+  constructor(name = 'Scenario3', opts = {}) {
+    super(name, {
+      ...opts,
+      scenarioType: 'scenario',
+      scenes: ['SCN_MoveAGV1toA', 'SCN_AGV1movePartToC']
+    });
+  }
+
+  async execute() {
+    // Variable declarations
+    let i = 1;
+
+    // While loop implementation
+    while (i < 5) {
+      // Execute scenes
+      await this.executeScene('SCN_MoveAGV1toA');
+      await this.executeScene('SCN_AGV1movePartToC');
+      
+      // Increment variable
+      i++;
+    }
+
+    return { success: true, scenario: 'Scenario3', iterations: i - 1 };
+  }
+}
+```
+
+### 2.3 **ScenarioExecution Implementation Generator**
+**Status:** 🔴 Not Started
+**Arquivos:** `transformer.js`
+
+**Implementar geração JavaScript:**
+```javascript
+// Generated ScenarioExecution class
+class MyScenariosExecution extends ScenarioExecution {
+  constructor(name = 'MyScenariosExecution', opts = {}) {
+    super(name, {
+      ...opts,
+      targetScenarios: 'MyScenarios',
+      executionMode: 'sequential'
+    });
+  }
+
+  async execute() {
+    // State initializations
+    this.setState('agv1.location', 'stationC.ID');
+    this.setState('agv2.location', 'stationD.ID');
+
+    // Event injections
+    await this.scheduleEventInjection('sensorFailure', {}, 5000);
+    await this.setupConditionalEventInjection('emergencyStop', 'agv1.speed > maxSpeed');
+    await this.scheduleBatchEventInjection(['testEvent1', 'testEvent2'], 'parallel');
+
+    // Execute scenarios
+    await this.executeScenario('Scenario1');
+    
+    await this.injectEventBefore('obstacleDetected', 'Scenario2');
+    await this.executeScenario('Scenario2');
+    
+    // Repeat execution
+    await this.repeatScenario('Scenario1', 5);
+
+    return { success: true, execution: 'MyScenariosExecution' };
+  }
+}
+```
+
+---
+
+## **🚀 FASE 3: INTEGRATION (Semana 2)**
+**Prioridade: ALTA** - Conectar componentes
+
+### 3.1 **Event Injection Integration**
+**Status:** 🔴 Not Started
+**Arquivos:** `transformer.js`, `ScenarioExecutor.js`
+
+**Implementar métodos de integração:**
+```javascript
+// Em ScenarioExecution generated classes
+async scheduleEventInjection(eventName, parameters = {}, delay = 0) {
+  return await this.sysadlBase.eventInjector.injectEvent(
+    eventName, parameters, delay
+  );
+}
+
+async setupConditionalEventInjection(eventName, condition) {
+  return await this.sysadlBase.conditionWatcher.watchCondition(
+    condition,
+    () => this.sysadlBase.eventInjector.injectEvent(eventName)
+  );
+}
+
+async scheduleBatchEventInjection(events, mode = 'sequential') {
+  const eventSpecs = events.map(event => ({ eventName: event }));
+  return await this.sysadlBase.eventInjector.injectEventBatch(
+    eventSpecs, { parallel: mode === 'parallel' }
+  );
+}
+```
+
+### 3.2 **Reactive Framework Integration**
+**Status:** 🔴 Not Started
+**Arquivos:** `Scene.js`, `ReactiveConditionWatcher.js`
+
+**Implementar integração com conditions:**
+```javascript
+// Em Scene generated classes
+async validateCondition(conditionExpression) {
+  return await this.sysadlBase.conditionWatcher.evaluateCondition(
+    conditionExpression
+  );
+}
+
+async validatePreConditions() {
+  for (const condition of this.preConditions) {
+    if (!await condition()) {
+      return false;
+    }
+  }
+  return true;
+}
+
+async validatePostConditions() {
+  for (const condition of this.postConditions) {
+    if (!await condition()) {
+      return false;
+    }
+  }
+  return true;
+}
+```
+
+---
+
+## **🏗️ FASE 4: ADVANCED FEATURES (Semana 2-3)**
+**Prioridade: MÉDIA** - Features avançadas
+
+### 4.1 **Programming Structures Implementation**
+**Status:** 🔴 Not Started
+**Arquivos:** `ScenarioExecutor.js`
+
+**Implementar estruturas de controle:**
+```javascript
+// Suporte genérico para estruturas de programação
+async executeWhileLoop(condition, body, context) {
+  while (await this.evaluateCondition(condition, context)) {
+    await this.executeStatementBlock(body, context);
+  }
+}
+
+async executeForLoop(init, condition, increment, body, context) {
+  await this.executeStatement(init, context);
+  while (await this.evaluateCondition(condition, context)) {
+    await this.executeStatementBlock(body, context);
+    await this.executeStatement(increment, context);
+  }
+}
+
+async executeIfStatement(condition, thenBlock, elseBlock, context) {
+  if (await this.evaluateCondition(condition, context)) {
+    await this.executeStatementBlock(thenBlock, context);
+  } else if (elseBlock) {
+    await this.executeStatementBlock(elseBlock, context);
+  }
+}
+```
+
+### 4.2 **Validation Framework**
+**Status:** 🔴 Not Started
+**Arquivos:** `EventInjector.js`, `ValidationFramework.js`
+
+**Implementar validação de Event Injection:**
+```javascript
+class ValidationFramework {
+  async validateEventInjection(eventName, parameters, context) {
+    // Verificar se evento existe
+    if (!this.isEventAvailable(eventName)) {
+      throw new Error(`Event ${eventName} not available`);
+    }
+
+    // Verificar parâmetros obrigatórios
+    const definition = this.getEventDefinition(eventName);
+    for (const required of definition.required) {
+      if (!(required in parameters)) {
+        throw new Error(`Required parameter ${required} missing for event ${eventName}`);
+      }
+    }
+
+    // Verificar pre-conditions
+    if (context.currentScene) {
+      const sceneConditions = context.currentScene.preConditions;
+      for (const condition of sceneConditions) {
+        if (!await condition()) {
+          throw new Error(`Scene pre-conditions not met for event injection`);
+        }
+      }
+    }
+
+    return true;
+  }
+}
+```
+
+---
+
+## **🧪 FASE 5: TESTING & INTEGRATION (Semana 3)**
+**Prioridade: ALTA** - Validação completa
+
+### 5.1 **Unit Testing**
+**Status:** 🔴 Not Started
+**Arquivos:** `test/scene-parser.test.js`, `test/scenario-parser.test.js`, etc.
+
+**Criar testes para:**
+- Scene individual parsing e code generation
+- Scenario individual parsing e code generation  
+- ScenarioExecution parsing e code generation
+- Event injection integration
+- Programming structures execution
+- Validation framework
+
+### 5.2 **Integration Testing**
+**Status:** 🔴 Not Started
+**Arquivos:** `test/integration/complete-hierarchy.test.js`
+
+**Testar execução completa:**
+```javascript
+describe('Complete SysADL Hierarchy Execution', () => {
+  test('ScenarioExecution → Scenarios → Scenes → Events', async () => {
+    const model = await createAGVModel();
+    
+    // Test complete execution chain
+    const execution = model.scenarioExecutions['MyScenariosExecution'];
+    const result = await execution.execute();
+    
+    expect(result.success).toBe(true);
+    expect(result.scenariosExecuted).toBeGreaterThan(0);
+    expect(result.scenesExecuted).toBeGreaterThan(0);
+    expect(result.eventsTriggered).toBeGreaterThan(0);
+  });
+});
+```
+
+---
+
+## **📚 FASE 6: FINALIZATION (Semana 4)**
+**Prioridade: BAIXA** - Polimento
+
+### 6.1 **Documentation & Examples**
+**Status:** 🔴 Not Started
+**Arquivos:** `docs/`, `examples/`
+
+**Criar documentação completa:**
+- API documentation para todas as novas features
+- Usage examples para Scene/Scenario/ScenarioExecution
+- Event Injection patterns e best practices
+- Programming structures guide
+- Integration patterns documentation
+
+### 6.2 **Performance Optimization**
+**Status:** 🔴 Not Started
+**Arquivos:** Performance profiling de todos os componentes
+
+**Otimizar:**
+- ScenarioExecutor memory usage
+- ReactiveConditionWatcher evaluation speed
+- EventInjector batch processing
+- Event processing pipeline
+- Condition evaluation caching
+
+---
+
+## **🎯 DEPENDÊNCIAS E ORDEM DE EXECUÇÃO**
+
+```
+FASE 1: Parser Foundation
+├── 1.1 Scene Parser → 1.2 Scenario Parser → 1.3 ScenarioExecution Parser
+│
+FASE 2: Code Generation  
+├── 2.1 Scene Generation (depends on 1.1)
+├── 2.2 Scenario Generation (depends on 1.2)  
+├── 2.3 ScenarioExecution Generation (depends on 1.3)
+│
+FASE 3: Integration
+├── 3.1 Event Injection Integration (depends on 2.3)
+├── 3.2 Reactive Framework Integration (depends on 2.1)
+│
+FASE 4: Advanced Features
+├── 4.1 Programming Structures (depends on 2.2)
+├── 4.2 Validation Framework (depends on 3.1)
+│
+FASE 5: Testing
+├── 5.1 Unit Tests (depends on all previous phases)
+├── 5.2 Integration Tests (depends on all previous phases)
+│
+FASE 6: Finalization
+├── 6.1 Documentation (depends on 5.*)
+├── 6.2 Performance (depends on 5.*)
+```
+
+---
+
+## **🚦 CRITÉRIOS DE SUCESSO**
+
+### **Milestone 1 (Final Semana 1):** Parser Foundation Complete
+- ✅ Scene individual parsing working e testado
+- ✅ Scenario individual parsing working e testado
+- ✅ ScenarioExecution parsing working e testado
+- ✅ Event Injection syntax parsing working
+
+### **Milestone 2 (Final Semana 2):** Code Generation Complete
+- ✅ Generated JavaScript validates sem erros
+- ✅ Scene/Scenario/ScenarioExecution classes funcionais
+- ✅ Event Injection integration working
+- ✅ Reactive framework integration working
+
+### **Milestone 3 (Final Semana 3):** Integration Complete
+- ✅ End-to-end execution working sem falhas
+- ✅ Programming structures funcionais (while, for, let, if)
+- ✅ Validation framework operacional
+- ✅ All unit e integration tests passing
+
+### **Final Milestone (Final Semana 4):** Production Ready
+- ✅ Performance optimized
+- ✅ Documentation complete
+- ✅ Examples working
+- ✅ Ready for any SysADL model (genérico)
+
+---
+
+## **🔄 PRÓXIMO PASSO IMEDIATO**
+
+**INICIAR: FASE 1.1 - Scene Individual Parser**
+
+**Arquivo:** `sysadl-parser.js` e `sysadl.peg`
+
+**Tarefa:** Implementar parsing de Scene individuais para extrair:
+- `Scene def SCN_Name on { ... }`
+- Pre-conditions, start event, finish event, post-conditions
+- Criar estrutura AST genérica para múltiplas Scenes
+
+**Comando para começar:**
+```bash
+cd /Users/tales/desenv/SysAdlWebStudio/tales/v0.4
+# Editar sysadl.peg para adicionar regras de Scene individual
+# Testar com AGV-completo.sysadl
+```
+
+---
+
+## **📊 TRACKING DE PROGRESSO**
+
+| Fase | Componente | Status | Estimativa | Início | Fim |
+|------|------------|---------|------------|--------|-----|
+| 1.1  | Scene Parser | 🔴 Not Started | 2 dias | | |
+| 1.2  | Scenario Parser | 🔴 Not Started | 2 dias | | |
+| 1.3  | ScenarioExecution Parser | 🔴 Not Started | 3 dias | | |
+| 2.1  | Scene Code Generation | 🔴 Not Started | 2 dias | | |
+| 2.2  | Scenario Code Generation | 🔴 Not Started | 3 dias | | |
+| 2.3  | ScenarioExecution Code Generation | 🔴 Not Started | 2 dias | | |
+| 3.1  | Event Injection Integration | 🔴 Not Started | 2 dias | | |
+| 3.2  | Reactive Framework Integration | 🔴 Not Started | 2 dias | | |
+| 4.1  | Programming Structures | 🔴 Not Started | 3 dias | | |
+| 4.2  | Validation Framework | 🔴 Not Started | 2 dias | | |
+| 5.1  | Unit Testing | 🔴 Not Started | 3 dias | | |
+| 5.2  | Integration Testing | 🔴 Not Started | 2 dias | | |
+| 6.1  | Documentation | 🔴 Not Started | 2 dias | | |
+| 6.2  | Performance Optimization | 🔴 Not Started | 2 dias | | |
+
+**Total Estimado:** 32 dias de desenvolvimento
+
+---
+
+*Última atualização: 23 de setembro de 2025*
+*Próxima revisão: A cada milestone completado*
 
   // Generic event injection - works for any domain
   injectEvent(eventName, parameters, timestamp = null) {

@@ -1,0 +1,408 @@
+{
+  "type": "Model",
+  "name": "TestGenericModel",
+  "involvedElements": [],
+  "members": [
+    {
+      "type": "EnvironmentDefinition",
+      "name": "TestEnv",
+      "entities": [
+        {
+          "type": "EntityDef",
+          "name": "TestEntity",
+          "compositions": [],
+          "propertyDefs": [
+            {
+              "type": "PropertyDef",
+              "name": "testProp",
+              "location": {
+                "source": {
+                  "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/test-generic.sysadl",
+                  "text": "Model TestGenericModel;\n\nEnvironmentDefinition TestEnv {\n  Entity def TestEntity {\n    properties {\n      Property def testProp\n    }\n  }\n}\n\nEnvironmentConfiguration TestConfig to TestEnv {\n  entity1: TestEntity;\n}\n\nEventsDefinitions TestEvents to TestConfig {\n  Event def TestEvent for entity1 {\n    ON testTrigger \n      THEN testAction {\n        entity1.testProp = \"stringValue\";\n        entity1.numProp = 42;\n        entity1.boolProp = true;\n        :TestConnection(entity1, entity2); }\n  }\n}"
+                },
+                "start": {
+                  "offset": 106,
+                  "line": 6,
+                  "column": 7
+                },
+                "end": {
+                  "offset": 127,
+                  "line": 6,
+                  "column": 28
+                }
+              }
+            }
+          ],
+          "roles": [],
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/test-generic.sysadl",
+              "text": "Model TestGenericModel;\n\nEnvironmentDefinition TestEnv {\n  Entity def TestEntity {\n    properties {\n      Property def testProp\n    }\n  }\n}\n\nEnvironmentConfiguration TestConfig to TestEnv {\n  entity1: TestEntity;\n}\n\nEventsDefinitions TestEvents to TestConfig {\n  Event def TestEvent for entity1 {\n    ON testTrigger \n      THEN testAction {\n        entity1.testProp = \"stringValue\";\n        entity1.numProp = 42;\n        entity1.boolProp = true;\n        :TestConnection(entity1, entity2); }\n  }\n}"
+            },
+            "start": {
+              "offset": 59,
+              "line": 4,
+              "column": 3
+            },
+            "end": {
+              "offset": 137,
+              "line": 8,
+              "column": 4
+            }
+          }
+        }
+      ],
+      "connections": [],
+      "location": {
+        "source": {
+          "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/test-generic.sysadl",
+          "text": "Model TestGenericModel;\n\nEnvironmentDefinition TestEnv {\n  Entity def TestEntity {\n    properties {\n      Property def testProp\n    }\n  }\n}\n\nEnvironmentConfiguration TestConfig to TestEnv {\n  entity1: TestEntity;\n}\n\nEventsDefinitions TestEvents to TestConfig {\n  Event def TestEvent for entity1 {\n    ON testTrigger \n      THEN testAction {\n        entity1.testProp = \"stringValue\";\n        entity1.numProp = 42;\n        entity1.boolProp = true;\n        :TestConnection(entity1, entity2); }\n  }\n}"
+        },
+        "start": {
+          "offset": 25,
+          "line": 3,
+          "column": 1
+        },
+        "end": {
+          "offset": 139,
+          "line": 9,
+          "column": 2
+        }
+      }
+    },
+    {
+      "type": "EnvironmentConfiguration",
+      "name": "TestConfig",
+      "definition": "TestEnv",
+      "mappings": [
+        {
+          "type": "Instantiation",
+          "instance": "entity1",
+          "entityType": "TestEntity",
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/test-generic.sysadl",
+              "text": "Model TestGenericModel;\n\nEnvironmentDefinition TestEnv {\n  Entity def TestEntity {\n    properties {\n      Property def testProp\n    }\n  }\n}\n\nEnvironmentConfiguration TestConfig to TestEnv {\n  entity1: TestEntity;\n}\n\nEventsDefinitions TestEvents to TestConfig {\n  Event def TestEvent for entity1 {\n    ON testTrigger \n      THEN testAction {\n        entity1.testProp = \"stringValue\";\n        entity1.numProp = 42;\n        entity1.boolProp = true;\n        :TestConnection(entity1, entity2); }\n  }\n}"
+            },
+            "start": {
+              "offset": 192,
+              "line": 12,
+              "column": 3
+            },
+            "end": {
+              "offset": 213,
+              "line": 13,
+              "column": 1
+            }
+          }
+        }
+      ],
+      "location": {
+        "source": {
+          "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/test-generic.sysadl",
+          "text": "Model TestGenericModel;\n\nEnvironmentDefinition TestEnv {\n  Entity def TestEntity {\n    properties {\n      Property def testProp\n    }\n  }\n}\n\nEnvironmentConfiguration TestConfig to TestEnv {\n  entity1: TestEntity;\n}\n\nEventsDefinitions TestEvents to TestConfig {\n  Event def TestEvent for entity1 {\n    ON testTrigger \n      THEN testAction {\n        entity1.testProp = \"stringValue\";\n        entity1.numProp = 42;\n        entity1.boolProp = true;\n        :TestConnection(entity1, entity2); }\n  }\n}"
+        },
+        "start": {
+          "offset": 141,
+          "line": 11,
+          "column": 1
+        },
+        "end": {
+          "offset": 214,
+          "line": 13,
+          "column": 2
+        }
+      }
+    },
+    {
+      "type": "EventsDefinitions",
+      "name": "TestEvents",
+      "config": "TestConfig",
+      "eventDefs": [
+        {
+          "type": "EventDef",
+          "name": "TestEvent",
+          "target": "entity1",
+          "triggers": [
+            {
+              "type": "TriggerBlock",
+              "condition": {
+                "type": "ConditionBlock",
+                "name": "testTrigger",
+                "value": null,
+                "location": {
+                  "source": {
+                    "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/test-generic.sysadl",
+                    "text": "Model TestGenericModel;\n\nEnvironmentDefinition TestEnv {\n  Entity def TestEntity {\n    properties {\n      Property def testProp\n    }\n  }\n}\n\nEnvironmentConfiguration TestConfig to TestEnv {\n  entity1: TestEntity;\n}\n\nEventsDefinitions TestEvents to TestConfig {\n  Event def TestEvent for entity1 {\n    ON testTrigger \n      THEN testAction {\n        entity1.testProp = \"stringValue\";\n        entity1.numProp = 42;\n        entity1.boolProp = true;\n        :TestConnection(entity1, entity2); }\n  }\n}"
+                  },
+                  "start": {
+                    "offset": 304,
+                    "line": 17,
+                    "column": 8
+                  },
+                  "end": {
+                    "offset": 323,
+                    "line": 18,
+                    "column": 7
+                  }
+                }
+              },
+              "actions": [
+                {
+                  "type": "ActionBlock",
+                  "name": "testAction",
+                  "statements": [
+                    {
+                      "type": "Assignment",
+                      "left": "entity1.testProp",
+                      "right": {
+                        "type": "StringLiteral",
+                        "value": "stringValue",
+                        "location": {
+                          "source": {
+                            "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/test-generic.sysadl",
+                            "text": "Model TestGenericModel;\n\nEnvironmentDefinition TestEnv {\n  Entity def TestEntity {\n    properties {\n      Property def testProp\n    }\n  }\n}\n\nEnvironmentConfiguration TestConfig to TestEnv {\n  entity1: TestEntity;\n}\n\nEventsDefinitions TestEvents to TestConfig {\n  Event def TestEvent for entity1 {\n    ON testTrigger \n      THEN testAction {\n        entity1.testProp = \"stringValue\";\n        entity1.numProp = 42;\n        entity1.boolProp = true;\n        :TestConnection(entity1, entity2); }\n  }\n}"
+                          },
+                          "start": {
+                            "offset": 368,
+                            "line": 19,
+                            "column": 28
+                          },
+                          "end": {
+                            "offset": 381,
+                            "line": 19,
+                            "column": 41
+                          }
+                        }
+                      },
+                      "location": {
+                        "source": {
+                          "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/test-generic.sysadl",
+                          "text": "Model TestGenericModel;\n\nEnvironmentDefinition TestEnv {\n  Entity def TestEntity {\n    properties {\n      Property def testProp\n    }\n  }\n}\n\nEnvironmentConfiguration TestConfig to TestEnv {\n  entity1: TestEntity;\n}\n\nEventsDefinitions TestEvents to TestConfig {\n  Event def TestEvent for entity1 {\n    ON testTrigger \n      THEN testAction {\n        entity1.testProp = \"stringValue\";\n        entity1.numProp = 42;\n        entity1.boolProp = true;\n        :TestConnection(entity1, entity2); }\n  }\n}"
+                        },
+                        "start": {
+                          "offset": 349,
+                          "line": 19,
+                          "column": 9
+                        },
+                        "end": {
+                          "offset": 382,
+                          "line": 19,
+                          "column": 42
+                        }
+                      }
+                    },
+                    {
+                      "type": "Assignment",
+                      "left": "entity1.numProp",
+                      "right": {
+                        "type": "NaturalLiteral",
+                        "value": 42,
+                        "location": {
+                          "source": {
+                            "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/test-generic.sysadl",
+                            "text": "Model TestGenericModel;\n\nEnvironmentDefinition TestEnv {\n  Entity def TestEntity {\n    properties {\n      Property def testProp\n    }\n  }\n}\n\nEnvironmentConfiguration TestConfig to TestEnv {\n  entity1: TestEntity;\n}\n\nEventsDefinitions TestEvents to TestConfig {\n  Event def TestEvent for entity1 {\n    ON testTrigger \n      THEN testAction {\n        entity1.testProp = \"stringValue\";\n        entity1.numProp = 42;\n        entity1.boolProp = true;\n        :TestConnection(entity1, entity2); }\n  }\n}"
+                          },
+                          "start": {
+                            "offset": 409,
+                            "line": 20,
+                            "column": 27
+                          },
+                          "end": {
+                            "offset": 411,
+                            "line": 20,
+                            "column": 29
+                          }
+                        }
+                      },
+                      "location": {
+                        "source": {
+                          "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/test-generic.sysadl",
+                          "text": "Model TestGenericModel;\n\nEnvironmentDefinition TestEnv {\n  Entity def TestEntity {\n    properties {\n      Property def testProp\n    }\n  }\n}\n\nEnvironmentConfiguration TestConfig to TestEnv {\n  entity1: TestEntity;\n}\n\nEventsDefinitions TestEvents to TestConfig {\n  Event def TestEvent for entity1 {\n    ON testTrigger \n      THEN testAction {\n        entity1.testProp = \"stringValue\";\n        entity1.numProp = 42;\n        entity1.boolProp = true;\n        :TestConnection(entity1, entity2); }\n  }\n}"
+                        },
+                        "start": {
+                          "offset": 391,
+                          "line": 20,
+                          "column": 9
+                        },
+                        "end": {
+                          "offset": 412,
+                          "line": 20,
+                          "column": 30
+                        }
+                      }
+                    },
+                    {
+                      "type": "Assignment",
+                      "left": "entity1.boolProp",
+                      "right": {
+                        "type": "NameExpression",
+                        "name": "true",
+                        "location": {
+                          "source": {
+                            "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/test-generic.sysadl",
+                            "text": "Model TestGenericModel;\n\nEnvironmentDefinition TestEnv {\n  Entity def TestEntity {\n    properties {\n      Property def testProp\n    }\n  }\n}\n\nEnvironmentConfiguration TestConfig to TestEnv {\n  entity1: TestEntity;\n}\n\nEventsDefinitions TestEvents to TestConfig {\n  Event def TestEvent for entity1 {\n    ON testTrigger \n      THEN testAction {\n        entity1.testProp = \"stringValue\";\n        entity1.numProp = 42;\n        entity1.boolProp = true;\n        :TestConnection(entity1, entity2); }\n  }\n}"
+                          },
+                          "start": {
+                            "offset": 440,
+                            "line": 21,
+                            "column": 28
+                          },
+                          "end": {
+                            "offset": 444,
+                            "line": 21,
+                            "column": 32
+                          }
+                        }
+                      },
+                      "location": {
+                        "source": {
+                          "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/test-generic.sysadl",
+                          "text": "Model TestGenericModel;\n\nEnvironmentDefinition TestEnv {\n  Entity def TestEntity {\n    properties {\n      Property def testProp\n    }\n  }\n}\n\nEnvironmentConfiguration TestConfig to TestEnv {\n  entity1: TestEntity;\n}\n\nEventsDefinitions TestEvents to TestConfig {\n  Event def TestEvent for entity1 {\n    ON testTrigger \n      THEN testAction {\n        entity1.testProp = \"stringValue\";\n        entity1.numProp = 42;\n        entity1.boolProp = true;\n        :TestConnection(entity1, entity2); }\n  }\n}"
+                        },
+                        "start": {
+                          "offset": 421,
+                          "line": 21,
+                          "column": 9
+                        },
+                        "end": {
+                          "offset": 445,
+                          "line": 21,
+                          "column": 33
+                        }
+                      }
+                    },
+                    {
+                      "type": "Invocation",
+                      "connection": "TestConnection",
+                      "args": {
+                        "type": "QualifiedNameList",
+                        "items": [
+                          "entity1",
+                          "entity2"
+                        ],
+                        "location": {
+                          "source": {
+                            "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/test-generic.sysadl",
+                            "text": "Model TestGenericModel;\n\nEnvironmentDefinition TestEnv {\n  Entity def TestEntity {\n    properties {\n      Property def testProp\n    }\n  }\n}\n\nEnvironmentConfiguration TestConfig to TestEnv {\n  entity1: TestEntity;\n}\n\nEventsDefinitions TestEvents to TestConfig {\n  Event def TestEvent for entity1 {\n    ON testTrigger \n      THEN testAction {\n        entity1.testProp = \"stringValue\";\n        entity1.numProp = 42;\n        entity1.boolProp = true;\n        :TestConnection(entity1, entity2); }\n  }\n}"
+                          },
+                          "start": {
+                            "offset": 470,
+                            "line": 22,
+                            "column": 25
+                          },
+                          "end": {
+                            "offset": 486,
+                            "line": 22,
+                            "column": 41
+                          }
+                        }
+                      },
+                      "location": {
+                        "source": {
+                          "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/test-generic.sysadl",
+                          "text": "Model TestGenericModel;\n\nEnvironmentDefinition TestEnv {\n  Entity def TestEntity {\n    properties {\n      Property def testProp\n    }\n  }\n}\n\nEnvironmentConfiguration TestConfig to TestEnv {\n  entity1: TestEntity;\n}\n\nEventsDefinitions TestEvents to TestConfig {\n  Event def TestEvent for entity1 {\n    ON testTrigger \n      THEN testAction {\n        entity1.testProp = \"stringValue\";\n        entity1.numProp = 42;\n        entity1.boolProp = true;\n        :TestConnection(entity1, entity2); }\n  }\n}"
+                        },
+                        "start": {
+                          "offset": 454,
+                          "line": 22,
+                          "column": 9
+                        },
+                        "end": {
+                          "offset": 488,
+                          "line": 22,
+                          "column": 43
+                        }
+                      }
+                    }
+                  ],
+                  "location": {
+                    "source": {
+                      "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/test-generic.sysadl",
+                      "text": "Model TestGenericModel;\n\nEnvironmentDefinition TestEnv {\n  Entity def TestEntity {\n    properties {\n      Property def testProp\n    }\n  }\n}\n\nEnvironmentConfiguration TestConfig to TestEnv {\n  entity1: TestEntity;\n}\n\nEventsDefinitions TestEvents to TestConfig {\n  Event def TestEvent for entity1 {\n    ON testTrigger \n      THEN testAction {\n        entity1.testProp = \"stringValue\";\n        entity1.numProp = 42;\n        entity1.boolProp = true;\n        :TestConnection(entity1, entity2); }\n  }\n}"
+                    },
+                    "start": {
+                      "offset": 328,
+                      "line": 18,
+                      "column": 12
+                    },
+                    "end": {
+                      "offset": 490,
+                      "line": 22,
+                      "column": 45
+                    }
+                  }
+                }
+              ],
+              "location": {
+                "source": {
+                  "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/test-generic.sysadl",
+                  "text": "Model TestGenericModel;\n\nEnvironmentDefinition TestEnv {\n  Entity def TestEntity {\n    properties {\n      Property def testProp\n    }\n  }\n}\n\nEnvironmentConfiguration TestConfig to TestEnv {\n  entity1: TestEntity;\n}\n\nEventsDefinitions TestEvents to TestConfig {\n  Event def TestEvent for entity1 {\n    ON testTrigger \n      THEN testAction {\n        entity1.testProp = \"stringValue\";\n        entity1.numProp = 42;\n        entity1.boolProp = true;\n        :TestConnection(entity1, entity2); }\n  }\n}"
+                },
+                "start": {
+                  "offset": 301,
+                  "line": 17,
+                  "column": 5
+                },
+                "end": {
+                  "offset": 490,
+                  "line": 22,
+                  "column": 45
+                }
+              }
+            }
+          ],
+          "location": {
+            "source": {
+              "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/test-generic.sysadl",
+              "text": "Model TestGenericModel;\n\nEnvironmentDefinition TestEnv {\n  Entity def TestEntity {\n    properties {\n      Property def testProp\n    }\n  }\n}\n\nEnvironmentConfiguration TestConfig to TestEnv {\n  entity1: TestEntity;\n}\n\nEventsDefinitions TestEvents to TestConfig {\n  Event def TestEvent for entity1 {\n    ON testTrigger \n      THEN testAction {\n        entity1.testProp = \"stringValue\";\n        entity1.numProp = 42;\n        entity1.boolProp = true;\n        :TestConnection(entity1, entity2); }\n  }\n}"
+            },
+            "start": {
+              "offset": 263,
+              "line": 16,
+              "column": 3
+            },
+            "end": {
+              "offset": 494,
+              "line": 23,
+              "column": 4
+            }
+          }
+        }
+      ],
+      "location": {
+        "source": {
+          "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/test-generic.sysadl",
+          "text": "Model TestGenericModel;\n\nEnvironmentDefinition TestEnv {\n  Entity def TestEntity {\n    properties {\n      Property def testProp\n    }\n  }\n}\n\nEnvironmentConfiguration TestConfig to TestEnv {\n  entity1: TestEntity;\n}\n\nEventsDefinitions TestEvents to TestConfig {\n  Event def TestEvent for entity1 {\n    ON testTrigger \n      THEN testAction {\n        entity1.testProp = \"stringValue\";\n        entity1.numProp = 42;\n        entity1.boolProp = true;\n        :TestConnection(entity1, entity2); }\n  }\n}"
+        },
+        "start": {
+          "offset": 216,
+          "line": 15,
+          "column": 1
+        },
+        "end": {
+          "offset": 496,
+          "line": 24,
+          "column": 2
+        }
+      }
+    }
+  ],
+  "allocation": null,
+  "location": {
+    "source": {
+      "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/test-generic.sysadl",
+      "text": "Model TestGenericModel;\n\nEnvironmentDefinition TestEnv {\n  Entity def TestEntity {\n    properties {\n      Property def testProp\n    }\n  }\n}\n\nEnvironmentConfiguration TestConfig to TestEnv {\n  entity1: TestEntity;\n}\n\nEventsDefinitions TestEvents to TestConfig {\n  Event def TestEvent for entity1 {\n    ON testTrigger \n      THEN testAction {\n        entity1.testProp = \"stringValue\";\n        entity1.numProp = 42;\n        entity1.boolProp = true;\n        :TestConnection(entity1, entity2); }\n  }\n}"
+    },
+    "start": {
+      "offset": 0,
+      "line": 1,
+      "column": 1
+    },
+    "end": {
+      "offset": 496,
+      "line": 24,
+      "column": 2
+    }
+  }
+}

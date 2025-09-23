@@ -3191,7 +3191,10 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
         lines.push(`          trigger: '${rule.trigger}',`);
         lines.push(`          actions: [`);
         for (const action of rule.actions) {
-          lines.push(`            { name: '${action.name}', body: [] },`);
+          const bodyLiteral = action.body && action.body.length > 0 ? 
+            `[${action.body.map(line => `'${line.replace(/'/g, "\\'")}'`).join(', ')}]` : 
+            '[]';
+          lines.push(`            { name: '${action.name}', body: ${bodyLiteral} },`);
         }
         lines.push(`          ],`);
         lines.push(`          execute: (context) => {`);
@@ -3227,19 +3230,32 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
     lines.push('');
     
     // Generate action methods
-    const allActions = new Set();
+    const actionMap = new Map();
     for (const eventClass of eventClasses) {
       for (const rule of eventClass.rules) {
         for (const action of rule.actions) {
-          allActions.add(action.name);
+          if (!actionMap.has(action.name)) {
+            actionMap.set(action.name, action);
+          }
         }
       }
     }
     
-    for (const actionName of allActions) {
+    for (const [actionName, action] of actionMap) {
       lines.push(`  execute${actionName}(context) {`);
       lines.push(`    console.log('Executing action: ${actionName}');`);
-      lines.push(`    // Implement ${actionName} logic here`);
+      
+      // Add the actual action body code
+      if (action.body && action.body.length > 0) {
+        lines.push(`    // Action implementation:`);
+        for (const line of action.body) {
+          lines.push(`    ${line}`);
+        }
+        lines.push(`    `);
+      } else {
+        lines.push(`    // Implement ${actionName} logic here`);
+      }
+      
       lines.push(`    return { action: '${actionName}', status: 'executed', context };`);
       lines.push(`  }`);
       lines.push('');
@@ -3318,39 +3334,264 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
     }
   }
   
-  // Generate Scene classes
+  // Generate Enhanced Scene classes with validation and execution logic
   for (const { element } of sceneDefinitions) {
-    const scenes = extractScenes(element);
+    const scenes = extractScenesEnhanced(element);
     for (const [sceneName, sceneDef] of Object.entries(scenes)) {
       const sceneClassName = sanitizeId(sceneName);
-      lines.push(`// Scene: ${sceneName}`);
+      lines.push(`// Enhanced Scene: ${sceneName}`);
       lines.push(`class ${sceneClassName} extends Scene {`);
       lines.push(`  constructor(name = '${sceneName}', opts = {}) {`);
       lines.push(`    super(name, {`);
       lines.push(`      ...opts,`);
+      lines.push(`      sceneType: 'scene',`);
+      lines.push(`      startEvent: '${sceneDef.startEvent || ''}',`);
+      lines.push(`      finishEvent: '${sceneDef.finishEvent || ''}',`);
       lines.push(`      entities: [],`);
       lines.push(`      initialStates: ${JSON.stringify(sceneDef.initialStates || {})}`);
       lines.push(`    });`);
+      lines.push(`    `);
+      lines.push(`    // Store pre and post conditions for validation`);
+      lines.push(`    this.preConditions = ${JSON.stringify(sceneDef.preConditions || [])};`);
+      lines.push(`    this.postConditions = ${JSON.stringify(sceneDef.postConditions || [])};`);
+      lines.push(`  }`);
+      lines.push(``);
+      lines.push(`  // Validate pre-conditions before scene execution`);
+      lines.push(`  async validatePreConditions() {`);
+      lines.push(`    this.sysadlBase.logger.log('🔍 Validating pre-conditions for scene: ' + this.name);`);
+      lines.push(`    for (const condition of this.preConditions) {`);
+      lines.push(`      const result = await this.sysadlBase.conditionWatcher.evaluateCondition(condition.expression || condition);`);
+      lines.push(`      if (!result) {`);
+      lines.push(`        this.sysadlBase.logger.error('❌ Pre-condition failed: ' + (condition.expression || condition));`);
+      lines.push(`        return false;`);
+      lines.push(`      }`);
+      lines.push(`      this.sysadlBase.logger.log('✅ Pre-condition passed: ' + (condition.expression || condition));`);
+      lines.push(`    }`);
+      lines.push(`    return true;`);
+      lines.push(`  }`);
+      lines.push(``);
+      lines.push(`  // Validate post-conditions after scene execution`);
+      lines.push(`  async validatePostConditions() {`);
+      lines.push(`    this.sysadlBase.logger.log('🔍 Validating post-conditions for scene: ' + this.name);`);
+      lines.push(`    for (const condition of this.postConditions) {`);
+      lines.push(`      const result = await this.sysadlBase.conditionWatcher.evaluateCondition(condition.expression || condition);`);
+      lines.push(`      if (!result) {`);
+      lines.push(`        this.sysadlBase.logger.error('❌ Post-condition failed: ' + (condition.expression || condition));`);
+      lines.push(`        return false;`);
+      lines.push(`      }`);
+      lines.push(`      this.sysadlBase.logger.log('✅ Post-condition passed: ' + (condition.expression || condition));`);
+      lines.push(`    }`);
+      lines.push(`    return true;`);
+      lines.push(`  }`);
+      lines.push(``);
+      lines.push(`  // Trigger start event`);
+      lines.push(`  async triggerStartEvent() {`);
+      lines.push(`    if (this.startEvent) {`);
+      lines.push(`      this.sysadlBase.logger.log('🚀 Triggering start event: ' + this.startEvent);`);
+      lines.push(`      await this.sysadlBase.eventInjector.injectEvent(this.startEvent, { source: 'scene:' + this.name });`);
+      lines.push(`      return true;`);
+      lines.push(`    }`);
+      lines.push(`    return false;`);
+      lines.push(`  }`);
+      lines.push(``);
+      lines.push(`  // Wait for finish event`);
+      lines.push(`  async waitForFinishEvent() {`);
+      lines.push(`    if (this.finishEvent) {`);
+      lines.push(`      this.sysadlBase.logger.log('⏳ Waiting for finish event: ' + this.finishEvent);`);
+      lines.push(`      return new Promise((resolve) => {`);
+      lines.push(`        const handler = (event) => {`);
+      lines.push(`          if (event.name === this.finishEvent) {`);
+      lines.push(`            this.sysadlBase.logger.log('🏁 Finish event received: ' + this.finishEvent);`);
+      lines.push(`            this.sysadlBase.off('event', handler);`);
+      lines.push(`            resolve(true);`);
+      lines.push(`          }`);
+      lines.push(`        };`);
+      lines.push(`        this.sysadlBase.on('event', handler);`);
+      lines.push(`      });`);
+      lines.push(`    }`);
+      lines.push(`    return true;`);
+      lines.push(`  }`);
+      lines.push(``);
+      lines.push(`  // Execute complete scene with validation`);
+      lines.push(`  async execute() {`);
+      lines.push(`    this.sysadlBase.logger.log('🎬 Executing scene: ' + this.name);`);
+      lines.push(`    `);
+      lines.push(`    // Pre-condition validation`);
+      lines.push(`    if (!await this.validatePreConditions()) {`);
+      lines.push(`      throw new Error('Pre-conditions not met for scene: ' + this.name);`);
+      lines.push(`    }`);
+      lines.push(``);
+      lines.push(`    // Execute start event`);
+      lines.push(`    await this.triggerStartEvent();`);
+      lines.push(``);
+      lines.push(`    // Wait for finish event`);
+      lines.push(`    await this.waitForFinishEvent();`);
+      lines.push(``);
+      lines.push(`    // Post-condition validation`);
+      lines.push(`    if (!await this.validatePostConditions()) {`);
+      lines.push(`      throw new Error('Post-conditions not met for scene: ' + this.name);`);
+      lines.push(`    }`);
+      lines.push(``);
+      lines.push(`    this.sysadlBase.logger.log('✅ Scene execution completed successfully: ' + this.name);`);
+      lines.push(`    return { success: true, scene: this.name };`);
       lines.push(`  }`);
       lines.push(`}`);
       lines.push('');
     }
   }
   
-  // Generate Scenario classes
+  // Generate Enhanced Scenario classes with programming structures support
   for (const { element } of scenarioDefinitions) {
-    const scenarios = extractScenarios(element);
+    const scenarios = extractScenariosEnhanced(element);
     for (const [scenarioName, scenarioDef] of Object.entries(scenarios)) {
       const scenarioClassName = sanitizeId(scenarioName);
-      lines.push(`// Scenario: ${scenarioName}`);
+      lines.push(`// Enhanced Scenario: ${scenarioName}`);
       lines.push(`class ${scenarioClassName} extends Scenario {`);
       lines.push(`  constructor(name = '${scenarioName}', opts = {}) {`);
       lines.push(`    super(name, {`);
       lines.push(`      ...opts,`);
-      lines.push(`      scenes: [],`);
+      lines.push(`      scenarioType: 'scenario',`);
+      lines.push(`      scenes: ${JSON.stringify(scenarioDef.scenes || [])},`);
       lines.push(`      preConditions: ${JSON.stringify(scenarioDef.preConditions || [])},`);
       lines.push(`      postConditions: ${JSON.stringify(scenarioDef.postConditions || [])}`);
       lines.push(`    });`);
+      lines.push(`    `);
+      lines.push(`    // Store programming structures for execution`);
+      lines.push(`    this.programmingStructures = ${JSON.stringify(scenarioDef.programmingStructures || [])};`);
+      lines.push(`  }`);
+      lines.push(``);
+      lines.push(`  // Execute scene by name`);
+      lines.push(`  async executeScene(sceneName) {`);
+      lines.push(`    this.sysadlBase.logger.log('🎬 Executing scene from scenario: ' + sceneName);`);
+      lines.push(`    return await this.sysadlBase.sceneExecutor.executeScene(sceneName);`);
+      lines.push(`  }`);
+      lines.push(``);
+      lines.push(`  // Execute scenario by name`);
+      lines.push(`  async executeScenario(scenarioName) {`);
+      lines.push(`    this.sysadlBase.logger.log('🎭 Executing scenario from scenario: ' + scenarioName);`);
+      lines.push(`    return await this.sysadlBase.scenarioExecutor.executeScenario(scenarioName);`);
+      lines.push(`  }`);
+      lines.push(``);
+      lines.push(`  // Execute variable declaration`);
+      lines.push(`  async executeVariableDeclaration(varDecl, context) {`);
+      lines.push(`    const varName = varDecl.name;`);
+      lines.push(`    let value = 1; // Default value`);
+      lines.push(`    `);
+      lines.push(`    // Extract value from AST structure`);
+      lines.push(`    if (varDecl.value && Array.isArray(varDecl.value) && varDecl.value.length >= 3) {`);
+      lines.push(`      const valueNode = varDecl.value[2];`);
+      lines.push(`      if (valueNode && valueNode.type === 'NaturalLiteral') {`);
+      lines.push(`        value = valueNode.value;`);
+      lines.push(`      }`);
+      lines.push(`    }`);
+      lines.push(`    `);
+      lines.push(`    context[varName] = value;`);
+      lines.push(`    this.sysadlBase.logger.log('📊 Variable declared: ' + varName + ' = ' + value);`);
+      lines.push(`    return true;`);
+      lines.push(`  }`);
+      lines.push(``);
+      lines.push(`  // Execute while loop with programming structures`);
+      lines.push(`  async executeWhileLoop(whileStmt, context) {`);
+      lines.push(`    const condition = whileStmt.condition;`);
+      lines.push(`    const body = whileStmt.body;`);
+      lines.push(`    `);
+      lines.push(`    this.sysadlBase.logger.log('🔄 Executing while loop with condition');`);
+      lines.push(`    `);
+      lines.push(`    while (await this.evaluateCondition(condition, context)) {`);
+      lines.push(`      this.sysadlBase.logger.log('🔄 While loop iteration, context: ' + JSON.stringify(context));`);
+      lines.push(`      `);
+      lines.push(`      // Execute body statements`);
+      lines.push(`      if (body && body.body && Array.isArray(body.body)) {`);
+      lines.push(`        for (const stmt of body.body) {`);
+      lines.push(`          await this.executeStatement(stmt, context);`);
+      lines.push(`        }`);
+      lines.push(`      }`);
+      lines.push(`    }`);
+      lines.push(`    `);
+      lines.push(`    this.sysadlBase.logger.log('✅ While loop completed');`);
+      lines.push(`    return true;`);
+      lines.push(`  }`);
+      lines.push(``);
+      lines.push(`  // Evaluate condition expression`);
+      lines.push(`  async evaluateCondition(condition, context) {`);
+      lines.push(`    if (condition.type === 'BinaryExpression') {`);
+      lines.push(`      const left = await this.evaluateExpression(condition.left, context);`);
+      lines.push(`      const right = await this.evaluateExpression(condition.right, context);`);
+      lines.push(`      `);
+      lines.push(`      switch (condition.operator) {`);
+      lines.push(`        case '<': return left < right;`);
+      lines.push(`        case '>': return left > right;`);
+      lines.push(`        case '<=': return left <= right;`);
+      lines.push(`        case '>=': return left >= right;`);
+      lines.push(`        case '==': return left == right;`);
+      lines.push(`        case '!=': return left != right;`);
+      lines.push(`        default: return false;`);
+      lines.push(`      }`);
+      lines.push(`    }`);
+      lines.push(`    return false;`);
+      lines.push(`  }`);
+      lines.push(``);
+      lines.push(`  // Evaluate expression`);
+      lines.push(`  async evaluateExpression(expr, context) {`);
+      lines.push(`    if (expr.type === 'NameExpression') {`);
+      lines.push(`      return context[expr.name] || 0;`);
+      lines.push(`    } else if (expr.type === 'NaturalLiteral') {`);
+      lines.push(`      return expr.value;`);
+      lines.push(`    }`);
+      lines.push(`    return 0;`);
+      lines.push(`  }`);
+      lines.push(``);
+      lines.push(`  // Execute increment/decrement`);
+      lines.push(`  async executeIncDec(incDecStmt, context) {`);
+      lines.push(`    const varName = incDecStmt.name;`);
+      lines.push(`    const operation = incDecStmt.op;`);
+      lines.push(`    `);
+      lines.push(`    if (operation === '++') {`);
+      lines.push(`      context[varName] = (context[varName] || 0) + 1;`);
+      lines.push(`    } else if (operation === '--') {`);
+      lines.push(`      context[varName] = (context[varName] || 0) - 1;`);
+      lines.push(`    }`);
+      lines.push(`    `);
+      lines.push(`    this.sysadlBase.logger.log('📊 Variable updated: ' + varName + ' ' + operation + ' = ' + context[varName]);`);
+      lines.push(`    return true;`);
+      lines.push(`  }`);
+      lines.push(``);
+      lines.push(`  // Execute any statement`);
+      lines.push(`  async executeStatement(stmt, context) {`);
+      lines.push(`    switch (stmt.type) {`);
+      lines.push(`      case 'VariableDecl':`);
+      lines.push(`        return await this.executeVariableDeclaration(stmt, context);`);
+      lines.push(`      case 'WhileStatement':`);
+      lines.push(`        return await this.executeWhileLoop(stmt, context);`);
+      lines.push(`      case 'IncDec':`);
+      lines.push(`        return await this.executeIncDec(stmt, context);`);
+      lines.push(`      case 'ScenarioRef':`);
+      lines.push(`        // Check if it's a Scene or Scenario reference`);
+      lines.push(`        if (stmt.name.startsWith('SCN_')) {`);
+      lines.push(`          return await this.executeScene(stmt.name);`);
+      lines.push(`        } else {`);
+      lines.push(`          return await this.executeScenario(stmt.name);`);
+      lines.push(`        }`);
+      lines.push(`      default:`);
+      lines.push(`        this.sysadlBase.logger.warn('⚠️ Unknown statement type: ' + stmt.type);`);
+      lines.push(`        return true;`);
+      lines.push(`    }`);
+      lines.push(`  }`);
+      lines.push(``);
+      lines.push(`  // Execute complete scenario with programming structures`);
+      lines.push(`  async execute() {`);
+      lines.push(`    this.sysadlBase.logger.log('🎭 Executing scenario: ' + this.name);`);
+      lines.push(`    `);
+      lines.push(`    // Initialize execution context`);
+      lines.push(`    const context = {};`);
+      lines.push(`    `);
+      lines.push(`    // Execute all programming structures`);
+      lines.push(`    for (const stmt of this.programmingStructures) {`);
+      lines.push(`      await this.executeStatement(stmt, context);`);
+      lines.push(`    }`);
+      lines.push(`    `);
+      lines.push(`    this.sysadlBase.logger.log('✅ Scenario execution completed successfully: ' + this.name);`);
+      lines.push(`    return { success: true, scenario: this.name, context };`);
       lines.push(`  }`);
       lines.push(`}`);
       lines.push('');
@@ -3547,6 +3788,242 @@ function extractEventTypes(element) {
   return eventTypes;
 }
 
+// Convert action statements to JavaScript code
+function convertStatementsToJS(statements) {
+  if (!statements || !Array.isArray(statements)) return [];
+  
+  const codeLines = [];
+  
+  for (const stmt of statements) {
+    switch (stmt.type) {
+      case 'Assignment':
+        // Handle assignments like supervisor.outCommand.destination=stationC
+        const leftSide = stmt.left;
+        const rightValue = convertExpressionToJS(stmt.right);
+        codeLines.push(`${leftSide} = ${rightValue};`);
+        break;
+        
+      case 'Invocation':
+        // Handle connection invocations like :Command(supervisor, agv2)
+        const connection = stmt.connection;
+        const args = stmt.args && stmt.args.items ? stmt.args.items.join(', ') : '';
+        codeLines.push(`// Connection invocation: ${connection}(${args})`);
+        if (args.trim()) {
+          const argsList = args.split(',').map(arg => `'${arg.trim()}'`).join(', ');
+          codeLines.push(`// Execute connection between entities`);
+          codeLines.push(`if (context.environment && context.environment.connections) {`);
+          codeLines.push(`  const ConnectionClass = context.environment.connections.find(c => c.name === '${connection}');`);
+          codeLines.push(`  if (ConnectionClass) {`);
+          codeLines.push(`    const connectionInstance = new ConnectionClass();`);
+          codeLines.push(`    console.log('Executing connection ${connection}:', [${argsList}]);`);
+          codeLines.push(`    // Execute message passing between entities`);
+          codeLines.push(`    const fromEntityName = ${argsList.split(', ')[0]};`);
+          codeLines.push(`    const toEntityName = ${argsList.split(', ')[1]};`);
+          codeLines.push(`    const fromEntity = context.entities ? context.entities[fromEntityName] : null;`);
+          codeLines.push(`    const toEntity = context.entities ? context.entities[toEntityName] : null;`);
+          codeLines.push(`    `);
+          codeLines.push(`    if (fromEntity && toEntity) {`);
+          codeLines.push(`      console.log(\`Executing connection \${connectionInstance.connectionType} from \${fromEntity.name || fromEntityName} to \${toEntity.name || toEntityName}\`);`);
+          codeLines.push(`      `);
+          codeLines.push(`      // Simulate message passing based on connection definition`);
+          codeLines.push(`      if (connectionInstance.from && connectionInstance.to) {`);
+          codeLines.push(`        const fromRole = connectionInstance.from.split('.')[1]; // e.g., 'outCommand' from 'Supervisory.outCommand'`);
+          codeLines.push(`        const toRole = connectionInstance.to.split('.')[1]; // e.g., 'inCommand' from 'Vehicle.inCommand'`);
+          codeLines.push(`        `);
+          codeLines.push(`        console.log(\`Message flow: \${fromEntityName}.\${fromRole} -> \${toEntityName}.\${toRole}\`);`);
+          codeLines.push(`        `);
+          codeLines.push(`        // Trigger event or callback if available`);
+          codeLines.push(`        if (typeof toEntity.receiveMessage === 'function') {`);
+          codeLines.push(`          toEntity.receiveMessage(fromEntityName, fromRole, context);`);
+          codeLines.push(`        }`);
+          codeLines.push(`        if (typeof context.onConnectionExecuted === 'function') {`);
+          codeLines.push(`          context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);`);
+          codeLines.push(`        }`);
+          codeLines.push(`      }`);
+          codeLines.push(`    } else {`);
+          codeLines.push(`      console.warn('Connection ${connection}: entities not found in context:', fromEntityName, toEntityName);`);
+          codeLines.push(`    }`);
+          codeLines.push(`  } else {`);
+          codeLines.push(`    console.warn('Connection class ${connection} not found in environment');`);
+          codeLines.push(`  }`);
+          codeLines.push(`} else {`);
+          codeLines.push(`  console.warn('Environment or connections not available in context');`);
+          codeLines.push(`}`);
+        } else {
+          codeLines.push(`// Connection ${connection} with no arguments`);
+        }
+        break;
+        
+      case 'ExpressionStatement':
+        // Handle standalone expressions
+        const exprCode = convertExpressionToJS(stmt.expression);
+        codeLines.push(`${exprCode};`);
+        break;
+        
+      case 'IfStatement':
+        // Handle conditional statements
+        const condition = convertExpressionToJS(stmt.condition);
+        codeLines.push(`if (${condition}) {`);
+        if (stmt.then) {
+          const thenStatements = convertStatementsToJS(Array.isArray(stmt.then) ? stmt.then : [stmt.then]);
+          thenStatements.forEach(line => codeLines.push(`  ${line}`));
+        }
+        if (stmt.else) {
+          codeLines.push(`} else {`);
+          const elseStatements = convertStatementsToJS(Array.isArray(stmt.else) ? stmt.else : [stmt.else]);
+          elseStatements.forEach(line => codeLines.push(`  ${line}`));
+        }
+        codeLines.push(`}`);
+        break;
+        
+      case 'WhileStatement':
+        // Handle while loops
+        const whileCondition = convertExpressionToJS(stmt.condition);
+        codeLines.push(`while (${whileCondition}) {`);
+        if (stmt.body) {
+          const bodyStatements = convertStatementsToJS(Array.isArray(stmt.body) ? stmt.body : [stmt.body]);
+          bodyStatements.forEach(line => codeLines.push(`  ${line}`));
+        }
+        codeLines.push(`}`);
+        break;
+        
+      case 'ForStatement':
+        // Handle for loops
+        const init = stmt.init ? convertExpressionToJS(stmt.init) : '';
+        const test = stmt.test ? convertExpressionToJS(stmt.test) : '';
+        const update = stmt.update ? convertExpressionToJS(stmt.update) : '';
+        codeLines.push(`for (${init}; ${test}; ${update}) {`);
+        if (stmt.body) {
+          const forBodyStatements = convertStatementsToJS(Array.isArray(stmt.body) ? stmt.body : [stmt.body]);
+          forBodyStatements.forEach(line => codeLines.push(`  ${line}`));
+        }
+        codeLines.push(`}`);
+        break;
+        
+      case 'BlockStatement':
+        // Handle block statements
+        if (stmt.statements) {
+          const blockStatements = convertStatementsToJS(stmt.statements);
+          blockStatements.forEach(line => codeLines.push(line));
+        }
+        break;
+        
+      case 'ReturnStatement':
+        // Handle return statements
+        const returnValue = stmt.value ? convertExpressionToJS(stmt.value) : '';
+        codeLines.push(`return ${returnValue};`);
+        break;
+        
+      case 'VariableDeclaration':
+        // Handle variable declarations like let x = 5;
+        const varName = stmt.name || (stmt.id && stmt.id.name) || 'unknown';
+        const varValue = stmt.init ? convertExpressionToJS(stmt.init) : 'undefined';
+        const varType = stmt.kind || 'let'; // let, const, var
+        codeLines.push(`${varType} ${varName} = ${varValue};`);
+        break;
+        
+      default:
+        console.warn(`Warning: Unknown statement type '${stmt.type}' in convertStatementsToJS`);
+        codeLines.push(`// Unknown statement type: ${stmt.type}`);
+        // Try to extract any useful information
+        if (stmt.expression) {
+          const fallbackCode = convertExpressionToJS(stmt.expression);
+          codeLines.push(`${fallbackCode};`);
+        }
+        break;
+    }
+  }
+  
+  return codeLines;
+}
+
+// Convert expression AST to JavaScript code
+function convertExpressionToJS(expr) {
+  if (!expr) return 'null';
+  
+  switch (expr.type) {
+    case 'NameExpression':
+      // Handle enum values and identifiers
+      return `'${expr.name}'`;
+      
+    case 'StringLiteral':
+      return `"${expr.value}"`;
+      
+    case 'NumberLiteral':
+    case 'IntLiteral':
+    case 'RealLiteral':
+      return expr.value;
+      
+    case 'BooleanLiteral':
+      return expr.value;
+      
+    case 'QualifiedName':
+      // Handle qualified names like stationA.ID
+      if (expr.parts && Array.isArray(expr.parts)) {
+        return `'${expr.parts.join('.')}'`;
+      }
+      return `'${expr.name || 'unknown'}'`;
+      
+    case 'PropertyAccess':
+      // Handle property access like obj.property
+      const objName = convertExpressionToJS(expr.object);
+      const propName = expr.property;
+      return `${objName.replace(/'/g, '')}.${propName}`;
+      
+    case 'ArrayExpression':
+      // Handle array literals
+      if (expr.elements && Array.isArray(expr.elements)) {
+        const elements = expr.elements.map(el => convertExpressionToJS(el)).join(', ');
+        return `[${elements}]`;
+      }
+      return '[]';
+      
+    case 'ObjectExpression':
+      // Handle object literals
+      if (expr.properties && Array.isArray(expr.properties)) {
+        const props = expr.properties.map(prop => {
+          const key = prop.key ? convertExpressionToJS(prop.key) : '"unknown"';
+          const value = prop.value ? convertExpressionToJS(prop.value) : 'null';
+          return `${key}: ${value}`;
+        }).join(', ');
+        return `{${props}}`;
+      }
+      return '{}';
+      
+    case 'BinaryExpression':
+      // Handle binary operations like a + b, a == b
+      const left = convertExpressionToJS(expr.left);
+      const right = convertExpressionToJS(expr.right);
+      return `${left} ${expr.operator} ${right}`;
+      
+    case 'UnaryExpression':
+      // Handle unary operations like !expr, -expr
+      const operand = convertExpressionToJS(expr.operand);
+      return `${expr.operator}${operand}`;
+      
+    case 'ConditionalExpression':
+      // Handle ternary operator: condition ? then : else
+      const test = convertExpressionToJS(expr.test);
+      const consequent = convertExpressionToJS(expr.consequent);
+      const alternate = convertExpressionToJS(expr.alternate);
+      return `${test} ? ${consequent} : ${alternate}`;
+      
+    case 'CallExpression':
+      // Handle function calls
+      const callee = convertExpressionToJS(expr.callee);
+      const args = expr.arguments ? expr.arguments.map(arg => convertExpressionToJS(arg)).join(', ') : '';
+      return `${callee}(${args})`;
+      
+    default:
+      console.warn(`Warning: Unknown expression type '${expr.type}' in convertExpressionToJS`);
+      // Try to extract a reasonable value
+      if (expr.name) return `'${expr.name}'`;
+      if (expr.value !== undefined) return JSON.stringify(expr.value);
+      if (expr.id) return `'${expr.id}'`;
+      return `'${expr.type || 'unknown'}'`;
+  }
+}
+
 function extractProperties(element) {
   const properties = {};
   
@@ -3588,9 +4065,11 @@ function extractEvents(element) {
               if (trigger.actions && Array.isArray(trigger.actions)) {
                 for (const action of trigger.actions) {
                   if (action.type === 'ActionBlock') {
+                    // Convert statements to JavaScript code
+                    const bodyCode = convertStatementsToJS(action.statements || []);
                     actions.push({
                       name: action.name,
-                      body: action.body || []
+                      body: bodyCode
                     });
                   }
                 }
@@ -3665,6 +4144,70 @@ function extractScenes(element) {
   return scenes;
 }
 
+// Enhanced Scene extraction with proper condition handling
+function extractScenesEnhanced(element) {
+  const scenes = {};
+  
+  if (!element || !element.scenes) return scenes;
+  
+  // Process scenes array directly from the SceneDefinitions element
+  for (const sceneDef of element.scenes) {
+    if (sceneDef && sceneDef.type === 'SceneDef') {
+      const sceneName = sceneDef.name || (sceneDef.id && sceneDef.id.name) || sceneDef.id;
+      if (sceneName) {
+        const preConditions = [];
+        const postConditions = [];
+        
+        // Extract pre-conditions from preconds array
+        if (sceneDef.preconds && Array.isArray(sceneDef.preconds)) {
+          preConditions.push(...sceneDef.preconds.map(cond => {
+            if (cond.type === 'ConditionBlock') {
+              return {
+                expression: `${cond.name} == ${cond.value}`,
+                type: 'condition',
+                name: cond.name,
+                value: cond.value
+              };
+            }
+            return {
+              expression: cond.expression || cond.condition || cond.statement || String(cond),
+              type: 'condition'
+            };
+          }));
+        }
+        
+        // Extract post-conditions from postconds array  
+        if (sceneDef.postconds && Array.isArray(sceneDef.postconds)) {
+          postConditions.push(...sceneDef.postconds.map(cond => {
+            if (cond.type === 'ConditionBlock') {
+              return {
+                expression: `${cond.name} == ${cond.value}`,
+                type: 'condition',
+                name: cond.name,
+                value: cond.value
+              };
+            }
+            return {
+              expression: cond.expression || cond.condition || cond.statement || String(cond),
+              type: 'condition'
+            };
+          }));
+        }
+        
+        scenes[sceneName] = {
+          initialStates: {},
+          preConditions,
+          postConditions,
+          startEvent: sceneDef.start || sceneDef.startEvent,
+          finishEvent: sceneDef.finish || sceneDef.finishEvent
+        };
+      }
+    }
+  }
+  
+  return scenes;
+}
+
 function extractScenarios(element) {
   const scenarios = {};
   
@@ -3705,6 +4248,64 @@ function extractScenarios(element) {
       }
     }
   });
+  
+  return scenarios;
+}
+
+// Enhanced Scenario extraction with programming structures support
+function extractScenariosEnhanced(element) {
+  const scenarios = {};
+  
+  if (!element || !element.scenarios) return scenarios;
+  
+  // Process scenarios array directly from the ScenarioDefinitions element
+  for (const scenarioDef of element.scenarios) {
+    if (scenarioDef && scenarioDef.type === 'ScenarioDef') {
+      const scenarioName = scenarioDef.name || (scenarioDef.id && scenarioDef.id.name) || scenarioDef.id;
+      if (scenarioName) {
+        const scenes = [];
+        const programmingStructures = [];
+        
+        // Extract body items (programming structures and scene references)
+        if (scenarioDef.body && Array.isArray(scenarioDef.body)) {
+          for (const item of scenarioDef.body) {
+            if (item.type === 'ScenarioRef') {
+              // Scene or Scenario reference
+              scenes.push(item.name);
+              programmingStructures.push(item);
+            } else if (item.type === 'VariableDecl') {
+              // Variable declaration (let i: Integer = 1)
+              programmingStructures.push(item);
+            } else if (item.type === 'WhileStatement') {
+              // While loop structure
+              programmingStructures.push(item);
+              // Extract scenes from within the while loop
+              if (item.body && item.body.body && Array.isArray(item.body.body)) {
+                for (const bodyItem of item.body.body) {
+                  if (bodyItem.type === 'ScenarioRef') {
+                    scenes.push(bodyItem.name);
+                  }
+                }
+              }
+            } else if (item.type === 'IncDec') {
+              // Increment/decrement statements
+              programmingStructures.push(item);
+            } else {
+              // Any other programming structure
+              programmingStructures.push(item);
+            }
+          }
+        }
+        
+        scenarios[scenarioName] = {
+          scenes,
+          programmingStructures,
+          preConditions: [],
+          postConditions: []
+        };
+      }
+    }
+  }
   
   return scenarios;
 }
