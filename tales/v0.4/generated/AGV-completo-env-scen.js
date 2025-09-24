@@ -1194,85 +1194,8 @@ class SCN_MoveAGV1toA extends Scene {
     this.postConditions = [{"expression":"agv1.location == stationA.ID","type":"condition","name":"agv1.location","value":"stationA.ID"},{"expression":"part.location == stationA.ID","type":"condition","name":"part.location","value":"stationA.ID"}];
   }
 
-  // Validate pre-conditions before scene execution
-  async validatePreConditions() {
-    this.sysadlBase.logger.log('🔍 Validating pre-conditions for scene: ' + this.name);
-    for (const condition of this.preConditions) {
-      const result = await this.sysadlBase.conditionWatcher.evaluateCondition(condition.expression || condition);
-      if (!result) {
-        this.sysadlBase.logger.error('❌ Pre-condition failed: ' + (condition.expression || condition));
-        return false;
-      }
-      this.sysadlBase.logger.log('✅ Pre-condition passed: ' + (condition.expression || condition));
-    }
-    return true;
-  }
-
-  // Validate post-conditions after scene execution
-  async validatePostConditions() {
-    this.sysadlBase.logger.log('🔍 Validating post-conditions for scene: ' + this.name);
-    for (const condition of this.postConditions) {
-      const result = await this.sysadlBase.conditionWatcher.evaluateCondition(condition.expression || condition);
-      if (!result) {
-        this.sysadlBase.logger.error('❌ Post-condition failed: ' + (condition.expression || condition));
-        return false;
-      }
-      this.sysadlBase.logger.log('✅ Post-condition passed: ' + (condition.expression || condition));
-    }
-    return true;
-  }
-
-  // Trigger start event
-  async triggerStartEvent() {
-    if (this.startEvent) {
-      this.sysadlBase.logger.log('🚀 Triggering start event: ' + this.startEvent);
-      await this.sysadlBase.eventInjector.injectEvent(this.startEvent, { source: 'scene:' + this.name });
-      return true;
-    }
-    return false;
-  }
-
-  // Wait for finish event
-  async waitForFinishEvent() {
-    if (this.finishEvent) {
-      this.sysadlBase.logger.log('⏳ Waiting for finish event: ' + this.finishEvent);
-      return new Promise((resolve) => {
-        const handler = (event) => {
-          if (event.name === this.finishEvent) {
-            this.sysadlBase.logger.log('🏁 Finish event received: ' + this.finishEvent);
-            this.sysadlBase.off('event', handler);
-            resolve(true);
-          }
-        };
-        this.sysadlBase.on('event', handler);
-      });
-    }
-    return true;
-  }
-
-  // Execute complete scene with validation
-  async execute() {
-    this.sysadlBase.logger.log('🎬 Executing scene: ' + this.name);
-    
-    // Pre-condition validation
-    if (!await this.validatePreConditions()) {
-      throw new Error('Pre-conditions not met for scene: ' + this.name);
-    }
-
-    // Execute start event
-    await this.triggerStartEvent();
-
-    // Wait for finish event
-    await this.waitForFinishEvent();
-
-    // Post-condition validation
-    if (!await this.validatePostConditions()) {
-      throw new Error('Post-conditions not met for scene: ' + this.name);
-    }
-
-    this.sysadlBase.logger.log('✅ Scene execution completed successfully: ' + this.name);
-    return { success: true, scene: this.name };
-  }
+  // Note: Generic scene execution methods (validatePreConditions, validatePostConditions,
+  // triggerStartEvent, waitForFinishEvent, execute) are inherited from Scene base class
 }
 
 // Enhanced Scene: SCN_MoveAGV2toC
@@ -1292,85 +1215,8 @@ class SCN_MoveAGV2toC extends Scene {
     this.postConditions = [{"expression":"agv2.location == stationC.ID","type":"condition","name":"agv2.location","value":"stationC.ID"},{"expression":"part.location == stationA.ID","type":"condition","name":"part.location","value":"stationA.ID"}];
   }
 
-  // Validate pre-conditions before scene execution
-  async validatePreConditions() {
-    this.sysadlBase.logger.log('🔍 Validating pre-conditions for scene: ' + this.name);
-    for (const condition of this.preConditions) {
-      const result = await this.sysadlBase.conditionWatcher.evaluateCondition(condition.expression || condition);
-      if (!result) {
-        this.sysadlBase.logger.error('❌ Pre-condition failed: ' + (condition.expression || condition));
-        return false;
-      }
-      this.sysadlBase.logger.log('✅ Pre-condition passed: ' + (condition.expression || condition));
-    }
-    return true;
-  }
-
-  // Validate post-conditions after scene execution
-  async validatePostConditions() {
-    this.sysadlBase.logger.log('🔍 Validating post-conditions for scene: ' + this.name);
-    for (const condition of this.postConditions) {
-      const result = await this.sysadlBase.conditionWatcher.evaluateCondition(condition.expression || condition);
-      if (!result) {
-        this.sysadlBase.logger.error('❌ Post-condition failed: ' + (condition.expression || condition));
-        return false;
-      }
-      this.sysadlBase.logger.log('✅ Post-condition passed: ' + (condition.expression || condition));
-    }
-    return true;
-  }
-
-  // Trigger start event
-  async triggerStartEvent() {
-    if (this.startEvent) {
-      this.sysadlBase.logger.log('🚀 Triggering start event: ' + this.startEvent);
-      await this.sysadlBase.eventInjector.injectEvent(this.startEvent, { source: 'scene:' + this.name });
-      return true;
-    }
-    return false;
-  }
-
-  // Wait for finish event
-  async waitForFinishEvent() {
-    if (this.finishEvent) {
-      this.sysadlBase.logger.log('⏳ Waiting for finish event: ' + this.finishEvent);
-      return new Promise((resolve) => {
-        const handler = (event) => {
-          if (event.name === this.finishEvent) {
-            this.sysadlBase.logger.log('🏁 Finish event received: ' + this.finishEvent);
-            this.sysadlBase.off('event', handler);
-            resolve(true);
-          }
-        };
-        this.sysadlBase.on('event', handler);
-      });
-    }
-    return true;
-  }
-
-  // Execute complete scene with validation
-  async execute() {
-    this.sysadlBase.logger.log('🎬 Executing scene: ' + this.name);
-    
-    // Pre-condition validation
-    if (!await this.validatePreConditions()) {
-      throw new Error('Pre-conditions not met for scene: ' + this.name);
-    }
-
-    // Execute start event
-    await this.triggerStartEvent();
-
-    // Wait for finish event
-    await this.waitForFinishEvent();
-
-    // Post-condition validation
-    if (!await this.validatePostConditions()) {
-      throw new Error('Post-conditions not met for scene: ' + this.name);
-    }
-
-    this.sysadlBase.logger.log('✅ Scene execution completed successfully: ' + this.name);
-    return { success: true, scene: this.name };
-  }
+  // Note: Generic scene execution methods (validatePreConditions, validatePostConditions,
+  // triggerStartEvent, waitForFinishEvent, execute) are inherited from Scene base class
 }
 
 // Enhanced Scene: SCN_AGV1movePartToC
@@ -1390,85 +1236,8 @@ class SCN_AGV1movePartToC extends Scene {
     this.postConditions = [{"expression":"agv1.location == stationC.ID","type":"condition","name":"agv1.location","value":"stationC.ID"},{"expression":"part.location == stationC.ID","type":"condition","name":"part.location","value":"stationC.ID"}];
   }
 
-  // Validate pre-conditions before scene execution
-  async validatePreConditions() {
-    this.sysadlBase.logger.log('🔍 Validating pre-conditions for scene: ' + this.name);
-    for (const condition of this.preConditions) {
-      const result = await this.sysadlBase.conditionWatcher.evaluateCondition(condition.expression || condition);
-      if (!result) {
-        this.sysadlBase.logger.error('❌ Pre-condition failed: ' + (condition.expression || condition));
-        return false;
-      }
-      this.sysadlBase.logger.log('✅ Pre-condition passed: ' + (condition.expression || condition));
-    }
-    return true;
-  }
-
-  // Validate post-conditions after scene execution
-  async validatePostConditions() {
-    this.sysadlBase.logger.log('🔍 Validating post-conditions for scene: ' + this.name);
-    for (const condition of this.postConditions) {
-      const result = await this.sysadlBase.conditionWatcher.evaluateCondition(condition.expression || condition);
-      if (!result) {
-        this.sysadlBase.logger.error('❌ Post-condition failed: ' + (condition.expression || condition));
-        return false;
-      }
-      this.sysadlBase.logger.log('✅ Post-condition passed: ' + (condition.expression || condition));
-    }
-    return true;
-  }
-
-  // Trigger start event
-  async triggerStartEvent() {
-    if (this.startEvent) {
-      this.sysadlBase.logger.log('🚀 Triggering start event: ' + this.startEvent);
-      await this.sysadlBase.eventInjector.injectEvent(this.startEvent, { source: 'scene:' + this.name });
-      return true;
-    }
-    return false;
-  }
-
-  // Wait for finish event
-  async waitForFinishEvent() {
-    if (this.finishEvent) {
-      this.sysadlBase.logger.log('⏳ Waiting for finish event: ' + this.finishEvent);
-      return new Promise((resolve) => {
-        const handler = (event) => {
-          if (event.name === this.finishEvent) {
-            this.sysadlBase.logger.log('🏁 Finish event received: ' + this.finishEvent);
-            this.sysadlBase.off('event', handler);
-            resolve(true);
-          }
-        };
-        this.sysadlBase.on('event', handler);
-      });
-    }
-    return true;
-  }
-
-  // Execute complete scene with validation
-  async execute() {
-    this.sysadlBase.logger.log('🎬 Executing scene: ' + this.name);
-    
-    // Pre-condition validation
-    if (!await this.validatePreConditions()) {
-      throw new Error('Pre-conditions not met for scene: ' + this.name);
-    }
-
-    // Execute start event
-    await this.triggerStartEvent();
-
-    // Wait for finish event
-    await this.waitForFinishEvent();
-
-    // Post-condition validation
-    if (!await this.validatePostConditions()) {
-      throw new Error('Post-conditions not met for scene: ' + this.name);
-    }
-
-    this.sysadlBase.logger.log('✅ Scene execution completed successfully: ' + this.name);
-    return { success: true, scene: this.name };
-  }
+  // Note: Generic scene execution methods (validatePreConditions, validatePostConditions,
+  // triggerStartEvent, waitForFinishEvent, execute) are inherited from Scene base class
 }
 
 // Enhanced Scene: SCN_AGV2movePartToE
@@ -1488,85 +1257,8 @@ class SCN_AGV2movePartToE extends Scene {
     this.postConditions = [{"expression":"agv2.location == stationE.ID","type":"condition","name":"agv2.location","value":"stationE.ID"},{"expression":"part.location == stationE.ID","type":"condition","name":"part.location","value":"stationE.ID"}];
   }
 
-  // Validate pre-conditions before scene execution
-  async validatePreConditions() {
-    this.sysadlBase.logger.log('🔍 Validating pre-conditions for scene: ' + this.name);
-    for (const condition of this.preConditions) {
-      const result = await this.sysadlBase.conditionWatcher.evaluateCondition(condition.expression || condition);
-      if (!result) {
-        this.sysadlBase.logger.error('❌ Pre-condition failed: ' + (condition.expression || condition));
-        return false;
-      }
-      this.sysadlBase.logger.log('✅ Pre-condition passed: ' + (condition.expression || condition));
-    }
-    return true;
-  }
-
-  // Validate post-conditions after scene execution
-  async validatePostConditions() {
-    this.sysadlBase.logger.log('🔍 Validating post-conditions for scene: ' + this.name);
-    for (const condition of this.postConditions) {
-      const result = await this.sysadlBase.conditionWatcher.evaluateCondition(condition.expression || condition);
-      if (!result) {
-        this.sysadlBase.logger.error('❌ Post-condition failed: ' + (condition.expression || condition));
-        return false;
-      }
-      this.sysadlBase.logger.log('✅ Post-condition passed: ' + (condition.expression || condition));
-    }
-    return true;
-  }
-
-  // Trigger start event
-  async triggerStartEvent() {
-    if (this.startEvent) {
-      this.sysadlBase.logger.log('🚀 Triggering start event: ' + this.startEvent);
-      await this.sysadlBase.eventInjector.injectEvent(this.startEvent, { source: 'scene:' + this.name });
-      return true;
-    }
-    return false;
-  }
-
-  // Wait for finish event
-  async waitForFinishEvent() {
-    if (this.finishEvent) {
-      this.sysadlBase.logger.log('⏳ Waiting for finish event: ' + this.finishEvent);
-      return new Promise((resolve) => {
-        const handler = (event) => {
-          if (event.name === this.finishEvent) {
-            this.sysadlBase.logger.log('🏁 Finish event received: ' + this.finishEvent);
-            this.sysadlBase.off('event', handler);
-            resolve(true);
-          }
-        };
-        this.sysadlBase.on('event', handler);
-      });
-    }
-    return true;
-  }
-
-  // Execute complete scene with validation
-  async execute() {
-    this.sysadlBase.logger.log('🎬 Executing scene: ' + this.name);
-    
-    // Pre-condition validation
-    if (!await this.validatePreConditions()) {
-      throw new Error('Pre-conditions not met for scene: ' + this.name);
-    }
-
-    // Execute start event
-    await this.triggerStartEvent();
-
-    // Wait for finish event
-    await this.waitForFinishEvent();
-
-    // Post-condition validation
-    if (!await this.validatePostConditions()) {
-      throw new Error('Post-conditions not met for scene: ' + this.name);
-    }
-
-    this.sysadlBase.logger.log('✅ Scene execution completed successfully: ' + this.name);
-    return { success: true, scene: this.name };
-  }
+  // Note: Generic scene execution methods (validatePreConditions, validatePostConditions,
+  // triggerStartEvent, waitForFinishEvent, execute) are inherited from Scene base class
 }
 
 // Enhanced Scenario: Scenario1
