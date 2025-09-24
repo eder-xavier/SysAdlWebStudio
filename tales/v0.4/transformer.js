@@ -4041,51 +4041,19 @@ function convertStatementsToJS(statements) {
         break;
         
       case 'Invocation':
-        // Handle connection invocations like :Command(supervisor, agv2)
+        // Handle connection invocations like :Command(supervisor, agv2) - Using SysADLRuntimeHelpers
         const connection = stmt.connection;
         const args = stmt.args && stmt.args.items ? stmt.args.items.join(', ') : '';
-        codeLines.push(`// Connection invocation: ${connection}(${args})`);
+        codeLines.push(`// Connection: ${connection}(${args})`);
         if (args.trim()) {
-          const argsList = args.split(',').map(arg => `'${arg.trim()}'`).join(', ');
-          codeLines.push(`// Execute connection between entities`);
-          codeLines.push(`if (context.environment && context.environment.connections) {`);
-          codeLines.push(`  const ConnectionClass = context.environment.connections.find(c => c.name === '${connection}');`);
-          codeLines.push(`  if (ConnectionClass) {`);
-          codeLines.push(`    const connectionInstance = new ConnectionClass();`);
-          codeLines.push(`    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🔗 Executing connection ${connection}:', [${argsList}]);`);
-          codeLines.push(`    // Execute message passing between entities`);
-          codeLines.push(`    const fromEntityName = ${argsList.split(', ')[0]};`);
-          codeLines.push(`    const toEntityName = ${argsList.split(', ')[1]};`);
-          codeLines.push(`    const fromEntity = context.entities ? context.entities[fromEntityName] : null;`);
-          codeLines.push(`    const toEntity = context.entities ? context.entities[toEntityName] : null;`);
-          codeLines.push(`    `);
-          codeLines.push(`    if (fromEntity && toEntity) {`);
-          codeLines.push(`      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(\`🔗 Executing connection \${connectionInstance.connectionType} from \${fromEntity.name || fromEntityName} to \${toEntity.name || toEntityName}\`);`);
-          codeLines.push(`      `);
-          codeLines.push(`      // Simulate message passing based on connection definition`);
-          codeLines.push(`      if (connectionInstance.from && connectionInstance.to) {`);
-          codeLines.push(`        const fromRole = connectionInstance.from.split('.')[1]; // e.g., 'outCommand' from 'Supervisory.outCommand'`);
-          codeLines.push(`        const toRole = connectionInstance.to.split('.')[1]; // e.g., 'inCommand' from 'Vehicle.inCommand'`);
-          codeLines.push(`        `);
-          codeLines.push(`        if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(\`📨 Message flow: \${fromEntityName}.\${fromRole} -> \${toEntityName}.\${toRole}\`);`);
-          codeLines.push(`        `);
-          codeLines.push(`        // Trigger event or callback if available`);
-          codeLines.push(`        if (typeof toEntity.receiveMessage === 'function') {`);
-          codeLines.push(`          toEntity.receiveMessage(fromEntityName, fromRole, context);`);
-          codeLines.push(`        }`);
-          codeLines.push(`        if (typeof context.onConnectionExecuted === 'function') {`);
-          codeLines.push(`          context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);`);
-          codeLines.push(`        }`);
-          codeLines.push(`      }`);
-          codeLines.push(`    } else {`);
-          codeLines.push(`      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection ${connection}: entities not found in context:', fromEntityName, toEntityName);`);
-          codeLines.push(`    }`);
-          codeLines.push(`  } else {`);
-          codeLines.push(`    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection class ${connection} not found in environment');`);
-          codeLines.push(`  }`);
-          codeLines.push(`} else {`);
-          codeLines.push(`  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Environment or connections not available in context');`);
-          codeLines.push(`}`);
+          const argsList = args.split(',').map(arg => arg.trim());
+          if (argsList.length >= 2) {
+            codeLines.push(`if (context.sysadlBase && context.sysadlBase.helpers) {`);
+            codeLines.push(`  context.sysadlBase.helpers.executeConnection('${connection}', '${argsList[0]}', '${argsList[1]}');`);
+            codeLines.push(`}`);
+          } else {
+            codeLines.push(`// Connection ${connection} with insufficient arguments`);
+          }
         } else {
           codeLines.push(`// Connection ${connection} with no arguments`);
         }
