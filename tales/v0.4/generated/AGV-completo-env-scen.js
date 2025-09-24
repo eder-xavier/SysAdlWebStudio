@@ -244,8 +244,8 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing SupervisoryEvents: cmdSupervisor -> cmdAGV2toC, cmdAGV1toA');
             // Custom logic for cmdSupervisor trigger
             const results = [];
-            results.push(this.executecmdAGV2toC(context));
-            results.push(this.executecmdAGV1toA(context));
+            results.push(this.executeTask('cmdAGV2toC', context));
+            results.push(this.executeTask('cmdAGV1toA', context));
             return results;
           }
         },
@@ -258,7 +258,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing SupervisoryEvents: AGV1NotifLoad -> cmdAGV1toC');
             // Custom logic for AGV1NotifLoad trigger
             const results = [];
-            results.push(this.executecmdAGV1toC(context));
+            results.push(this.executeTask('cmdAGV1toC', context));
             return results;
           }
         },
@@ -271,7 +271,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing SupervisoryEvents: AGV1NotifArriveA -> cmdAGV1loadA');
             // Custom logic for AGV1NotifArriveA trigger
             const results = [];
-            results.push(this.executecmdAGV1loadA(context));
+            results.push(this.executeTask('cmdAGV1loadA', context));
             return results;
           }
         },
@@ -284,7 +284,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing SupervisoryEvents: AGV1NotifArriveC -> cmdAGV1UnloadA');
             // Custom logic for AGV1NotifArriveC trigger
             const results = [];
-            results.push(this.executecmdAGV1UnloadA(context));
+            results.push(this.executeTask('cmdAGV1UnloadA', context));
             return results;
           }
         },
@@ -297,7 +297,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing SupervisoryEvents: AGV1NotifArriveAUnoaded -> cmdAGV2loadC');
             // Custom logic for AGV1NotifArriveAUnoaded trigger
             const results = [];
-            results.push(this.executecmdAGV2loadC(context));
+            results.push(this.executeTask('cmdAGV2loadC', context));
             return results;
           }
         },
@@ -310,7 +310,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing SupervisoryEvents: AGV2NotifLoad -> cmdAGV2toE');
             // Custom logic for AGV2NotifLoad trigger
             const results = [];
-            results.push(this.executecmdAGV2toE(context));
+            results.push(this.executeTask('cmdAGV2toE', context));
             return results;
           }
         },
@@ -323,7 +323,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing SupervisoryEvents: AGV2NotifArriveE -> cmdAGV2UnloadE');
             // Custom logic for AGV2NotifArriveE trigger
             const results = [];
-            results.push(this.executecmdAGV2UnloadE(context));
+            results.push(this.executeTask('cmdAGV2UnloadE', context));
             return results;
           }
         },
@@ -352,7 +352,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing AGV1Events: cmdAGV1toA -> AGV1NotifTravelA');
             // Custom logic for cmdAGV1toA trigger
             const results = [];
-            results.push(this.executeAGV1NotifTravelA(context));
+            results.push(this.executeTask('AGV1NotifTravelA', context));
             return results;
           }
         },
@@ -365,7 +365,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing AGV1Events: AGV1locationStationB -> AGV1NotifPassB');
             // Custom logic for AGV1locationStationB trigger
             const results = [];
-            results.push(this.executeAGV1NotifPassB(context));
+            results.push(this.executeTask('AGV1NotifPassB', context));
             return results;
           }
         },
@@ -378,7 +378,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing AGV1Events: AGV1locationStationC -> AGV1NotifArriveC');
             // Custom logic for AGV1locationStationC trigger
             const results = [];
-            results.push(this.executeAGV1NotifArriveC(context));
+            results.push(this.executeTask('AGV1NotifArriveC', context));
             return results;
           }
         },
@@ -391,7 +391,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing AGV1Events: AGV1locationStationA -> AGV1NotifArriveA');
             // Custom logic for AGV1locationStationA trigger
             const results = [];
-            results.push(this.executeAGV1NotifArriveA(context));
+            results.push(this.executeTask('AGV1NotifArriveA', context));
             return results;
           }
         },
@@ -404,7 +404,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing AGV1Events: AGV1atachPartX -> AGV1NotifLoad');
             // Custom logic for AGV1atachPartX trigger
             const results = [];
-            results.push(this.executeAGV1NotifLoad(context));
+            results.push(this.executeTask('AGV1NotifLoad', context));
             return results;
           }
         },
@@ -417,7 +417,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing AGV1Events: AGV1detachPartX -> AGV1NotifArriveAUnoaded');
             // Custom logic for AGV1detachPartX trigger
             const results = [];
-            results.push(this.executeAGV1NotifArriveAUnoaded(context));
+            results.push(this.executeTask('AGV1NotifArriveAUnoaded', context));
             return results;
           }
         },
@@ -446,7 +446,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing AGV2Events: cmdAGV2toC -> AGV2NotifTravelC');
             // Custom logic for cmdAGV2toC trigger
             const results = [];
-            results.push(this.executeAGV2NotifTravelC(context));
+            results.push(this.executeTask('AGV2NotifTravelC', context));
             return results;
           }
         },
@@ -459,7 +459,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing AGV2Events: AGV2locationStationC -> AGV2NotifArriveC');
             // Custom logic for AGV2locationStationC trigger
             const results = [];
-            results.push(this.executeAGV2NotifArriveC(context));
+            results.push(this.executeTask('AGV2NotifArriveC', context));
             return results;
           }
         },
@@ -472,7 +472,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing AGV2Events: AGV2atachPartX -> AGV2NotifLoad');
             // Custom logic for AGV2atachPartX trigger
             const results = [];
-            results.push(this.executeAGV2NotifLoad(context));
+            results.push(this.executeTask('AGV2NotifLoad', context));
             return results;
           }
         },
@@ -485,7 +485,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing AGV2Events: AGV2locationStationD -> AGV2NotifPassD');
             // Custom logic for AGV2locationStationD trigger
             const results = [];
-            results.push(this.executeAGV2NotifPassD(context));
+            results.push(this.executeTask('AGV2NotifPassD', context));
             return results;
           }
         },
@@ -498,7 +498,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing AGV2Events: AGV2locationStationE -> AGV2NotifArriveE');
             // Custom logic for AGV2locationStationE trigger
             const results = [];
-            results.push(this.executeAGV2NotifArriveE(context));
+            results.push(this.executeTask('AGV2NotifArriveE', context));
             return results;
           }
         },
@@ -511,7 +511,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing AGV2Events: AGV2detachPartX -> AGV2NotifArriveAUnoaded');
             // Custom logic for AGV2detachPartX trigger
             const results = [];
-            results.push(this.executeAGV2NotifArriveAUnoaded(context));
+            results.push(this.executeTask('AGV2NotifArriveAUnoaded', context));
             return results;
           }
         },
@@ -524,7 +524,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing AGV2Events: AGV2atStationD -> AGV2DetectedStationD');
             // Custom logic for AGV2atStationD trigger
             const results = [];
-            results.push(this.executeAGV2DetectedStationD(context));
+            results.push(this.executeTask('AGV2DetectedStationD', context));
             return results;
           }
         },
@@ -553,7 +553,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing StationAEvents: agv1.sensor -> AGV1locationStationA');
             // Custom logic for agv1.sensor trigger
             const results = [];
-            results.push(this.executeAGV1locationStationA(context));
+            results.push(this.executeTask('AGV1locationStationA', context));
             return results;
           }
         },
@@ -582,7 +582,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing StationBEvents: agv1.sensor -> AGV1locationStationB');
             // Custom logic for agv1.sensor trigger
             const results = [];
-            results.push(this.executeAGV1locationStationB(context));
+            results.push(this.executeTask('AGV1locationStationB', context));
             return results;
           }
         },
@@ -611,7 +611,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing StationCEvents: agv1.sensor -> AGV1locationStationC');
             // Custom logic for agv1.sensor trigger
             const results = [];
-            results.push(this.executeAGV1locationStationC(context));
+            results.push(this.executeTask('AGV1locationStationC', context));
             return results;
           }
         },
@@ -624,7 +624,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing StationCEvents: agv2.sensor -> AGV2locationStationC');
             // Custom logic for agv2.sensor trigger
             const results = [];
-            results.push(this.executeAGV2locationStationC(context));
+            results.push(this.executeTask('AGV2locationStationC', context));
             return results;
           }
         },
@@ -653,7 +653,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing StationDEvents: agv2.sensor -> AGV2locationStationD');
             // Custom logic for agv2.sensor trigger
             const results = [];
-            results.push(this.executeAGV2locationStationD(context));
+            results.push(this.executeTask('AGV2locationStationD', context));
             return results;
           }
         },
@@ -666,7 +666,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing StationDEvents: SetAGV2SensorStationD -> UpdateAGV2SensorToD');
             // Custom logic for SetAGV2SensorStationD trigger
             const results = [];
-            results.push(this.executeUpdateAGV2SensorToD(context));
+            results.push(this.executeTask('UpdateAGV2SensorToD', context));
             return results;
           }
         },
@@ -695,7 +695,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing StationEEvents: agv2.sensor -> agv2locationStationE');
             // Custom logic for agv2.sensor trigger
             const results = [];
-            results.push(this.executeagv2locationStationE(context));
+            results.push(this.executeTask('agv2locationStationE', context));
             return results;
           }
         },
@@ -724,7 +724,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing PartXEvents: cmdAGV1loadA -> AGV1atachPartX');
             // Custom logic for cmdAGV1loadA trigger
             const results = [];
-            results.push(this.executeAGV1atachPartX(context));
+            results.push(this.executeTask('AGV1atachPartX', context));
             return results;
           }
         },
@@ -737,7 +737,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing PartXEvents: cmdAGV1UnloadA -> AGV1detachPartX');
             // Custom logic for cmdAGV1UnloadA trigger
             const results = [];
-            results.push(this.executeAGV1detachPartX(context));
+            results.push(this.executeTask('AGV1detachPartX', context));
             return results;
           }
         },
@@ -750,7 +750,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing PartXEvents: cmdAGV2loadC -> AGV2atachPartX');
             // Custom logic for cmdAGV2loadC trigger
             const results = [];
-            results.push(this.executeAGV2atachPartX(context));
+            results.push(this.executeTask('AGV2atachPartX', context));
             return results;
           }
         },
@@ -763,7 +763,7 @@ class MyEvents extends EventsDefinitions {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing PartXEvents: cmdAGV2UnloadE -> AGV2detachPartX');
             // Custom logic for cmdAGV2UnloadE trigger
             const results = [];
-            results.push(this.executeAGV2detachPartX(context));
+            results.push(this.executeTask('AGV2detachPartX', context));
             return results;
           }
         },
@@ -779,350 +779,78 @@ class MyEvents extends EventsDefinitions {
 
   }
 
-  executecmdAGV2toC(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: cmdAGV2toC');
-    // Hybrid execution using TaskExecutor
+
+  // Generic task executor - handles all executeXXX methods dynamically
+  executeTask(taskName, context) {
+    if (context.sysadlBase && context.sysadlBase.logger) {
+      context.sysadlBase.logger.log(`🎬 Executing task: ${taskName}`);
+    }
+
+    // Simple tasks with direct implementation
+    const simpleTasks = {
+      'AGV2DetectedStationD': (context) => {
+        agv2.sensor = 'stationD';
+        return { task: 'AGV2DetectedStationD', status: 'executed', context };
+      },
+      'AGV1locationStationA': (context) => {
+        agv1.location = 'stationA.signal';
+        return { task: 'AGV1locationStationA', status: 'executed', context };
+      },
+      'AGV1locationStationB': (context) => {
+        agv1.location = 'stationB.signal';
+        return { task: 'AGV1locationStationB', status: 'executed', context };
+      },
+      'AGV1locationStationC': (context) => {
+        agv1.location = 'stationC.signal';
+        return { task: 'AGV1locationStationC', status: 'executed', context };
+      },
+      'AGV2locationStationC': (context) => {
+        agv2.location = 'stationC.signal';
+        return { task: 'AGV2locationStationC', status: 'executed', context };
+      },
+      'AGV2locationStationD': (context) => {
+        agv2.location = 'stationD.signal';
+        return { task: 'AGV2locationStationD', status: 'executed', context };
+      },
+      'UpdateAGV2SensorToD': (context) => {
+        agv2.sensor = 'stationD';
+        return { task: 'UpdateAGV2SensorToD', status: 'executed', context };
+      },
+      'agv2locationStationE': (context) => {
+        agv2.location = 'stationE.signal';
+        return { task: 'agv2locationStationE', status: 'executed', context };
+      }
+    };
+
+    // Check if task has simple implementation
+    if (simpleTasks[taskName]) {
+      return simpleTasks[taskName](context);
+    }
+
+    // Default: Use TaskExecutor for connection-based tasks
     return this.taskExecutor.executeConnectionTask(
-      'cmdAGV2toC',
-      context.from || 'unknown',
-      context.to || 'unknown',
+      taskName,
+      context.from || "unknown",
+      context.to || "unknown",
       context.properties || {},
-      context.connectionType || 'Command'
+      context.connectionType || "connection"
     );
   }
 
-  executecmdAGV1toA(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: cmdAGV1toA');
-    // Hybrid execution using TaskExecutor
-    return this.taskExecutor.executeConnectionTask(
-      'cmdAGV1toA',
-      context.from || 'unknown',
-      context.to || 'unknown',
-      context.properties || {},
-      context.connectionType || 'Command'
-    );
+  // Dynamic method resolution using Proxy pattern
+  static create(name, opts) {
+    const instance = new this(name, opts);
+    
+    return new Proxy(instance, {
+      get(target, prop) {
+        if (typeof prop === "string" && prop.startsWith("execute") && typeof target[prop] === "undefined") {
+          const taskName = prop.replace("execute", "");
+          return (context) => target.executeTask(taskName, context);
+        }
+        return target[prop];
+      }
+    });
   }
-
-  executecmdAGV1toC(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: cmdAGV1toC');
-    // Hybrid execution using TaskExecutor
-    return this.taskExecutor.executeConnectionTask(
-      'cmdAGV1toC',
-      context.from || 'unknown',
-      context.to || 'unknown',
-      context.properties || {},
-      context.connectionType || 'Command'
-    );
-  }
-
-  executecmdAGV1loadA(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: cmdAGV1loadA');
-    // Hybrid execution using TaskExecutor
-    return this.taskExecutor.executeConnectionTask(
-      'cmdAGV1loadA',
-      context.from || 'unknown',
-      context.to || 'unknown',
-      context.properties || {},
-      context.connectionType || 'Command'
-    );
-  }
-
-  executecmdAGV1UnloadA(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: cmdAGV1UnloadA');
-    // Hybrid execution using TaskExecutor
-    return this.taskExecutor.executeConnectionTask(
-      'cmdAGV1UnloadA',
-      context.from || 'unknown',
-      context.to || 'unknown',
-      context.properties || {},
-      context.connectionType || 'Command'
-    );
-  }
-
-  executecmdAGV2loadC(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: cmdAGV2loadC');
-    // Hybrid execution using TaskExecutor
-    return this.taskExecutor.executeConnectionTask(
-      'cmdAGV2loadC',
-      context.from || 'unknown',
-      context.to || 'unknown',
-      context.properties || {},
-      context.connectionType || 'Command'
-    );
-  }
-
-  executecmdAGV2toE(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: cmdAGV2toE');
-    // Hybrid execution using TaskExecutor
-    return this.taskExecutor.executeConnectionTask(
-      'cmdAGV2toE',
-      context.from || 'unknown',
-      context.to || 'unknown',
-      context.properties || {},
-      context.connectionType || 'Command'
-    );
-  }
-
-  executecmdAGV2UnloadE(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: cmdAGV2UnloadE');
-    // Hybrid execution using TaskExecutor
-    return this.taskExecutor.executeConnectionTask(
-      'cmdAGV2UnloadE',
-      context.from || 'unknown',
-      context.to || 'unknown',
-      context.properties || {},
-      context.connectionType || 'Command'
-    );
-  }
-
-  executeAGV1NotifTravelA(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: AGV1NotifTravelA');
-    // Hybrid execution using TaskExecutor
-    return this.taskExecutor.executeConnectionTask(
-      'AGV1NotifTravelA',
-      context.from || 'unknown',
-      context.to || 'unknown',
-      context.properties || {},
-      context.connectionType || 'Command'
-    );
-  }
-
-  executeAGV1NotifPassB(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: AGV1NotifPassB');
-    // Hybrid execution using TaskExecutor
-    return this.taskExecutor.executeConnectionTask(
-      'AGV1NotifPassB',
-      context.from || 'unknown',
-      context.to || 'unknown',
-      context.properties || {},
-      context.connectionType || 'Command'
-    );
-  }
-
-  executeAGV1NotifArriveC(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: AGV1NotifArriveC');
-    // Hybrid execution using TaskExecutor
-    return this.taskExecutor.executeConnectionTask(
-      'AGV1NotifArriveC',
-      context.from || 'unknown',
-      context.to || 'unknown',
-      context.properties || {},
-      context.connectionType || 'Command'
-    );
-  }
-
-  executeAGV1NotifArriveA(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: AGV1NotifArriveA');
-    // Hybrid execution using TaskExecutor
-    return this.taskExecutor.executeConnectionTask(
-      'AGV1NotifArriveA',
-      context.from || 'unknown',
-      context.to || 'unknown',
-      context.properties || {},
-      context.connectionType || 'Command'
-    );
-  }
-
-  executeAGV1NotifLoad(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: AGV1NotifLoad');
-    // Hybrid execution using TaskExecutor
-    return this.taskExecutor.executeConnectionTask(
-      'AGV1NotifLoad',
-      context.from || 'unknown',
-      context.to || 'unknown',
-      context.properties || {},
-      context.connectionType || 'Command'
-    );
-  }
-
-  executeAGV1NotifArriveAUnoaded(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: AGV1NotifArriveAUnoaded');
-    // Hybrid execution using TaskExecutor
-    return this.taskExecutor.executeConnectionTask(
-      'AGV1NotifArriveAUnoaded',
-      context.from || 'unknown',
-      context.to || 'unknown',
-      context.properties || {},
-      context.connectionType || 'Command'
-    );
-  }
-
-  executeAGV2NotifTravelC(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: AGV2NotifTravelC');
-    // Hybrid execution using TaskExecutor
-    return this.taskExecutor.executeConnectionTask(
-      'AGV2NotifTravelC',
-      context.from || 'unknown',
-      context.to || 'unknown',
-      context.properties || {},
-      context.connectionType || 'Command'
-    );
-  }
-
-  executeAGV2NotifArriveC(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: AGV2NotifArriveC');
-    // Hybrid execution using TaskExecutor
-    return this.taskExecutor.executeConnectionTask(
-      'AGV2NotifArriveC',
-      context.from || 'unknown',
-      context.to || 'unknown',
-      context.properties || {},
-      context.connectionType || 'Command'
-    );
-  }
-
-  executeAGV2NotifLoad(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: AGV2NotifLoad');
-    // Hybrid execution using TaskExecutor
-    return this.taskExecutor.executeConnectionTask(
-      'AGV2NotifLoad',
-      context.from || 'unknown',
-      context.to || 'unknown',
-      context.properties || {},
-      context.connectionType || 'Command'
-    );
-  }
-
-  executeAGV2NotifPassD(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: AGV2NotifPassD');
-    // Hybrid execution using TaskExecutor
-    return this.taskExecutor.executeConnectionTask(
-      'AGV2NotifPassD',
-      context.from || 'unknown',
-      context.to || 'unknown',
-      context.properties || {},
-      context.connectionType || 'Command'
-    );
-  }
-
-  executeAGV2NotifArriveE(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: AGV2NotifArriveE');
-    // Hybrid execution using TaskExecutor
-    return this.taskExecutor.executeConnectionTask(
-      'AGV2NotifArriveE',
-      context.from || 'unknown',
-      context.to || 'unknown',
-      context.properties || {},
-      context.connectionType || 'Command'
-    );
-  }
-
-  executeAGV2NotifArriveAUnoaded(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: AGV2NotifArriveAUnoaded');
-    // Hybrid execution using TaskExecutor
-    return this.taskExecutor.executeConnectionTask(
-      'AGV2NotifArriveAUnoaded',
-      context.from || 'unknown',
-      context.to || 'unknown',
-      context.properties || {},
-      context.connectionType || 'Command'
-    );
-  }
-
-  executeAGV2DetectedStationD(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: AGV2DetectedStationD');
-    // Action implementation:
-    agv2.sensor = 'stationD';
-    return { action: 'AGV2DetectedStationD', status: 'executed', context };
-  }
-
-  executeAGV1locationStationA(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: AGV1locationStationA');
-    // Action implementation:
-    agv1.location = 'stationA.signal';
-    return { action: 'AGV1locationStationA', status: 'executed', context };
-  }
-
-  executeAGV1locationStationB(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: AGV1locationStationB');
-    // Action implementation:
-    agv1.location = 'stationB.signal';
-    return { action: 'AGV1locationStationB', status: 'executed', context };
-  }
-
-  executeAGV1locationStationC(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: AGV1locationStationC');
-    // Action implementation:
-    agv1.location = 'stationC.signal';
-    return { action: 'AGV1locationStationC', status: 'executed', context };
-  }
-
-  executeAGV2locationStationC(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: AGV2locationStationC');
-    // Action implementation:
-    agv2.location = 'stationC.signal';
-    return { action: 'AGV2locationStationC', status: 'executed', context };
-  }
-
-  executeAGV2locationStationD(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: AGV2locationStationD');
-    // Action implementation:
-    agv2.location = 'stationD.signal';
-    return { action: 'AGV2locationStationD', status: 'executed', context };
-  }
-
-  executeUpdateAGV2SensorToD(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: UpdateAGV2SensorToD');
-    // Action implementation:
-    agv2.sensor = 'stationD';
-    return { action: 'UpdateAGV2SensorToD', status: 'executed', context };
-  }
-
-  executeagv2locationStationE(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: agv2locationStationE');
-    // Action implementation:
-    agv2.location = 'stationE.signal';
-    return { action: 'agv2locationStationE', status: 'executed', context };
-  }
-
-  executeAGV1atachPartX(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: AGV1atachPartX');
-    // Hybrid execution using TaskExecutor
-    return this.taskExecutor.executeConnectionTask(
-      'AGV1atachPartX',
-      context.from || 'unknown',
-      context.to || 'unknown',
-      context.properties || {},
-      context.connectionType || 'Command'
-    );
-  }
-
-  executeAGV1detachPartX(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: AGV1detachPartX');
-    // Hybrid execution using TaskExecutor
-    return this.taskExecutor.executeConnectionTask(
-      'AGV1detachPartX',
-      context.from || 'unknown',
-      context.to || 'unknown',
-      context.properties || {},
-      context.connectionType || 'Command'
-    );
-  }
-
-  executeAGV2atachPartX(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: AGV2atachPartX');
-    // Hybrid execution using TaskExecutor
-    return this.taskExecutor.executeConnectionTask(
-      'AGV2atachPartX',
-      context.from || 'unknown',
-      context.to || 'unknown',
-      context.properties || {},
-      context.connectionType || 'Command'
-    );
-  }
-
-  executeAGV2detachPartX(context) {
-    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: AGV2detachPartX');
-    // Hybrid execution using TaskExecutor
-    return this.taskExecutor.executeConnectionTask(
-      'AGV2detachPartX',
-      context.from || 'unknown',
-      context.to || 'unknown',
-      context.properties || {},
-      context.connectionType || 'Command'
-    );
-  }
-
   // Global event execution method
   executeEvent(eventName, triggerName, context) {
     if (this[eventName] && this[eventName].hasRule(triggerName)) {
@@ -2054,7 +1782,7 @@ function createEnvironmentModel() {
   
   model.environments['MyFactory'] = new MyFactory();
   model.environments['MyFactoryConfiguration'] = new MyFactoryConfiguration();
-  model.events['MyEvents'] = new MyEvents();
+  model.events['MyEvents'] = MyEvents.create();
   model.scenes['MyScenes'] = new MyScenes();
   model.scenarios['MyScenarios'] = new MyScenarios();
   model.scenarioExecutions['MyScenariosExecution'] = new MyScenariosExecution();

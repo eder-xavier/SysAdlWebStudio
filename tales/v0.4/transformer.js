@@ -3200,7 +3200,7 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
         if (rule.actions.length > 0) {
           lines.push(`            const results = [];`);
           for (const action of rule.actions) {
-            lines.push(`            results.push(this.execute${action.name}(context));`);
+            lines.push(`            results.push(this.executeTask('${action.name}', context));`);
           }
           lines.push(`            return results;`);
         } else {
@@ -3238,48 +3238,71 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
       }
     }
     
-    for (const [actionName, action] of actionMap) {
-      lines.push(`  execute${actionName}(context) {`);
-      lines.push(`    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🎬 Executing action: ${actionName}');`);
-      
-      // Check if this is a connection-based action that can use TaskExecutor
-      if (action.body && action.body.length > 0) {
-        const actionBody = action.body.join(' ').toLowerCase();
-        
-        // Detect connection patterns for hybrid execution
-        if (actionBody.includes('move') || actionBody.includes('command') || actionBody.includes('connection')) {
-          lines.push(`    // Hybrid execution using TaskExecutor`);
-          lines.push(`    return this.taskExecutor.executeConnectionTask(`);
-          lines.push(`      '${actionName}',`);
-          lines.push(`      context.from || 'unknown',`);
-          lines.push(`      context.to || 'unknown',`);
-          lines.push(`      context.properties || {},`);
-          lines.push(`      context.connectionType || 'Command'`);
-          lines.push(`    );`);
-        } else {
-          // Traditional execution for non-connection actions
-          lines.push(`    // Action implementation:`);
-          for (const line of action.body) {
-            lines.push(`    ${line}`);
+    // Instead of generating individual execute methods, add generic execution infrastructure
+    lines.push('');
+    lines.push('  // Generic task executor - handles all executeXXX methods dynamically');
+    lines.push('  executeTask(taskName, context) {');
+    lines.push('    if (context.sysadlBase && context.sysadlBase.logger) {');
+    lines.push('      context.sysadlBase.logger.log(`🎬 Executing task: ${taskName}`);');
+    lines.push('    }');
+    lines.push('');
+    
+    // Generate simple task mappings
+    lines.push('    // Simple tasks with direct implementation');
+    lines.push('    const simpleTasks = {');
+    let simpleTasksAdded = false;
+    for (const [taskName, task] of actionMap) {
+      if (task.body && task.body.length > 0) {
+        const taskBody = task.body.join(' ').toLowerCase();
+        if (!taskBody.includes('move') && !taskBody.includes('command') && !taskBody.includes('connection')) {
+          if (simpleTasksAdded) lines.push('      },');
+          lines.push(`      '${taskName}': (context) => {`);
+          for (const line of task.body) {
+            lines.push(`        ${line}`);
           }
-          lines.push(`    return { action: '${actionName}', status: 'executed', context };`);
+          lines.push(`        return { task: '${taskName}', status: 'executed', context };`);
+          simpleTasksAdded = true;
         }
-      } else {
-        // Default hybrid execution template
-        lines.push(`    // Generic hybrid execution using TaskExecutor`);
-        lines.push(`    return this.taskExecutor.executeTask('${actionName}', {`);
-        lines.push(`      type: 'property-assignment',`);
-        lines.push(`      context: context,`);
-        lines.push(`      implementation: () => {`);
-        lines.push(`        // Implement ${actionName} logic here`);
-        lines.push(`        return { action: '${actionName}', status: 'executed', context };`);
-        lines.push(`      }`);
-        lines.push(`    });`);
       }
-      
-      lines.push(`  }`);
-      lines.push('');
     }
+    if (simpleTasksAdded) {
+      lines.push('      }');
+    }
+    lines.push('    };');
+    lines.push('');
+    
+    lines.push('    // Check if task has simple implementation');
+    lines.push('    if (simpleTasks[taskName]) {');
+    lines.push('      return simpleTasks[taskName](context);');
+    lines.push('    }');
+    lines.push('');
+    
+    lines.push('    // Default: Use TaskExecutor for connection-based tasks');
+    lines.push('    return this.taskExecutor.executeConnectionTask(');
+    lines.push('      taskName,');
+    lines.push('      context.from || "unknown",');
+    lines.push('      context.to || "unknown",');
+    lines.push('      context.properties || {},');
+    lines.push('      context.connectionType || "connection"');
+    lines.push('    );');
+    lines.push('  }');
+    lines.push('');
+    
+    // Add Proxy-based dynamic method resolution
+    lines.push('  // Dynamic method resolution using Proxy pattern');
+    lines.push('  static create(name, opts) {');
+    lines.push('    const instance = new this(name, opts);');
+    lines.push('    ');
+    lines.push('    return new Proxy(instance, {');
+    lines.push('      get(target, prop) {');
+    lines.push('        if (typeof prop === "string" && prop.startsWith("execute") && typeof target[prop] === "undefined") {');
+    lines.push('          const taskName = prop.replace("execute", "");');
+    lines.push('          return (context) => target.executeTask(taskName, context);');
+    lines.push('        }');
+    lines.push('        return target[prop];');
+    lines.push('      }');
+    lines.push('    });');
+    lines.push('  }');
     
     lines.push(`  // Global event execution method`);
     lines.push(`  executeEvent(eventName, triggerName, context) {`);
@@ -3756,10 +3779,10 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
     lines.push(`  model.environments['${configName}'] = new ${className}();`);
   }
   
-  // Instantiate event definitions
+  // Instantiate event definitions with Proxy pattern
   for (const { element, className } of eventDefinitions) {
     const eventsName = element.name || 'UnnamedEvents';
-    lines.push(`  model.events['${eventsName}'] = new ${className}();`);
+    lines.push(`  model.events['${eventsName}'] = ${className}.create();`);
   }
   
   // Instantiate scene definitions
