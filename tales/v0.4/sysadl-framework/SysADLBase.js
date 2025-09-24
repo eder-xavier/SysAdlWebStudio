@@ -2753,12 +2753,54 @@ class Entity extends Element {
   constructor(name, opts = {}) {
     super(name, opts);
     this.entityType = opts.entityType || 'default';
-    this.properties = opts.properties || {};
+    
+    // Merge properties: preserve existing structure and add/override with opts.properties
+    if (opts.properties && typeof opts.properties === 'object') {
+      // If this.properties was already initialized by subclass, merge values
+      if (this.properties && typeof this.properties === 'object') {
+        Object.assign(this.properties, opts.properties);
+      } else {
+        this.properties = { ...opts.properties };
+      }
+    } else if (!this.properties) {
+      // Initialize if not already set
+      this.properties = {};
+    }
+    
     this.state = opts.state || {};
     this.bindings = opts.bindings || {}; // Bidirectional bindings to model elements
+    
+    // Enhanced entity structure
+    this.roles = opts.roles || []; // Communication roles
+    this.associations = opts.associations || {
+      outgoing: {},
+      incoming: {}
+    };
+    this.composition = opts.composition || {
+      parent: null,
+      children: {},
+      childCollections: {}
+    };
+    this.environmentDef = opts.environmentDef || null;
+    this.environment = opts.environment || null;
+    
+    // Initialize role-based communication interfaces
+    this.initializeRoles();
   }
 
-  // Update entity property and propagate to bound model elements
+  // Initialize role-based communication interfaces
+  initializeRoles() {
+    for (const role of this.roles) {
+      if (!this.associations.outgoing[role]) {
+        this.associations.outgoing[role] = [];
+      }
+      if (!this.associations.incoming[role]) {
+        this.associations.incoming[role] = [];
+      }
+    }
+  }
+
+  // Update entity property and propagate to bound model elements and associations
   setProperty(propName, value) {
     const oldValue = this.properties[propName];
     this.properties[propName] = value;
@@ -2771,11 +2813,15 @@ class Entity extends Element {
       }
     }
     
+    // Notify associated entities if this is a communication property
+    this.notifyAssociatedEntities(propName, value, oldValue);
+    
     // Log property change
     if (this.model && this.model.logEvent) {
       this.model.logEvent({
         elementType: 'entity_property_change',
         entity: this.name,
+        entityType: this.entityType,
         property: propName,
         oldValue,
         newValue: value,
@@ -2789,6 +2835,178 @@ class Entity extends Element {
     return this.properties[propName];
   }
 
+  // Get property with nested support (property.subProperty)
+  getNestedProperty(propertyPath) {
+    const parts = propertyPath.split('.');
+    let value = this.properties;
+    
+    for (const part of parts) {
+      if (value === null || value === undefined) {
+        return undefined;
+      }
+      value = value[part];
+    }
+    
+    return value;
+  }
+
+  // Set nested property with path creation
+  setNestedProperty(propertyPath, value) {
+    const parts = propertyPath.split('.');
+    const finalProp = parts.pop();
+    
+    let target = this.properties;
+    for (const part of parts) {
+      if (!target[part] || typeof target[part] !== 'object') {
+        target[part] = {};
+      }
+      target = target[part];
+    }
+    
+    target[finalProp] = value;
+  }
+
+  // Notify associated entities of property changes
+  notifyAssociatedEntities(propName, newValue, oldValue) {
+    for (const [role, entities] of Object.entries(this.associations.outgoing)) {
+      for (const associatedEntity of entities) {
+        if (typeof associatedEntity.receivePropertyNotification === 'function') {
+          associatedEntity.receivePropertyNotification(
+            this, role, propName, newValue, oldValue
+          );
+        }
+      }
+    }
+  }
+
+  // Receive property change notification from associated entity
+  receivePropertyNotification(fromEntity, fromRole, propName, newValue, oldValue) {
+    console.log(`📨 ${this.name} received property notification from ${fromEntity.name}:`, 
+                `${propName} = ${newValue} (was ${oldValue})`);
+    
+    // Log the notification
+    if (this.model && this.model.logEvent) {
+      this.model.logEvent({
+        elementType: 'entity_property_notification',
+        entity: this.name,
+        fromEntity: fromEntity.name,
+        fromRole: fromRole,
+        property: propName,
+        value: newValue,
+        when: Date.now()
+      });
+    }
+  }
+
+  // Add child entity via composition
+  addChild(role, childEntity) {
+    if (!this.composition.childCollections[role]) {
+      this.composition.childCollections[role] = [];
+    }
+    
+    this.composition.childCollections[role].push(childEntity);
+    childEntity.composition.parent = this;
+    
+    console.log(`📦 Added child ${childEntity.name} to ${this.name}.${role}`);
+  }
+
+  // Remove child entity
+  removeChild(role, childName) {
+    if (this.composition.childCollections[role]) {
+      const index = this.composition.childCollections[role].findIndex(
+        child => child.name === childName
+      );
+      
+      if (index !== -1) {
+        const child = this.composition.childCollections[role][index];
+        child.composition.parent = null;
+        this.composition.childCollections[role].splice(index, 1);
+        
+        console.log(`📦 Removed child ${childName} from ${this.name}.${role}`);
+        return child;
+      }
+    }
+    
+    return null;
+  }
+
+  // Get child entities by role
+  getChildren(role) {
+    return this.composition.childCollections[role] || [];
+  }
+
+  // Get all child entities across all roles
+  getAllChildren() {
+    const allChildren = [];
+    for (const children of Object.values(this.composition.childCollections)) {
+      allChildren.push(...children);
+    }
+    return allChildren;
+  }
+
+  // Get entities associated via specific role
+  getAssociated(role, direction = 'outgoing') {
+    return this.associations[direction][role] || [];
+  }
+
+  // Check if entity has a specific role
+  hasRole(roleName) {
+    return this.roles.includes(roleName);
+  }
+
+  // Add role to entity (dynamic role assignment)
+  addRole(roleName) {
+    if (!this.hasRole(roleName)) {
+      this.roles.push(roleName);
+      this.associations.outgoing[roleName] = [];
+      this.associations.incoming[roleName] = [];
+      
+      console.log(`🎭 Added role ${roleName} to entity ${this.name}`);
+    }
+  }
+
+  // Remove role from entity
+  removeRole(roleName) {
+    const index = this.roles.indexOf(roleName);
+    if (index !== -1) {
+      this.roles.splice(index, 1);
+      delete this.associations.outgoing[roleName];
+      delete this.associations.incoming[roleName];
+      
+      console.log(`🎭 Removed role ${roleName} from entity ${this.name}`);
+    }
+  }
+
+  // Send message to associated entities via role
+  sendMessage(role, message, targetEntity = null) {
+    const targets = targetEntity ? [targetEntity] : this.getAssociated(role, 'outgoing');
+    
+    for (const target of targets) {
+      if (typeof target.receiveMessage === 'function') {
+        target.receiveMessage(this, role, message);
+      }
+    }
+    
+    console.log(`📤 ${this.name} sent message via ${role} to ${targets.length} entities`);
+  }
+
+  // Receive message from associated entity
+  receiveMessage(fromEntity, fromRole, message) {
+    console.log(`📥 ${this.name} received message from ${fromEntity.name} (${fromRole}):`, message);
+    
+    // Log the message
+    if (this.model && this.model.logEvent) {
+      this.model.logEvent({
+        elementType: 'entity_message_received',
+        entity: this.name,
+        fromEntity: fromEntity.name,
+        fromRole: fromRole,
+        message: message,
+        when: Date.now()
+      });
+    }
+  }
+
   // Bind entity property to model element property (bidirectional)
   bindToModel(entityProp, modelElement, modelProp) {
     this.bindings[entityProp] = {
@@ -2800,6 +3018,38 @@ class Entity extends Element {
     if (modelElement.bindToEntity) {
       modelElement.bindToEntity(modelProp, this, entityProp);
     }
+  }
+
+  // Initialize entity (called during environment activation)
+  initialize() {
+    console.log(`🚀 Initializing entity ${this.name} (${this.entityType})`);
+    
+    // Initialize child entities
+    for (const [role, children] of Object.entries(this.composition.childCollections)) {
+      for (const child of children) {
+        if (child.initialize) {
+          child.initialize();
+        }
+      }
+    }
+  }
+
+  // Get entity summary for debugging
+  getSummary() {
+    return {
+      name: this.name,
+      type: this.entityType,
+      roles: this.roles,
+      properties: Object.keys(this.properties),
+      hasParent: !!this.composition.parent,
+      childRoles: Object.keys(this.composition.childCollections),
+      associationRoles: Object.keys(this.associations.outgoing),
+      outgoingAssociations: Object.fromEntries(
+        Object.entries(this.associations.outgoing).map(
+          ([role, entities]) => [role, entities.length]
+        )
+      )
+    };
   }
 }
 
@@ -3043,14 +3293,84 @@ class EnvironmentDefinition extends Element {
   constructor(name, opts = {}) {
     super(name, opts);
     this.entityTypes = opts.entityTypes || {};
+    this.entityClasses = opts.entityClasses || {}; // Store actual classes
+    this.connectionTypes = opts.connectionTypes || {};
+    this.connectionClasses = opts.connectionClasses || {}; // Store actual connection classes
     this.eventTypes = opts.eventTypes || {};
     this.properties = opts.properties || {};
     this.constraints = opts.constraints || [];
+    this.associations = opts.associations || []; // Association definitions
+    this.compositions = opts.compositions || []; // Composition relationships
+    this.roleDefinitions = opts.roleDefinitions || {}; // Role definitions for entities
   }
 
-  // Define entity type
+  // Register entity class for factory usage
+  registerEntityClass(typeName, EntityClass) {
+    this.entityClasses[typeName] = EntityClass;
+    
+    // Auto-define type if not already defined
+    if (!this.entityTypes[typeName]) {
+      this.defineEntityType(typeName, {
+        roles: [],
+        properties: {},
+        factory: (name, properties, opts) => new EntityClass(name, { ...opts, properties })
+      });
+    } else {
+      // Update existing type with factory
+      this.entityTypes[typeName].factory = (name, properties, opts) => new EntityClass(name, { ...opts, properties });
+    }
+  }
+
+  // Register connection class for factory usage
+  registerConnectionClass(typeName, ConnectionClass) {
+    this.connectionClasses[typeName] = ConnectionClass;
+    
+    // Auto-define connection type if not already defined
+    if (!this.connectionTypes[typeName]) {
+      this.defineConnectionType(typeName, {
+        from: ConnectionClass.prototype.from || null,
+        to: ConnectionClass.prototype.to || null,
+        connectionType: ConnectionClass.prototype.connectionType || 'connection',
+        factory: (name, opts) => new ConnectionClass(name, opts)
+      });
+    } else {
+      // Update existing type with factory
+      this.connectionTypes[typeName].factory = (name, opts) => new ConnectionClass(name, opts);
+    }
+  }
+
+  // Define entity type with roles and properties structure
   defineEntityType(typeName, definition) {
-    this.entityTypes[typeName] = definition;
+    const enhancedDefinition = {
+      ...definition,
+      roles: definition.roles || [],
+      properties: definition.properties || {},
+      compositions: definition.compositions || [], // Child entities this type can contain
+      validationRules: definition.validationRules || [],
+      factory: definition.factory || null // Custom factory function
+    };
+    
+    this.entityTypes[typeName] = enhancedDefinition;
+    
+    // Register role definitions for this entity type
+    if (enhancedDefinition.roles.length > 0) {
+      this.roleDefinitions[typeName] = enhancedDefinition.roles;
+    }
+  }
+
+  // Define connection type with from/to and properties structure
+  defineConnectionType(typeName, definition) {
+    const enhancedDefinition = {
+      ...definition,
+      from: definition.from || null,
+      to: definition.to || null,
+      connectionType: definition.connectionType || 'connection',
+      properties: definition.properties || {},
+      validationRules: definition.validationRules || [],
+      factory: definition.factory || null // Custom factory function
+    };
+    
+    this.connectionTypes[typeName] = enhancedDefinition;
   }
 
   // Define event type
@@ -3058,19 +3378,187 @@ class EnvironmentDefinition extends Element {
     this.eventTypes[typeName] = definition;
   }
 
-  // Create entity instance of specified type
-  createEntity(name, typeName, properties = {}) {
+  // Define association between entity types
+  defineAssociation(associationName, fromType, fromRole, toType, toRole, opts = {}) {
+    const association = {
+      name: associationName,
+      from: { type: fromType, role: fromRole },
+      to: { type: toType, role: toRole },
+      cardinality: opts.cardinality || '1..*',
+      bidirectional: opts.bidirectional || false,
+      validation: opts.validation || null
+    };
+    
+    this.associations.push(association);
+    
+    console.log(`🔗 Defined association: ${fromType}.${fromRole} → ${toType}.${toRole}`);
+    return association;
+  }
+
+  // Define composition relationship
+  defineComposition(parentType, childType, containmentRole, opts = {}) {
+    const composition = {
+      parent: parentType,
+      child: childType,
+      role: containmentRole,
+      cardinality: opts.cardinality || '0..*',
+      cascade: opts.cascade !== false, // Delete children when parent is deleted
+      validation: opts.validation || null
+    };
+    
+    this.compositions.push(composition);
+    
+    console.log(`📦 Defined composition: ${parentType} contains ${childType} via ${containmentRole}`);
+    return composition;
+  }
+
+  // Enhanced createEntity with validation and factory support
+  createEntity(name, typeName, properties = {}, opts = {}) {
     const typeDef = this.entityTypes[typeName];
     if (!typeDef) {
-      throw new Error(`Unknown entity type: ${typeName}`);
+      throw new Error(`Unknown entity type: ${typeName} in environment definition ${this.name}`);
     }
 
+    // Validate properties against type definition
+    this.validateEntityProperties(typeName, properties);
+
+    // Use custom factory if defined
+    if (typeDef.factory && typeof typeDef.factory === 'function') {
+      return typeDef.factory(name, properties, opts, this);
+    }
+
+    // Create entity with enhanced structure
     const entity = new Entity(name, {
       entityType: typeName,
-      properties: { ...typeDef.defaultProperties, ...properties }
+      properties: { ...typeDef.properties, ...properties },
+      roles: [...(typeDef.roles || [])],
+      state: opts.initialState || {},
+      composition: {
+        parent: opts.parent || null,
+        children: {},
+        childCollections: {}
+      },
+      associations: {
+        outgoing: {},
+        incoming: {}
+      },
+      environmentDef: this
     });
 
+    // Initialize role-based communication interfaces
+    entity.roles.forEach(roleName => {
+      entity.associations.outgoing[roleName] = [];
+      entity.associations.incoming[roleName] = [];
+    });
+
+    // Initialize composition containers for child types
+    this.compositions
+      .filter(comp => comp.parent === typeName)
+      .forEach(comp => {
+        entity.composition.childCollections[comp.role] = [];
+      });
+
+    console.log(`✨ Created entity ${name} (${typeName}) with roles [${entity.roles.join(', ')}]`);
     return entity;
+  }
+
+  // Validate entity properties against type definition
+  validateEntityProperties(typeName, properties) {
+    const typeDef = this.entityTypes[typeName];
+    if (!typeDef || !typeDef.validationRules) return;
+
+    for (const rule of typeDef.validationRules) {
+      if (rule.property && properties.hasOwnProperty(rule.property)) {
+        if (rule.type && typeof properties[rule.property] !== rule.type) {
+          throw new Error(`Property ${rule.property} must be of type ${rule.type}`);
+        }
+        
+        if (rule.validator && !rule.validator(properties[rule.property])) {
+          throw new Error(`Property ${rule.property} validation failed: ${rule.message || 'Invalid value'}`);
+        }
+      }
+      
+      if (rule.required && !properties.hasOwnProperty(rule.property)) {
+        throw new Error(`Required property ${rule.property} missing in entity type ${typeName}`);
+      }
+    }
+  }
+
+  // Create multiple entities with composition relationships
+  createEntityWithComposition(name, typeName, properties = {}, compositionData = {}) {
+    const parentEntity = this.createEntity(name, typeName, properties);
+    
+    // Create child entities and establish composition relationships
+    for (const [role, childrenData] of Object.entries(compositionData)) {
+      const composition = this.compositions.find(c => c.parent === typeName && c.role === role);
+      if (!composition) {
+        console.warn(`No composition defined for ${typeName}.${role}`);
+        continue;
+      }
+      
+      const children = Array.isArray(childrenData) ? childrenData : [childrenData];
+      
+      for (const childData of children) {
+        const child = this.createEntity(
+          childData.name, 
+          composition.child, 
+          childData.properties || {}, 
+          { parent: parentEntity }
+        );
+        
+        // Add child to parent's collection
+        parentEntity.composition.childCollections[role].push(child);
+        child.composition.parent = parentEntity;
+        
+        console.log(`📦 Added ${child.name} to ${parentEntity.name}.${role}`);
+      }
+    }
+    
+    return parentEntity;
+  }
+
+  // Establish association between two entities
+  establishAssociation(fromEntity, toEntity, associationName) {
+    const association = this.associations.find(a => a.name === associationName);
+    if (!association) {
+      throw new Error(`Association ${associationName} not defined`);
+    }
+    
+    // Validate entity types match association definition
+    if (fromEntity.entityType !== association.from.type || 
+        toEntity.entityType !== association.to.type) {
+      throw new Error(`Entity types don't match association ${associationName} definition`);
+    }
+    
+    // Add association links
+    fromEntity.associations.outgoing[association.from.role].push(toEntity);
+    toEntity.associations.incoming[association.to.role].push(fromEntity);
+    
+    // If bidirectional, create reverse association
+    if (association.bidirectional) {
+      toEntity.associations.outgoing[association.to.role].push(fromEntity);
+      fromEntity.associations.incoming[association.from.role].push(toEntity);
+    }
+    
+    console.log(`🔗 Established association ${associationName}: ${fromEntity.name} → ${toEntity.name}`);
+    return association;
+  }
+
+  // Get all associations for an entity
+  getEntityAssociations(entity, role = null) {
+    if (role) {
+      return {
+        outgoing: entity.associations.outgoing[role] || [],
+        incoming: entity.associations.incoming[role] || []
+      };
+    }
+    
+    return entity.associations;
+  }
+
+  // Get child entities from composition
+  getChildEntities(parentEntity, role) {
+    return parentEntity.composition.childCollections[role] || [];
   }
 
   // Create event instance of specified type
@@ -3088,6 +3576,17 @@ class EnvironmentDefinition extends Element {
 
     return event;
   }
+
+  // Get definition summary for debugging
+  getSummary() {
+    return {
+      name: this.name,
+      entityTypes: Object.keys(this.entityTypes),
+      eventTypes: Object.keys(this.eventTypes),
+      associations: this.associations.map(a => `${a.from.type}.${a.from.role} → ${a.to.type}.${a.to.role}`),
+      compositions: this.compositions.map(c => `${c.parent} contains ${c.child} via ${c.role}`)
+    };
+  }
 }
 
 // EnvironmentConfiguration class - configures specific environment instance
@@ -3095,17 +3594,190 @@ class EnvironmentConfiguration extends Element {
   constructor(name, opts = {}) {
     super(name, opts);
     this.environmentDef = opts.environmentDef || null;
-    this.entities = opts.entities || [];
+    this.entities = opts.entities || {};
     this.events = opts.events || [];
     this.bindings = opts.bindings || []; // Bindings to model elements
     this.active = false;
+    this.associations = new Map(); // Active associations between entities
+    this.compositionTree = new Map(); // Parent-child relationships
   }
 
-  // Add entity to environment
+  // Enhanced createEntity using environment definition
+  createEntity(typeName, options = {}) {
+    if (!this.environmentDef) {
+      throw new Error('Environment definition not set');
+    }
+    
+    // Get the name from options or generate one
+    const name = options.name || `${typeName.toLowerCase()}_${Date.now()}`;
+    const properties = options.properties || {};
+    const compositionData = options.compositionData || {};
+    
+    // Create entity using environment definition
+    const entity = this.environmentDef.createEntity(name, typeName, properties);
+    
+    // Handle composition if specified
+    if (Object.keys(compositionData).length > 0) {
+      const entityWithComposition = this.environmentDef.createEntityWithComposition(
+        name, typeName, properties, compositionData
+      );
+      this.entities[name] = entityWithComposition;
+      
+      // Register in composition tree
+      this.registerCompositionTree(entityWithComposition);
+    } else {
+      this.entities[name] = entity;
+    }
+    
+    entity.environment = this;
+    
+    console.log(`🌍 Added entity ${name} (${typeName}) to environment configuration ${this.name}`);
+    return entity;
+  }
+
+  // Register composition hierarchy in tree structure
+  registerCompositionTree(parentEntity) {
+    this.compositionTree.set(parentEntity.name, {
+      entity: parentEntity,
+      children: new Map()
+    });
+    
+    // Register all child entities recursively
+    for (const [role, children] of Object.entries(parentEntity.composition.childCollections)) {
+      const childMap = new Map();
+      for (const child of children) {
+        childMap.set(child.name, child);
+        child.environment = this;
+        this.entities[child.name] = child; // Add to flat entity collection too
+      }
+      this.compositionTree.get(parentEntity.name).children.set(role, childMap);
+    }
+  }
+
+  // Create association between entities using environment definition
+  createAssociation(fromEntityName, toEntityName, associationName) {
+    const fromEntity = this.entities[fromEntityName];
+    const toEntity = this.entities[toEntityName];
+    
+    if (!fromEntity || !toEntity) {
+      throw new Error(`Entity not found: ${fromEntityName} or ${toEntityName}`);
+    }
+    
+    if (!this.environmentDef) {
+      throw new Error('Environment definition required for association creation');
+    }
+    
+    const association = this.environmentDef.establishAssociation(
+      fromEntity, 
+      toEntity, 
+      associationName
+    );
+    
+    // Track association in configuration
+    const associationKey = `${fromEntityName}_${toEntityName}_${associationName}`;
+    this.associations.set(associationKey, {
+      from: fromEntity,
+      to: toEntity,
+      association: association,
+      created: Date.now()
+    });
+    
+    return association;
+  }
+
+  // Create multiple associations from a configuration map
+  createAssociations(associationConfig) {
+    const results = [];
+    
+    for (const config of associationConfig) {
+      try {
+        const association = this.createAssociation(
+          config.from, 
+          config.to, 
+          config.association
+        );
+        results.push({ ...config, success: true, association });
+      } catch (error) {
+        console.error(`Failed to create association ${config.association}:`, error.message);
+        results.push({ ...config, success: false, error: error.message });
+      }
+    }
+    
+    return results;
+  }
+
+  // Get entity by name (supports nested lookup for composed entities)
+  getEntity(entityName) {
+    // Try direct lookup first
+    if (this.entities[entityName]) {
+      return this.entities[entityName];
+    }
+    
+    // Try nested lookup for composed entities (parent.child format)
+    if (entityName.includes('.')) {
+      const [parentName, childName] = entityName.split('.', 2);
+      const parent = this.entities[parentName];
+      
+      if (parent && parent.composition.childCollections) {
+        for (const childCollection of Object.values(parent.composition.childCollections)) {
+          const child = childCollection.find(c => c.name === childName);
+          if (child) return child;
+        }
+      }
+    }
+    
+    return null;
+  }
+
+  // Get entities by type
+  getEntitiesByType(entityType) {
+    return Object.values(this.entities).filter(entity => 
+      entity.entityType === entityType
+    );
+  }
+
+  // Get child entities of a parent
+  getChildEntities(parentName, role = null) {
+    const parent = this.entities[parentName];
+    if (!parent || !parent.composition.childCollections) {
+      return [];
+    }
+    
+    if (role) {
+      return parent.composition.childCollections[role] || [];
+    }
+    
+    // Return all children across all roles
+    const allChildren = [];
+    for (const children of Object.values(parent.composition.childCollections)) {
+      allChildren.push(...children);
+    }
+    return allChildren;
+  }
+
+  // Get entities associated with a given entity
+  getAssociatedEntities(entityName, role = null) {
+    const entity = this.getEntity(entityName);
+    if (!entity) return [];
+    
+    if (role) {
+      return entity.associations.outgoing[role] || [];
+    }
+    
+    // Return all associated entities
+    const allAssociated = [];
+    for (const entities of Object.values(entity.associations.outgoing)) {
+      allAssociated.push(...entities);
+    }
+    return allAssociated;
+  }
+
+  // Add entity to environment (legacy compatibility)
   addEntity(entity) {
     if (entity instanceof Entity) {
-      this.entities.push(entity);
+      this.entities[entity.name] = entity;
       entity.environment = this;
+      console.log(`🌍 Added entity ${entity.name} to environment configuration ${this.name}`);
     }
   }
 
@@ -3139,7 +3811,7 @@ class EnvironmentConfiguration extends Element {
     this.active = true;
     
     // Initialize all entities
-    for (const entity of this.entities) {
+    for (const entity of Object.values(this.entities)) {
       if (entity.initialize) {
         entity.initialize();
       }
@@ -3165,6 +3837,29 @@ class EnvironmentConfiguration extends Element {
         when: Date.now()
       });
     }
+  }
+
+  // Get configuration summary for debugging
+  getSummary() {
+    const entitySummary = {};
+    for (const [name, entity] of Object.entries(this.entities)) {
+      entitySummary[name] = {
+        type: entity.entityType,
+        roles: entity.roles || [],
+        hasChildren: Object.keys(entity.composition?.childCollections || {}).length > 0,
+        associations: Object.keys(entity.associations?.outgoing || {}).length
+      };
+    }
+    
+    return {
+      name: this.name,
+      active: this.active,
+      entities: entitySummary,
+      associations: this.associations.size,
+      compositions: this.compositionTree.size,
+      events: this.events.length,
+      bindings: this.bindings.length
+    };
   }
 }
 
