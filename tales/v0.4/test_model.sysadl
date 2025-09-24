@@ -1,0 +1,31 @@
+Model TestModel;
+
+package Elements {
+  entity Robot {
+    behavior {
+      position: Location
+      status: string
+    }
+  }
+
+  entity Location {
+    behavior {
+      coordinates: (number, number)
+      name: string
+    }
+  }
+
+  connection Move : Robot -> Location
+
+  event MoveEvent {
+    rules {
+      when start do move_task
+    }
+    
+    move_task {
+      action: robot.position = destination_location
+      action: robot.status = 'moving'  
+      action: :Move(robot, destination_location)
+    }
+  }
+}

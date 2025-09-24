@@ -10,6 +10,85 @@ function sanitizeId(s) {
   return String(s).replace(/[^A-Za-z0-9_]/g, '_');
 }
 
+// Convert SysADL statements to pure JavaScript
+function generatePureJavaScriptFromSysADL(sysadlLine) {
+  let line = sysadlLine.trim();
+  
+  // Handle property assignments: entity.property = value
+  const assignmentMatch = line.match(/^([a-zA-Z0-9_]+)\.([a-zA-Z0-9_.]+)\s*=\s*([^;]+);?$/);
+  if (assignmentMatch) {
+    const [, entityName, propertyPath, value] = assignmentMatch;
+    const cleanValue = value.trim().replace(/^['"`]|['"`]$/g, ''); // Remove outer quotes
+    
+    return `// ${entityName}.${propertyPath} = ${value};
+              if (!context.entities.${entityName}.${propertyPath.split('.')[0]}) {
+                context.entities.${entityName}.${propertyPath.split('.')[0]} = {};
+              }
+              context.entities.${entityName}.${propertyPath} = '${cleanValue}';`;
+  }
+  
+  // Handle connection invocations: :ConnectionType(from, to)
+  const connectionMatch = line.match(/^:([a-zA-Z0-9_]+)\s*\(\s*([a-zA-Z0-9_]+)\s*,\s*([a-zA-Z0-9_]+)\s*\);?$/);
+  if (connectionMatch) {
+    const [, connectionType, fromEntity, toEntity] = connectionMatch;
+    
+    return `// :${connectionType}(${fromEntity}, ${toEntity});
+              const ${connectionType}Class = context.environment?.connections?.find(c => c.name === '${connectionType}');
+              if (${connectionType}Class) {
+                const connectionInstance = new ${connectionType}Class();
+                const fromEntity = context.entities?.${fromEntity};
+                const toEntity = context.entities?.${toEntity};
+                
+                if (fromEntity && toEntity && connectionInstance.from && connectionInstance.to) {
+                  const fromRole = connectionInstance.from.split('.')[1];
+                  const toRole = connectionInstance.to.split('.')[1];
+                  
+                  if (context.sysadlBase?.logger) {
+                    context.sysadlBase.logger.log(\`🔗 Executing connection ${connectionType}: ${fromEntity} -> ${toEntity}\`);
+                  }
+                  
+                  if (typeof toEntity.receiveMessage === 'function') {
+                    toEntity.receiveMessage('${fromEntity}', fromRole, context);
+                  }
+                  
+                  if (typeof context.onConnectionExecuted === 'function') {
+                    context.onConnectionExecuted(connectionInstance, '${fromEntity}', '${toEntity}', context);
+                  }
+                }
+              }`;
+  }
+  
+  // Handle simple assignments: property = value
+  const simpleAssignMatch = line.match(/^([a-zA-Z0-9_.]+)\s*=\s*([^;]+);?$/);
+  if (simpleAssignMatch) {
+    const [, propertyPath, value] = simpleAssignMatch;
+    const cleanValue = value.replace(/'/g, "'");
+    
+    // Check if it's an entity property
+    if (propertyPath.includes('.')) {
+      const parts = propertyPath.split('.');
+      const entityName = parts[0];
+      const propPath = parts.slice(1).join('.');
+      
+      return `// ${propertyPath} = ${cleanValue};
+              if (context.entities?.${entityName}) {
+                context.entities.${entityName}.${propPath} = '${cleanValue}';
+              }`;
+    }
+    
+    return `// ${propertyPath} = ${cleanValue};
+            ${propertyPath} = '${cleanValue}';`;
+  }
+  
+  // Handle comments and other lines as-is
+  if (line.startsWith('//') || line.trim() === '') {
+    return line;
+  }
+  
+  // Default case - return as comment to preserve original
+  return `// Original SysADL: ${line}`;
+}
+
 async function loadParser(parserPath) {
   const url = pathToFileURL(parserPath).href;
   const mod = await import(url);
@@ -3186,26 +3265,35 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
       for (const rule of eventClass.rules) {
         lines.push(`        {`);
         lines.push(`          trigger: '${rule.trigger}',`);
-        lines.push(`          actions: [`);
+        lines.push(`          tasks: {`);
+        
+        // Generate tasks as pure JavaScript functions
         for (const action of rule.actions) {
-          const bodyLiteral = action.body && action.body.length > 0 ? 
-            `[${action.body.map(line => `'${line.replace(/'/g, "\\'")}'`).join(', ')}]` : 
-            '[]';
-          lines.push(`            { name: '${action.name}', body: ${bodyLiteral} },`);
+          lines.push(`            ${action.name}: (context) => {`);
+          
+          // Generate pure JavaScript from action body
+          if (action.body && action.body.length > 0) {
+            for (const bodyLine of action.body) {
+              // bodyLine already comes as JavaScript from convertStatementsToJS
+              lines.push(`              ${bodyLine}`);
+            }
+          }
+          
+          lines.push(`              return true;`);
+          lines.push(`            },`);
         }
-        lines.push(`          ],`);
+        
+        lines.push(`          },`);
         lines.push(`          execute: (context) => {`);
         lines.push(`            if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing ${eventClass.name}: ${rule.trigger} -> ${rule.actions.map(a => a.name).join(', ')}');`);
-        lines.push(`            // Custom logic for ${rule.trigger} trigger`);
-        if (rule.actions.length > 0) {
-          lines.push(`            const results = [];`);
-          for (const action of rule.actions) {
-            lines.push(`            results.push(this.executeTask('${action.name}', context));`);
-          }
-          lines.push(`            return results;`);
-        } else {
-          lines.push(`            return true;`);
+        lines.push(`            const results = [];`);
+        lines.push(`            const currentRule = this.${eventClass.name}.rules.find(r => r.trigger === '${rule.trigger}');`);
+        
+        for (const action of rule.actions) {
+          lines.push(`            results.push(currentRule.tasks.${action.name}(context));`);
         }
+        
+        lines.push(`            return results;`);
         lines.push(`          }`);
         lines.push(`        },`);
       }
@@ -4716,23 +4804,12 @@ async function main() {
   if (argv.length < 1) { console.error('Usage: transformer.js <input.sysadl> [outdir_or_outfile]'); process.exit(2); }
   const input = path.resolve(argv[0]);
   
-  // Check if second argument is a specific file or directory
-  let outDir, outFile;
-  if (argv[1]) {
-    const outPath = path.resolve(argv[1]);
-    if (path.extname(outPath) === '.js') {
-      // It's a specific file
-      outFile = outPath;
-      outDir = path.dirname(outPath);
-    } else {
-      // It's a directory
-      outDir = outPath;
-      outFile = null;
-    }
-  } else {
-    outDir = path.join(__dirname, 'generated');
-    outFile = null;
-  }
+  // Check for environment/scenario generation flags
+  const forceEnvGeneration = argv.includes('env') || argv.includes('scen');
+  
+  // Always generate files in the 'generated' directory
+  const outDir = path.join(__dirname, 'generated');
+  let outFile = null; // Let the system generate appropriate filenames
   
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
   const parserPath = path.join(__dirname, 'sysadl-parser.js');
@@ -7011,13 +7088,13 @@ async function main() {
   try { dbg('[DBG] rootDefs:', JSON.stringify(rootDefs || [])); } catch(e){}
   try { dbg('[DBG] parentMap:', JSON.stringify(parentMap || {})); } catch(e){}
 
-  // Check if we have environment/scenario elements
-  const hasEnvElements = hasEnvironmentElements(ast);
+  // Check if we have environment/scenario elements or forced generation
+  const hasEnvElements = hasEnvironmentElements(ast) || forceEnvGeneration;
   const { traditionalElements, environmentElements } = separateElements(ast);
 
   if (hasEnvElements) {
     // Generate two separate files
-    console.log(`Detected environment/scenario elements. Generating two files...`);
+    console.log(`${forceEnvGeneration ? 'Forced' : 'Detected'} environment/scenario elements. Generating two files...`);
     
     // 1. Generate traditional model file
     let traditionalCode = generateClassModule(outModelName, compUses, portUses, connectorDescriptors, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, compDefMap, portDefMap, embeddedTypes, connectorDefMap, packageMap, ast, false);
@@ -7147,4 +7224,13 @@ function orderDatatypesByDependencies(datatypes, names) {
   return result;
 }
 
-main().catch(e => { console.error(e); process.exit(1); });
+// Export functions for testing
+module.exports = {
+  generatePureJavaScriptFromSysADL,
+  sanitizeId
+};
+
+// Only run main if this is the main module
+if (require.main === module) {
+  main().catch(e => { console.error(e); process.exit(1); });
+}

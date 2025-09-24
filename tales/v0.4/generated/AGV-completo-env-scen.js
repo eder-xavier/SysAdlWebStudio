@@ -236,94 +236,446 @@ class MyEvents extends EventsDefinitions {
       rules: [
         {
           trigger: 'cmdSupervisor',
-          actions: [
-            { name: 'cmdAGV2toC', body: ['supervisor.outCommand.destination = \'stationC\';', 'supervisor.outCommand.armCommand = \'idle\';', '// Connection invocation: Command(supervisor, agv2)', '// Execute connection between entities', 'if (context.environment && context.environment.connections) {', '  const ConnectionClass = context.environment.connections.find(c => c.name === \'Command\');', '  if (ConnectionClass) {', '    const connectionInstance = new ConnectionClass();', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(\'🔗 Executing connection Command:\', [\'supervisor\', \'agv2\']);', '    // Execute message passing between entities', '    const fromEntityName = \'supervisor\';', '    const toEntityName = \'agv2\';', '    const fromEntity = context.entities ? context.entities[fromEntityName] : null;', '    const toEntity = context.entities ? context.entities[toEntityName] : null;', '    ', '    if (fromEntity && toEntity) {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);', '      ', '      // Simulate message passing based on connection definition', '      if (connectionInstance.from && connectionInstance.to) {', '        const fromRole = connectionInstance.from.split(\'.\')[1]; // e.g., \'outCommand\' from \'Supervisory.outCommand\'', '        const toRole = connectionInstance.to.split(\'.\')[1]; // e.g., \'inCommand\' from \'Vehicle.inCommand\'', '        ', '        if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);', '        ', '        // Trigger event or callback if available', '        if (typeof toEntity.receiveMessage === \'function\') {', '          toEntity.receiveMessage(fromEntityName, fromRole, context);', '        }', '        if (typeof context.onConnectionExecuted === \'function\') {', '          context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);', '        }', '      }', '    } else {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection Command: entities not found in context:\', fromEntityName, toEntityName);', '    }', '  } else {', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection class Command not found in environment\');', '  }', '} else {', '  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Environment or connections not available in context\');', '}'] },
-            { name: 'cmdAGV1toA', body: ['supervisor.outCommand.destination = \'stationA\';', 'supervisor.outCommand.armCommand = \'idle\';', '// Connection invocation: Command(supervisor, agv1)', '// Execute connection between entities', 'if (context.environment && context.environment.connections) {', '  const ConnectionClass = context.environment.connections.find(c => c.name === \'Command\');', '  if (ConnectionClass) {', '    const connectionInstance = new ConnectionClass();', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(\'🔗 Executing connection Command:\', [\'supervisor\', \'agv1\']);', '    // Execute message passing between entities', '    const fromEntityName = \'supervisor\';', '    const toEntityName = \'agv1\';', '    const fromEntity = context.entities ? context.entities[fromEntityName] : null;', '    const toEntity = context.entities ? context.entities[toEntityName] : null;', '    ', '    if (fromEntity && toEntity) {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);', '      ', '      // Simulate message passing based on connection definition', '      if (connectionInstance.from && connectionInstance.to) {', '        const fromRole = connectionInstance.from.split(\'.\')[1]; // e.g., \'outCommand\' from \'Supervisory.outCommand\'', '        const toRole = connectionInstance.to.split(\'.\')[1]; // e.g., \'inCommand\' from \'Vehicle.inCommand\'', '        ', '        if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);', '        ', '        // Trigger event or callback if available', '        if (typeof toEntity.receiveMessage === \'function\') {', '          toEntity.receiveMessage(fromEntityName, fromRole, context);', '        }', '        if (typeof context.onConnectionExecuted === \'function\') {', '          context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);', '        }', '      }', '    } else {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection Command: entities not found in context:\', fromEntityName, toEntityName);', '    }', '  } else {', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection class Command not found in environment\');', '  }', '} else {', '  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Environment or connections not available in context\');', '}'] },
-          ],
+          tasks: {
+            cmdAGV2toC: (context) => {
+              supervisor.outCommand.destination = 'stationC';
+              supervisor.outCommand.armCommand = 'idle';
+              // Connection invocation: Command(supervisor, agv2)
+              // Execute connection between entities
+              if (context.environment && context.environment.connections) {
+                const ConnectionClass = context.environment.connections.find(c => c.name === 'Command');
+                if (ConnectionClass) {
+                  const connectionInstance = new ConnectionClass();
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🔗 Executing connection Command:', ['supervisor', 'agv2']);
+                  // Execute message passing between entities
+                  const fromEntityName = 'supervisor';
+                  const toEntityName = 'agv2';
+                  const fromEntity = context.entities ? context.entities[fromEntityName] : null;
+                  const toEntity = context.entities ? context.entities[toEntityName] : null;
+                  
+                  if (fromEntity && toEntity) {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);
+                    
+                    // Simulate message passing based on connection definition
+                    if (connectionInstance.from && connectionInstance.to) {
+                      const fromRole = connectionInstance.from.split('.')[1]; // e.g., 'outCommand' from 'Supervisory.outCommand'
+                      const toRole = connectionInstance.to.split('.')[1]; // e.g., 'inCommand' from 'Vehicle.inCommand'
+                      
+                      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);
+                      
+                      // Trigger event or callback if available
+                      if (typeof toEntity.receiveMessage === 'function') {
+                        toEntity.receiveMessage(fromEntityName, fromRole, context);
+                      }
+                      if (typeof context.onConnectionExecuted === 'function') {
+                        context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);
+                      }
+                    }
+                  } else {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection Command: entities not found in context:', fromEntityName, toEntityName);
+                  }
+                } else {
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection class Command not found in environment');
+                }
+              } else {
+                if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Environment or connections not available in context');
+              }
+              return true;
+            },
+            cmdAGV1toA: (context) => {
+              supervisor.outCommand.destination = 'stationA';
+              supervisor.outCommand.armCommand = 'idle';
+              // Connection invocation: Command(supervisor, agv1)
+              // Execute connection between entities
+              if (context.environment && context.environment.connections) {
+                const ConnectionClass = context.environment.connections.find(c => c.name === 'Command');
+                if (ConnectionClass) {
+                  const connectionInstance = new ConnectionClass();
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🔗 Executing connection Command:', ['supervisor', 'agv1']);
+                  // Execute message passing between entities
+                  const fromEntityName = 'supervisor';
+                  const toEntityName = 'agv1';
+                  const fromEntity = context.entities ? context.entities[fromEntityName] : null;
+                  const toEntity = context.entities ? context.entities[toEntityName] : null;
+                  
+                  if (fromEntity && toEntity) {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);
+                    
+                    // Simulate message passing based on connection definition
+                    if (connectionInstance.from && connectionInstance.to) {
+                      const fromRole = connectionInstance.from.split('.')[1]; // e.g., 'outCommand' from 'Supervisory.outCommand'
+                      const toRole = connectionInstance.to.split('.')[1]; // e.g., 'inCommand' from 'Vehicle.inCommand'
+                      
+                      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);
+                      
+                      // Trigger event or callback if available
+                      if (typeof toEntity.receiveMessage === 'function') {
+                        toEntity.receiveMessage(fromEntityName, fromRole, context);
+                      }
+                      if (typeof context.onConnectionExecuted === 'function') {
+                        context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);
+                      }
+                    }
+                  } else {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection Command: entities not found in context:', fromEntityName, toEntityName);
+                  }
+                } else {
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection class Command not found in environment');
+                }
+              } else {
+                if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Environment or connections not available in context');
+              }
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing SupervisoryEvents: cmdSupervisor -> cmdAGV2toC, cmdAGV1toA');
-            // Custom logic for cmdSupervisor trigger
             const results = [];
-            results.push(this.executeTask('cmdAGV2toC', context));
-            results.push(this.executeTask('cmdAGV1toA', context));
+            const currentRule = this.SupervisoryEvents.rules.find(r => r.trigger === 'cmdSupervisor');
+            results.push(currentRule.tasks.cmdAGV2toC(context));
+            results.push(currentRule.tasks.cmdAGV1toA(context));
             return results;
           }
         },
         {
           trigger: 'AGV1NotifLoad',
-          actions: [
-            { name: 'cmdAGV1toC', body: ['supervisor.outCommand.destination = \'stationA\';', 'supervisor.outCommand.armCommand = \'idle\';', '// Connection invocation: Command(supervisor, agv1)', '// Execute connection between entities', 'if (context.environment && context.environment.connections) {', '  const ConnectionClass = context.environment.connections.find(c => c.name === \'Command\');', '  if (ConnectionClass) {', '    const connectionInstance = new ConnectionClass();', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(\'🔗 Executing connection Command:\', [\'supervisor\', \'agv1\']);', '    // Execute message passing between entities', '    const fromEntityName = \'supervisor\';', '    const toEntityName = \'agv1\';', '    const fromEntity = context.entities ? context.entities[fromEntityName] : null;', '    const toEntity = context.entities ? context.entities[toEntityName] : null;', '    ', '    if (fromEntity && toEntity) {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);', '      ', '      // Simulate message passing based on connection definition', '      if (connectionInstance.from && connectionInstance.to) {', '        const fromRole = connectionInstance.from.split(\'.\')[1]; // e.g., \'outCommand\' from \'Supervisory.outCommand\'', '        const toRole = connectionInstance.to.split(\'.\')[1]; // e.g., \'inCommand\' from \'Vehicle.inCommand\'', '        ', '        if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);', '        ', '        // Trigger event or callback if available', '        if (typeof toEntity.receiveMessage === \'function\') {', '          toEntity.receiveMessage(fromEntityName, fromRole, context);', '        }', '        if (typeof context.onConnectionExecuted === \'function\') {', '          context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);', '        }', '      }', '    } else {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection Command: entities not found in context:\', fromEntityName, toEntityName);', '    }', '  } else {', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection class Command not found in environment\');', '  }', '} else {', '  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Environment or connections not available in context\');', '}'] },
-          ],
+          tasks: {
+            cmdAGV1toC: (context) => {
+              supervisor.outCommand.destination = 'stationA';
+              supervisor.outCommand.armCommand = 'idle';
+              // Connection invocation: Command(supervisor, agv1)
+              // Execute connection between entities
+              if (context.environment && context.environment.connections) {
+                const ConnectionClass = context.environment.connections.find(c => c.name === 'Command');
+                if (ConnectionClass) {
+                  const connectionInstance = new ConnectionClass();
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🔗 Executing connection Command:', ['supervisor', 'agv1']);
+                  // Execute message passing between entities
+                  const fromEntityName = 'supervisor';
+                  const toEntityName = 'agv1';
+                  const fromEntity = context.entities ? context.entities[fromEntityName] : null;
+                  const toEntity = context.entities ? context.entities[toEntityName] : null;
+                  
+                  if (fromEntity && toEntity) {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);
+                    
+                    // Simulate message passing based on connection definition
+                    if (connectionInstance.from && connectionInstance.to) {
+                      const fromRole = connectionInstance.from.split('.')[1]; // e.g., 'outCommand' from 'Supervisory.outCommand'
+                      const toRole = connectionInstance.to.split('.')[1]; // e.g., 'inCommand' from 'Vehicle.inCommand'
+                      
+                      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);
+                      
+                      // Trigger event or callback if available
+                      if (typeof toEntity.receiveMessage === 'function') {
+                        toEntity.receiveMessage(fromEntityName, fromRole, context);
+                      }
+                      if (typeof context.onConnectionExecuted === 'function') {
+                        context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);
+                      }
+                    }
+                  } else {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection Command: entities not found in context:', fromEntityName, toEntityName);
+                  }
+                } else {
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection class Command not found in environment');
+                }
+              } else {
+                if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Environment or connections not available in context');
+              }
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing SupervisoryEvents: AGV1NotifLoad -> cmdAGV1toC');
-            // Custom logic for AGV1NotifLoad trigger
             const results = [];
-            results.push(this.executeTask('cmdAGV1toC', context));
+            const currentRule = this.SupervisoryEvents.rules.find(r => r.trigger === 'AGV1NotifLoad');
+            results.push(currentRule.tasks.cmdAGV1toC(context));
             return results;
           }
         },
         {
           trigger: 'AGV1NotifArriveA',
-          actions: [
-            { name: 'cmdAGV1loadA', body: ['supervisor.outCommand.destination = \'stationA\';', 'supervisor.outCommand.armCommand = \'load\';', '// Connection invocation: Command(supervisor, agv1)', '// Execute connection between entities', 'if (context.environment && context.environment.connections) {', '  const ConnectionClass = context.environment.connections.find(c => c.name === \'Command\');', '  if (ConnectionClass) {', '    const connectionInstance = new ConnectionClass();', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(\'🔗 Executing connection Command:\', [\'supervisor\', \'agv1\']);', '    // Execute message passing between entities', '    const fromEntityName = \'supervisor\';', '    const toEntityName = \'agv1\';', '    const fromEntity = context.entities ? context.entities[fromEntityName] : null;', '    const toEntity = context.entities ? context.entities[toEntityName] : null;', '    ', '    if (fromEntity && toEntity) {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);', '      ', '      // Simulate message passing based on connection definition', '      if (connectionInstance.from && connectionInstance.to) {', '        const fromRole = connectionInstance.from.split(\'.\')[1]; // e.g., \'outCommand\' from \'Supervisory.outCommand\'', '        const toRole = connectionInstance.to.split(\'.\')[1]; // e.g., \'inCommand\' from \'Vehicle.inCommand\'', '        ', '        if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);', '        ', '        // Trigger event or callback if available', '        if (typeof toEntity.receiveMessage === \'function\') {', '          toEntity.receiveMessage(fromEntityName, fromRole, context);', '        }', '        if (typeof context.onConnectionExecuted === \'function\') {', '          context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);', '        }', '      }', '    } else {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection Command: entities not found in context:\', fromEntityName, toEntityName);', '    }', '  } else {', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection class Command not found in environment\');', '  }', '} else {', '  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Environment or connections not available in context\');', '}'] },
-          ],
+          tasks: {
+            cmdAGV1loadA: (context) => {
+              supervisor.outCommand.destination = 'stationA';
+              supervisor.outCommand.armCommand = 'load';
+              // Connection invocation: Command(supervisor, agv1)
+              // Execute connection between entities
+              if (context.environment && context.environment.connections) {
+                const ConnectionClass = context.environment.connections.find(c => c.name === 'Command');
+                if (ConnectionClass) {
+                  const connectionInstance = new ConnectionClass();
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🔗 Executing connection Command:', ['supervisor', 'agv1']);
+                  // Execute message passing between entities
+                  const fromEntityName = 'supervisor';
+                  const toEntityName = 'agv1';
+                  const fromEntity = context.entities ? context.entities[fromEntityName] : null;
+                  const toEntity = context.entities ? context.entities[toEntityName] : null;
+                  
+                  if (fromEntity && toEntity) {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);
+                    
+                    // Simulate message passing based on connection definition
+                    if (connectionInstance.from && connectionInstance.to) {
+                      const fromRole = connectionInstance.from.split('.')[1]; // e.g., 'outCommand' from 'Supervisory.outCommand'
+                      const toRole = connectionInstance.to.split('.')[1]; // e.g., 'inCommand' from 'Vehicle.inCommand'
+                      
+                      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);
+                      
+                      // Trigger event or callback if available
+                      if (typeof toEntity.receiveMessage === 'function') {
+                        toEntity.receiveMessage(fromEntityName, fromRole, context);
+                      }
+                      if (typeof context.onConnectionExecuted === 'function') {
+                        context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);
+                      }
+                    }
+                  } else {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection Command: entities not found in context:', fromEntityName, toEntityName);
+                  }
+                } else {
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection class Command not found in environment');
+                }
+              } else {
+                if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Environment or connections not available in context');
+              }
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing SupervisoryEvents: AGV1NotifArriveA -> cmdAGV1loadA');
-            // Custom logic for AGV1NotifArriveA trigger
             const results = [];
-            results.push(this.executeTask('cmdAGV1loadA', context));
+            const currentRule = this.SupervisoryEvents.rules.find(r => r.trigger === 'AGV1NotifArriveA');
+            results.push(currentRule.tasks.cmdAGV1loadA(context));
             return results;
           }
         },
         {
           trigger: 'AGV1NotifArriveC',
-          actions: [
-            { name: 'cmdAGV1UnloadA', body: ['supervisor.outCommand.destination = \'stationA\';', 'supervisor.outCommand.armCommand = \'unload\';', '// Connection invocation: Command(supervisor, agv1)', '// Execute connection between entities', 'if (context.environment && context.environment.connections) {', '  const ConnectionClass = context.environment.connections.find(c => c.name === \'Command\');', '  if (ConnectionClass) {', '    const connectionInstance = new ConnectionClass();', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(\'🔗 Executing connection Command:\', [\'supervisor\', \'agv1\']);', '    // Execute message passing between entities', '    const fromEntityName = \'supervisor\';', '    const toEntityName = \'agv1\';', '    const fromEntity = context.entities ? context.entities[fromEntityName] : null;', '    const toEntity = context.entities ? context.entities[toEntityName] : null;', '    ', '    if (fromEntity && toEntity) {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);', '      ', '      // Simulate message passing based on connection definition', '      if (connectionInstance.from && connectionInstance.to) {', '        const fromRole = connectionInstance.from.split(\'.\')[1]; // e.g., \'outCommand\' from \'Supervisory.outCommand\'', '        const toRole = connectionInstance.to.split(\'.\')[1]; // e.g., \'inCommand\' from \'Vehicle.inCommand\'', '        ', '        if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);', '        ', '        // Trigger event or callback if available', '        if (typeof toEntity.receiveMessage === \'function\') {', '          toEntity.receiveMessage(fromEntityName, fromRole, context);', '        }', '        if (typeof context.onConnectionExecuted === \'function\') {', '          context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);', '        }', '      }', '    } else {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection Command: entities not found in context:\', fromEntityName, toEntityName);', '    }', '  } else {', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection class Command not found in environment\');', '  }', '} else {', '  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Environment or connections not available in context\');', '}'] },
-          ],
+          tasks: {
+            cmdAGV1UnloadA: (context) => {
+              supervisor.outCommand.destination = 'stationA';
+              supervisor.outCommand.armCommand = 'unload';
+              // Connection invocation: Command(supervisor, agv1)
+              // Execute connection between entities
+              if (context.environment && context.environment.connections) {
+                const ConnectionClass = context.environment.connections.find(c => c.name === 'Command');
+                if (ConnectionClass) {
+                  const connectionInstance = new ConnectionClass();
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🔗 Executing connection Command:', ['supervisor', 'agv1']);
+                  // Execute message passing between entities
+                  const fromEntityName = 'supervisor';
+                  const toEntityName = 'agv1';
+                  const fromEntity = context.entities ? context.entities[fromEntityName] : null;
+                  const toEntity = context.entities ? context.entities[toEntityName] : null;
+                  
+                  if (fromEntity && toEntity) {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);
+                    
+                    // Simulate message passing based on connection definition
+                    if (connectionInstance.from && connectionInstance.to) {
+                      const fromRole = connectionInstance.from.split('.')[1]; // e.g., 'outCommand' from 'Supervisory.outCommand'
+                      const toRole = connectionInstance.to.split('.')[1]; // e.g., 'inCommand' from 'Vehicle.inCommand'
+                      
+                      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);
+                      
+                      // Trigger event or callback if available
+                      if (typeof toEntity.receiveMessage === 'function') {
+                        toEntity.receiveMessage(fromEntityName, fromRole, context);
+                      }
+                      if (typeof context.onConnectionExecuted === 'function') {
+                        context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);
+                      }
+                    }
+                  } else {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection Command: entities not found in context:', fromEntityName, toEntityName);
+                  }
+                } else {
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection class Command not found in environment');
+                }
+              } else {
+                if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Environment or connections not available in context');
+              }
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing SupervisoryEvents: AGV1NotifArriveC -> cmdAGV1UnloadA');
-            // Custom logic for AGV1NotifArriveC trigger
             const results = [];
-            results.push(this.executeTask('cmdAGV1UnloadA', context));
+            const currentRule = this.SupervisoryEvents.rules.find(r => r.trigger === 'AGV1NotifArriveC');
+            results.push(currentRule.tasks.cmdAGV1UnloadA(context));
             return results;
           }
         },
         {
           trigger: 'AGV1NotifArriveAUnoaded',
-          actions: [
-            { name: 'cmdAGV2loadC', body: ['supervisor.outCommand.destination = \'stationC\';', 'supervisor.outCommand.armCommand = \'load\';', '// Connection invocation: Command(supervisor, agv2)', '// Execute connection between entities', 'if (context.environment && context.environment.connections) {', '  const ConnectionClass = context.environment.connections.find(c => c.name === \'Command\');', '  if (ConnectionClass) {', '    const connectionInstance = new ConnectionClass();', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(\'🔗 Executing connection Command:\', [\'supervisor\', \'agv2\']);', '    // Execute message passing between entities', '    const fromEntityName = \'supervisor\';', '    const toEntityName = \'agv2\';', '    const fromEntity = context.entities ? context.entities[fromEntityName] : null;', '    const toEntity = context.entities ? context.entities[toEntityName] : null;', '    ', '    if (fromEntity && toEntity) {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);', '      ', '      // Simulate message passing based on connection definition', '      if (connectionInstance.from && connectionInstance.to) {', '        const fromRole = connectionInstance.from.split(\'.\')[1]; // e.g., \'outCommand\' from \'Supervisory.outCommand\'', '        const toRole = connectionInstance.to.split(\'.\')[1]; // e.g., \'inCommand\' from \'Vehicle.inCommand\'', '        ', '        if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);', '        ', '        // Trigger event or callback if available', '        if (typeof toEntity.receiveMessage === \'function\') {', '          toEntity.receiveMessage(fromEntityName, fromRole, context);', '        }', '        if (typeof context.onConnectionExecuted === \'function\') {', '          context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);', '        }', '      }', '    } else {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection Command: entities not found in context:\', fromEntityName, toEntityName);', '    }', '  } else {', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection class Command not found in environment\');', '  }', '} else {', '  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Environment or connections not available in context\');', '}'] },
-          ],
+          tasks: {
+            cmdAGV2loadC: (context) => {
+              supervisor.outCommand.destination = 'stationC';
+              supervisor.outCommand.armCommand = 'load';
+              // Connection invocation: Command(supervisor, agv2)
+              // Execute connection between entities
+              if (context.environment && context.environment.connections) {
+                const ConnectionClass = context.environment.connections.find(c => c.name === 'Command');
+                if (ConnectionClass) {
+                  const connectionInstance = new ConnectionClass();
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🔗 Executing connection Command:', ['supervisor', 'agv2']);
+                  // Execute message passing between entities
+                  const fromEntityName = 'supervisor';
+                  const toEntityName = 'agv2';
+                  const fromEntity = context.entities ? context.entities[fromEntityName] : null;
+                  const toEntity = context.entities ? context.entities[toEntityName] : null;
+                  
+                  if (fromEntity && toEntity) {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);
+                    
+                    // Simulate message passing based on connection definition
+                    if (connectionInstance.from && connectionInstance.to) {
+                      const fromRole = connectionInstance.from.split('.')[1]; // e.g., 'outCommand' from 'Supervisory.outCommand'
+                      const toRole = connectionInstance.to.split('.')[1]; // e.g., 'inCommand' from 'Vehicle.inCommand'
+                      
+                      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);
+                      
+                      // Trigger event or callback if available
+                      if (typeof toEntity.receiveMessage === 'function') {
+                        toEntity.receiveMessage(fromEntityName, fromRole, context);
+                      }
+                      if (typeof context.onConnectionExecuted === 'function') {
+                        context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);
+                      }
+                    }
+                  } else {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection Command: entities not found in context:', fromEntityName, toEntityName);
+                  }
+                } else {
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection class Command not found in environment');
+                }
+              } else {
+                if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Environment or connections not available in context');
+              }
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing SupervisoryEvents: AGV1NotifArriveAUnoaded -> cmdAGV2loadC');
-            // Custom logic for AGV1NotifArriveAUnoaded trigger
             const results = [];
-            results.push(this.executeTask('cmdAGV2loadC', context));
+            const currentRule = this.SupervisoryEvents.rules.find(r => r.trigger === 'AGV1NotifArriveAUnoaded');
+            results.push(currentRule.tasks.cmdAGV2loadC(context));
             return results;
           }
         },
         {
           trigger: 'AGV2NotifLoad',
-          actions: [
-            { name: 'cmdAGV2toE', body: ['supervisor.outCommand.destination = \'stationE\';', 'supervisor.outCommand.armCommand = \'idle\';', '// Connection invocation: Command(supervisor, agv2)', '// Execute connection between entities', 'if (context.environment && context.environment.connections) {', '  const ConnectionClass = context.environment.connections.find(c => c.name === \'Command\');', '  if (ConnectionClass) {', '    const connectionInstance = new ConnectionClass();', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(\'🔗 Executing connection Command:\', [\'supervisor\', \'agv2\']);', '    // Execute message passing between entities', '    const fromEntityName = \'supervisor\';', '    const toEntityName = \'agv2\';', '    const fromEntity = context.entities ? context.entities[fromEntityName] : null;', '    const toEntity = context.entities ? context.entities[toEntityName] : null;', '    ', '    if (fromEntity && toEntity) {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);', '      ', '      // Simulate message passing based on connection definition', '      if (connectionInstance.from && connectionInstance.to) {', '        const fromRole = connectionInstance.from.split(\'.\')[1]; // e.g., \'outCommand\' from \'Supervisory.outCommand\'', '        const toRole = connectionInstance.to.split(\'.\')[1]; // e.g., \'inCommand\' from \'Vehicle.inCommand\'', '        ', '        if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);', '        ', '        // Trigger event or callback if available', '        if (typeof toEntity.receiveMessage === \'function\') {', '          toEntity.receiveMessage(fromEntityName, fromRole, context);', '        }', '        if (typeof context.onConnectionExecuted === \'function\') {', '          context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);', '        }', '      }', '    } else {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection Command: entities not found in context:\', fromEntityName, toEntityName);', '    }', '  } else {', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection class Command not found in environment\');', '  }', '} else {', '  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Environment or connections not available in context\');', '}'] },
-          ],
+          tasks: {
+            cmdAGV2toE: (context) => {
+              supervisor.outCommand.destination = 'stationE';
+              supervisor.outCommand.armCommand = 'idle';
+              // Connection invocation: Command(supervisor, agv2)
+              // Execute connection between entities
+              if (context.environment && context.environment.connections) {
+                const ConnectionClass = context.environment.connections.find(c => c.name === 'Command');
+                if (ConnectionClass) {
+                  const connectionInstance = new ConnectionClass();
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🔗 Executing connection Command:', ['supervisor', 'agv2']);
+                  // Execute message passing between entities
+                  const fromEntityName = 'supervisor';
+                  const toEntityName = 'agv2';
+                  const fromEntity = context.entities ? context.entities[fromEntityName] : null;
+                  const toEntity = context.entities ? context.entities[toEntityName] : null;
+                  
+                  if (fromEntity && toEntity) {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);
+                    
+                    // Simulate message passing based on connection definition
+                    if (connectionInstance.from && connectionInstance.to) {
+                      const fromRole = connectionInstance.from.split('.')[1]; // e.g., 'outCommand' from 'Supervisory.outCommand'
+                      const toRole = connectionInstance.to.split('.')[1]; // e.g., 'inCommand' from 'Vehicle.inCommand'
+                      
+                      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);
+                      
+                      // Trigger event or callback if available
+                      if (typeof toEntity.receiveMessage === 'function') {
+                        toEntity.receiveMessage(fromEntityName, fromRole, context);
+                      }
+                      if (typeof context.onConnectionExecuted === 'function') {
+                        context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);
+                      }
+                    }
+                  } else {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection Command: entities not found in context:', fromEntityName, toEntityName);
+                  }
+                } else {
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection class Command not found in environment');
+                }
+              } else {
+                if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Environment or connections not available in context');
+              }
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing SupervisoryEvents: AGV2NotifLoad -> cmdAGV2toE');
-            // Custom logic for AGV2NotifLoad trigger
             const results = [];
-            results.push(this.executeTask('cmdAGV2toE', context));
+            const currentRule = this.SupervisoryEvents.rules.find(r => r.trigger === 'AGV2NotifLoad');
+            results.push(currentRule.tasks.cmdAGV2toE(context));
             return results;
           }
         },
         {
           trigger: 'AGV2NotifArriveE',
-          actions: [
-            { name: 'cmdAGV2UnloadE', body: ['supervisor.outCommand.destination = \'stationE\';', 'supervisor.outCommand.armCommand = \'unload\';', '// Connection invocation: Command(supervisor, agv2)', '// Execute connection between entities', 'if (context.environment && context.environment.connections) {', '  const ConnectionClass = context.environment.connections.find(c => c.name === \'Command\');', '  if (ConnectionClass) {', '    const connectionInstance = new ConnectionClass();', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(\'🔗 Executing connection Command:\', [\'supervisor\', \'agv2\']);', '    // Execute message passing between entities', '    const fromEntityName = \'supervisor\';', '    const toEntityName = \'agv2\';', '    const fromEntity = context.entities ? context.entities[fromEntityName] : null;', '    const toEntity = context.entities ? context.entities[toEntityName] : null;', '    ', '    if (fromEntity && toEntity) {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);', '      ', '      // Simulate message passing based on connection definition', '      if (connectionInstance.from && connectionInstance.to) {', '        const fromRole = connectionInstance.from.split(\'.\')[1]; // e.g., \'outCommand\' from \'Supervisory.outCommand\'', '        const toRole = connectionInstance.to.split(\'.\')[1]; // e.g., \'inCommand\' from \'Vehicle.inCommand\'', '        ', '        if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);', '        ', '        // Trigger event or callback if available', '        if (typeof toEntity.receiveMessage === \'function\') {', '          toEntity.receiveMessage(fromEntityName, fromRole, context);', '        }', '        if (typeof context.onConnectionExecuted === \'function\') {', '          context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);', '        }', '      }', '    } else {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection Command: entities not found in context:\', fromEntityName, toEntityName);', '    }', '  } else {', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection class Command not found in environment\');', '  }', '} else {', '  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Environment or connections not available in context\');', '}'] },
-          ],
+          tasks: {
+            cmdAGV2UnloadE: (context) => {
+              supervisor.outCommand.destination = 'stationE';
+              supervisor.outCommand.armCommand = 'unload';
+              // Connection invocation: Command(supervisor, agv2)
+              // Execute connection between entities
+              if (context.environment && context.environment.connections) {
+                const ConnectionClass = context.environment.connections.find(c => c.name === 'Command');
+                if (ConnectionClass) {
+                  const connectionInstance = new ConnectionClass();
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🔗 Executing connection Command:', ['supervisor', 'agv2']);
+                  // Execute message passing between entities
+                  const fromEntityName = 'supervisor';
+                  const toEntityName = 'agv2';
+                  const fromEntity = context.entities ? context.entities[fromEntityName] : null;
+                  const toEntity = context.entities ? context.entities[toEntityName] : null;
+                  
+                  if (fromEntity && toEntity) {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);
+                    
+                    // Simulate message passing based on connection definition
+                    if (connectionInstance.from && connectionInstance.to) {
+                      const fromRole = connectionInstance.from.split('.')[1]; // e.g., 'outCommand' from 'Supervisory.outCommand'
+                      const toRole = connectionInstance.to.split('.')[1]; // e.g., 'inCommand' from 'Vehicle.inCommand'
+                      
+                      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);
+                      
+                      // Trigger event or callback if available
+                      if (typeof toEntity.receiveMessage === 'function') {
+                        toEntity.receiveMessage(fromEntityName, fromRole, context);
+                      }
+                      if (typeof context.onConnectionExecuted === 'function') {
+                        context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);
+                      }
+                    }
+                  } else {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection Command: entities not found in context:', fromEntityName, toEntityName);
+                  }
+                } else {
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection class Command not found in environment');
+                }
+              } else {
+                if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Environment or connections not available in context');
+              }
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing SupervisoryEvents: AGV2NotifArriveE -> cmdAGV2UnloadE');
-            // Custom logic for AGV2NotifArriveE trigger
             const results = [];
-            results.push(this.executeTask('cmdAGV2UnloadE', context));
+            const currentRule = this.SupervisoryEvents.rules.find(r => r.trigger === 'AGV2NotifArriveE');
+            results.push(currentRule.tasks.cmdAGV2UnloadE(context));
             return results;
           }
         },
@@ -345,79 +697,337 @@ class MyEvents extends EventsDefinitions {
       rules: [
         {
           trigger: 'cmdAGV1toA',
-          actions: [
-            { name: 'AGV1NotifTravelA', body: ['agv1.outNotification.notification = "traveling";', '// Connection invocation: Notify(agv1, supervisor)', '// Execute connection between entities', 'if (context.environment && context.environment.connections) {', '  const ConnectionClass = context.environment.connections.find(c => c.name === \'Notify\');', '  if (ConnectionClass) {', '    const connectionInstance = new ConnectionClass();', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(\'🔗 Executing connection Notify:\', [\'agv1\', \'supervisor\']);', '    // Execute message passing between entities', '    const fromEntityName = \'agv1\';', '    const toEntityName = \'supervisor\';', '    const fromEntity = context.entities ? context.entities[fromEntityName] : null;', '    const toEntity = context.entities ? context.entities[toEntityName] : null;', '    ', '    if (fromEntity && toEntity) {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);', '      ', '      // Simulate message passing based on connection definition', '      if (connectionInstance.from && connectionInstance.to) {', '        const fromRole = connectionInstance.from.split(\'.\')[1]; // e.g., \'outCommand\' from \'Supervisory.outCommand\'', '        const toRole = connectionInstance.to.split(\'.\')[1]; // e.g., \'inCommand\' from \'Vehicle.inCommand\'', '        ', '        if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);', '        ', '        // Trigger event or callback if available', '        if (typeof toEntity.receiveMessage === \'function\') {', '          toEntity.receiveMessage(fromEntityName, fromRole, context);', '        }', '        if (typeof context.onConnectionExecuted === \'function\') {', '          context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);', '        }', '      }', '    } else {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection Notify: entities not found in context:\', fromEntityName, toEntityName);', '    }', '  } else {', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection class Notify not found in environment\');', '  }', '} else {', '  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Environment or connections not available in context\');', '}'] },
-          ],
+          tasks: {
+            AGV1NotifTravelA: (context) => {
+              agv1.outNotification.notification = "traveling";
+              // Connection invocation: Notify(agv1, supervisor)
+              // Execute connection between entities
+              if (context.environment && context.environment.connections) {
+                const ConnectionClass = context.environment.connections.find(c => c.name === 'Notify');
+                if (ConnectionClass) {
+                  const connectionInstance = new ConnectionClass();
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🔗 Executing connection Notify:', ['agv1', 'supervisor']);
+                  // Execute message passing between entities
+                  const fromEntityName = 'agv1';
+                  const toEntityName = 'supervisor';
+                  const fromEntity = context.entities ? context.entities[fromEntityName] : null;
+                  const toEntity = context.entities ? context.entities[toEntityName] : null;
+                  
+                  if (fromEntity && toEntity) {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);
+                    
+                    // Simulate message passing based on connection definition
+                    if (connectionInstance.from && connectionInstance.to) {
+                      const fromRole = connectionInstance.from.split('.')[1]; // e.g., 'outCommand' from 'Supervisory.outCommand'
+                      const toRole = connectionInstance.to.split('.')[1]; // e.g., 'inCommand' from 'Vehicle.inCommand'
+                      
+                      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);
+                      
+                      // Trigger event or callback if available
+                      if (typeof toEntity.receiveMessage === 'function') {
+                        toEntity.receiveMessage(fromEntityName, fromRole, context);
+                      }
+                      if (typeof context.onConnectionExecuted === 'function') {
+                        context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);
+                      }
+                    }
+                  } else {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection Notify: entities not found in context:', fromEntityName, toEntityName);
+                  }
+                } else {
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection class Notify not found in environment');
+                }
+              } else {
+                if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Environment or connections not available in context');
+              }
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing AGV1Events: cmdAGV1toA -> AGV1NotifTravelA');
-            // Custom logic for cmdAGV1toA trigger
             const results = [];
-            results.push(this.executeTask('AGV1NotifTravelA', context));
+            const currentRule = this.AGV1Events.rules.find(r => r.trigger === 'cmdAGV1toA');
+            results.push(currentRule.tasks.AGV1NotifTravelA(context));
             return results;
           }
         },
         {
           trigger: 'AGV1locationStationB',
-          actions: [
-            { name: 'AGV1NotifPassB', body: ['agv1.outNotification.notification = "passed";', '// Connection invocation: Notify(agv1, supervisor)', '// Execute connection between entities', 'if (context.environment && context.environment.connections) {', '  const ConnectionClass = context.environment.connections.find(c => c.name === \'Notify\');', '  if (ConnectionClass) {', '    const connectionInstance = new ConnectionClass();', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(\'🔗 Executing connection Notify:\', [\'agv1\', \'supervisor\']);', '    // Execute message passing between entities', '    const fromEntityName = \'agv1\';', '    const toEntityName = \'supervisor\';', '    const fromEntity = context.entities ? context.entities[fromEntityName] : null;', '    const toEntity = context.entities ? context.entities[toEntityName] : null;', '    ', '    if (fromEntity && toEntity) {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);', '      ', '      // Simulate message passing based on connection definition', '      if (connectionInstance.from && connectionInstance.to) {', '        const fromRole = connectionInstance.from.split(\'.\')[1]; // e.g., \'outCommand\' from \'Supervisory.outCommand\'', '        const toRole = connectionInstance.to.split(\'.\')[1]; // e.g., \'inCommand\' from \'Vehicle.inCommand\'', '        ', '        if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);', '        ', '        // Trigger event or callback if available', '        if (typeof toEntity.receiveMessage === \'function\') {', '          toEntity.receiveMessage(fromEntityName, fromRole, context);', '        }', '        if (typeof context.onConnectionExecuted === \'function\') {', '          context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);', '        }', '      }', '    } else {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection Notify: entities not found in context:\', fromEntityName, toEntityName);', '    }', '  } else {', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection class Notify not found in environment\');', '  }', '} else {', '  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Environment or connections not available in context\');', '}'] },
-          ],
+          tasks: {
+            AGV1NotifPassB: (context) => {
+              agv1.outNotification.notification = "passed";
+              // Connection invocation: Notify(agv1, supervisor)
+              // Execute connection between entities
+              if (context.environment && context.environment.connections) {
+                const ConnectionClass = context.environment.connections.find(c => c.name === 'Notify');
+                if (ConnectionClass) {
+                  const connectionInstance = new ConnectionClass();
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🔗 Executing connection Notify:', ['agv1', 'supervisor']);
+                  // Execute message passing between entities
+                  const fromEntityName = 'agv1';
+                  const toEntityName = 'supervisor';
+                  const fromEntity = context.entities ? context.entities[fromEntityName] : null;
+                  const toEntity = context.entities ? context.entities[toEntityName] : null;
+                  
+                  if (fromEntity && toEntity) {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);
+                    
+                    // Simulate message passing based on connection definition
+                    if (connectionInstance.from && connectionInstance.to) {
+                      const fromRole = connectionInstance.from.split('.')[1]; // e.g., 'outCommand' from 'Supervisory.outCommand'
+                      const toRole = connectionInstance.to.split('.')[1]; // e.g., 'inCommand' from 'Vehicle.inCommand'
+                      
+                      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);
+                      
+                      // Trigger event or callback if available
+                      if (typeof toEntity.receiveMessage === 'function') {
+                        toEntity.receiveMessage(fromEntityName, fromRole, context);
+                      }
+                      if (typeof context.onConnectionExecuted === 'function') {
+                        context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);
+                      }
+                    }
+                  } else {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection Notify: entities not found in context:', fromEntityName, toEntityName);
+                  }
+                } else {
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection class Notify not found in environment');
+                }
+              } else {
+                if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Environment or connections not available in context');
+              }
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing AGV1Events: AGV1locationStationB -> AGV1NotifPassB');
-            // Custom logic for AGV1locationStationB trigger
             const results = [];
-            results.push(this.executeTask('AGV1NotifPassB', context));
+            const currentRule = this.AGV1Events.rules.find(r => r.trigger === 'AGV1locationStationB');
+            results.push(currentRule.tasks.AGV1NotifPassB(context));
             return results;
           }
         },
         {
           trigger: 'AGV1locationStationC',
-          actions: [
-            { name: 'AGV1NotifArriveC', body: ['agv1.outNotification.notification = "arrived";', '// Connection invocation: Notify(agv1, supervisor)', '// Execute connection between entities', 'if (context.environment && context.environment.connections) {', '  const ConnectionClass = context.environment.connections.find(c => c.name === \'Notify\');', '  if (ConnectionClass) {', '    const connectionInstance = new ConnectionClass();', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(\'🔗 Executing connection Notify:\', [\'agv1\', \'supervisor\']);', '    // Execute message passing between entities', '    const fromEntityName = \'agv1\';', '    const toEntityName = \'supervisor\';', '    const fromEntity = context.entities ? context.entities[fromEntityName] : null;', '    const toEntity = context.entities ? context.entities[toEntityName] : null;', '    ', '    if (fromEntity && toEntity) {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);', '      ', '      // Simulate message passing based on connection definition', '      if (connectionInstance.from && connectionInstance.to) {', '        const fromRole = connectionInstance.from.split(\'.\')[1]; // e.g., \'outCommand\' from \'Supervisory.outCommand\'', '        const toRole = connectionInstance.to.split(\'.\')[1]; // e.g., \'inCommand\' from \'Vehicle.inCommand\'', '        ', '        if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);', '        ', '        // Trigger event or callback if available', '        if (typeof toEntity.receiveMessage === \'function\') {', '          toEntity.receiveMessage(fromEntityName, fromRole, context);', '        }', '        if (typeof context.onConnectionExecuted === \'function\') {', '          context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);', '        }', '      }', '    } else {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection Notify: entities not found in context:\', fromEntityName, toEntityName);', '    }', '  } else {', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection class Notify not found in environment\');', '  }', '} else {', '  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Environment or connections not available in context\');', '}'] },
-          ],
+          tasks: {
+            AGV1NotifArriveC: (context) => {
+              agv1.outNotification.notification = "arrived";
+              // Connection invocation: Notify(agv1, supervisor)
+              // Execute connection between entities
+              if (context.environment && context.environment.connections) {
+                const ConnectionClass = context.environment.connections.find(c => c.name === 'Notify');
+                if (ConnectionClass) {
+                  const connectionInstance = new ConnectionClass();
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🔗 Executing connection Notify:', ['agv1', 'supervisor']);
+                  // Execute message passing between entities
+                  const fromEntityName = 'agv1';
+                  const toEntityName = 'supervisor';
+                  const fromEntity = context.entities ? context.entities[fromEntityName] : null;
+                  const toEntity = context.entities ? context.entities[toEntityName] : null;
+                  
+                  if (fromEntity && toEntity) {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);
+                    
+                    // Simulate message passing based on connection definition
+                    if (connectionInstance.from && connectionInstance.to) {
+                      const fromRole = connectionInstance.from.split('.')[1]; // e.g., 'outCommand' from 'Supervisory.outCommand'
+                      const toRole = connectionInstance.to.split('.')[1]; // e.g., 'inCommand' from 'Vehicle.inCommand'
+                      
+                      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);
+                      
+                      // Trigger event or callback if available
+                      if (typeof toEntity.receiveMessage === 'function') {
+                        toEntity.receiveMessage(fromEntityName, fromRole, context);
+                      }
+                      if (typeof context.onConnectionExecuted === 'function') {
+                        context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);
+                      }
+                    }
+                  } else {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection Notify: entities not found in context:', fromEntityName, toEntityName);
+                  }
+                } else {
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection class Notify not found in environment');
+                }
+              } else {
+                if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Environment or connections not available in context');
+              }
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing AGV1Events: AGV1locationStationC -> AGV1NotifArriveC');
-            // Custom logic for AGV1locationStationC trigger
             const results = [];
-            results.push(this.executeTask('AGV1NotifArriveC', context));
+            const currentRule = this.AGV1Events.rules.find(r => r.trigger === 'AGV1locationStationC');
+            results.push(currentRule.tasks.AGV1NotifArriveC(context));
             return results;
           }
         },
         {
           trigger: 'AGV1locationStationA',
-          actions: [
-            { name: 'AGV1NotifArriveA', body: ['agv1.outNotification.notification = "arrived";', '// Connection invocation: Notify(agv1, supervisor)', '// Execute connection between entities', 'if (context.environment && context.environment.connections) {', '  const ConnectionClass = context.environment.connections.find(c => c.name === \'Notify\');', '  if (ConnectionClass) {', '    const connectionInstance = new ConnectionClass();', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(\'🔗 Executing connection Notify:\', [\'agv1\', \'supervisor\']);', '    // Execute message passing between entities', '    const fromEntityName = \'agv1\';', '    const toEntityName = \'supervisor\';', '    const fromEntity = context.entities ? context.entities[fromEntityName] : null;', '    const toEntity = context.entities ? context.entities[toEntityName] : null;', '    ', '    if (fromEntity && toEntity) {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);', '      ', '      // Simulate message passing based on connection definition', '      if (connectionInstance.from && connectionInstance.to) {', '        const fromRole = connectionInstance.from.split(\'.\')[1]; // e.g., \'outCommand\' from \'Supervisory.outCommand\'', '        const toRole = connectionInstance.to.split(\'.\')[1]; // e.g., \'inCommand\' from \'Vehicle.inCommand\'', '        ', '        if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);', '        ', '        // Trigger event or callback if available', '        if (typeof toEntity.receiveMessage === \'function\') {', '          toEntity.receiveMessage(fromEntityName, fromRole, context);', '        }', '        if (typeof context.onConnectionExecuted === \'function\') {', '          context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);', '        }', '      }', '    } else {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection Notify: entities not found in context:\', fromEntityName, toEntityName);', '    }', '  } else {', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection class Notify not found in environment\');', '  }', '} else {', '  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Environment or connections not available in context\');', '}'] },
-          ],
+          tasks: {
+            AGV1NotifArriveA: (context) => {
+              agv1.outNotification.notification = "arrived";
+              // Connection invocation: Notify(agv1, supervisor)
+              // Execute connection between entities
+              if (context.environment && context.environment.connections) {
+                const ConnectionClass = context.environment.connections.find(c => c.name === 'Notify');
+                if (ConnectionClass) {
+                  const connectionInstance = new ConnectionClass();
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🔗 Executing connection Notify:', ['agv1', 'supervisor']);
+                  // Execute message passing between entities
+                  const fromEntityName = 'agv1';
+                  const toEntityName = 'supervisor';
+                  const fromEntity = context.entities ? context.entities[fromEntityName] : null;
+                  const toEntity = context.entities ? context.entities[toEntityName] : null;
+                  
+                  if (fromEntity && toEntity) {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);
+                    
+                    // Simulate message passing based on connection definition
+                    if (connectionInstance.from && connectionInstance.to) {
+                      const fromRole = connectionInstance.from.split('.')[1]; // e.g., 'outCommand' from 'Supervisory.outCommand'
+                      const toRole = connectionInstance.to.split('.')[1]; // e.g., 'inCommand' from 'Vehicle.inCommand'
+                      
+                      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);
+                      
+                      // Trigger event or callback if available
+                      if (typeof toEntity.receiveMessage === 'function') {
+                        toEntity.receiveMessage(fromEntityName, fromRole, context);
+                      }
+                      if (typeof context.onConnectionExecuted === 'function') {
+                        context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);
+                      }
+                    }
+                  } else {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection Notify: entities not found in context:', fromEntityName, toEntityName);
+                  }
+                } else {
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection class Notify not found in environment');
+                }
+              } else {
+                if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Environment or connections not available in context');
+              }
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing AGV1Events: AGV1locationStationA -> AGV1NotifArriveA');
-            // Custom logic for AGV1locationStationA trigger
             const results = [];
-            results.push(this.executeTask('AGV1NotifArriveA', context));
+            const currentRule = this.AGV1Events.rules.find(r => r.trigger === 'AGV1locationStationA');
+            results.push(currentRule.tasks.AGV1NotifArriveA(context));
             return results;
           }
         },
         {
           trigger: 'AGV1atachPartX',
-          actions: [
-            { name: 'AGV1NotifLoad', body: ['agv1.outNotification.notification = "loaded";', '// Connection invocation: Notify(agv1, supervisor)', '// Execute connection between entities', 'if (context.environment && context.environment.connections) {', '  const ConnectionClass = context.environment.connections.find(c => c.name === \'Notify\');', '  if (ConnectionClass) {', '    const connectionInstance = new ConnectionClass();', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(\'🔗 Executing connection Notify:\', [\'agv1\', \'supervisor\']);', '    // Execute message passing between entities', '    const fromEntityName = \'agv1\';', '    const toEntityName = \'supervisor\';', '    const fromEntity = context.entities ? context.entities[fromEntityName] : null;', '    const toEntity = context.entities ? context.entities[toEntityName] : null;', '    ', '    if (fromEntity && toEntity) {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);', '      ', '      // Simulate message passing based on connection definition', '      if (connectionInstance.from && connectionInstance.to) {', '        const fromRole = connectionInstance.from.split(\'.\')[1]; // e.g., \'outCommand\' from \'Supervisory.outCommand\'', '        const toRole = connectionInstance.to.split(\'.\')[1]; // e.g., \'inCommand\' from \'Vehicle.inCommand\'', '        ', '        if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);', '        ', '        // Trigger event or callback if available', '        if (typeof toEntity.receiveMessage === \'function\') {', '          toEntity.receiveMessage(fromEntityName, fromRole, context);', '        }', '        if (typeof context.onConnectionExecuted === \'function\') {', '          context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);', '        }', '      }', '    } else {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection Notify: entities not found in context:\', fromEntityName, toEntityName);', '    }', '  } else {', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection class Notify not found in environment\');', '  }', '} else {', '  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Environment or connections not available in context\');', '}'] },
-          ],
+          tasks: {
+            AGV1NotifLoad: (context) => {
+              agv1.outNotification.notification = "loaded";
+              // Connection invocation: Notify(agv1, supervisor)
+              // Execute connection between entities
+              if (context.environment && context.environment.connections) {
+                const ConnectionClass = context.environment.connections.find(c => c.name === 'Notify');
+                if (ConnectionClass) {
+                  const connectionInstance = new ConnectionClass();
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🔗 Executing connection Notify:', ['agv1', 'supervisor']);
+                  // Execute message passing between entities
+                  const fromEntityName = 'agv1';
+                  const toEntityName = 'supervisor';
+                  const fromEntity = context.entities ? context.entities[fromEntityName] : null;
+                  const toEntity = context.entities ? context.entities[toEntityName] : null;
+                  
+                  if (fromEntity && toEntity) {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);
+                    
+                    // Simulate message passing based on connection definition
+                    if (connectionInstance.from && connectionInstance.to) {
+                      const fromRole = connectionInstance.from.split('.')[1]; // e.g., 'outCommand' from 'Supervisory.outCommand'
+                      const toRole = connectionInstance.to.split('.')[1]; // e.g., 'inCommand' from 'Vehicle.inCommand'
+                      
+                      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);
+                      
+                      // Trigger event or callback if available
+                      if (typeof toEntity.receiveMessage === 'function') {
+                        toEntity.receiveMessage(fromEntityName, fromRole, context);
+                      }
+                      if (typeof context.onConnectionExecuted === 'function') {
+                        context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);
+                      }
+                    }
+                  } else {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection Notify: entities not found in context:', fromEntityName, toEntityName);
+                  }
+                } else {
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection class Notify not found in environment');
+                }
+              } else {
+                if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Environment or connections not available in context');
+              }
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing AGV1Events: AGV1atachPartX -> AGV1NotifLoad');
-            // Custom logic for AGV1atachPartX trigger
             const results = [];
-            results.push(this.executeTask('AGV1NotifLoad', context));
+            const currentRule = this.AGV1Events.rules.find(r => r.trigger === 'AGV1atachPartX');
+            results.push(currentRule.tasks.AGV1NotifLoad(context));
             return results;
           }
         },
         {
           trigger: 'AGV1detachPartX',
-          actions: [
-            { name: 'AGV1NotifArriveAUnoaded', body: ['agv1.outNotification.notification = "unloaded";', '// Connection invocation: Notify(agv1, supervisor)', '// Execute connection between entities', 'if (context.environment && context.environment.connections) {', '  const ConnectionClass = context.environment.connections.find(c => c.name === \'Notify\');', '  if (ConnectionClass) {', '    const connectionInstance = new ConnectionClass();', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(\'🔗 Executing connection Notify:\', [\'agv1\', \'supervisor\']);', '    // Execute message passing between entities', '    const fromEntityName = \'agv1\';', '    const toEntityName = \'supervisor\';', '    const fromEntity = context.entities ? context.entities[fromEntityName] : null;', '    const toEntity = context.entities ? context.entities[toEntityName] : null;', '    ', '    if (fromEntity && toEntity) {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);', '      ', '      // Simulate message passing based on connection definition', '      if (connectionInstance.from && connectionInstance.to) {', '        const fromRole = connectionInstance.from.split(\'.\')[1]; // e.g., \'outCommand\' from \'Supervisory.outCommand\'', '        const toRole = connectionInstance.to.split(\'.\')[1]; // e.g., \'inCommand\' from \'Vehicle.inCommand\'', '        ', '        if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);', '        ', '        // Trigger event or callback if available', '        if (typeof toEntity.receiveMessage === \'function\') {', '          toEntity.receiveMessage(fromEntityName, fromRole, context);', '        }', '        if (typeof context.onConnectionExecuted === \'function\') {', '          context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);', '        }', '      }', '    } else {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection Notify: entities not found in context:\', fromEntityName, toEntityName);', '    }', '  } else {', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection class Notify not found in environment\');', '  }', '} else {', '  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Environment or connections not available in context\');', '}'] },
-          ],
+          tasks: {
+            AGV1NotifArriveAUnoaded: (context) => {
+              agv1.outNotification.notification = "unloaded";
+              // Connection invocation: Notify(agv1, supervisor)
+              // Execute connection between entities
+              if (context.environment && context.environment.connections) {
+                const ConnectionClass = context.environment.connections.find(c => c.name === 'Notify');
+                if (ConnectionClass) {
+                  const connectionInstance = new ConnectionClass();
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🔗 Executing connection Notify:', ['agv1', 'supervisor']);
+                  // Execute message passing between entities
+                  const fromEntityName = 'agv1';
+                  const toEntityName = 'supervisor';
+                  const fromEntity = context.entities ? context.entities[fromEntityName] : null;
+                  const toEntity = context.entities ? context.entities[toEntityName] : null;
+                  
+                  if (fromEntity && toEntity) {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);
+                    
+                    // Simulate message passing based on connection definition
+                    if (connectionInstance.from && connectionInstance.to) {
+                      const fromRole = connectionInstance.from.split('.')[1]; // e.g., 'outCommand' from 'Supervisory.outCommand'
+                      const toRole = connectionInstance.to.split('.')[1]; // e.g., 'inCommand' from 'Vehicle.inCommand'
+                      
+                      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);
+                      
+                      // Trigger event or callback if available
+                      if (typeof toEntity.receiveMessage === 'function') {
+                        toEntity.receiveMessage(fromEntityName, fromRole, context);
+                      }
+                      if (typeof context.onConnectionExecuted === 'function') {
+                        context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);
+                      }
+                    }
+                  } else {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection Notify: entities not found in context:', fromEntityName, toEntityName);
+                  }
+                } else {
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection class Notify not found in environment');
+                }
+              } else {
+                if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Environment or connections not available in context');
+              }
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing AGV1Events: AGV1detachPartX -> AGV1NotifArriveAUnoaded');
-            // Custom logic for AGV1detachPartX trigger
             const results = [];
-            results.push(this.executeTask('AGV1NotifArriveAUnoaded', context));
+            const currentRule = this.AGV1Events.rules.find(r => r.trigger === 'AGV1detachPartX');
+            results.push(currentRule.tasks.AGV1NotifArriveAUnoaded(context));
             return results;
           }
         },
@@ -439,92 +1049,353 @@ class MyEvents extends EventsDefinitions {
       rules: [
         {
           trigger: 'cmdAGV2toC',
-          actions: [
-            { name: 'AGV2NotifTravelC', body: ['agv2.outNotification.notification = "traveling";', '// Connection invocation: Notify(agv2, supervisor)', '// Execute connection between entities', 'if (context.environment && context.environment.connections) {', '  const ConnectionClass = context.environment.connections.find(c => c.name === \'Notify\');', '  if (ConnectionClass) {', '    const connectionInstance = new ConnectionClass();', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(\'🔗 Executing connection Notify:\', [\'agv2\', \'supervisor\']);', '    // Execute message passing between entities', '    const fromEntityName = \'agv2\';', '    const toEntityName = \'supervisor\';', '    const fromEntity = context.entities ? context.entities[fromEntityName] : null;', '    const toEntity = context.entities ? context.entities[toEntityName] : null;', '    ', '    if (fromEntity && toEntity) {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);', '      ', '      // Simulate message passing based on connection definition', '      if (connectionInstance.from && connectionInstance.to) {', '        const fromRole = connectionInstance.from.split(\'.\')[1]; // e.g., \'outCommand\' from \'Supervisory.outCommand\'', '        const toRole = connectionInstance.to.split(\'.\')[1]; // e.g., \'inCommand\' from \'Vehicle.inCommand\'', '        ', '        if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);', '        ', '        // Trigger event or callback if available', '        if (typeof toEntity.receiveMessage === \'function\') {', '          toEntity.receiveMessage(fromEntityName, fromRole, context);', '        }', '        if (typeof context.onConnectionExecuted === \'function\') {', '          context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);', '        }', '      }', '    } else {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection Notify: entities not found in context:\', fromEntityName, toEntityName);', '    }', '  } else {', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection class Notify not found in environment\');', '  }', '} else {', '  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Environment or connections not available in context\');', '}'] },
-          ],
+          tasks: {
+            AGV2NotifTravelC: (context) => {
+              agv2.outNotification.notification = "traveling";
+              // Connection invocation: Notify(agv2, supervisor)
+              // Execute connection between entities
+              if (context.environment && context.environment.connections) {
+                const ConnectionClass = context.environment.connections.find(c => c.name === 'Notify');
+                if (ConnectionClass) {
+                  const connectionInstance = new ConnectionClass();
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🔗 Executing connection Notify:', ['agv2', 'supervisor']);
+                  // Execute message passing between entities
+                  const fromEntityName = 'agv2';
+                  const toEntityName = 'supervisor';
+                  const fromEntity = context.entities ? context.entities[fromEntityName] : null;
+                  const toEntity = context.entities ? context.entities[toEntityName] : null;
+                  
+                  if (fromEntity && toEntity) {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);
+                    
+                    // Simulate message passing based on connection definition
+                    if (connectionInstance.from && connectionInstance.to) {
+                      const fromRole = connectionInstance.from.split('.')[1]; // e.g., 'outCommand' from 'Supervisory.outCommand'
+                      const toRole = connectionInstance.to.split('.')[1]; // e.g., 'inCommand' from 'Vehicle.inCommand'
+                      
+                      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);
+                      
+                      // Trigger event or callback if available
+                      if (typeof toEntity.receiveMessage === 'function') {
+                        toEntity.receiveMessage(fromEntityName, fromRole, context);
+                      }
+                      if (typeof context.onConnectionExecuted === 'function') {
+                        context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);
+                      }
+                    }
+                  } else {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection Notify: entities not found in context:', fromEntityName, toEntityName);
+                  }
+                } else {
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection class Notify not found in environment');
+                }
+              } else {
+                if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Environment or connections not available in context');
+              }
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing AGV2Events: cmdAGV2toC -> AGV2NotifTravelC');
-            // Custom logic for cmdAGV2toC trigger
             const results = [];
-            results.push(this.executeTask('AGV2NotifTravelC', context));
+            const currentRule = this.AGV2Events.rules.find(r => r.trigger === 'cmdAGV2toC');
+            results.push(currentRule.tasks.AGV2NotifTravelC(context));
             return results;
           }
         },
         {
           trigger: 'AGV2locationStationC',
-          actions: [
-            { name: 'AGV2NotifArriveC', body: ['agv2.outNotification.notification = "arrived";', '// Connection invocation: Notify(agv2, supervisor)', '// Execute connection between entities', 'if (context.environment && context.environment.connections) {', '  const ConnectionClass = context.environment.connections.find(c => c.name === \'Notify\');', '  if (ConnectionClass) {', '    const connectionInstance = new ConnectionClass();', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(\'🔗 Executing connection Notify:\', [\'agv2\', \'supervisor\']);', '    // Execute message passing between entities', '    const fromEntityName = \'agv2\';', '    const toEntityName = \'supervisor\';', '    const fromEntity = context.entities ? context.entities[fromEntityName] : null;', '    const toEntity = context.entities ? context.entities[toEntityName] : null;', '    ', '    if (fromEntity && toEntity) {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);', '      ', '      // Simulate message passing based on connection definition', '      if (connectionInstance.from && connectionInstance.to) {', '        const fromRole = connectionInstance.from.split(\'.\')[1]; // e.g., \'outCommand\' from \'Supervisory.outCommand\'', '        const toRole = connectionInstance.to.split(\'.\')[1]; // e.g., \'inCommand\' from \'Vehicle.inCommand\'', '        ', '        if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);', '        ', '        // Trigger event or callback if available', '        if (typeof toEntity.receiveMessage === \'function\') {', '          toEntity.receiveMessage(fromEntityName, fromRole, context);', '        }', '        if (typeof context.onConnectionExecuted === \'function\') {', '          context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);', '        }', '      }', '    } else {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection Notify: entities not found in context:\', fromEntityName, toEntityName);', '    }', '  } else {', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection class Notify not found in environment\');', '  }', '} else {', '  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Environment or connections not available in context\');', '}'] },
-          ],
+          tasks: {
+            AGV2NotifArriveC: (context) => {
+              agv2.outNotification.notification = "arrived";
+              // Connection invocation: Notify(agv2, supervisor)
+              // Execute connection between entities
+              if (context.environment && context.environment.connections) {
+                const ConnectionClass = context.environment.connections.find(c => c.name === 'Notify');
+                if (ConnectionClass) {
+                  const connectionInstance = new ConnectionClass();
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🔗 Executing connection Notify:', ['agv2', 'supervisor']);
+                  // Execute message passing between entities
+                  const fromEntityName = 'agv2';
+                  const toEntityName = 'supervisor';
+                  const fromEntity = context.entities ? context.entities[fromEntityName] : null;
+                  const toEntity = context.entities ? context.entities[toEntityName] : null;
+                  
+                  if (fromEntity && toEntity) {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);
+                    
+                    // Simulate message passing based on connection definition
+                    if (connectionInstance.from && connectionInstance.to) {
+                      const fromRole = connectionInstance.from.split('.')[1]; // e.g., 'outCommand' from 'Supervisory.outCommand'
+                      const toRole = connectionInstance.to.split('.')[1]; // e.g., 'inCommand' from 'Vehicle.inCommand'
+                      
+                      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);
+                      
+                      // Trigger event or callback if available
+                      if (typeof toEntity.receiveMessage === 'function') {
+                        toEntity.receiveMessage(fromEntityName, fromRole, context);
+                      }
+                      if (typeof context.onConnectionExecuted === 'function') {
+                        context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);
+                      }
+                    }
+                  } else {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection Notify: entities not found in context:', fromEntityName, toEntityName);
+                  }
+                } else {
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection class Notify not found in environment');
+                }
+              } else {
+                if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Environment or connections not available in context');
+              }
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing AGV2Events: AGV2locationStationC -> AGV2NotifArriveC');
-            // Custom logic for AGV2locationStationC trigger
             const results = [];
-            results.push(this.executeTask('AGV2NotifArriveC', context));
+            const currentRule = this.AGV2Events.rules.find(r => r.trigger === 'AGV2locationStationC');
+            results.push(currentRule.tasks.AGV2NotifArriveC(context));
             return results;
           }
         },
         {
           trigger: 'AGV2atachPartX',
-          actions: [
-            { name: 'AGV2NotifLoad', body: ['agv2.outNotification.notification = "loaded";', '// Connection invocation: Notify(agv2, supervisor)', '// Execute connection between entities', 'if (context.environment && context.environment.connections) {', '  const ConnectionClass = context.environment.connections.find(c => c.name === \'Notify\');', '  if (ConnectionClass) {', '    const connectionInstance = new ConnectionClass();', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(\'🔗 Executing connection Notify:\', [\'agv2\', \'supervisor\']);', '    // Execute message passing between entities', '    const fromEntityName = \'agv2\';', '    const toEntityName = \'supervisor\';', '    const fromEntity = context.entities ? context.entities[fromEntityName] : null;', '    const toEntity = context.entities ? context.entities[toEntityName] : null;', '    ', '    if (fromEntity && toEntity) {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);', '      ', '      // Simulate message passing based on connection definition', '      if (connectionInstance.from && connectionInstance.to) {', '        const fromRole = connectionInstance.from.split(\'.\')[1]; // e.g., \'outCommand\' from \'Supervisory.outCommand\'', '        const toRole = connectionInstance.to.split(\'.\')[1]; // e.g., \'inCommand\' from \'Vehicle.inCommand\'', '        ', '        if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);', '        ', '        // Trigger event or callback if available', '        if (typeof toEntity.receiveMessage === \'function\') {', '          toEntity.receiveMessage(fromEntityName, fromRole, context);', '        }', '        if (typeof context.onConnectionExecuted === \'function\') {', '          context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);', '        }', '      }', '    } else {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection Notify: entities not found in context:\', fromEntityName, toEntityName);', '    }', '  } else {', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection class Notify not found in environment\');', '  }', '} else {', '  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Environment or connections not available in context\');', '}'] },
-          ],
+          tasks: {
+            AGV2NotifLoad: (context) => {
+              agv2.outNotification.notification = "loaded";
+              // Connection invocation: Notify(agv2, supervisor)
+              // Execute connection between entities
+              if (context.environment && context.environment.connections) {
+                const ConnectionClass = context.environment.connections.find(c => c.name === 'Notify');
+                if (ConnectionClass) {
+                  const connectionInstance = new ConnectionClass();
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🔗 Executing connection Notify:', ['agv2', 'supervisor']);
+                  // Execute message passing between entities
+                  const fromEntityName = 'agv2';
+                  const toEntityName = 'supervisor';
+                  const fromEntity = context.entities ? context.entities[fromEntityName] : null;
+                  const toEntity = context.entities ? context.entities[toEntityName] : null;
+                  
+                  if (fromEntity && toEntity) {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);
+                    
+                    // Simulate message passing based on connection definition
+                    if (connectionInstance.from && connectionInstance.to) {
+                      const fromRole = connectionInstance.from.split('.')[1]; // e.g., 'outCommand' from 'Supervisory.outCommand'
+                      const toRole = connectionInstance.to.split('.')[1]; // e.g., 'inCommand' from 'Vehicle.inCommand'
+                      
+                      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);
+                      
+                      // Trigger event or callback if available
+                      if (typeof toEntity.receiveMessage === 'function') {
+                        toEntity.receiveMessage(fromEntityName, fromRole, context);
+                      }
+                      if (typeof context.onConnectionExecuted === 'function') {
+                        context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);
+                      }
+                    }
+                  } else {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection Notify: entities not found in context:', fromEntityName, toEntityName);
+                  }
+                } else {
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection class Notify not found in environment');
+                }
+              } else {
+                if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Environment or connections not available in context');
+              }
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing AGV2Events: AGV2atachPartX -> AGV2NotifLoad');
-            // Custom logic for AGV2atachPartX trigger
             const results = [];
-            results.push(this.executeTask('AGV2NotifLoad', context));
+            const currentRule = this.AGV2Events.rules.find(r => r.trigger === 'AGV2atachPartX');
+            results.push(currentRule.tasks.AGV2NotifLoad(context));
             return results;
           }
         },
         {
           trigger: 'AGV2locationStationD',
-          actions: [
-            { name: 'AGV2NotifPassD', body: ['agv2.outNotification.notification = "passed";', '// Connection invocation: Notify(agv2, supervisor)', '// Execute connection between entities', 'if (context.environment && context.environment.connections) {', '  const ConnectionClass = context.environment.connections.find(c => c.name === \'Notify\');', '  if (ConnectionClass) {', '    const connectionInstance = new ConnectionClass();', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(\'🔗 Executing connection Notify:\', [\'agv2\', \'supervisor\']);', '    // Execute message passing between entities', '    const fromEntityName = \'agv2\';', '    const toEntityName = \'supervisor\';', '    const fromEntity = context.entities ? context.entities[fromEntityName] : null;', '    const toEntity = context.entities ? context.entities[toEntityName] : null;', '    ', '    if (fromEntity && toEntity) {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);', '      ', '      // Simulate message passing based on connection definition', '      if (connectionInstance.from && connectionInstance.to) {', '        const fromRole = connectionInstance.from.split(\'.\')[1]; // e.g., \'outCommand\' from \'Supervisory.outCommand\'', '        const toRole = connectionInstance.to.split(\'.\')[1]; // e.g., \'inCommand\' from \'Vehicle.inCommand\'', '        ', '        if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);', '        ', '        // Trigger event or callback if available', '        if (typeof toEntity.receiveMessage === \'function\') {', '          toEntity.receiveMessage(fromEntityName, fromRole, context);', '        }', '        if (typeof context.onConnectionExecuted === \'function\') {', '          context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);', '        }', '      }', '    } else {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection Notify: entities not found in context:\', fromEntityName, toEntityName);', '    }', '  } else {', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection class Notify not found in environment\');', '  }', '} else {', '  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Environment or connections not available in context\');', '}'] },
-          ],
+          tasks: {
+            AGV2NotifPassD: (context) => {
+              agv2.outNotification.notification = "passed";
+              // Connection invocation: Notify(agv2, supervisor)
+              // Execute connection between entities
+              if (context.environment && context.environment.connections) {
+                const ConnectionClass = context.environment.connections.find(c => c.name === 'Notify');
+                if (ConnectionClass) {
+                  const connectionInstance = new ConnectionClass();
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🔗 Executing connection Notify:', ['agv2', 'supervisor']);
+                  // Execute message passing between entities
+                  const fromEntityName = 'agv2';
+                  const toEntityName = 'supervisor';
+                  const fromEntity = context.entities ? context.entities[fromEntityName] : null;
+                  const toEntity = context.entities ? context.entities[toEntityName] : null;
+                  
+                  if (fromEntity && toEntity) {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);
+                    
+                    // Simulate message passing based on connection definition
+                    if (connectionInstance.from && connectionInstance.to) {
+                      const fromRole = connectionInstance.from.split('.')[1]; // e.g., 'outCommand' from 'Supervisory.outCommand'
+                      const toRole = connectionInstance.to.split('.')[1]; // e.g., 'inCommand' from 'Vehicle.inCommand'
+                      
+                      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);
+                      
+                      // Trigger event or callback if available
+                      if (typeof toEntity.receiveMessage === 'function') {
+                        toEntity.receiveMessage(fromEntityName, fromRole, context);
+                      }
+                      if (typeof context.onConnectionExecuted === 'function') {
+                        context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);
+                      }
+                    }
+                  } else {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection Notify: entities not found in context:', fromEntityName, toEntityName);
+                  }
+                } else {
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection class Notify not found in environment');
+                }
+              } else {
+                if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Environment or connections not available in context');
+              }
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing AGV2Events: AGV2locationStationD -> AGV2NotifPassD');
-            // Custom logic for AGV2locationStationD trigger
             const results = [];
-            results.push(this.executeTask('AGV2NotifPassD', context));
+            const currentRule = this.AGV2Events.rules.find(r => r.trigger === 'AGV2locationStationD');
+            results.push(currentRule.tasks.AGV2NotifPassD(context));
             return results;
           }
         },
         {
           trigger: 'AGV2locationStationE',
-          actions: [
-            { name: 'AGV2NotifArriveE', body: ['agv2.outNotification.notification = "arrived";', '// Connection invocation: Notify(agv2, supervisor)', '// Execute connection between entities', 'if (context.environment && context.environment.connections) {', '  const ConnectionClass = context.environment.connections.find(c => c.name === \'Notify\');', '  if (ConnectionClass) {', '    const connectionInstance = new ConnectionClass();', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(\'🔗 Executing connection Notify:\', [\'agv2\', \'supervisor\']);', '    // Execute message passing between entities', '    const fromEntityName = \'agv2\';', '    const toEntityName = \'supervisor\';', '    const fromEntity = context.entities ? context.entities[fromEntityName] : null;', '    const toEntity = context.entities ? context.entities[toEntityName] : null;', '    ', '    if (fromEntity && toEntity) {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);', '      ', '      // Simulate message passing based on connection definition', '      if (connectionInstance.from && connectionInstance.to) {', '        const fromRole = connectionInstance.from.split(\'.\')[1]; // e.g., \'outCommand\' from \'Supervisory.outCommand\'', '        const toRole = connectionInstance.to.split(\'.\')[1]; // e.g., \'inCommand\' from \'Vehicle.inCommand\'', '        ', '        if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);', '        ', '        // Trigger event or callback if available', '        if (typeof toEntity.receiveMessage === \'function\') {', '          toEntity.receiveMessage(fromEntityName, fromRole, context);', '        }', '        if (typeof context.onConnectionExecuted === \'function\') {', '          context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);', '        }', '      }', '    } else {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection Notify: entities not found in context:\', fromEntityName, toEntityName);', '    }', '  } else {', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection class Notify not found in environment\');', '  }', '} else {', '  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Environment or connections not available in context\');', '}'] },
-          ],
+          tasks: {
+            AGV2NotifArriveE: (context) => {
+              agv2.outNotification.notification = "arrived";
+              // Connection invocation: Notify(agv2, supervisor)
+              // Execute connection between entities
+              if (context.environment && context.environment.connections) {
+                const ConnectionClass = context.environment.connections.find(c => c.name === 'Notify');
+                if (ConnectionClass) {
+                  const connectionInstance = new ConnectionClass();
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🔗 Executing connection Notify:', ['agv2', 'supervisor']);
+                  // Execute message passing between entities
+                  const fromEntityName = 'agv2';
+                  const toEntityName = 'supervisor';
+                  const fromEntity = context.entities ? context.entities[fromEntityName] : null;
+                  const toEntity = context.entities ? context.entities[toEntityName] : null;
+                  
+                  if (fromEntity && toEntity) {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);
+                    
+                    // Simulate message passing based on connection definition
+                    if (connectionInstance.from && connectionInstance.to) {
+                      const fromRole = connectionInstance.from.split('.')[1]; // e.g., 'outCommand' from 'Supervisory.outCommand'
+                      const toRole = connectionInstance.to.split('.')[1]; // e.g., 'inCommand' from 'Vehicle.inCommand'
+                      
+                      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);
+                      
+                      // Trigger event or callback if available
+                      if (typeof toEntity.receiveMessage === 'function') {
+                        toEntity.receiveMessage(fromEntityName, fromRole, context);
+                      }
+                      if (typeof context.onConnectionExecuted === 'function') {
+                        context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);
+                      }
+                    }
+                  } else {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection Notify: entities not found in context:', fromEntityName, toEntityName);
+                  }
+                } else {
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection class Notify not found in environment');
+                }
+              } else {
+                if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Environment or connections not available in context');
+              }
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing AGV2Events: AGV2locationStationE -> AGV2NotifArriveE');
-            // Custom logic for AGV2locationStationE trigger
             const results = [];
-            results.push(this.executeTask('AGV2NotifArriveE', context));
+            const currentRule = this.AGV2Events.rules.find(r => r.trigger === 'AGV2locationStationE');
+            results.push(currentRule.tasks.AGV2NotifArriveE(context));
             return results;
           }
         },
         {
           trigger: 'AGV2detachPartX',
-          actions: [
-            { name: 'AGV2NotifArriveAUnoaded', body: ['agv2.outNotification.notification = "unloaded";', '// Connection invocation: Notify(agv2, supervisor)', '// Execute connection between entities', 'if (context.environment && context.environment.connections) {', '  const ConnectionClass = context.environment.connections.find(c => c.name === \'Notify\');', '  if (ConnectionClass) {', '    const connectionInstance = new ConnectionClass();', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(\'🔗 Executing connection Notify:\', [\'agv2\', \'supervisor\']);', '    // Execute message passing between entities', '    const fromEntityName = \'agv2\';', '    const toEntityName = \'supervisor\';', '    const fromEntity = context.entities ? context.entities[fromEntityName] : null;', '    const toEntity = context.entities ? context.entities[toEntityName] : null;', '    ', '    if (fromEntity && toEntity) {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);', '      ', '      // Simulate message passing based on connection definition', '      if (connectionInstance.from && connectionInstance.to) {', '        const fromRole = connectionInstance.from.split(\'.\')[1]; // e.g., \'outCommand\' from \'Supervisory.outCommand\'', '        const toRole = connectionInstance.to.split(\'.\')[1]; // e.g., \'inCommand\' from \'Vehicle.inCommand\'', '        ', '        if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);', '        ', '        // Trigger event or callback if available', '        if (typeof toEntity.receiveMessage === \'function\') {', '          toEntity.receiveMessage(fromEntityName, fromRole, context);', '        }', '        if (typeof context.onConnectionExecuted === \'function\') {', '          context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);', '        }', '      }', '    } else {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection Notify: entities not found in context:\', fromEntityName, toEntityName);', '    }', '  } else {', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection class Notify not found in environment\');', '  }', '} else {', '  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Environment or connections not available in context\');', '}'] },
-          ],
+          tasks: {
+            AGV2NotifArriveAUnoaded: (context) => {
+              agv2.outNotification.notification = "unloaded";
+              // Connection invocation: Notify(agv2, supervisor)
+              // Execute connection between entities
+              if (context.environment && context.environment.connections) {
+                const ConnectionClass = context.environment.connections.find(c => c.name === 'Notify');
+                if (ConnectionClass) {
+                  const connectionInstance = new ConnectionClass();
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🔗 Executing connection Notify:', ['agv2', 'supervisor']);
+                  // Execute message passing between entities
+                  const fromEntityName = 'agv2';
+                  const toEntityName = 'supervisor';
+                  const fromEntity = context.entities ? context.entities[fromEntityName] : null;
+                  const toEntity = context.entities ? context.entities[toEntityName] : null;
+                  
+                  if (fromEntity && toEntity) {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);
+                    
+                    // Simulate message passing based on connection definition
+                    if (connectionInstance.from && connectionInstance.to) {
+                      const fromRole = connectionInstance.from.split('.')[1]; // e.g., 'outCommand' from 'Supervisory.outCommand'
+                      const toRole = connectionInstance.to.split('.')[1]; // e.g., 'inCommand' from 'Vehicle.inCommand'
+                      
+                      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);
+                      
+                      // Trigger event or callback if available
+                      if (typeof toEntity.receiveMessage === 'function') {
+                        toEntity.receiveMessage(fromEntityName, fromRole, context);
+                      }
+                      if (typeof context.onConnectionExecuted === 'function') {
+                        context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);
+                      }
+                    }
+                  } else {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection Notify: entities not found in context:', fromEntityName, toEntityName);
+                  }
+                } else {
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection class Notify not found in environment');
+                }
+              } else {
+                if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Environment or connections not available in context');
+              }
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing AGV2Events: AGV2detachPartX -> AGV2NotifArriveAUnoaded');
-            // Custom logic for AGV2detachPartX trigger
             const results = [];
-            results.push(this.executeTask('AGV2NotifArriveAUnoaded', context));
+            const currentRule = this.AGV2Events.rules.find(r => r.trigger === 'AGV2detachPartX');
+            results.push(currentRule.tasks.AGV2NotifArriveAUnoaded(context));
             return results;
           }
         },
         {
           trigger: 'AGV2atStationD',
-          actions: [
-            { name: 'AGV2DetectedStationD', body: ['agv2.sensor = \'stationD\';'] },
-          ],
+          tasks: {
+            AGV2DetectedStationD: (context) => {
+              agv2.sensor = 'stationD';
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing AGV2Events: AGV2atStationD -> AGV2DetectedStationD');
-            // Custom logic for AGV2atStationD trigger
             const results = [];
-            results.push(this.executeTask('AGV2DetectedStationD', context));
+            const currentRule = this.AGV2Events.rules.find(r => r.trigger === 'AGV2atStationD');
+            results.push(currentRule.tasks.AGV2DetectedStationD(context));
             return results;
           }
         },
@@ -546,14 +1417,17 @@ class MyEvents extends EventsDefinitions {
       rules: [
         {
           trigger: 'agv1.sensor',
-          actions: [
-            { name: 'AGV1locationStationA', body: ['agv1.location = \'stationA.signal\';'] },
-          ],
+          tasks: {
+            AGV1locationStationA: (context) => {
+              agv1.location = 'stationA.signal';
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing StationAEvents: agv1.sensor -> AGV1locationStationA');
-            // Custom logic for agv1.sensor trigger
             const results = [];
-            results.push(this.executeTask('AGV1locationStationA', context));
+            const currentRule = this.StationAEvents.rules.find(r => r.trigger === 'agv1.sensor');
+            results.push(currentRule.tasks.AGV1locationStationA(context));
             return results;
           }
         },
@@ -575,14 +1449,17 @@ class MyEvents extends EventsDefinitions {
       rules: [
         {
           trigger: 'agv1.sensor',
-          actions: [
-            { name: 'AGV1locationStationB', body: ['agv1.location = \'stationB.signal\';'] },
-          ],
+          tasks: {
+            AGV1locationStationB: (context) => {
+              agv1.location = 'stationB.signal';
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing StationBEvents: agv1.sensor -> AGV1locationStationB');
-            // Custom logic for agv1.sensor trigger
             const results = [];
-            results.push(this.executeTask('AGV1locationStationB', context));
+            const currentRule = this.StationBEvents.rules.find(r => r.trigger === 'agv1.sensor');
+            results.push(currentRule.tasks.AGV1locationStationB(context));
             return results;
           }
         },
@@ -604,27 +1481,33 @@ class MyEvents extends EventsDefinitions {
       rules: [
         {
           trigger: 'agv1.sensor',
-          actions: [
-            { name: 'AGV1locationStationC', body: ['agv1.location = \'stationC.signal\';'] },
-          ],
+          tasks: {
+            AGV1locationStationC: (context) => {
+              agv1.location = 'stationC.signal';
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing StationCEvents: agv1.sensor -> AGV1locationStationC');
-            // Custom logic for agv1.sensor trigger
             const results = [];
-            results.push(this.executeTask('AGV1locationStationC', context));
+            const currentRule = this.StationCEvents.rules.find(r => r.trigger === 'agv1.sensor');
+            results.push(currentRule.tasks.AGV1locationStationC(context));
             return results;
           }
         },
         {
           trigger: 'agv2.sensor',
-          actions: [
-            { name: 'AGV2locationStationC', body: ['agv2.location = \'stationC.signal\';'] },
-          ],
+          tasks: {
+            AGV2locationStationC: (context) => {
+              agv2.location = 'stationC.signal';
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing StationCEvents: agv2.sensor -> AGV2locationStationC');
-            // Custom logic for agv2.sensor trigger
             const results = [];
-            results.push(this.executeTask('AGV2locationStationC', context));
+            const currentRule = this.StationCEvents.rules.find(r => r.trigger === 'agv2.sensor');
+            results.push(currentRule.tasks.AGV2locationStationC(context));
             return results;
           }
         },
@@ -646,27 +1529,33 @@ class MyEvents extends EventsDefinitions {
       rules: [
         {
           trigger: 'agv2.sensor',
-          actions: [
-            { name: 'AGV2locationStationD', body: ['agv2.location = \'stationD.signal\';'] },
-          ],
+          tasks: {
+            AGV2locationStationD: (context) => {
+              agv2.location = 'stationD.signal';
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing StationDEvents: agv2.sensor -> AGV2locationStationD');
-            // Custom logic for agv2.sensor trigger
             const results = [];
-            results.push(this.executeTask('AGV2locationStationD', context));
+            const currentRule = this.StationDEvents.rules.find(r => r.trigger === 'agv2.sensor');
+            results.push(currentRule.tasks.AGV2locationStationD(context));
             return results;
           }
         },
         {
           trigger: 'SetAGV2SensorStationD',
-          actions: [
-            { name: 'UpdateAGV2SensorToD', body: ['agv2.sensor = \'stationD\';'] },
-          ],
+          tasks: {
+            UpdateAGV2SensorToD: (context) => {
+              agv2.sensor = 'stationD';
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing StationDEvents: SetAGV2SensorStationD -> UpdateAGV2SensorToD');
-            // Custom logic for SetAGV2SensorStationD trigger
             const results = [];
-            results.push(this.executeTask('UpdateAGV2SensorToD', context));
+            const currentRule = this.StationDEvents.rules.find(r => r.trigger === 'SetAGV2SensorStationD');
+            results.push(currentRule.tasks.UpdateAGV2SensorToD(context));
             return results;
           }
         },
@@ -688,14 +1577,17 @@ class MyEvents extends EventsDefinitions {
       rules: [
         {
           trigger: 'agv2.sensor',
-          actions: [
-            { name: 'agv2locationStationE', body: ['agv2.location = \'stationE.signal\';'] },
-          ],
+          tasks: {
+            agv2locationStationE: (context) => {
+              agv2.location = 'stationE.signal';
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing StationEEvents: agv2.sensor -> agv2locationStationE');
-            // Custom logic for agv2.sensor trigger
             const results = [];
-            results.push(this.executeTask('agv2locationStationE', context));
+            const currentRule = this.StationEEvents.rules.find(r => r.trigger === 'agv2.sensor');
+            results.push(currentRule.tasks.agv2locationStationE(context));
             return results;
           }
         },
@@ -717,53 +1609,221 @@ class MyEvents extends EventsDefinitions {
       rules: [
         {
           trigger: 'cmdAGV1loadA',
-          actions: [
-            { name: 'AGV1atachPartX', body: ['// Connection invocation: Atach(agv1, part)', '// Execute connection between entities', 'if (context.environment && context.environment.connections) {', '  const ConnectionClass = context.environment.connections.find(c => c.name === \'Atach\');', '  if (ConnectionClass) {', '    const connectionInstance = new ConnectionClass();', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(\'🔗 Executing connection Atach:\', [\'agv1\', \'part\']);', '    // Execute message passing between entities', '    const fromEntityName = \'agv1\';', '    const toEntityName = \'part\';', '    const fromEntity = context.entities ? context.entities[fromEntityName] : null;', '    const toEntity = context.entities ? context.entities[toEntityName] : null;', '    ', '    if (fromEntity && toEntity) {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);', '      ', '      // Simulate message passing based on connection definition', '      if (connectionInstance.from && connectionInstance.to) {', '        const fromRole = connectionInstance.from.split(\'.\')[1]; // e.g., \'outCommand\' from \'Supervisory.outCommand\'', '        const toRole = connectionInstance.to.split(\'.\')[1]; // e.g., \'inCommand\' from \'Vehicle.inCommand\'', '        ', '        if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);', '        ', '        // Trigger event or callback if available', '        if (typeof toEntity.receiveMessage === \'function\') {', '          toEntity.receiveMessage(fromEntityName, fromRole, context);', '        }', '        if (typeof context.onConnectionExecuted === \'function\') {', '          context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);', '        }', '      }', '    } else {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection Atach: entities not found in context:\', fromEntityName, toEntityName);', '    }', '  } else {', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection class Atach not found in environment\');', '  }', '} else {', '  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Environment or connections not available in context\');', '}'] },
-          ],
+          tasks: {
+            AGV1atachPartX: (context) => {
+              // Connection invocation: Atach(agv1, part)
+              // Execute connection between entities
+              if (context.environment && context.environment.connections) {
+                const ConnectionClass = context.environment.connections.find(c => c.name === 'Atach');
+                if (ConnectionClass) {
+                  const connectionInstance = new ConnectionClass();
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🔗 Executing connection Atach:', ['agv1', 'part']);
+                  // Execute message passing between entities
+                  const fromEntityName = 'agv1';
+                  const toEntityName = 'part';
+                  const fromEntity = context.entities ? context.entities[fromEntityName] : null;
+                  const toEntity = context.entities ? context.entities[toEntityName] : null;
+                  
+                  if (fromEntity && toEntity) {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);
+                    
+                    // Simulate message passing based on connection definition
+                    if (connectionInstance.from && connectionInstance.to) {
+                      const fromRole = connectionInstance.from.split('.')[1]; // e.g., 'outCommand' from 'Supervisory.outCommand'
+                      const toRole = connectionInstance.to.split('.')[1]; // e.g., 'inCommand' from 'Vehicle.inCommand'
+                      
+                      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);
+                      
+                      // Trigger event or callback if available
+                      if (typeof toEntity.receiveMessage === 'function') {
+                        toEntity.receiveMessage(fromEntityName, fromRole, context);
+                      }
+                      if (typeof context.onConnectionExecuted === 'function') {
+                        context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);
+                      }
+                    }
+                  } else {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection Atach: entities not found in context:', fromEntityName, toEntityName);
+                  }
+                } else {
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection class Atach not found in environment');
+                }
+              } else {
+                if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Environment or connections not available in context');
+              }
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing PartXEvents: cmdAGV1loadA -> AGV1atachPartX');
-            // Custom logic for cmdAGV1loadA trigger
             const results = [];
-            results.push(this.executeTask('AGV1atachPartX', context));
+            const currentRule = this.PartXEvents.rules.find(r => r.trigger === 'cmdAGV1loadA');
+            results.push(currentRule.tasks.AGV1atachPartX(context));
             return results;
           }
         },
         {
           trigger: 'cmdAGV1UnloadA',
-          actions: [
-            { name: 'AGV1detachPartX', body: ['// Connection invocation: Detach(agv1, part)', '// Execute connection between entities', 'if (context.environment && context.environment.connections) {', '  const ConnectionClass = context.environment.connections.find(c => c.name === \'Detach\');', '  if (ConnectionClass) {', '    const connectionInstance = new ConnectionClass();', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(\'🔗 Executing connection Detach:\', [\'agv1\', \'part\']);', '    // Execute message passing between entities', '    const fromEntityName = \'agv1\';', '    const toEntityName = \'part\';', '    const fromEntity = context.entities ? context.entities[fromEntityName] : null;', '    const toEntity = context.entities ? context.entities[toEntityName] : null;', '    ', '    if (fromEntity && toEntity) {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);', '      ', '      // Simulate message passing based on connection definition', '      if (connectionInstance.from && connectionInstance.to) {', '        const fromRole = connectionInstance.from.split(\'.\')[1]; // e.g., \'outCommand\' from \'Supervisory.outCommand\'', '        const toRole = connectionInstance.to.split(\'.\')[1]; // e.g., \'inCommand\' from \'Vehicle.inCommand\'', '        ', '        if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);', '        ', '        // Trigger event or callback if available', '        if (typeof toEntity.receiveMessage === \'function\') {', '          toEntity.receiveMessage(fromEntityName, fromRole, context);', '        }', '        if (typeof context.onConnectionExecuted === \'function\') {', '          context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);', '        }', '      }', '    } else {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection Detach: entities not found in context:\', fromEntityName, toEntityName);', '    }', '  } else {', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection class Detach not found in environment\');', '  }', '} else {', '  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Environment or connections not available in context\');', '}'] },
-          ],
+          tasks: {
+            AGV1detachPartX: (context) => {
+              // Connection invocation: Detach(agv1, part)
+              // Execute connection between entities
+              if (context.environment && context.environment.connections) {
+                const ConnectionClass = context.environment.connections.find(c => c.name === 'Detach');
+                if (ConnectionClass) {
+                  const connectionInstance = new ConnectionClass();
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🔗 Executing connection Detach:', ['agv1', 'part']);
+                  // Execute message passing between entities
+                  const fromEntityName = 'agv1';
+                  const toEntityName = 'part';
+                  const fromEntity = context.entities ? context.entities[fromEntityName] : null;
+                  const toEntity = context.entities ? context.entities[toEntityName] : null;
+                  
+                  if (fromEntity && toEntity) {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);
+                    
+                    // Simulate message passing based on connection definition
+                    if (connectionInstance.from && connectionInstance.to) {
+                      const fromRole = connectionInstance.from.split('.')[1]; // e.g., 'outCommand' from 'Supervisory.outCommand'
+                      const toRole = connectionInstance.to.split('.')[1]; // e.g., 'inCommand' from 'Vehicle.inCommand'
+                      
+                      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);
+                      
+                      // Trigger event or callback if available
+                      if (typeof toEntity.receiveMessage === 'function') {
+                        toEntity.receiveMessage(fromEntityName, fromRole, context);
+                      }
+                      if (typeof context.onConnectionExecuted === 'function') {
+                        context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);
+                      }
+                    }
+                  } else {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection Detach: entities not found in context:', fromEntityName, toEntityName);
+                  }
+                } else {
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection class Detach not found in environment');
+                }
+              } else {
+                if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Environment or connections not available in context');
+              }
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing PartXEvents: cmdAGV1UnloadA -> AGV1detachPartX');
-            // Custom logic for cmdAGV1UnloadA trigger
             const results = [];
-            results.push(this.executeTask('AGV1detachPartX', context));
+            const currentRule = this.PartXEvents.rules.find(r => r.trigger === 'cmdAGV1UnloadA');
+            results.push(currentRule.tasks.AGV1detachPartX(context));
             return results;
           }
         },
         {
           trigger: 'cmdAGV2loadC',
-          actions: [
-            { name: 'AGV2atachPartX', body: ['// Connection invocation: Atach(agv2, part)', '// Execute connection between entities', 'if (context.environment && context.environment.connections) {', '  const ConnectionClass = context.environment.connections.find(c => c.name === \'Atach\');', '  if (ConnectionClass) {', '    const connectionInstance = new ConnectionClass();', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(\'🔗 Executing connection Atach:\', [\'agv2\', \'part\']);', '    // Execute message passing between entities', '    const fromEntityName = \'agv2\';', '    const toEntityName = \'part\';', '    const fromEntity = context.entities ? context.entities[fromEntityName] : null;', '    const toEntity = context.entities ? context.entities[toEntityName] : null;', '    ', '    if (fromEntity && toEntity) {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);', '      ', '      // Simulate message passing based on connection definition', '      if (connectionInstance.from && connectionInstance.to) {', '        const fromRole = connectionInstance.from.split(\'.\')[1]; // e.g., \'outCommand\' from \'Supervisory.outCommand\'', '        const toRole = connectionInstance.to.split(\'.\')[1]; // e.g., \'inCommand\' from \'Vehicle.inCommand\'', '        ', '        if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);', '        ', '        // Trigger event or callback if available', '        if (typeof toEntity.receiveMessage === \'function\') {', '          toEntity.receiveMessage(fromEntityName, fromRole, context);', '        }', '        if (typeof context.onConnectionExecuted === \'function\') {', '          context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);', '        }', '      }', '    } else {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection Atach: entities not found in context:\', fromEntityName, toEntityName);', '    }', '  } else {', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection class Atach not found in environment\');', '  }', '} else {', '  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Environment or connections not available in context\');', '}'] },
-          ],
+          tasks: {
+            AGV2atachPartX: (context) => {
+              // Connection invocation: Atach(agv2, part)
+              // Execute connection between entities
+              if (context.environment && context.environment.connections) {
+                const ConnectionClass = context.environment.connections.find(c => c.name === 'Atach');
+                if (ConnectionClass) {
+                  const connectionInstance = new ConnectionClass();
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🔗 Executing connection Atach:', ['agv2', 'part']);
+                  // Execute message passing between entities
+                  const fromEntityName = 'agv2';
+                  const toEntityName = 'part';
+                  const fromEntity = context.entities ? context.entities[fromEntityName] : null;
+                  const toEntity = context.entities ? context.entities[toEntityName] : null;
+                  
+                  if (fromEntity && toEntity) {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);
+                    
+                    // Simulate message passing based on connection definition
+                    if (connectionInstance.from && connectionInstance.to) {
+                      const fromRole = connectionInstance.from.split('.')[1]; // e.g., 'outCommand' from 'Supervisory.outCommand'
+                      const toRole = connectionInstance.to.split('.')[1]; // e.g., 'inCommand' from 'Vehicle.inCommand'
+                      
+                      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);
+                      
+                      // Trigger event or callback if available
+                      if (typeof toEntity.receiveMessage === 'function') {
+                        toEntity.receiveMessage(fromEntityName, fromRole, context);
+                      }
+                      if (typeof context.onConnectionExecuted === 'function') {
+                        context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);
+                      }
+                    }
+                  } else {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection Atach: entities not found in context:', fromEntityName, toEntityName);
+                  }
+                } else {
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection class Atach not found in environment');
+                }
+              } else {
+                if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Environment or connections not available in context');
+              }
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing PartXEvents: cmdAGV2loadC -> AGV2atachPartX');
-            // Custom logic for cmdAGV2loadC trigger
             const results = [];
-            results.push(this.executeTask('AGV2atachPartX', context));
+            const currentRule = this.PartXEvents.rules.find(r => r.trigger === 'cmdAGV2loadC');
+            results.push(currentRule.tasks.AGV2atachPartX(context));
             return results;
           }
         },
         {
           trigger: 'cmdAGV2UnloadE',
-          actions: [
-            { name: 'AGV2detachPartX', body: ['// Connection invocation: Detach(agv2, part)', '// Execute connection between entities', 'if (context.environment && context.environment.connections) {', '  const ConnectionClass = context.environment.connections.find(c => c.name === \'Detach\');', '  if (ConnectionClass) {', '    const connectionInstance = new ConnectionClass();', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(\'🔗 Executing connection Detach:\', [\'agv2\', \'part\']);', '    // Execute message passing between entities', '    const fromEntityName = \'agv2\';', '    const toEntityName = \'part\';', '    const fromEntity = context.entities ? context.entities[fromEntityName] : null;', '    const toEntity = context.entities ? context.entities[toEntityName] : null;', '    ', '    if (fromEntity && toEntity) {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);', '      ', '      // Simulate message passing based on connection definition', '      if (connectionInstance.from && connectionInstance.to) {', '        const fromRole = connectionInstance.from.split(\'.\')[1]; // e.g., \'outCommand\' from \'Supervisory.outCommand\'', '        const toRole = connectionInstance.to.split(\'.\')[1]; // e.g., \'inCommand\' from \'Vehicle.inCommand\'', '        ', '        if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);', '        ', '        // Trigger event or callback if available', '        if (typeof toEntity.receiveMessage === \'function\') {', '          toEntity.receiveMessage(fromEntityName, fromRole, context);', '        }', '        if (typeof context.onConnectionExecuted === \'function\') {', '          context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);', '        }', '      }', '    } else {', '      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection Detach: entities not found in context:\', fromEntityName, toEntityName);', '    }', '  } else {', '    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Connection class Detach not found in environment\');', '  }', '} else {', '  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\'⚠️ Environment or connections not available in context\');', '}'] },
-          ],
+          tasks: {
+            AGV2detachPartX: (context) => {
+              // Connection invocation: Detach(agv2, part)
+              // Execute connection between entities
+              if (context.environment && context.environment.connections) {
+                const ConnectionClass = context.environment.connections.find(c => c.name === 'Detach');
+                if (ConnectionClass) {
+                  const connectionInstance = new ConnectionClass();
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('🔗 Executing connection Detach:', ['agv2', 'part']);
+                  // Execute message passing between entities
+                  const fromEntityName = 'agv2';
+                  const toEntityName = 'part';
+                  const fromEntity = context.entities ? context.entities[fromEntityName] : null;
+                  const toEntity = context.entities ? context.entities[toEntityName] : null;
+                  
+                  if (fromEntity && toEntity) {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity.name || fromEntityName} to ${toEntity.name || toEntityName}`);
+                    
+                    // Simulate message passing based on connection definition
+                    if (connectionInstance.from && connectionInstance.to) {
+                      const fromRole = connectionInstance.from.split('.')[1]; // e.g., 'outCommand' from 'Supervisory.outCommand'
+                      const toRole = connectionInstance.to.split('.')[1]; // e.g., 'inCommand' from 'Vehicle.inCommand'
+                      
+                      if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log(`📨 Message flow: ${fromEntityName}.${fromRole} -> ${toEntityName}.${toRole}`);
+                      
+                      // Trigger event or callback if available
+                      if (typeof toEntity.receiveMessage === 'function') {
+                        toEntity.receiveMessage(fromEntityName, fromRole, context);
+                      }
+                      if (typeof context.onConnectionExecuted === 'function') {
+                        context.onConnectionExecuted(connectionInstance, fromEntityName, toEntityName, context);
+                      }
+                    }
+                  } else {
+                    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection Detach: entities not found in context:', fromEntityName, toEntityName);
+                  }
+                } else {
+                  if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Connection class Detach not found in environment');
+                }
+              } else {
+                if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn('⚠️ Environment or connections not available in context');
+              }
+              return true;
+            },
+          },
           execute: (context) => {
             if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing PartXEvents: cmdAGV2UnloadE -> AGV2detachPartX');
-            // Custom logic for cmdAGV2UnloadE trigger
             const results = [];
-            results.push(this.executeTask('AGV2detachPartX', context));
+            const currentRule = this.PartXEvents.rules.find(r => r.trigger === 'cmdAGV2UnloadE');
+            results.push(currentRule.tasks.AGV2detachPartX(context));
             return results;
           }
         },

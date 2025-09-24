@@ -4422,8 +4422,114 @@ class ExpressionEvaluator {
   }
 }
 
+// Generic SysADL Runtime Helpers
+class SysADLRuntimeHelpers {
+  constructor(context) {
+    this.context = context;
+  }
+
+  /**
+   * Generic entity property setter with nested support
+   * @param {string} entityName - Name of the entity
+   * @param {string} propertyPath - Property path (e.g., 'outCommand.destination')
+   * @param {any} value - Value to set
+   */
+  setEntityProperty(entityName, propertyPath, value) {
+    if (!this.context.entities?.[entityName]) {
+      if (this.context.sysadlBase?.logger) {
+        this.context.sysadlBase.logger.warn(`⚠️ Entity ${entityName} not found`);
+      }
+      return false;
+    }
+
+    const entity = this.context.entities[entityName];
+    const pathParts = propertyPath.split('.');
+    let obj = entity;
+
+    // Navigate to nested property, creating objects as needed
+    for (let i = 0; i < pathParts.length - 1; i++) {
+      if (!obj[pathParts[i]] || typeof obj[pathParts[i]] !== 'object') {
+        obj[pathParts[i]] = {};
+      }
+      obj = obj[pathParts[i]];
+    }
+
+    // Set final property
+    const finalProp = pathParts[pathParts.length - 1];
+    obj[finalProp] = value;
+
+    // Use Entity's setNestedProperty if available
+    if (typeof entity.setNestedProperty === 'function') {
+      entity.setNestedProperty(propertyPath, value);
+    }
+
+    return true;
+  }
+
+  /**
+   * Generic connection executor
+   * @param {string} connectionType - Type of connection (e.g., 'Command', 'Notify')
+   * @param {string} fromEntity - Source entity name
+   * @param {string} toEntity - Target entity name
+   */
+  executeConnection(connectionType, fromEntity, toEntity) {
+    if (!this.context.environment?.connections) {
+      if (this.context.sysadlBase?.logger) {
+        this.context.sysadlBase.logger.warn('⚠️ Environment or connections not available');
+      }
+      return false;
+    }
+
+    const ConnectionClass = this.context.environment.connections.find(c => c.name === connectionType);
+    if (!ConnectionClass) {
+      if (this.context.sysadlBase?.logger) {
+        this.context.sysadlBase.logger.warn(`⚠️ Connection class ${connectionType} not found`);
+      }
+      return false;
+    }
+
+    const connectionInstance = new ConnectionClass();
+    const fromEntityInstance = this.context.entities?.[fromEntity];
+    const toEntityInstance = this.context.entities?.[toEntity];
+
+    if (!fromEntityInstance || !toEntityInstance) {
+      if (this.context.sysadlBase?.logger) {
+        this.context.sysadlBase.logger.warn(`⚠️ Connection ${connectionType}: entities not found:`, fromEntity, toEntity);
+      }
+      return false;
+    }
+
+    if (this.context.sysadlBase?.logger) {
+      this.context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity} to ${toEntity}`);
+    }
+
+    // Execute message passing
+    if (connectionInstance.from && connectionInstance.to) {
+      const fromRole = connectionInstance.from.split('.')[1];
+      const toRole = connectionInstance.to.split('.')[1];
+
+      if (this.context.sysadlBase?.logger) {
+        this.context.sysadlBase.logger.log(`📨 Message flow: ${fromEntity}.${fromRole} -> ${toEntity}.${toRole}`);
+      }
+
+      if (typeof toEntityInstance.receiveMessage === 'function') {
+        toEntityInstance.receiveMessage(fromEntity, fromRole, this.context);
+      }
+
+      if (typeof this.context.onConnectionExecuted === 'function') {
+        this.context.onConnectionExecuted(connectionInstance, fromEntity, toEntity, this.context);
+      }
+    }
+
+    return true;
+  }
+}
+
 // Export ExpressionEvaluator
 module.exports.ExpressionEvaluator = ExpressionEvaluator;
+
+// Export SysADL Runtime Helpers
+module.exports.SysADLRuntimeHelpers = SysADLRuntimeHelpers;
 
 // Export Phase 4 Components
 module.exports.ExecutionLogger = ExecutionLogger;
