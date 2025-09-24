@@ -1,0 +1,62 @@
+Model SysADLArchitecture;
+package SysADL.types {
+	value type Int {
+	}
+	value type Boolean {
+	}
+	value type String {
+	}
+	value type Void {
+	}
+	value type Real {
+	}
+	enum NotificationToSupervisory {
+		departed, arrived, passed, traveling
+	}
+	enum NotificationFromArm {
+		loaded, unloaded
+	}
+	enum CommandToArm {
+		load, unload, idle
+	}
+	enum NotificationFromMotor {
+		started, stopped
+	}
+	enum CommandToMotor {
+		start, stop
+	}
+	datatype Status {
+		attributes: location : Location;
+		destination : Location;
+		command : CommandToArm;
+	}
+	datatype Location{
+		attributes: location : String;
+	}
+	datatype VehicleData{
+		attributes: destination : Location;
+		command : CommandToArm;
+	}
+}
+
+// Simplified components for testing
+package ComponentsAGV {
+	import SysADL.types;
+	
+	component def AGVSystem {
+		// Simple component definition for testing
+	}
+	
+	component def SupervisorySystem {
+		// Simple component definition for testing
+	}
+}
+
+// Architecture definition
+architecture def FactoryAutomationArchitecture {
+	using SysADL.types;
+	using ComponentsAGV;
+	
+	// This architecture will trigger the use of generateEnvironmentModule
+	// due to the "completo" filename pattern
+}

@@ -3136,6 +3136,27 @@ class Event extends Element {
   }
 }
 
+// Generic event classes for standard SysADL events
+class events extends Event {
+  constructor(name = 'events', opts = {}) {
+    super(name, {
+      ...opts,
+      eventType: 'simple',
+      parameters: []
+    });
+  }
+}
+
+class eventClasses extends Event {
+  constructor(name = 'eventClasses', opts = {}) {
+    super(name, {
+      ...opts,
+      eventType: 'simple',
+      parameters: []
+    });
+  }
+}
+
 // Scene class - represents scenes containing entities and their states
 class Scene extends Element {
   constructor(name, opts = {}) {
@@ -4240,6 +4261,8 @@ module.exports = {
   // Environment and Scenario classes
   Entity,
   Event,
+  events,
+  eventClasses,
   Scene,
   Scenario,
   EnvironmentDefinition,

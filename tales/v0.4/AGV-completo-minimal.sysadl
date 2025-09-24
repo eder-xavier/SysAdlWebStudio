@@ -1,0 +1,64 @@
+Model SysADLArchitecture;
+package SysADL.types {
+	value type Int {
+	}
+	value type Boolean {
+	}
+	value type String {
+	}
+	value type Void {
+	}
+	value type Real {
+	}
+	enum NotificationToSupervisory {
+		departed, arrived, passed, traveling
+	}
+	enum NotificationFromArm {
+		loaded, unloaded
+	}
+	enum CommandToArm {
+		load, unload, idle
+	}
+	enum NotificationFromMotor {
+		started, stopped
+	}
+	enum CommandToMotor {
+		start, stop
+	}
+	datatype Status {
+		attributes: location : Location;
+		destination : Location;
+		command : CommandToArm;
+	}
+	datatype Location{
+		attributes: location : String;
+	}
+	datatype VehicleData{
+		attributes: destination : Location;
+		command : CommandToArm;
+	}
+}
+
+EnvironmentDefinition MyFactory to SysADL.types {
+	// Environment definition
+}
+
+EnvironmentConfiguration MyFactoryConfiguration to MyFactory {
+	// Configuration details
+}
+
+EventsDefinitions MyEvents {
+	// Event definitions
+}
+
+SceneDefinitions MyScenes to MyEvents {
+	// Scene definitions
+}
+
+ScenarioDefinitions MyScenarios to MyScenes {
+	// Scenario definitions
+}
+
+ScenarioExecution to MyScenarios {
+	// Scenario execution
+}

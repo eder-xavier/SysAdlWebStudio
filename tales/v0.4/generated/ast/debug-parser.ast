@@ -1,0 +1,68 @@
+{
+  "type": "Model",
+  "name": "TestModel",
+  "involvedElements": [],
+  "members": [
+    {
+      "type": "EnvironmentDefinition",
+      "name": "TestEnv",
+      "entities": [],
+      "connections": [],
+      "location": {
+        "source": {
+          "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/debug-parser.sysadl",
+          "text": "Model TestModel;\n\nEnvironmentDefinition TestEnv {\n}\n\nScenarioDefinitions TestScenarios to TestEnv {\n}"
+        },
+        "start": {
+          "offset": 18,
+          "line": 3,
+          "column": 1
+        },
+        "end": {
+          "offset": 51,
+          "line": 4,
+          "column": 2
+        }
+      }
+    },
+    {
+      "type": "ScenarioDefinitions",
+      "name": "TestScenarios",
+      "scenes": "TestEnv",
+      "scenarios": [],
+      "location": {
+        "source": {
+          "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/debug-parser.sysadl",
+          "text": "Model TestModel;\n\nEnvironmentDefinition TestEnv {\n}\n\nScenarioDefinitions TestScenarios to TestEnv {\n}"
+        },
+        "start": {
+          "offset": 53,
+          "line": 6,
+          "column": 1
+        },
+        "end": {
+          "offset": 101,
+          "line": 7,
+          "column": 2
+        }
+      }
+    }
+  ],
+  "allocation": null,
+  "location": {
+    "source": {
+      "source": "/Users/tales/desenv/SysAdlWebStudio/tales/v0.4/debug-parser.sysadl",
+      "text": "Model TestModel;\n\nEnvironmentDefinition TestEnv {\n}\n\nScenarioDefinitions TestScenarios to TestEnv {\n}"
+    },
+    "start": {
+      "offset": 0,
+      "line": 1,
+      "column": 1
+    },
+    "end": {
+      "offset": 101,
+      "line": 7,
+      "column": 2
+    }
+  }
+}

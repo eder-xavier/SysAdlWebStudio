@@ -3235,7 +3235,30 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
     lines.push('');
   }
   
-  // Generate EventsDefinitions classes
+  // 5. Generate Event classes (individual events before EventsDefinitions)
+  for (const { element } of eventDefinitions) {
+    const { events, eventClasses } = extractEvents(element);
+    for (const eventClass of eventClasses) {
+      const eventClassName = sanitizeId(eventClass.name);
+      lines.push(`// Event: ${eventClass.name}`);
+      lines.push(`class ${eventClassName} extends Event {`);
+      lines.push(`  constructor(name = '${eventClass.name}', opts = {}) {`);
+      lines.push(`    super(name, {`);
+      lines.push(`      ...opts,`);
+      lines.push(`      eventType: '${eventClass.type || 'simple'}',`);
+      lines.push(`      target: '${eventClass.target}',`);
+      lines.push(`      parameters: ${JSON.stringify(eventClass.parameters || [])}`);
+      lines.push(`    });`);
+      lines.push(`    `);
+      lines.push(`    // Store rules for execution`);
+      lines.push(`    this.rules = ${JSON.stringify(eventClass.rules || [])};`);
+      lines.push(`  }`);
+      lines.push(`}`);
+      lines.push('');
+    }
+  }
+
+  // 6. Generate EventsDefinitions classes
   for (const { element, className } of eventDefinitions) {
     const eventsName = element.name || element.id || 'UnnamedEvents';
     const targetName = element.config || element.target || element.to || 'UnnamedConfiguration';
@@ -3339,8 +3362,34 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
     lines.push(`}`);
     lines.push('');
   }
-  
-  // Generate SceneDefinitions classes
+
+  // 7. Generate Scene classes (individual scenes before SceneDefinitions)
+  for (const { element } of sceneDefinitions) {
+    const scenes = extractScenesEnhanced(element);
+    for (const [sceneName, sceneDef] of Object.entries(scenes)) {
+      const sceneClassName = sanitizeId(sceneName);
+      lines.push(`// Scene: ${sceneName}`);
+      lines.push(`class ${sceneClassName} extends Scene {`);
+      lines.push(`  constructor(name = '${sceneName}', opts = {}) {`);
+      lines.push(`    super(name, {`);
+      lines.push(`      ...opts,`);
+      lines.push(`      sceneType: 'scene',`);
+      lines.push(`      startEvent: '${sceneDef.startEvent || ''}',`);
+      lines.push(`      finishEvent: '${sceneDef.finishEvent || ''}',`);
+      lines.push(`      entities: [],`);
+      lines.push(`      initialStates: ${JSON.stringify(sceneDef.initialStates || {})}`);
+      lines.push(`    });`);
+      lines.push(`    `);
+      lines.push(`    // Store pre and post conditions for validation`);
+      lines.push(`    this.preConditions = ${JSON.stringify(sceneDef.preConditions || [])};`);
+      lines.push(`    this.postConditions = ${JSON.stringify(sceneDef.postConditions || [])};`);
+      lines.push(`  }`);
+      lines.push(`}`);
+      lines.push('');
+    }
+  }
+
+  // 8. Generate SceneDefinitions classes
   for (const { element, className } of sceneDefinitions) {
     const scenesName = element.name || element.id || 'UnnamedScenes';
     const targetName = element.events || element.target || element.to || 'UnnamedEvents';
@@ -3356,8 +3405,32 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
     lines.push(`}`);
     lines.push('');
   }
-  
-  // Generate ScenarioDefinitions classes
+
+  // 9. Generate Scenario classes (individual scenarios before ScenarioDefinitions)
+  for (const { element } of scenarioDefinitions) {
+    const scenarios = extractScenariosEnhanced(element);
+    for (const [scenarioName, scenarioDef] of Object.entries(scenarios)) {
+      const scenarioClassName = sanitizeId(scenarioName);
+      lines.push(`// Scenario: ${scenarioName}`);
+      lines.push(`class ${scenarioClassName} extends Scenario {`);
+      lines.push(`  constructor(name = '${scenarioName}', opts = {}) {`);
+      lines.push(`    super(name, {`);
+      lines.push(`      ...opts,`);
+      lines.push(`      scenarioType: 'scenario',`);
+      lines.push(`      scenes: ${JSON.stringify(scenarioDef.scenes || [])},`);
+      lines.push(`      preConditions: ${JSON.stringify(scenarioDef.preConditions || [])},`);
+      lines.push(`      postConditions: ${JSON.stringify(scenarioDef.postConditions || [])}`);
+      lines.push(`    });`);
+      lines.push(`    `);
+      lines.push(`    // Store programming structures for execution`);
+      lines.push(`    this.programmingStructures = ${JSON.stringify(scenarioDef.programmingStructures || [])};`);
+      lines.push(`  }`);
+      lines.push(`}`);
+      lines.push('');
+    }
+  }
+
+  // 10. Generate ScenarioDefinitions classes
   for (const { element, className } of scenarioDefinitions) {
     const scenariosName = element.name || element.id || 'UnnamedScenarios';
     const targetName = element.scenes || element.target || element.to || 'UnnamedScenes';
@@ -3373,10 +3446,8 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
     lines.push(`}`);
     lines.push('');
   }
-  
-  // Generate factory function to create integrated model
-  
-  // Generate Event classes
+
+  // 11. Generate ScenarioExecution classes with enhanced functionality
   for (const { element } of eventDefinitions) {
     const events = extractEvents(element);
     for (const [eventName, eventDef] of Object.entries(events)) {

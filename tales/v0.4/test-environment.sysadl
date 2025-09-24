@@ -1,0 +1,8 @@
+Model TestEnvironmentModel;
+package TestEnvironment {
+  
+  environment def TestEnv {
+    // Environment definition would go here
+  }
+  
+}
