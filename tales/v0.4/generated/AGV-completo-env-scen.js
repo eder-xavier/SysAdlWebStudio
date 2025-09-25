@@ -1332,8 +1332,7 @@ class Scenario1 extends Scenario {
   constructor(name = 'Scenario1', opts = {}) {
     super(name, {
       ...opts,
-      scenarioType: 'scenario',
-      scenes: ["SCN_MoveAGV1toA","SCN_MoveAGV2toC","SCN_AGV1movePartToC","SCN_AGV2movePartToE"]
+      scenarioType: 'scenario'
     });
   }
 
@@ -1355,8 +1354,7 @@ class Scenario2 extends Scenario {
   constructor(name = 'Scenario2', opts = {}) {
     super(name, {
       ...opts,
-      scenarioType: 'scenario',
-      scenes: ["SCN_MoveAGV1toA","SCN_MoveAGV2toC","SCN_AGV2movePartToE","SCN_AGV1movePartToC"]
+      scenarioType: 'scenario'
     });
   }
 
@@ -1378,8 +1376,7 @@ class Scenario3 extends Scenario {
   constructor(name = 'Scenario3', opts = {}) {
     super(name, {
       ...opts,
-      scenarioType: 'scenario',
-      scenes: []
+      scenarioType: 'scenario'
     });
   }
 
@@ -1403,8 +1400,7 @@ class Scenario4 extends Scenario {
   constructor(name = 'Scenario4', opts = {}) {
     super(name, {
       ...opts,
-      scenarioType: 'scenario',
-      scenes: []
+      scenarioType: 'scenario'
     });
   }
 
@@ -1435,11 +1431,6 @@ class MyScenarios extends ScenarioDefinitions {
     this.addScenario('Scenario2', Scenario2);
     this.addScenario('Scenario3', Scenario3);
     this.addScenario('Scenario4', Scenario4);
-  }
-
-  getScenario(name) {
-    const ScenarioClass = super.getScenario(name);
-    return ScenarioClass ? new ScenarioClass() : null;
   }
 }
 

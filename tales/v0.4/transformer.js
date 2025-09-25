@@ -3404,8 +3404,7 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
       lines.push(`  constructor(name = '${scenarioName}', opts = {}) {`);
       lines.push(`    super(name, {`);
       lines.push(`      ...opts,`);
-      lines.push(`      scenarioType: 'scenario',`);
-      lines.push(`      scenes: ${JSON.stringify(scenarioDef.scenes || [])}`);
+      lines.push(`      scenarioType: 'scenario'`);
       lines.push(`    });`);
       lines.push(`  }`);
       lines.push(``);
@@ -3440,13 +3439,6 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
       lines.push(`    this.addScenario('${scenarioName}', ${scenarioClassName});`);
     }
     
-    lines.push(`  }`);
-    lines.push(``);
-    
-    // Add getScenario method with dynamic instantiation
-    lines.push(`  getScenario(name) {`);
-    lines.push(`    const ScenarioClass = super.getScenario(name);`);
-    lines.push(`    return ScenarioClass ? new ScenarioClass() : null;`);
     lines.push(`  }`);
     lines.push(`}`);
     lines.push('');
