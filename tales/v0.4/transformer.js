@@ -3334,12 +3334,12 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
     lines.push('');
   }
 
-  // 7. Generate Scene classes (individual scenes before SceneDefinitions)
+  // 7. Generate Enhanced Scene classes with JavaScript-native conditions
   for (const { element } of sceneDefinitions) {
     const scenes = extractScenesEnhanced(element);
     for (const [sceneName, sceneDef] of Object.entries(scenes)) {
       const sceneClassName = sanitizeId(sceneName);
-      lines.push(`// Scene: ${sceneName}`);
+      lines.push(`// Enhanced Scene: ${sceneName}`);
       lines.push(`class ${sceneClassName} extends Scene {`);
       lines.push(`  constructor(name = '${sceneName}', opts = {}) {`);
       lines.push(`    super(name, {`);
@@ -3350,10 +3350,75 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
       lines.push(`      entities: [],`);
       lines.push(`      initialStates: ${JSON.stringify(sceneDef.initialStates || {})}`);
       lines.push(`    });`);
-      lines.push(`    `);
-      lines.push(`    // Store pre and post conditions for validation`);
-      lines.push(`    this.preConditions = ${JSON.stringify(sceneDef.preConditions || [])};`);
-      lines.push(`    this.postConditions = ${JSON.stringify(sceneDef.postConditions || [])};`);
+      lines.push(`  }`);
+      lines.push(``);
+      
+      // Generate JavaScript-native pre-condition method
+      lines.push(`  /**`);
+      lines.push(`   * Evaluates pre-conditions using JavaScript functions instead of JSON`);
+      lines.push(`   * @param {Object} context - Execution context with entities and state`);
+      lines.push(`   * @returns {boolean} - True if all pre-conditions are satisfied`);
+      lines.push(`   */`);
+      lines.push(`  validatePreConditions(context) {`);
+      lines.push(generateJavaScriptConditions(sceneDef.preConditions, 'pre'));
+      lines.push(`  }`);
+      lines.push(``);
+      
+      // Generate JavaScript-native post-condition method
+      lines.push(`  /**`);
+      lines.push(`   * Evaluates post-conditions using JavaScript functions instead of JSON`);
+      lines.push(`   * @param {Object} context - Execution context with entities and state`);
+      lines.push(`   * @returns {boolean} - True if all post-conditions are satisfied`);
+      lines.push(`   */`);
+      lines.push(`  validatePostConditions(context) {`);
+      lines.push(generateJavaScriptConditions(sceneDef.postConditions, 'post'));
+      lines.push(`  }`);
+      lines.push(``);
+      
+      // Add execution method that uses the new validation functions
+      lines.push(`  /**`);
+      lines.push(`   * Executes the scene with enhanced validation and context management`);
+      lines.push(`   * @param {Object} context - Execution context`);
+      lines.push(`   * @returns {Object} - Execution result with validation status`);
+      lines.push(`   */`);
+      lines.push(`  async execute(context) {`);
+      lines.push(`    try {`);
+      lines.push(`      // Validate pre-conditions using JavaScript functions`);
+      lines.push(`      const preConditionsPassed = this.validatePreConditions(context);`);
+      lines.push(`      if (!preConditionsPassed) {`);
+      lines.push(`        return {`);
+      lines.push(`          success: false,`);
+      lines.push(`          error: 'Pre-conditions not satisfied',`);
+      lines.push(`          scene: this.name`);
+      lines.push(`        };`);
+      lines.push(`      }`);
+      lines.push(``);
+      lines.push(`      // Execute scene logic (trigger start event)`);
+      lines.push(`      const executionResult = await this.executeSceneLogic(context);`);
+      lines.push(``);
+      lines.push(`      // Validate post-conditions using JavaScript functions`);
+      lines.push(`      const postConditionsPassed = this.validatePostConditions(context);`);
+      lines.push(`      if (!postConditionsPassed) {`);
+      lines.push(`        return {`);
+      lines.push(`          success: false,`);
+      lines.push(`          error: 'Post-conditions not satisfied',`);
+      lines.push(`          scene: this.name,`);
+      lines.push(`          executionResult`);
+      lines.push(`        };`);
+      lines.push(`      }`);
+      lines.push(``);
+      lines.push(`      return {`);
+      lines.push(`        success: true,`);
+      lines.push(`        scene: this.name,`);
+      lines.push(`        executionResult`);
+      lines.push(`      };`);
+      lines.push(`    } catch (error) {`);
+      lines.push(`      return {`);
+      lines.push(`        success: false,`);
+      lines.push(`        error: error.message,`);
+      lines.push(`        scene: this.name`);
+      lines.push(`      };`);
+      lines.push(`    }`);
       lines.push(`  }`);
       lines.push(`}`);
       lines.push('');
@@ -3418,195 +3483,10 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
     lines.push('');
   }
 
-  // 11. Event classes removed - ScenarioExecution classes with enhanced functionality
-  // Functionality consolidated into EventsDefinitions to eliminate duplication
-  
-  // Generate Enhanced Scene classes with validation and execution logic
-  for (const { element } of sceneDefinitions) {
-    const scenes = extractScenesEnhanced(element);
-    for (const [sceneName, sceneDef] of Object.entries(scenes)) {
-      const sceneClassName = sanitizeId(sceneName);
-      lines.push(`// Enhanced Scene: ${sceneName}`);
-      lines.push(`class ${sceneClassName} extends Scene {`);
-      lines.push(`  constructor(name = '${sceneName}', opts = {}) {`);
-      lines.push(`    super(name, {`);
-      lines.push(`      ...opts,`);
-      lines.push(`      sceneType: 'scene',`);
-      lines.push(`      startEvent: '${sceneDef.startEvent || ''}',`);
-      lines.push(`      finishEvent: '${sceneDef.finishEvent || ''}',`);
-      lines.push(`      entities: [],`);
-      lines.push(`      initialStates: ${JSON.stringify(sceneDef.initialStates || {})}`);
-      lines.push(`    });`);
-      lines.push(`    `);
-      lines.push(`    // Store pre and post conditions for validation`);
-      lines.push(`    this.preConditions = ${JSON.stringify(sceneDef.preConditions || [])};`);
-      lines.push(`    this.postConditions = ${JSON.stringify(sceneDef.postConditions || [])};`);
-      lines.push(`  }`);
-      lines.push(``);
-      lines.push(`  // Note: Generic scene execution methods (validatePreConditions, validatePostConditions,`); 
-      lines.push(`  // triggerStartEvent, waitForFinishEvent, execute) are inherited from Scene base class`);
-      lines.push(`}`);
-      lines.push('');
-    }
-  }
-  
-  // Generate Enhanced Scenario classes with programming structures support
-  for (const { element } of scenarioDefinitions) {
-    const scenarios = extractScenariosEnhanced(element);
-    for (const [scenarioName, scenarioDef] of Object.entries(scenarios)) {
-      const scenarioClassName = sanitizeId(scenarioName);
-      lines.push(`// Enhanced Scenario: ${scenarioName}`);
-      lines.push(`class ${scenarioClassName} extends Scenario {`);
-      lines.push(`  constructor(name = '${scenarioName}', opts = {}) {`);
-      lines.push(`    super(name, {`);
-      lines.push(`      ...opts,`);
-      lines.push(`      scenarioType: 'scenario',`);
-      lines.push(`      scenes: ${JSON.stringify(scenarioDef.scenes || [])},`);
-      lines.push(`      preConditions: ${JSON.stringify(scenarioDef.preConditions || [])},`);
-      lines.push(`      postConditions: ${JSON.stringify(scenarioDef.postConditions || [])}`);
-      lines.push(`    });`);
-      lines.push(`    `);
-      lines.push(`    // Store programming structures for execution`);
-      lines.push(`    this.programmingStructures = ${JSON.stringify(scenarioDef.programmingStructures || [])};`);
-      lines.push(`  }`);
-      lines.push(``);
-      lines.push(`  // Execute scene by name`);
-      lines.push(`  async executeScene(sceneName) {`);
-      lines.push(`    this.sysadlBase.logger.log('🎬 Executing scene from scenario: ' + sceneName);`);
-      lines.push(`    return await this.sysadlBase.sceneExecutor.executeScene(sceneName);`);
-      lines.push(`  }`);
-      lines.push(``);
-      lines.push(`  // Execute scenario by name`);
-      lines.push(`  async executeScenario(scenarioName) {`);
-      lines.push(`    this.sysadlBase.logger.log('🎭 Executing scenario from scenario: ' + scenarioName);`);
-      lines.push(`    return await this.sysadlBase.scenarioExecutor.executeScenario(scenarioName);`);
-      lines.push(`  }`);
-      lines.push(``);
-      lines.push(`  // Execute variable declaration`);
-      lines.push(`  async executeVariableDeclaration(varDecl, context) {`);
-      lines.push(`    const varName = varDecl.name;`);
-      lines.push(`    let value = 1; // Default value`);
-      lines.push(`    `);
-      lines.push(`    // Extract value from AST structure`);
-      lines.push(`    if (varDecl.value && Array.isArray(varDecl.value) && varDecl.value.length >= 3) {`);
-      lines.push(`      const valueNode = varDecl.value[2];`);
-      lines.push(`      if (valueNode && valueNode.type === 'NaturalLiteral') {`);
-      lines.push(`        value = valueNode.value;`);
-      lines.push(`      }`);
-      lines.push(`    }`);
-      lines.push(`    `);
-      lines.push(`    context[varName] = value;`);
-      lines.push(`    this.sysadlBase.logger.log('📊 Variable declared: ' + varName + ' = ' + value);`);
-      lines.push(`    return true;`);
-      lines.push(`  }`);
-      lines.push(``);
-      lines.push(`  // Execute while loop with programming structures`);
-      lines.push(`  async executeWhileLoop(whileStmt, context) {`);
-      lines.push(`    const condition = whileStmt.condition;`);
-      lines.push(`    const body = whileStmt.body;`);
-      lines.push(`    `);
-      lines.push(`    this.sysadlBase.logger.log('🔄 Executing while loop with condition');`);
-      lines.push(`    `);
-      lines.push(`    while (await this.evaluateCondition(condition, context)) {`);
-      lines.push(`      this.sysadlBase.logger.log('🔄 While loop iteration, context: ' + JSON.stringify(context));`);
-      lines.push(`      `);
-      lines.push(`      // Execute body statements`);
-      lines.push(`      if (body && body.body && Array.isArray(body.body)) {`);
-      lines.push(`        for (const stmt of body.body) {`);
-      lines.push(`          await this.executeStatement(stmt, context);`);
-      lines.push(`        }`);
-      lines.push(`      }`);
-      lines.push(`    }`);
-      lines.push(`    `);
-      lines.push(`    this.sysadlBase.logger.log('✅ While loop completed');`);
-      lines.push(`    return true;`);
-      lines.push(`  }`);
-      lines.push(``);
-      lines.push(`  // Evaluate condition expression`);
-      lines.push(`  async evaluateCondition(condition, context) {`);
-      lines.push(`    if (condition.type === 'BinaryExpression') {`);
-      lines.push(`      const left = await this.evaluateExpression(condition.left, context);`);
-      lines.push(`      const right = await this.evaluateExpression(condition.right, context);`);
-      lines.push(`      `);
-      lines.push(`      switch (condition.operator) {`);
-      lines.push(`        case '<': return left < right;`);
-      lines.push(`        case '>': return left > right;`);
-      lines.push(`        case '<=': return left <= right;`);
-      lines.push(`        case '>=': return left >= right;`);
-      lines.push(`        case '==': return left == right;`);
-      lines.push(`        case '!=': return left != right;`);
-      lines.push(`        default: return false;`);
-      lines.push(`      }`);
-      lines.push(`    }`);
-      lines.push(`    return false;`);
-      lines.push(`  }`);
-      lines.push(``);
-      lines.push(`  // Evaluate expression`);
-      lines.push(`  async evaluateExpression(expr, context) {`);
-      lines.push(`    if (expr.type === 'NameExpression') {`);
-      lines.push(`      return context[expr.name] || 0;`);
-      lines.push(`    } else if (expr.type === 'NaturalLiteral') {`);
-      lines.push(`      return expr.value;`);
-      lines.push(`    }`);
-      lines.push(`    return 0;`);
-      lines.push(`  }`);
-      lines.push(``);
-      lines.push(`  // Execute increment/decrement`);
-      lines.push(`  async executeIncDec(incDecStmt, context) {`);
-      lines.push(`    const varName = incDecStmt.name;`);
-      lines.push(`    const operation = incDecStmt.op;`);
-      lines.push(`    `);
-      lines.push(`    if (operation === '++') {`);
-      lines.push(`      context[varName] = (context[varName] || 0) + 1;`);
-      lines.push(`    } else if (operation === '--') {`);
-      lines.push(`      context[varName] = (context[varName] || 0) - 1;`);
-      lines.push(`    }`);
-      lines.push(`    `);
-      lines.push(`    this.sysadlBase.logger.log('📊 Variable updated: ' + varName + ' ' + operation + ' = ' + context[varName]);`);
-      lines.push(`    return true;`);
-      lines.push(`  }`);
-      lines.push(``);
-      lines.push(`  // Execute any statement`);
-      lines.push(`  async executeStatement(stmt, context) {`);
-      lines.push(`    switch (stmt.type) {`);
-      lines.push(`      case 'VariableDecl':`);
-      lines.push(`        return await this.executeVariableDeclaration(stmt, context);`);
-      lines.push(`      case 'WhileStatement':`);
-      lines.push(`        return await this.executeWhileLoop(stmt, context);`);
-      lines.push(`      case 'IncDec':`);
-      lines.push(`        return await this.executeIncDec(stmt, context);`);
-      lines.push(`      case 'ScenarioRef':`);
-      lines.push(`        // Check if it's a Scene or Scenario reference`);
-      lines.push(`        if (stmt.name.startsWith('SCN_')) {`);
-      lines.push(`          return await this.executeScene(stmt.name);`);
-      lines.push(`        } else {`);
-      lines.push(`          return await this.executeScenario(stmt.name);`);
-      lines.push(`        }`);
-      lines.push(`      default:`);
-      lines.push(`        this.sysadlBase.logger.warn('⚠️ Unknown statement type: ' + stmt.type);`);
-      lines.push(`        return true;`);
-      lines.push(`    }`);
-      lines.push(`  }`);
-      lines.push(``);
-      lines.push(`  // Execute complete scenario with programming structures`);
-      lines.push(`  async execute() {`);
-      lines.push(`    this.sysadlBase.logger.log('🎭 Executing scenario: ' + this.name);`);
-      lines.push(`    `);
-      lines.push(`    // Initialize execution context`);
-      lines.push(`    const context = {};`);
-      lines.push(`    `);
-      lines.push(`    // Execute all programming structures`);
-      lines.push(`    for (const stmt of this.programmingStructures) {`);
-      lines.push(`      await this.executeStatement(stmt, context);`);
-      lines.push(`    }`);
-      lines.push(`    `);
-      lines.push(`    this.sysadlBase.logger.log('✅ Scenario execution completed successfully: ' + this.name);`);
-      lines.push(`    return { success: true, scenario: this.name, context };`);
-      lines.push(`  }`);
-      lines.push(`}`);
-      lines.push('');
-    }
-  }
+  // 11. Event classes removed - Enhanced Scene/Scenario functionality integrated
+  // All Scene classes are now generated in section 7 with JavaScript-native conditions
+  // All Scenario classes are generated in section 9 
+  // All functionality consolidated to eliminate duplication
   
   // Generate ScenarioExecution classes with enhanced functionality
   for (const { element, className } of scenarioExecutions) {
@@ -3857,14 +3737,35 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
   lines.push(`}`);
   lines.push('');
   
-  // Export classes and factory
+  // Export classes and factory - including individual Scene and Scenario classes
+  const sceneClassNames = [];
+  const scenarioClassNames = [];
+  
+  // Extract individual Scene class names
+  for (const { element } of sceneDefinitions) {
+    const scenes = extractScenesEnhanced(element);
+    for (const sceneName of Object.keys(scenes)) {
+      sceneClassNames.push(sanitizeId(sceneName));
+    }
+  }
+  
+  // Extract individual Scenario class names  
+  for (const { element } of scenarioDefinitions) {
+    const scenarios = extractScenariosEnhanced(element);
+    for (const scenarioName of Object.keys(scenarios)) {
+      scenarioClassNames.push(sanitizeId(scenarioName));
+    }
+  }
+  
   const allClasses = [
     ...environmentDefinitions.map(d => d.className),
     ...environmentConfigurations.map(d => d.className),
     ...eventDefinitions.map(d => d.className),
     ...sceneDefinitions.map(d => d.className),
     ...scenarioDefinitions.map(d => d.className),
-    ...scenarioExecutions.map(d => d.className)
+    ...scenarioExecutions.map(d => d.className),
+    ...sceneClassNames, // Individual Scene classes
+    ...scenarioClassNames // Individual Scenario classes
   ];
   
   lines.push(`module.exports = { createEnvironmentModel${allClasses.length > 0 ? ', ' + allClasses.join(', ') : ''} };`);
@@ -4367,6 +4268,104 @@ function extractScenesEnhanced(element) {
   }
   
   return scenes;
+}
+
+/**
+ * Generates JavaScript-native condition functions for Scene classes
+ * Converts JSON-based conditions to functional JavaScript code with context validation
+ * @param {Array} conditions - Array of condition objects from extractScenesEnhanced
+ * @param {string} conditionType - 'pre' or 'post' for condition type
+ * @returns {string} - JavaScript function code as string
+ */
+function generateJavaScriptConditions(conditions, conditionType) {
+  if (!conditions || conditions.length === 0) {
+    return `    // No ${conditionType}-conditions defined
+    return true;`;
+  }
+  
+  const functionBody = [];
+  functionBody.push(`    // Enhanced ${conditionType}-condition validation with context support`);
+  functionBody.push(`    if (!context) {`);
+  functionBody.push(`      throw new Error('Context is required for ${conditionType}-condition evaluation');`);
+  functionBody.push(`    }`);
+  functionBody.push(``);
+  functionBody.push(`    try {`);
+  
+  // Track declared entities to avoid duplicates
+  const declaredEntities = new Set();
+  
+  // Generate condition checks
+  const conditionChecks = [];
+  conditions.forEach((condition, index) => {
+    const expression = condition.expression || '';
+    
+    // Parse entity.property == value patterns
+    const match = expression.match(/^(\w+)\.(\w+)\s*==\s*(.+)$/);
+    if (match) {
+      const [, entityName, property, expectedValue] = match;
+      
+      functionBody.push(`      // Condition ${index + 1}: ${expression}`);
+      
+      // Declare entity only if not already declared
+      if (!declaredEntities.has(entityName)) {
+        functionBody.push(`      const ${entityName}Entity = this.getEntity(context, '${entityName}');`);
+        functionBody.push(`      if (!${entityName}Entity) {`);
+        functionBody.push(`        throw new Error('Entity ${entityName} not found in context');`);
+        functionBody.push(`      }`);
+        declaredEntities.add(entityName);
+      }
+      
+      const conditionVar = `condition${index + 1}`;
+      
+      // Handle different value types
+      if (expectedValue.includes('.ID')) {
+        // Handle stationC.ID references
+        const stationMatch = expectedValue.match(/^(\w+)\.ID$/);
+        if (stationMatch) {
+          const [, stationName] = stationMatch;
+          
+          // Declare station entity only if not already declared
+          if (!declaredEntities.has(stationName)) {
+            functionBody.push(`      const ${stationName}Entity = this.getEntity(context, '${stationName}');`);
+            functionBody.push(`      if (!${stationName}Entity) {`);
+            functionBody.push(`        throw new Error('Entity ${stationName} not found in context');`);
+            functionBody.push(`      }`);
+            declaredEntities.add(stationName);
+          }
+          
+          functionBody.push(`      const ${conditionVar} = this.compareValues(${entityName}Entity.${property}, ${stationName}Entity.properties.ID);`);
+        }
+      } else {
+        // Handle direct string values
+        const cleanValue = expectedValue.replace(/['"]/g, '');
+        functionBody.push(`      const ${conditionVar} = this.compareValues(${entityName}Entity.${property}, '${cleanValue}');`);
+      }
+      
+      conditionChecks.push(conditionVar);
+    } else {
+      // Fallback for complex expressions
+      functionBody.push(`      // Complex condition ${index + 1}: ${expression}`);
+      const conditionVar = `condition${index + 1}`;
+      functionBody.push(`      const ${conditionVar} = true; // TODO: Implement complex expression parsing`);
+      conditionChecks.push(conditionVar);
+    }
+  });
+  
+  functionBody.push(``);
+  if (conditionChecks.length > 1) {
+    functionBody.push(`      // All conditions must be satisfied`);
+    functionBody.push(`      const allConditionsMet = ${conditionChecks.join(' && ')};`);
+    functionBody.push(`      return allConditionsMet;`);
+  } else if (conditionChecks.length === 1) {
+    functionBody.push(`      return ${conditionChecks[0]};`);
+  }
+  
+  functionBody.push(`    } catch (error) {`);
+  functionBody.push(`      console.error(\`Error evaluating ${conditionType}-conditions for \${this.name}:\`, error.message);`);
+  functionBody.push(`      return false;`);
+  functionBody.push(`    }`);
+  
+  return functionBody.join('\n');
 }
 
 function extractScenarios(element) {

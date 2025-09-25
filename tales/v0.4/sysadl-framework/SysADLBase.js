@@ -3218,6 +3218,146 @@ class Scene extends Element {
     }
     return true;
   }
+
+  /**
+   * Enhanced helper method to get entity from context with validation
+   * Generic method that works across all SysADL domains (Factory, Smart Home, Healthcare, etc.)
+   * @param {Object} context - Execution context containing entities
+   * @param {string} entityName - Name of entity to retrieve
+   * @returns {Object|null} - Entity object or null if not found
+   */
+  getEntity(context, entityName) {
+    if (!context) {
+      console.error(`[Scene.getEntity] Context is null or undefined`);
+      return null;
+    }
+    
+    // Check in context.entities first (most common location)
+    if (context.entities && context.entities[entityName]) {
+      return context.entities[entityName];
+    }
+    
+    // Check in context directly (alternative structure)
+    if (context[entityName]) {
+      return context[entityName];
+    }
+    
+    // Check in scene's own entities
+    if (this.entities) {
+      const sceneEntity = this.entities.find(e => e.name === entityName);
+      if (sceneEntity) {
+        return sceneEntity;
+      }
+    }
+    
+    console.warn(`[Scene.getEntity] Entity '${entityName}' not found in context or scene`);
+    return null;
+  }
+
+  /**
+   * Enhanced helper method to compare values with type coercion and validation
+   * Generic comparison that handles different data types across domains
+   * @param {any} actual - Actual value from entity/context
+   * @param {any} expected - Expected value for comparison  
+   * @returns {boolean} - True if values match
+   */
+  compareValues(actual, expected) {
+    // Handle null/undefined cases
+    if (actual === null || actual === undefined) {
+      return expected === null || expected === undefined;
+    }
+    
+    // Direct equality (most common case)
+    if (actual === expected) {
+      return true;
+    }
+    
+    // String comparison with type coercion
+    if (typeof actual === 'string' && typeof expected === 'string') {
+      return actual.toLowerCase() === expected.toLowerCase();
+    }
+    
+    // Handle object properties (like stationA.ID)
+    if (typeof actual === 'object' && actual.properties && typeof expected === 'string') {
+      return this.compareValues(actual.properties.ID, expected);
+    }
+    
+    // Handle numeric comparisons
+    if (typeof actual === 'number' || typeof expected === 'number') {
+      return Number(actual) === Number(expected);
+    }
+    
+    // Convert both to strings as last resort
+    return String(actual) === String(expected);
+  }
+
+  /**
+   * Enhanced method to execute scene logic with event triggering
+   * Generic execution framework that works across all domains
+   * @param {Object} context - Execution context
+   * @returns {Object} - Execution result
+   */
+  async executeSceneLogic(context) {
+    try {
+      // Log scene execution start
+      if (this.model && this.model.logEvent) {
+        this.model.logEvent({
+          elementType: 'scene_execute_start',
+          scene: this.name,
+          startEvent: this.startEvent,
+          when: Date.now()
+        });
+      }
+      
+      // Trigger start event if defined
+      if (this.startEvent && context.eventSystem) {
+        await context.eventSystem.triggerEvent(this.startEvent, {
+          scene: this.name,
+          context: context
+        });
+      }
+      
+      // Wait for finish event if defined
+      if (this.finishEvent && context.eventSystem) {
+        const finishResult = await context.eventSystem.waitForEvent(this.finishEvent, {
+          timeout: 30000, // 30 seconds timeout
+          context: context
+        });
+        
+        if (!finishResult.success) {
+          return {
+            success: false,
+            error: `Finish event '${this.finishEvent}' not received within timeout`,
+            scene: this.name
+          };
+        }
+      }
+      
+      // Log scene execution completion
+      if (this.model && this.model.logEvent) {
+        this.model.logEvent({
+          elementType: 'scene_execute_complete',
+          scene: this.name,
+          finishEvent: this.finishEvent,
+          when: Date.now()
+        });
+      }
+      
+      return {
+        success: true,
+        scene: this.name,
+        startEvent: this.startEvent,
+        finishEvent: this.finishEvent
+      };
+    } catch (error) {
+      console.error(`[Scene.executeSceneLogic] Error executing scene '${this.name}':`, error.message);
+      return {
+        success: false,
+        error: error.message,
+        scene: this.name
+      };
+    }
+  }
 }
 
 // Scenario class - represents scenarios with pre/post conditions and scenes
