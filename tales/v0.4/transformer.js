@@ -3235,29 +3235,9 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
     lines.push('');
   }
   
-  // 5. Generate Event classes (individual events before EventsDefinitions)
-  for (const { element } of eventDefinitions) {
-    const { events, eventClasses } = extractEvents(element);
-    for (const eventClass of eventClasses) {
-      const eventClassName = sanitizeId(eventClass.name);
-      lines.push(`// Event: ${eventClass.name}`);
-      lines.push(`class ${eventClassName} extends Event {`);
-      lines.push(`  constructor(name = '${eventClass.name}', opts = {}) {`);
-      lines.push(`    super(name, {`);
-      lines.push(`      ...opts,`);
-      lines.push(`      eventType: '${eventClass.type || 'simple'}',`);
-      lines.push(`      target: '${eventClass.target}',`);
-      lines.push(`      parameters: ${JSON.stringify(eventClass.parameters || [])}`);
-      lines.push(`    });`);
-      lines.push(`    `);
-      lines.push(`    // Store rules for execution`);
-      lines.push(`    this.rules = ${JSON.stringify(eventClass.rules || [])};`);
-      lines.push(`  }`);
-      lines.push(`}`);
-      lines.push('');
-    }
-  }
-
+  // 5. Event classes removed - functionality moved to EventsDefinitions only
+  // This eliminates code duplication and reduces file size significantly
+  
   // 6. Generate EventsDefinitions classes
   for (const { element, className } of eventDefinitions) {
     const eventsName = element.name || element.id || 'UnnamedEvents';
@@ -3273,7 +3253,7 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
     lines.push(`    });`);
     lines.push('');
     lines.push(`    // Initialize TaskExecutor for hybrid execution`);
-    lines.push(`    this.taskExecutor = new TaskExecutor();`);
+    lines.push(`    this.taskExecutor = new TaskExecutor({});`);
     lines.push('');
     
     // Generate individual event properties and methods
@@ -3349,16 +3329,7 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
       }
     }
     
-    // Instead of generating individual execute methods, add generic execution infrastructure
-    lines.push('');
-    lines.push(`  // Global event execution method`);
-    lines.push(`  executeEvent(eventName, triggerName, context) {`);
-    lines.push(`    if (this[eventName] && this[eventName].hasRule(triggerName)) {`);
-    lines.push(`      return this[eventName].executeRule(triggerName, context);`);
-    lines.push(`    }`);
-    lines.push(`    if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.warn(\`⚠️ Event \${eventName} or trigger \${triggerName} not found\`);`);
-    lines.push(`    return null;`);
-    lines.push(`  }`);
+    // executeEvent method now inherited from EventsDefinitions base class
     lines.push(`}`);
     lines.push('');
   }
@@ -3447,30 +3418,8 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
     lines.push('');
   }
 
-  // 11. Generate ScenarioExecution classes with enhanced functionality
-  for (const { element } of eventDefinitions) {
-    const events = extractEvents(element);
-    for (const [eventName, eventDef] of Object.entries(events)) {
-      const eventClassName = sanitizeId(eventName);
-      lines.push(`// Event: ${eventName}`);
-      lines.push(`class ${eventClassName} extends Event {`);
-      lines.push(`  constructor(name = '${eventName}', opts = {}) {`);
-      lines.push(`    super(name, {`);
-      lines.push(`      ...opts,`);
-      lines.push(`      eventType: '${eventDef.type || 'simple'}',`);
-      lines.push(`      parameters: ${JSON.stringify(eventDef.parameters || [])}`);
-      lines.push(`    });`);
-      if (eventDef.condition) {
-        lines.push(`    this.condition = ${eventDef.condition};`);
-      }
-      if (eventDef.action) {
-        lines.push(`    this.action = ${eventDef.action};`);
-      }
-      lines.push(`  }`);
-      lines.push(`}`);
-      lines.push('');
-    }
-  }
+  // 11. Event classes removed - ScenarioExecution classes with enhanced functionality
+  // Functionality consolidated into EventsDefinitions to eliminate duplication
   
   // Generate Enhanced Scene classes with validation and execution logic
   for (const { element } of sceneDefinitions) {

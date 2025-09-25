@@ -4190,6 +4190,17 @@ class EventsDefinitions extends Element {
   hasTask(taskName) {
     return this.tasks.has(taskName);
   }
+
+  // Generic event execution method
+  executeEvent(eventName, triggerName, context) {
+    if (this[eventName] && this[eventName].hasRule && this[eventName].hasRule(triggerName)) {
+      return this[eventName].executeRule(triggerName, context);
+    }
+    if (context && context.sysadlBase && context.sysadlBase.logger) {
+      context.sysadlBase.logger.warn(`⚠️ Event ${eventName} or trigger ${triggerName} not found`);
+    }
+    return null;
+  }
 }
 
 // Scene Definitions Container Class
