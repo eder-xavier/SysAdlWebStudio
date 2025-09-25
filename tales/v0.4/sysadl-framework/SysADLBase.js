@@ -3509,6 +3509,58 @@ class Scenario extends Element {
 
     return this.status === 'completed';
   }
+  
+  /**
+   * Execute a scene or nested scenario within this scenario context
+   * Generic method that works with both scene and scenario execution
+   * @param {Object} context - Execution context with scenes and scenarios registry
+   * @param {string} name - Name of scene or scenario to execute
+   * @returns {Promise<Object>} - Execution result
+   */
+  async executeScene(context, name) {
+    if (!context) {
+      throw new Error('Context is required for scene execution');
+    }
+    
+    // Try to find and execute as scene first
+    if (context.scenes && context.scenes[name]) {
+      const sceneInstance = new context.scenes[name]();
+      if (sceneInstance.execute) {
+        return await sceneInstance.execute(context);
+      }
+    }
+    
+    // Try to find and execute as scenario
+    if (context.scenarios && context.scenarios[name]) {
+      return await this.executeScenario(context, name);
+    }
+    
+    throw new Error(`Scene or scenario '${name}' not found in context`);
+  }
+  
+  /**
+   * Execute a nested scenario within this scenario context
+   * @param {Object} context - Execution context with scenarios registry
+   * @param {string} scenarioName - Name of scenario to execute
+   * @returns {Promise<Object>} - Execution result
+   */
+  async executeScenario(context, scenarioName) {
+    if (!context || !context.scenarios) {
+      throw new Error('Context with scenarios registry is required');
+    }
+    
+    const ScenarioClass = context.scenarios[scenarioName];
+    if (!ScenarioClass) {
+      throw new Error(`Scenario '${scenarioName}' not found in context`);
+    }
+    
+    const scenarioInstance = new ScenarioClass();
+    if (scenarioInstance.execute) {
+      return await scenarioInstance.execute(context);
+    }
+    
+    throw new Error(`Scenario '${scenarioName}' does not have execute method`);
+  }
 }
 
 // EnvironmentDefinition class - defines environment structure

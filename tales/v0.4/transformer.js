@@ -3400,19 +3400,19 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
     const scenarios = extractScenariosEnhanced(element);
     for (const [scenarioName, scenarioDef] of Object.entries(scenarios)) {
       const scenarioClassName = sanitizeId(scenarioName);
-      lines.push(`// Scenario: ${scenarioName}`);
       lines.push(`class ${scenarioClassName} extends Scenario {`);
       lines.push(`  constructor(name = '${scenarioName}', opts = {}) {`);
       lines.push(`    super(name, {`);
       lines.push(`      ...opts,`);
       lines.push(`      scenarioType: 'scenario',`);
-      lines.push(`      scenes: ${JSON.stringify(scenarioDef.scenes || [])},`);
-      lines.push(`      preConditions: ${JSON.stringify(scenarioDef.preConditions || [])},`);
-      lines.push(`      postConditions: ${JSON.stringify(scenarioDef.postConditions || [])}`);
+      lines.push(`      scenes: ${JSON.stringify(scenarioDef.scenes || [])}`);
       lines.push(`    });`);
-      lines.push(`    `);
-      lines.push(`    // Store programming structures for execution`);
-      lines.push(`    this.programmingStructures = ${JSON.stringify(scenarioDef.programmingStructures || [])};`);
+      lines.push(`  }`);
+      lines.push(``);
+      
+      // Generate JavaScript execution method with explicit programming structures
+      lines.push(`  async execute(context) {`);
+      lines.push(generateJavaScriptScenarioExecution(scenarioDef.programmingStructures));
       lines.push(`  }`);
       lines.push(`}`);
       lines.push('');
@@ -3423,7 +3423,8 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
   for (const { element, className } of scenarioDefinitions) {
     const scenariosName = element.name || element.id || 'UnnamedScenarios';
     const targetName = element.scenes || element.target || element.to || 'UnnamedScenes';
-    lines.push(`// Scenario Definitions: ${scenariosName}`);
+    const scenarios = extractScenariosEnhanced(element);
+    
     lines.push(`class ${className} extends ScenarioDefinitions {`);
     lines.push(`  constructor(name = '${scenariosName}', opts = {}) {`);
     lines.push(`    super(name, {`);
@@ -3431,6 +3432,21 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
     lines.push(`      targetScenes: '${targetName}',`);
     lines.push(`      scenarios: ${JSON.stringify(extractScenarios(element))}`);
     lines.push(`    });`);
+    lines.push(``);
+    
+    // Add scenario registry
+    for (const [scenarioName] of Object.entries(scenarios)) {
+      const scenarioClassName = sanitizeId(scenarioName);
+      lines.push(`    this.addScenario('${scenarioName}', ${scenarioClassName});`);
+    }
+    
+    lines.push(`  }`);
+    lines.push(``);
+    
+    // Add getScenario method with dynamic instantiation
+    lines.push(`  getScenario(name) {`);
+    lines.push(`    const ScenarioClass = super.getScenario(name);`);
+    lines.push(`    return ScenarioClass ? new ScenarioClass() : null;`);
     lines.push(`  }`);
     lines.push(`}`);
     lines.push('');
@@ -3672,6 +3688,24 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
   for (const { element, className } of scenarioDefinitions) {
     const scenariosName = element.name || 'UnnamedScenarios';
     lines.push(`  model.scenarios['${scenariosName}'] = new ${className}();`);
+  }
+  
+  // Add individual scene classes to context for execution
+  for (const { element } of sceneDefinitions) {
+    const scenes = extractScenesEnhanced(element);
+    for (const [sceneName] of Object.entries(scenes)) {
+      const sceneClassName = sanitizeId(sceneName);
+      lines.push(`  model.scenes['${sceneName}'] = ${sceneClassName};`);
+    }
+  }
+  
+  // Add individual scenario classes to context for execution
+  for (const { element } of scenarioDefinitions) {
+    const scenarios = extractScenariosEnhanced(element);
+    for (const [scenarioName] of Object.entries(scenarios)) {
+      const scenarioClassName = sanitizeId(scenarioName);
+      lines.push(`  model.scenarios['${scenarioName}'] = ${scenarioClassName};`);
+    }
   }
   
   // Instantiate scenario executions
@@ -4365,6 +4399,162 @@ function extractScenarios(element) {
   return scenarios;
 }
 
+/**
+ * Generate JavaScript execution code for scenario programming structures
+ * Translates SysADL programming constructs to explicit JavaScript code
+ * @param {Array} programmingStructures - Array of programming structure objects
+ * @returns {string} - JavaScript function body code
+ */
+function generateJavaScriptScenarioExecution(programmingStructures) {
+  if (!programmingStructures || programmingStructures.length === 0) {
+    return `    return { success: true, message: 'Empty scenario executed' };`;
+  }
+  
+  const functionBody = [];
+  functionBody.push(`    if (!context || !context.scenes) {`);
+  functionBody.push(`      throw new Error('Context with scenes registry is required for scenario execution');`);
+  functionBody.push(`    }`);
+  functionBody.push(``);
+  
+  // Track declared variables
+  const declaredVariables = new Set();
+  
+  // Process each programming structure
+  for (const structure of programmingStructures) {
+    console.log(`DEBUG: Processing structure type ${structure.type}:`, JSON.stringify(structure, null, 2));
+    
+    switch (structure.type) {
+      case 'VarDec':
+      case 'VariableDecl':
+        // let i: Integer = 1;
+        console.log(`DEBUG: Variable declaration structure:`, JSON.stringify(structure, null, 2));
+        
+        const varName = structure.name || (structure.id && structure.id.name) || structure.id;
+        let varValue = '1'; // default
+        
+        // Try multiple ways to extract the value
+        if (structure.value) {
+          if (Array.isArray(structure.value) && structure.value.length >= 3) {
+            // Format: ["=", [" "], {type: "NumberLiteral", value: 1}]
+            const valueObj = structure.value[2];
+            if (valueObj && typeof valueObj === 'object') {
+              if (valueObj.value !== undefined) {
+                varValue = valueObj.value;
+              } else if (valueObj.literal !== undefined) {
+                varValue = valueObj.literal;
+              } else {
+                varValue = JSON.stringify(valueObj);
+              }
+            }
+          } else if (typeof structure.value === 'object' && structure.value.value !== undefined) {
+            varValue = structure.value.value;
+          } else if (typeof structure.value === 'object' && structure.value.literal) {
+            varValue = structure.value.literal.value || structure.value.literal;
+          } else if (typeof structure.value === 'number' || typeof structure.value === 'string') {
+            varValue = structure.value;
+          } else {
+            console.log(`DEBUG: Cannot extract value from:`, JSON.stringify(structure.value, null, 2));
+            varValue = '1'; // fallback
+          }
+        } else if (structure.init) {
+          // Alternative property name for initial value
+          if (typeof structure.init === 'object' && structure.init.value !== undefined) {
+            varValue = structure.init.value;
+          } else if (typeof structure.init === 'object' && structure.init.literal) {
+            varValue = structure.init.literal.value || structure.init.literal;
+          } else {
+            varValue = structure.init;
+          }
+        }
+        
+        console.log(`DEBUG: Extracted varName=${varName}, varValue=${varValue}`);
+        
+        if (varName && !declaredVariables.has(varName)) {
+          functionBody.push(`    let ${varName} = ${varValue};`);
+          declaredVariables.add(varName);
+        }
+        break;
+        
+      case 'While':
+      case 'WhileStatement':
+        // while (i < 5) { ... }
+        let condition = 'true'; // default
+        
+        if (structure.condition) {
+          if (typeof structure.condition === 'string') {
+            condition = structure.condition;
+          } else if (typeof structure.condition === 'object' && structure.condition.left && (structure.condition.op || structure.condition.operator) && structure.condition.right) {
+            // Binary expression like {left: {name: 'i'}, operator: '<', right: {value: 5}}
+            const left = structure.condition.left.name || structure.condition.left;
+            const op = structure.condition.op || structure.condition.operator;
+            const right = structure.condition.right.value !== undefined ? structure.condition.right.value : structure.condition.right;
+            condition = `${left} ${op} ${right}`;
+          }
+        }
+        
+        functionBody.push(`    while (${condition}) {`);
+        
+        // Process body statements
+        const bodyStatements = structure.body ? 
+          (Array.isArray(structure.body) ? structure.body : 
+           (structure.body.body && Array.isArray(structure.body.body) ? structure.body.body : [])) : [];
+        
+        for (const bodyItem of bodyStatements) {
+          console.log(`DEBUG: Processing body item type ${bodyItem.type}:`, JSON.stringify(bodyItem, null, 2));
+          
+          if (bodyItem.type === 'ScenarioRef') {
+            // Scene or scenario call within while loop
+            const sceneName = bodyItem.name;
+            if (sceneName) {
+              if (sceneName.includes('SCN_')) {
+                functionBody.push(`      await this.executeScene('${sceneName}', context);`);
+              } else {
+                functionBody.push(`      await this.executeScenario('${sceneName}', context);`);
+              }
+            }
+          } else if (bodyItem.type === 'IncDec') {
+            // i++
+            const variable = bodyItem.name || 'i';
+            const operator = bodyItem.op || '++';
+            functionBody.push(`      ${variable}${operator};`);
+          }
+        }
+        
+        functionBody.push(`    }`);
+        break;
+        
+      case 'ScenarioRef':
+        // Scene or scenario call
+        const refName = structure.name;
+        if (refName) {
+          if (refName.includes('SCN_')) {
+            functionBody.push(`    await this.executeScene('${refName}', context);`);
+          } else {
+            functionBody.push(`    await this.executeScenario('${refName}', context);`);
+          }
+        }
+        break;
+        
+      case 'IncDec':
+        // i++
+        const incVariable = structure.name || 'i';
+        const incOperator = structure.op || '++';
+        functionBody.push(`    ${incVariable}${incOperator};`);
+        break;
+        
+      default:
+        console.log(`DEBUG: Unknown structure type: ${structure.type}`);
+        functionBody.push(`    // TODO: Handle ${structure.type}`);
+        break;
+    }
+  }
+  
+  functionBody.push(``);
+  functionBody.push(`    return { success: true, message: 'Scenario completed successfully' };`);
+  
+  return functionBody.join('\n');
+}
+
 // Enhanced Scenario extraction with programming structures support
 function extractScenariosEnhanced(element) {
   const scenarios = {};
@@ -4379,22 +4569,27 @@ function extractScenariosEnhanced(element) {
         const scenes = [];
         const programmingStructures = [];
         
+        // DEBUG: Log scenario structure
+        console.log(`DEBUG: Processing scenario ${scenarioName}, body:`, JSON.stringify(scenarioDef.body, null, 2));
+        
         // Extract body items (programming structures and scene references)
         if (scenarioDef.body && Array.isArray(scenarioDef.body)) {
           for (const item of scenarioDef.body) {
+            console.log(`DEBUG: Processing item type ${item.type}:`, JSON.stringify(item, null, 2));
+            
             if (item.type === 'ScenarioRef') {
               // Scene or Scenario reference
               scenes.push(item.name);
               programmingStructures.push(item);
-            } else if (item.type === 'VariableDecl') {
+            } else if (item.type === 'VarDec' || item.type === 'VariableDecl') {
               // Variable declaration (let i: Integer = 1)
               programmingStructures.push(item);
-            } else if (item.type === 'WhileStatement') {
+            } else if (item.type === 'While' || item.type === 'WhileStatement') {
               // While loop structure
               programmingStructures.push(item);
               // Extract scenes from within the while loop
-              if (item.body && item.body.body && Array.isArray(item.body.body)) {
-                for (const bodyItem of item.body.body) {
+              if (item.body && Array.isArray(item.body)) {
+                for (const bodyItem of item.body) {
                   if (bodyItem.type === 'ScenarioRef') {
                     scenes.push(bodyItem.name);
                   }
