@@ -1,7 +1,27 @@
-const path = require('path');
-const fs = require('fs');
+#!/usr/bin/env node
 
+(function() {
+  'use strict';
+
+// Node.js dependencies (only loaded in Node environment)
+let path, fs, ReactiveConditionWatcher;
+if (typeof require !== 'undefined' && typeof module !== 'undefined') {
+  try {
+    path = require('path');
+    fs = require('fs');
+    // Import reactive system for enhanced monitoring
+    ReactiveConditionWatcher = require('./sysadl-framework/ReactiveConditionWatcher').ReactiveConditionWatcher;
+  } catch (e) {
+    // Browser environment - these will remain undefined
+  }
+}
+
+// Function to resolve model path (Node.js only)
 function resolveModelPath(arg) {
+  if (typeof path === 'undefined' || typeof fs === 'undefined') {
+    throw new Error('resolveModelPath is only available in Node.js environment');
+  }
+  
   if (!arg) {
     const genDir = path.join(__dirname, 'generated');
     const files = fs.existsSync(genDir) ? fs.readdirSync(genDir).filter(f => f.endsWith('.js')) : [];
@@ -19,7 +39,12 @@ function resolveModelPath(arg) {
   return resolved;
 }
 
+// Function to load model from module path (Node.js only)
 function loadModelFromModulePath(modelPath){
+  if (typeof require === 'undefined') {
+    throw new Error('loadModelFromModulePath is only available in Node.js environment');
+  }
+  
   const mod = require(modelPath);
   if (!mod || typeof mod.createModel !== 'function') throw new Error('Generated module does not export createModel');
   return { mod, model: mod.createModel() };
@@ -193,7 +218,201 @@ function sendPayloadToPortByName(model, portName, payload){
   throw new Error('Port not found: '+portName);
 }
 
+// Function to setup reactive monitoring system for basic simulator
+function setupReactiveMonitoring(model, options) {
+  if (typeof ReactiveConditionWatcher === 'undefined') {
+    // Browser environment - skip reactive monitoring
+    console.log('ℹ️  Basic simulation mode (reactive monitoring not available in browser)');
+    return;
+  }
+  
+  try {
+    console.log('🚀 Reactive Monitoring Setup...');
+    
+    // Check if model has reactive capabilities
+    if (model.conditionWatcher && model.conditionWatcher instanceof ReactiveConditionWatcher) {
+      console.log('✓ ReactiveConditionWatcher detected - enhanced monitoring active');
+      
+      // Display registered conditions
+      if (model.conditionWatcher.conditions && model.conditionWatcher.conditions.size > 0) {
+        console.log(`✓ ${model.conditionWatcher.conditions.size} reactive conditions monitored:`);
+        for (const [id, condition] of model.conditionWatcher.conditions) {
+          console.log(`  - ${id}: "${condition.expression}"`);
+        }
+      }
+      
+      // Setup automatic logging of condition triggers
+      const originalEmitChange = model.conditionWatcher.emit.bind(model.conditionWatcher);
+      model.conditionWatcher.emit = function(event, ...args) {
+        if (event === 'conditionTriggered' && args.length > 0) {
+          const conditionData = args[0];
+          console.log(`🔥 [REACTIVE] Condition triggered: ${conditionData.conditionId}`);
+          console.log(`    Expression: "${conditionData.expression}"`);
+          console.log(`    Result: ${conditionData.result}`);
+        }
+        return originalEmitChange(event, ...args);
+      };
+      
+    } else if (model.state && typeof model.state === 'object') {
+      console.log('ℹ️  Basic state monitoring available');
+      
+      // Create simple reactive monitoring for models with state
+      try {
+        model._reactiveMonitor = new ReactiveConditionWatcher(model);
+        console.log('✓ Created ReactiveConditionWatcher for basic monitoring');
+        
+        // Add some common monitoring conditions for demonstration
+        const stateKeys = Object.keys(model.state);
+        if (stateKeys.length > 0) {
+          console.log(`📊 State properties available: ${stateKeys.join(', ')}`);
+        }
+      } catch (error) {
+        console.log('⚠️  Could not create reactive monitor:', error.message);
+      }
+    } else {
+      console.log('ℹ️  Model has no reactive capabilities - basic simulation only');
+    }
+    
+    console.log('🎯 Monitoring setup complete\n');
+  } catch (error) {
+    console.warn('⚠️  Error in reactive monitoring setup:', error.message);
+  }
+}
+
+// Browser-compatible run function
+function runBrowser(generatedCode, options = {}) {
+  try {
+    // Evaluate the CommonJS generated code
+    const moduleResult = eval(generatedCode);
+    
+    let output = '';
+    
+    // Check if it's a function that creates a model
+    if (typeof moduleResult === 'function') {
+      const model = moduleResult();
+      output += `Model created: ${model.name || 'unnamed'}\n`;
+      
+      // Setup basic monitoring (browser-safe)
+      setupReactiveMonitoring(model, options);
+      
+      // Basic simulation steps
+      if (model.components) {
+        const compCount = Object.keys(model.components).length;
+        output += `Components found: ${compCount}\n`;
+      }
+      
+      if (model.ports) {
+        const portCount = Object.keys(model.ports).length;
+        output += `Ports found: ${portCount}\n`;
+      }
+      
+      // Find input ports if possible
+      let inputPorts = [];
+      try {
+        inputPorts = findInputPorts(model);
+        output += `Input ports: ${inputPorts.length}\n`;
+        inputPorts.forEach(p => {
+          output += `  - ${p.component}.${p.port}\n`;
+        });
+      } catch (e) {
+        output += `Input port analysis failed: ${e.message}\n`;
+      }
+      
+      // **NOVA FUNCIONALIDADE: Enviar valores dos parâmetros para as portas**
+      if (options.params && Object.keys(options.params).length > 0) {
+        output += `\n🎯 Aplicando parâmetros (${Object.keys(options.params).length}):\n`;
+        
+        for (const [portKey, value] of Object.entries(options.params)) {
+          try {
+            // Tentar diferentes estratégias para encontrar a porta
+            let success = false;
+            
+            // Estratégia 1: Buscar porta diretamente por nome component.port
+            if (portKey.includes('.')) {
+              const [compName, portName] = portKey.split('.');
+              const targetPort = inputPorts.find(p => 
+                (p.component === compName && p.port === portName) ||
+                p.fullPath === portKey
+              );
+              
+              if (targetPort && targetPort.portObj && typeof targetPort.portObj.send === 'function') {
+                targetPort.portObj.send(value, model);
+                output += `  ✅ ${portKey} = ${value}\n`;
+                success = true;
+              }
+            }
+            
+            // Estratégia 2: Buscar apenas por nome da porta
+            if (!success) {
+              const targetPort = inputPorts.find(p => p.port === portKey);
+              if (targetPort && targetPort.portObj && typeof targetPort.portObj.send === 'function') {
+                targetPort.portObj.send(value, model);
+                output += `  ✅ ${portKey} (${targetPort.component}.${targetPort.port}) = ${value}\n`;
+                success = true;
+              }
+            }
+            
+            // Estratégia 3: Usar função auxiliar de busca recursiva
+            if (!success) {
+              try {
+                sendPayloadToPortByName(model, portKey, value);
+                output += `  ✅ ${portKey} = ${value} (encontrado recursivamente)\n`;
+                success = true;
+              } catch (e) {
+                // Falha silenciosa, tentará próxima estratégia
+              }
+            }
+            
+            if (!success) {
+              output += `  ❌ ${portKey} = ${value} (porta não encontrada)\n`;
+            }
+            
+          } catch (error) {
+            output += `  ❌ ${portKey} = ${value} (erro: ${error.message})\n`;
+          }
+        }
+        output += '\n';
+      }
+      
+      // Execute if has executables
+      if (model.executables) {
+        const execNames = Object.keys(model.executables);
+        output += `Executing ${execNames.length} functions:\n`;
+        
+        for (const name of execNames.slice(0, 5)) { // Limit to 5 for browser
+          try {
+            const fn = model.executables[name];
+            if (typeof fn === 'function') {
+              const result = fn(0, 0, 0); // Simple test args
+              output += `${name}() -> ${result}\n`;
+            }
+          } catch (e) {
+            output += `${name}() -> Error: ${e.message}\n`;
+          }
+        }
+      }
+      
+      output += '\nSimulation completed successfully.\n';
+      
+    } else if (typeof moduleResult === 'object' && moduleResult !== null) {
+      output += 'Object exported from generated code:\n';
+      output += JSON.stringify(moduleResult, null, 2).substring(0, 500) + '...\n';
+    } else {
+      output += `Generated code returned: ${typeof moduleResult}\n`;
+    }
+    
+    return output;
+    
+  } catch (error) {
+    return `Simulation error: ${error.message}\n`;
+  }
+}
+
 async function run() {
+  if (typeof process === 'undefined') {
+    throw new Error('run() is only available in Node.js environment');
+  }
+  
   try {
     const argv = process.argv.slice(2);
     const argPath = argv[0];
@@ -229,6 +448,9 @@ async function run() {
   const mod = loaded.mod;
   const m = loaded.model;
   console.log('Model instantiated:', m.name);
+  
+  // Setup reactive monitoring if available
+  setupReactiveMonitoring(m, opts);
   
   // Enable execution tracing if --trace flag is present
   if (opts.trace && typeof m.enableTrace === 'function') {
@@ -412,5 +634,31 @@ async function run() {
   } catch (e) { console.error(e.message); process.exit(1); }
 }
 
-run();
+// Export for different environments
+const simulatorExports = {
+  run: runBrowser,           // Browser uses the browser-compatible function
+  runBrowser,               // Explicit browser function
+  runNodeJS: run,           // Node.js function
+  findInputPorts,
+  resolveAliasTarget,
+  sendPayloadToPortByName,
+  setupReactiveMonitoring
+};
+
+// Node.js environment
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = simulatorExports;
+  
+  // Run if called directly in Node.js
+  if (typeof require !== 'undefined' && require.main === module) {
+    run().catch(console.error);
+  }
+}
+
+// Browser environment
+if (typeof window !== 'undefined') {
+  window.Simulator = simulatorExports;
+}
+
+})(); // End IIFE
 

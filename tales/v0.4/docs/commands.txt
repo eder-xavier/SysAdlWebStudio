@@ -16,3 +16,8 @@ node environment-simulator.js generated/AGV-completo-env-scen.js --interactive
 
 # Executar cenário específico
 node environment-simulator.js generated/AGV-completo-env-scen.js --scenario=MyScenario
+
+
+*******
+
+ node environment-simulator.js generated/AGV-completo-env-scen.js --scenario=MyScenariosExecution --stream

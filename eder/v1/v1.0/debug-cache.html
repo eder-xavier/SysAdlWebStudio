@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SysADL ▶ JS — Simulador (Template Web) - DEBUG</title>
+  <link rel="stylesheet" href="./styles.css?v=20250925-1730" />
+</head>
+<body>
+  <div class="container">
+    <h1>SysADL ▶ JavaScript — Simulação - DEBUG MODE</h1>
+    <div class="toolbar">
+      <label class="file-input">
+        <input id="fileInput" type="file" accept=".sysadl,.txt" />
+        <span>Carregar .sysadl</span>
+      </label>
+      <button id="btnExample" class="btn btn-secondary">Carregar Exemplo</button>
+      <button id="btnTransform" class="btn btn-primary">Transformar ▶</button>
+      <button id="btnRun" class="btn btn-success">Simular ▶</button>
+    </div>
+
+    <div class="main-content">
+      <section class="input-section">
+        <h2>1) Código SysADL</h2>
+        <div id="editor" class="editor" aria-label="Editor SysADL"></div>
+        <div id="parseErr" class="error-display" style="display:none;"></div>
+      </section>
+
+      <section class="output-section">
+        <div class="tabs">
+          <input type="radio" id="tab1" name="tabs" checked>
+          <label for="tab1">2) JavaScript Gerado</label>
+          <input type="radio" id="tab2" name="tabs">
+          <label for="tab2">3) Simulação</label>
+          <input type="radio" id="tab3" name="tabs">
+          <label for="tab3">4) Log de Execução</label>
+
+          <div class="tab-content">
+            <div class="tab-panel">
+              <details open>
+                <summary>Código da arquitetura (gerado do .sysadl)</summary>
+                <div class="output-container">
+                  <pre id="archOut" class="output"></pre>
+                  <div class="output-actions">
+                    <button id="copyArch" class="btn-icon" title="Copiar">📋</button>
+                    <button id="saveArch" class="btn-icon" title="Salvar">💾</button>
+                  </div>
+                </div>
+              </details>
+            </div>
+
+            <div class="tab-panel">
+              <details>
+                <summary>Código de simulação (reutilizável)</summary>
+                <div class="output-container">
+                  <pre id="simOut" class="output"></pre>
+                  <div class="output-actions">
+                    <button id="copySim" class="btn-icon" title="Copiar">📋</button>
+                    <button id="saveSim" class="btn-icon" title="Salvar">💾</button>
+                  </div>
+                </div>
+              </details>
+            </div>
+
+            <div class="tab-panel">
+              <div class="log-controls">
+                <label>
+                  <input type="checkbox" id="traceToggle" /> Trace detalhado
+                </label>
+                <label>
+                  Loops: <input type="number" id="loopCount" value="1" min="1" max="100" />
+                </label>
+                <button id="clearLog" class="btn btn-secondary">Limpar</button>
+              </div>
+              <pre id="log" class="log-output"></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Scripts com cache-busting timestamp -->
+  <script src="./sysadl-framework/SysADLBase.js?v=20250925-1730"></script>
+  <script src="./transformer.js?v=20250925-1730"></script>
+  <script src="./environment-simulator.js?v=20250925-1730"></script>
+  
+  <!-- App principal -->
+  <script type="module" src="./app.js?v=20250925-1730"></script>
+</body>
+</html>

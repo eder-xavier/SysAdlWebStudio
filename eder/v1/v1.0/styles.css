@@ -92,3 +92,60 @@ button.secondary{ background:#10141c; color:var(--muted); }
 }
 
 footer{ color:var(--muted); text-align:center; padding:30px; }
+
+/* Estilos específicos para campos de entrada - garantir copiar/colar */
+input, textarea {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  user-select: text !important;
+  -webkit-touch-callout: default !important;
+  -webkit-tap-highlight-color: rgba(91, 209, 255, 0.3);
+}
+
+/* Garantir copy/paste no editor Monaco */
+.monaco-editor, .monaco-editor .overflow-guard, .monaco-editor .monaco-editor-background,
+.monaco-editor .lines-content, .monaco-editor .view-line {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  user-select: text !important;
+}
+
+/* Garantir copy/paste em elementos pre e code */
+pre, code, .pre, .log {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  user-select: text !important;
+}
+
+/* Textarea para parâmetros de simulação */
+#simulationParams {
+  background: var(--panel) !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  padding: 10px !important;
+  font-family: var(--mono) !important;
+  font-size: 13px !important;
+  resize: vertical !important;
+  min-height: 60px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+#simulationParams:focus {
+  outline: none !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px rgba(90, 209, 255, 0.2) !important;
+}
+
+#simulationParams::placeholder {
+  color: var(--muted) !important;
+  opacity: 0.7 !important;
+}
+
+/* Garantir que inputs numéricos também permitam copiar/colar */
+input[type="number"] {
+  background: var(--panel) !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--border) !important;
+}

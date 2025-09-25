@@ -1,13 +1,103 @@
 #!/usr/bin/env node
 // v0.3 transformer: emit class-based modules that use SysADLBase runtime
 
-const fs = require('fs');
-const path = require('path');
-const { pathToFileURL } = require('url');
+(function() {
+  'use strict';
+
+// Node.js dependencies (only loaded in Node environment)
+let fs, path, pathToFileURL;
+if (typeof require !== 'undefined' && typeof module !== 'undefined') {
+  try {
+    fs = require('fs');
+    path = require('path');
+    pathToFileURL = require('url').pathToFileURL;
+  } catch (e) {
+    // Browser environment - these will remain undefined
+  }
+}
 
 // Utility function to sanitize identifiers for JavaScript code generation
 function sanitizeId(s) {
   return String(s).replace(/[^A-Za-z0-9_]/g, '_');
+}
+
+// Convert SysADL statements to pure JavaScript
+function generatePureJavaScriptFromSysADL(sysadlLine) {
+  let line = sysadlLine.trim();
+  
+  // Handle property assignments: entity.property = value
+  const assignmentMatch = line.match(/^([a-zA-Z0-9_]+)\.([a-zA-Z0-9_.]+)\s*=\s*([^;]+);?$/);
+  if (assignmentMatch) {
+    const [, entityName, propertyPath, value] = assignmentMatch;
+    const cleanValue = value.trim().replace(/^['"`]|['"`]$/g, ''); // Remove outer quotes
+    
+    return `// ${entityName}.${propertyPath} = ${value};
+              if (!context.entities.${entityName}.${propertyPath.split('.')[0]}) {
+                context.entities.${entityName}.${propertyPath.split('.')[0]} = {};
+              }
+              context.entities.${entityName}.${propertyPath} = '${cleanValue}';`;
+  }
+  
+  // Handle connection invocations: :ConnectionType(from, to)
+  const connectionMatch = line.match(/^:([a-zA-Z0-9_]+)\s*\(\s*([a-zA-Z0-9_]+)\s*,\s*([a-zA-Z0-9_]+)\s*\);?$/);
+  if (connectionMatch) {
+    const [, connectionType, fromEntity, toEntity] = connectionMatch;
+    
+    return `// :${connectionType}(${fromEntity}, ${toEntity});
+              const ${connectionType}Class = context.environment?.connections?.find(c => c.name === '${connectionType}');
+              if (${connectionType}Class) {
+                const connectionInstance = new ${connectionType}Class();
+                const fromEntity = context.entities?.${fromEntity};
+                const toEntity = context.entities?.${toEntity};
+                
+                if (fromEntity && toEntity && connectionInstance.from && connectionInstance.to) {
+                  const fromRole = connectionInstance.from.split('.')[1];
+                  const toRole = connectionInstance.to.split('.')[1];
+                  
+                  if (context.sysadlBase?.logger) {
+                    context.sysadlBase.logger.log(\`🔗 Executing connection ${connectionType}: ${fromEntity} -> ${toEntity}\`);
+                  }
+                  
+                  if (typeof toEntity.receiveMessage === 'function') {
+                    toEntity.receiveMessage('${fromEntity}', fromRole, context);
+                  }
+                  
+                  if (typeof context.onConnectionExecuted === 'function') {
+                    context.onConnectionExecuted(connectionInstance, '${fromEntity}', '${toEntity}', context);
+                  }
+                }
+              }`;
+  }
+  
+  // Handle simple assignments: property = value
+  const simpleAssignMatch = line.match(/^([a-zA-Z0-9_.]+)\s*=\s*([^;]+);?$/);
+  if (simpleAssignMatch) {
+    const [, propertyPath, value] = simpleAssignMatch;
+    const cleanValue = value.replace(/'/g, "'");
+    
+    // Check if it's an entity property
+    if (propertyPath.includes('.')) {
+      const parts = propertyPath.split('.');
+      const entityName = parts[0];
+      const propPath = parts.slice(1).join('.');
+      
+      return `// ${propertyPath} = ${cleanValue};
+              if (context.entities?.${entityName}) {
+                context.entities.${entityName}.${propPath} = '${cleanValue}';
+              }`;
+    }
+    
+    return `// ${propertyPath} = ${cleanValue};
+            ${propertyPath} = '${cleanValue}';`;
+  }
+  
+  // Handle comments and other lines as-is
+  if (line.startsWith('//') || line.trim() === '') {
+    return line;
+  }
+  
+  // Default case - return as comment to preserve original
+  return `// Original SysADL: ${line}`;
 }
 
 async function loadParser(parserPath) {
@@ -101,7 +191,7 @@ function resolveInstanceName(instanceName, className, context = '') {
   return sanitizedName;
 }
 
-function generateClassModule(modelName, compUses, portUses, connectorBindings, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, compDefMapArg, portDefMapArg, embeddedTypes, connectorDefMap = {}, packageMap = {}, ast = null) {
+function generateClassModule(modelName, compUses, portUses, connectorBindings, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, compDefMapArg, portDefMapArg, embeddedTypes, connectorDefMap = {}, packageMap = {}, ast = null, includeEnvironment = true) {
   const lines = [];
   
   // ===== Generated by SysADL Transformer v0.3 =====
@@ -109,8 +199,15 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   lines.push("// Features: Simplified activity keys, explicit references, lazy loading");
   lines.push("");
   
-  // Runtime imports for generated module
-  lines.push("const { Model, Component, Port, SimplePort, CompositePort, Connector, Activity, Action, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit, Constraint, Executable } = require('../SysADLBase');");
+  // Runtime imports for generated module - rename primitive types to avoid conflicts
+  lines.push("const { Model, Component, Port, SimplePort, CompositePort, Connector, Activity, Action, Enum, Int: SysADLInt, Boolean: SysADLBoolean, String: SysADLString, Real: SysADLReal, Void: SysADLVoid, valueType, dataType, dimension, unit, Constraint, Executable } = require('./sysadl-framework/SysADLBase');");
+  
+  // Re-export primitive types with original names for compatibility
+  lines.push("const Int = SysADLInt;");
+  lines.push("const Boolean = SysADLBoolean;"); 
+  lines.push("const String = SysADLString;");
+  lines.push("const Real = SysADLReal;");
+  lines.push("const Void = SysADLVoid;");
   
   // Add blank line after imports
   lines.push("");
@@ -129,7 +226,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   // Helper function to find common parent path from multiple paths
   // Helper function to find the component context from AST node using AST analysis
   function findComponentContextFromParentMap(node, instancePathMap, parentMap) {
-    console.log(`[DEBUG] findComponentContextFromParentMap called for node: ${node?.name || 'undefined'}`);
+    // DEBUG: findComponentContextFromParentMap called for node: ${node?.name || 'undefined'}
     if (!node) return 'this';
     
     // Strategy 1: Use AST to find connector definition location
@@ -191,7 +288,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   function findConnectorPlacementInAST(connectorName) {
     if (!ast) return null;
 
-    console.log(`[DEBUG] Looking for connector '${connectorName}' in AST...`);
+    // DEBUG: Looking for connector '${connectorName}' in AST...
 
     try {
       // The issue is that we're looking at ComponentDef (definitions) but connectors 
@@ -214,7 +311,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
               for (const connector of element.configuration.connectors) {
                 console.log(`[DEBUG] Connector: ${connector.name}`);
                 if (connector.name === connectorName) {
-                  console.log(`[DEBUG] Found connector '${connectorName}' in instance ${element.name}!`);
+                  // DEBUG: Found connector '${connectorName}' in instance ${element.name}!
                   return element.name; // Return the instance name where connector is defined
                 }
               }
@@ -2951,31 +3048,1860 @@ function extractExecutableParams(body) {
   return lines.join('\n');
 }
 
+// Generate environment/scenario module
+function generateEnvironmentModule(modelName, environmentElements, traditionalElements, ast, embeddedTypes, packageMap, inputFileName = null) {
+  const lines = [];
+  
+  // Use filename-based model name if provided
+  const actualModelName = inputFileName ? path.basename(inputFileName, path.extname(inputFileName)) : modelName;
+  
+  // Import SysADL base classes and traditional model
+  lines.push(`// Environment and Scenario Module for ${actualModelName}`);
+  lines.push(`// Auto-generated by SysADL Transformer - Hybrid Implementation`);
+  lines.push(`const { EnvironmentDefinition, EnvironmentConfiguration, Entity, Event, Scene, Scenario, ScenarioExecution, EventsDefinitions, SceneDefinitions, ScenarioDefinitions, Connection } = require('./sysadl-framework/SysADLBase');`);
+  lines.push(`const { TaskExecutor } = require('./sysadl-framework/TaskExecutor');`);
+  lines.push(`const { createModel } = require('./${actualModelName}');`);;
+  lines.push('');
+  
+  // Generate environment/scenario specific classes
+  const environmentDefinitions = [];
+  const environmentConfigurations = [];
+  const eventDefinitions = [];
+  const sceneDefinitions = [];
+  const scenarioDefinitions = [];
+  const scenarioExecutions = [];
+  
+  // Collect all elements first
+  traverse(ast, node => {
+    if (node && node.type) {
+      if (node.type === 'EnvironmentDefinition') {
+        const className = sanitizeId(node.name) || 'UnnamedEnvironment';
+        environmentDefinitions.push({ element: node, className });
+      } else if (node.type === 'EnvironmentConfiguration') {
+        const className = sanitizeId(node.name) || 'UnnamedConfiguration';
+        environmentConfigurations.push({ element: node, className });
+      } else if (node.type === 'EventsDefinitions') {
+        const className = sanitizeId(node.name) || 'UnnamedEvents';
+        eventDefinitions.push({ element: node, className });
+      } else if (node.type === 'SceneDefinitions') {
+        const className = sanitizeId(node.name) || 'UnnamedScenes';
+        sceneDefinitions.push({ element: node, className });
+      } else if (node.type === 'ScenarioDefinitions') {
+        const className = sanitizeId(node.name) || 'UnnamedScenarios';
+        scenarioDefinitions.push({ element: node, className });
+      } else if (node.type === 'ScenarioExecution') {
+        const className = sanitizeId(`${node.defs || 'Unnamed'}Execution`) || 'UnnamedExecution';
+        scenarioExecutions.push({ element: node, className });
+      }
+    }
+  });
+  
+  // Generate Entity classes from environment definitions (FIRST)
+  for (const { element } of environmentDefinitions) {
+    const entityTypes = extractEntityTypes(element);
+    for (const [typeName, typeDef] of Object.entries(entityTypes)) {
+      const entityClassName = sanitizeId(typeName);
+      lines.push(`// Entity: ${typeName}`);
+      lines.push(`class ${entityClassName} extends Entity {`);
+      lines.push(`  constructor(name, opts = {}) {`);
+      
+      // Initialize default properties structure (defined in EnvironmentDefinition)
+      if (typeDef.properties && Object.keys(typeDef.properties).length > 0) {
+        lines.push(`    // Initialize default properties structure`);
+        lines.push(`    const defaultProperties = {};`);
+        for (const [propName, propType] of Object.entries(typeDef.properties)) {
+          lines.push(`    defaultProperties.${propName} = null; // Type: ${propType}`);
+        }
+        lines.push(`    `);
+        lines.push(`    // Merge with provided properties (EnvironmentConfiguration values)`);
+        lines.push(`    const mergedProperties = { ...defaultProperties, ...(opts.properties || {}) };`);
+        lines.push(`    `);
+      } else {
+        lines.push(`    const mergedProperties = opts.properties || {};`);
+        lines.push(`    `);
+      }
+      
+      lines.push(`    super(name, {`);
+      lines.push(`      ...opts,`);
+      lines.push(`      entityType: '${typeName}',`);
+      lines.push(`      properties: mergedProperties,`);
+      lines.push(`      roles: ${JSON.stringify(typeDef.roles || [])}`);
+      lines.push(`    });`);
+      lines.push(`    `);
+      
+      // Add composition structure for entities like Lane
+      if (typeDef.entities) {
+        lines.push(`    // Composition structure`);
+        lines.push(`    this.entities = {};`);
+        for (const [compName, compType] of Object.entries(typeDef.entities)) {
+          if (compType.endsWith('[]')) {
+            // Array composition
+            const elementType = compType.slice(0, -2);
+            lines.push(`    this.entities.${compName} = []; // Array of ${elementType}`);
+          } else {
+            // Single composition
+            lines.push(`    this.entities.${compName} = null; // ${compType}`);
+          }
+        }
+        lines.push(`    `);
+      }
+      
+      lines.push(`  }`);
+      lines.push(`}`);
+      lines.push('');
+    }
+  }
+  
+  // Generate Connection classes from environment definitions (SECOND)
+  for (const { element } of environmentDefinitions) {
+    const connections = extractConnections(element);
+    for (const [connectionName, connectionDef] of Object.entries(connections)) {
+      const connectionClassName = sanitizeId(connectionName);
+      lines.push(`// Connection: ${connectionName}`);
+      lines.push(`class ${connectionClassName} extends Connection {`);
+      lines.push(`  constructor(name = '${connectionName}', opts = {}) {`);
+      lines.push(`    super(name, {`);
+      lines.push(`      ...opts,`);
+      lines.push(`      connectionType: '${connectionDef.type}',`);
+      lines.push(`      from: '${connectionDef.from}',`);
+      lines.push(`      to: '${connectionDef.to}'`);
+      lines.push(`    });`);
+      lines.push(`  }`);
+      lines.push(`}`);
+      lines.push('');
+    }
+  }
+  
+
+  
+  // Generate EnvironmentDefinition classes (New Class-Oriented Architecture)
+  for (const { element, className } of environmentDefinitions) {
+    const entityTypes = extractEntityTypes(element);
+    const connections = extractConnections(element);
+    
+    lines.push(`// Environment Definition: ${element.name}`);
+    lines.push(`class ${className} extends EnvironmentDefinition {`);
+    lines.push(`  constructor() {`);
+    lines.push(`    super('${element.name}');`);
+    lines.push(`    `);
+    
+    // Register entity classes automatically
+    lines.push(`    // Register entity classes for factory usage`);
+    for (const typeName of Object.keys(entityTypes)) {
+      const entityClassName = sanitizeId(typeName);
+      lines.push(`    this.registerEntityClass('${typeName}', ${entityClassName});`);
+    }
+    lines.push(`    `);
+    
+    
+    // Generate connection class registrations
+    const connectionClassNames = Object.keys(connections).map(name => sanitizeId(name));
+    lines.push(`    // Register connection classes for factory usage`);
+    connectionClassNames.forEach(className => {
+      lines.push(`    this.registerConnectionClass('${className}', ${className});`);
+    });
+    lines.push(`  }`);
+    lines.push(`}`);
+    lines.push('');
+  }
+  
+  // Generate EnvironmentConfiguration classes (New Class-Oriented Architecture)
+  for (const { element, className } of environmentConfigurations) {
+    const configName = element.name || element.id || 'UnnamedConfiguration';
+    const targetName = element.definition || element.target || element.to || 'UnnamedEnvironment';
+    
+    lines.push(`// Environment Configuration: ${configName}`);
+    lines.push(`class ${className} extends EnvironmentConfiguration {`);
+    lines.push(`  constructor() {`);
+    lines.push(`    const environmentDefinition = new ${targetName}();`);
+    lines.push(`    super('${configName}', { environmentDef: environmentDefinition });`);
+    lines.push(`    `);
+    
+    // Extract associations from bindings 
+    const associations = extractAssociations(element);
+    lines.push(`    // Associations (role bindings)`);
+    lines.push(`    this.associations = ${JSON.stringify(associations, null, 2).replace(/\n/g, '\n    ')};`);
+    lines.push(`    `);
+    
+    // Generate entity instances
+    const instances = extractInstances(element);
+    const compositions = extractCompositions(element);
+    
+    lines.push(`    // Entity instances`);
+    for (const [instName, instInfo] of Object.entries(instances)) {
+      const entityType = instInfo.type || instInfo.definition;
+      if (entityType && !instName.includes(':') && instName !== 'Vehicle' && instName !== 'Supervisory') {
+        // Check if this instance has property assignments
+        const properties = instInfo.properties || {};
+        const propertiesStr = Object.keys(properties).length > 0 ? 
+          `, { properties: ${JSON.stringify(properties)} }` : '';
+        
+        lines.push(`    this.${instName} = this.createEntity('${entityType}'${propertiesStr});`);
+      }
+    }
+    
+    lines.push(`    `);
+    
+    // Generate compositions
+    lines.push(`    // Compositions`);
+    for (const [compPath, compValue] of Object.entries(compositions)) {
+      lines.push(`    ${compPath} = ${compValue};`);
+    }
+    
+    lines.push(`  }`);
+    lines.push(`}`);
+    lines.push('');
+  }
+  
+  // 5. Event classes removed - functionality moved to EventsDefinitions only
+  // This eliminates code duplication and reduces file size significantly
+  
+  // 6. Generate EventsDefinitions classes
+  for (const { element, className } of eventDefinitions) {
+    const eventsName = element.name || element.id || 'UnnamedEvents';
+    const targetName = element.config || element.target || element.to || 'UnnamedConfiguration';
+    const { events, eventClasses } = extractEvents(element);
+    
+    lines.push(`// Events Definitions: ${eventsName}`);
+    lines.push(`class ${className} extends EventsDefinitions {`);
+    lines.push(`  constructor(name = '${eventsName}', opts = {}) {`);
+    lines.push(`    super(name, {`);
+    lines.push(`      ...opts,`);
+    lines.push(`      targetConfiguration: '${targetName}'`);
+    lines.push(`    });`);
+    lines.push('');
+    lines.push(`    // Initialize TaskExecutor for hybrid execution`);
+    lines.push(`    this.taskExecutor = new TaskExecutor({});`);
+    lines.push('');
+    
+    // Generate individual event properties and methods
+    for (const eventClass of eventClasses) {
+      lines.push(`    // ${eventClass.name} Event Definition`);
+      lines.push(`    this.${eventClass.name} = {`);
+      lines.push(`      name: '${eventClass.name}',`);
+      lines.push(`      type: '${eventClass.type}',`);
+      lines.push(`      target: '${eventClass.target}',`);
+      lines.push(`      rules: [`);
+      
+      for (const rule of eventClass.rules) {
+        lines.push(`        {`);
+        lines.push(`          trigger: '${rule.trigger}',`);
+        lines.push(`          tasks: {`);
+        
+        // Generate tasks as pure JavaScript functions
+        for (const action of rule.actions) {
+          lines.push(`            ${action.name}: (context) => {`);
+          
+          // Generate pure JavaScript from action body
+          if (action.body && action.body.length > 0) {
+            for (const bodyLine of action.body) {
+              // bodyLine already comes as JavaScript from convertStatementsToJS
+              lines.push(`              ${bodyLine}`);
+            }
+          }
+          
+          lines.push(`              return true;`);
+          lines.push(`            },`);
+        }
+        
+        lines.push(`          },`);
+        lines.push(`          execute: (context) => {`);
+        lines.push(`            if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing ${eventClass.name}: ${rule.trigger} -> ${rule.actions.map(a => a.name).join(', ')}');`);
+        lines.push(`            const results = [];`);
+        lines.push(`            const currentRule = this.${eventClass.name}.rules.find(r => r.trigger === '${rule.trigger}');`);
+        
+        for (const action of rule.actions) {
+          lines.push(`            results.push(currentRule.tasks.${action.name}(context));`);
+        }
+        
+        lines.push(`            return results;`);
+        lines.push(`          }`);
+        lines.push(`        },`);
+      }
+      
+      lines.push(`      ],`);
+      lines.push(`      hasRule: (triggerName) => {`);
+      lines.push(`        return this.${eventClass.name}.rules.some(rule => rule.trigger === triggerName);`);
+      lines.push(`      },`);
+      lines.push(`      executeRule: (triggerName, context) => {`);
+      lines.push(`        const rule = this.${eventClass.name}.rules.find(r => r.trigger === triggerName);`);
+      lines.push(`        return rule ? rule.execute(context) : null;`);
+      lines.push(`      }`);
+      lines.push(`    };`);
+      lines.push('');
+    }
+    
+    // Close constructor
+    lines.push(`  }`);
+    lines.push('');
+    
+    // Generate action methods
+    const actionMap = new Map();
+    for (const eventClass of eventClasses) {
+      for (const rule of eventClass.rules) {
+        for (const action of rule.actions) {
+          if (!actionMap.has(action.name)) {
+            actionMap.set(action.name, action);
+          }
+        }
+      }
+    }
+    
+    // executeEvent method now inherited from EventsDefinitions base class
+    lines.push(`}`);
+    lines.push('');
+  }
+
+  // 7. Generate Enhanced Scene classes with JavaScript-native conditions
+  for (const { element } of sceneDefinitions) {
+    const scenes = extractScenesEnhanced(element);
+    for (const [sceneName, sceneDef] of Object.entries(scenes)) {
+      const sceneClassName = sanitizeId(sceneName);
+      lines.push(`// Enhanced Scene: ${sceneName}`);
+      lines.push(`class ${sceneClassName} extends Scene {`);
+      lines.push(`  constructor(name = '${sceneName}', opts = {}) {`);
+      lines.push(`    super(name, {`);
+      lines.push(`      ...opts,`);
+      lines.push(`      sceneType: 'scene',`);
+      lines.push(`      startEvent: '${sceneDef.startEvent || ''}',`);
+      lines.push(`      finishEvent: '${sceneDef.finishEvent || ''}',`);
+      lines.push(`      entities: [],`);
+      lines.push(`      initialStates: ${JSON.stringify(sceneDef.initialStates || {})}`);
+      lines.push(`    });`);
+      lines.push(`  }`);
+      lines.push(``);
+      
+      // Generate JavaScript-native pre-condition method
+      lines.push(`  /**`);
+      lines.push(`   * Evaluates pre-conditions using JavaScript functions instead of JSON`);
+      lines.push(`   * @param {Object} context - Execution context with entities and state`);
+      lines.push(`   * @returns {boolean} - True if all pre-conditions are satisfied`);
+      lines.push(`   */`);
+      lines.push(`  validatePreConditions(context) {`);
+      lines.push(generateJavaScriptConditions(sceneDef.preConditions, 'pre'));
+      lines.push(`  }`);
+      lines.push(``);
+      
+      // Generate JavaScript-native post-condition method
+      lines.push(`  /**`);
+      lines.push(`   * Evaluates post-conditions using JavaScript functions instead of JSON`);
+      lines.push(`   * @param {Object} context - Execution context with entities and state`);
+      lines.push(`   * @returns {boolean} - True if all post-conditions are satisfied`);
+      lines.push(`   */`);
+      lines.push(`  validatePostConditions(context) {`);
+      lines.push(generateJavaScriptConditions(sceneDef.postConditions, 'post'));
+      lines.push(`  }`);
+      lines.push(`}`);
+      lines.push('');
+    }
+  }
+
+  // 8. Generate SceneDefinitions classes
+  for (const { element, className } of sceneDefinitions) {
+    const scenesName = element.name || element.id || 'UnnamedScenes';
+    const targetName = element.events || element.target || element.to || 'UnnamedEvents';
+    lines.push(`// Scene Definitions: ${scenesName}`);
+    lines.push(`class ${className} extends SceneDefinitions {`);
+    lines.push(`  constructor(name = '${scenesName}', opts = {}) {`);
+    lines.push(`    super(name, {`);
+    lines.push(`      ...opts,`);
+    lines.push(`      targetEvents: '${targetName}',`);
+    lines.push(`      scenes: ${JSON.stringify(extractScenes(element))}`);
+    lines.push(`    });`);
+    lines.push(`  }`);
+    lines.push(`}`);
+    lines.push('');
+  }
+
+  // 9. Generate Scenario classes (individual scenarios before ScenarioDefinitions)
+  for (const { element } of scenarioDefinitions) {
+    const scenarios = extractScenariosEnhanced(element);
+    for (const [scenarioName, scenarioDef] of Object.entries(scenarios)) {
+      const scenarioClassName = sanitizeId(scenarioName);
+      lines.push(`class ${scenarioClassName} extends Scenario {`);
+      lines.push(`  constructor(name = '${scenarioName}', opts = {}) {`);
+      lines.push(`    super(name, {`);
+      lines.push(`      ...opts,`);
+      lines.push(`      scenarioType: 'scenario'`);
+      lines.push(`    });`);
+      lines.push(`  }`);
+      lines.push(``);
+      
+      // Generate JavaScript execution method with explicit programming structures
+      lines.push(`  async execute(context) {`);
+      lines.push(generateJavaScriptScenarioExecution(scenarioDef.programmingStructures));
+      lines.push(`  }`);
+      lines.push(`}`);
+      lines.push('');
+    }
+  }
+
+  // 10. Generate ScenarioDefinitions classes
+  for (const { element, className } of scenarioDefinitions) {
+    const scenariosName = element.name || element.id || 'UnnamedScenarios';
+    const targetName = element.scenes || element.target || element.to || 'UnnamedScenes';
+    const scenarios = extractScenariosEnhanced(element);
+    
+    lines.push(`class ${className} extends ScenarioDefinitions {`);
+    lines.push(`  constructor(name = '${scenariosName}', opts = {}) {`);
+    lines.push(`    super(name, {`);
+    lines.push(`      ...opts,`);
+    lines.push(`      targetScenes: '${targetName}',`);
+    lines.push(`      scenarios: ${JSON.stringify(extractScenarios(element))}`);
+    lines.push(`    });`);
+    lines.push(``);
+    
+    // Add scenario registry
+    for (const [scenarioName] of Object.entries(scenarios)) {
+      const scenarioClassName = sanitizeId(scenarioName);
+      lines.push(`    this.addScenario('${scenarioName}', ${scenarioClassName});`);
+    }
+    
+    lines.push(`  }`);
+    lines.push(`}`);
+    lines.push('');
+  }
+
+  // 11. Event classes removed - Enhanced Scene/Scenario functionality integrated
+  // All Scene classes are now generated in section 7 with JavaScript-native conditions
+  // All Scenario classes are generated in section 9 
+  // All functionality consolidated to eliminate duplication
+  
+  // Generate ScenarioExecution classes with explicit programming
+  for (const { element, className } of scenarioExecutions) {
+    const targetName = element.defs || element.target || element.to || element.scenarios || 'UnnamedScenarios';
+    const executionName = `${targetName}Execution`;
+    const executionData = extractScenarioExecutionEnhanced(element);
+    
+    lines.push(`// Scenario Execution with Explicit Programming: ${executionName}`);
+    lines.push(`class ${className} extends ScenarioExecution {`);
+    lines.push(`  constructor(name = '${executionName}', opts = {}) {`);
+    lines.push(`    super(name, {`);
+    lines.push(`      ...opts,`);
+    lines.push(`      targetScenarios: '${targetName}'`);
+    lines.push(`    });`);
+    lines.push(`  }`);
+    lines.push(``);
+    
+    // Generate explicit JavaScript execute() method
+    lines.push(`  async execute(context) {`);
+    lines.push(generateExplicitScenarioExecution(executionData));
+    lines.push(`  }`);
+    lines.push(`}`);
+    lines.push('');
+  }
+  
+  // Generate factory function to create integrated model
+  lines.push(`function createEnvironmentModel() {`);
+  lines.push(`  const model = createModel(); // Get traditional model`);
+  lines.push(`  `);
+  lines.push(`  // Initialize scenario execution capabilities`);
+  lines.push(`  model.initializeScenarioExecution();`);
+  lines.push(`  `);
+  lines.push(`  // Add environment/scenario elements to model`);
+  lines.push(`  model.environments = {};`);
+  lines.push(`  model.events = {};`);
+  lines.push(`  model.scenes = {};`);
+  lines.push(`  model.scenarios = {};`);
+  lines.push(`  model.scenarioExecutions = {};`);
+  lines.push(`  `);
+  
+  // Instantiate environment definitions
+  for (const { element, className } of environmentDefinitions) {
+    lines.push(`  model.environments['${element.name}'] = new ${className}();`);
+  }
+  
+  // Instantiate environment configurations
+  for (const { element, className } of environmentConfigurations) {
+    const configName = element.name || element.id || 'UnnamedConfiguration';
+    lines.push(`  model.environments['${configName}'] = new ${className}();`);
+  }
+  
+  // Instantiate event definitions with Proxy pattern
+  for (const { element, className } of eventDefinitions) {
+    const eventsName = element.name || 'UnnamedEvents';
+    lines.push(`  model.events['${eventsName}'] = new ${className}();`);
+  }
+  
+  // Instantiate scene definitions
+  for (const { element, className } of sceneDefinitions) {
+    const scenesName = element.name || 'UnnamedScenes';
+    lines.push(`  model.scenes['${scenesName}'] = new ${className}();`);
+  }
+  
+  // Instantiate scenario definitions
+  for (const { element, className } of scenarioDefinitions) {
+    const scenariosName = element.name || 'UnnamedScenarios';
+    lines.push(`  model.scenarios['${scenariosName}'] = new ${className}();`);
+  }
+  
+  // Add individual scene classes to context for execution
+  for (const { element } of sceneDefinitions) {
+    const scenes = extractScenesEnhanced(element);
+    for (const [sceneName] of Object.entries(scenes)) {
+      const sceneClassName = sanitizeId(sceneName);
+      lines.push(`  model.scenes['${sceneName}'] = ${sceneClassName};`);
+    }
+  }
+  
+  // Add individual scenario classes to context for execution
+  for (const { element } of scenarioDefinitions) {
+    const scenarios = extractScenariosEnhanced(element);
+    for (const [scenarioName] of Object.entries(scenarios)) {
+      const scenarioClassName = sanitizeId(scenarioName);
+      lines.push(`  model.scenarios['${scenarioName}'] = ${scenarioClassName};`);
+    }
+  }
+  
+  // Instantiate scenario executions
+  for (const { element, className } of scenarioExecutions) {
+    const targetName = element.defs || element.target || element.to || element.scenarios || 'UnnamedScenarios';
+    const executionName = `${targetName}Execution`;
+    lines.push(`  model.scenarioExecutions['${executionName}'] = new ${className}();`);
+    lines.push(`  model.registerScenarioExecution(model.scenarioExecutions['${executionName}']);`);
+  }
+  
+  lines.push(`  `);
+  lines.push(`  // Setup environment bindings if needed`);
+  lines.push(`  // TODO: Implement automatic binding setup based on model analysis`);
+  lines.push(`  `);
+  lines.push(`  return model;`);
+  lines.push(`}`);
+  lines.push('');
+  
+  // Export classes and factory - including individual Scene and Scenario classes
+  const sceneClassNames = [];
+  const scenarioClassNames = [];
+  
+  // Extract individual Scene class names
+  for (const { element } of sceneDefinitions) {
+    const scenes = extractScenesEnhanced(element);
+    for (const sceneName of Object.keys(scenes)) {
+      sceneClassNames.push(sanitizeId(sceneName));
+    }
+  }
+  
+  // Extract individual Scenario class names  
+  for (const { element } of scenarioDefinitions) {
+    const scenarios = extractScenariosEnhanced(element);
+    for (const scenarioName of Object.keys(scenarios)) {
+      scenarioClassNames.push(sanitizeId(scenarioName));
+    }
+  }
+  
+  const allClasses = [
+    ...environmentDefinitions.map(d => d.className),
+    ...environmentConfigurations.map(d => d.className),
+    ...eventDefinitions.map(d => d.className),
+    ...sceneDefinitions.map(d => d.className),
+    ...scenarioDefinitions.map(d => d.className),
+    ...scenarioExecutions.map(d => d.className),
+    ...sceneClassNames, // Individual Scene classes
+    ...scenarioClassNames // Individual Scenario classes
+  ];
+  
+  lines.push(`module.exports = { createEnvironmentModel${allClasses.length > 0 ? ', ' + allClasses.join(', ') : ''} };`);
+  
+  return lines.join('\n');
+}
+
+// Helper functions to extract information from environment elements
+function extractEntityTypes(element) {
+  const entityTypes = {};
+  
+  if (!element || !element.entities) return entityTypes;
+  
+  // Look through entities array directly
+  for (const entity of element.entities) {
+    if (entity && entity.type === 'EntityDef') {
+      const entityName = entity.name || (entity.id && entity.id.name) || entity.id;
+      if (entityName) {
+        const properties = {};
+        const roles = [];  // Array instead of object
+        const entities = {}; // For composition structures
+        
+        // Extract properties from propertyDefs
+        if (entity.propertyDefs && Array.isArray(entity.propertyDefs)) {
+          for (const prop of entity.propertyDefs) {
+            if (prop.type === 'PropertyDef') {
+              const propName = prop.name || (prop.id && prop.id.name) || prop.id;
+              if (propName) {
+                properties[propName] = prop.valueType || 'String';
+              }
+            }
+          }
+        }
+        
+        // Also check deprecated 'properties' field for backward compatibility
+        if (entity.properties && Array.isArray(entity.properties)) {
+          for (const prop of entity.properties) {
+            if (prop.type === 'PropertyDef') {
+              const propName = prop.name || (prop.id && prop.id.name) || prop.id;
+              if (propName) {
+                properties[propName] = prop.valueType || 'String';
+              }
+            }
+          }
+        }
+        
+        // Extract roles
+        if (entity.roles && Array.isArray(entity.roles)) {
+          for (const role of entity.roles) {
+            if (role.type === 'RoleDef') {
+              const roleName = role.name || (role.id && role.id.name) || role.id;
+              if (roleName) {
+                // Since it's in roles{}, just collect the role names
+                roles.push(roleName);
+              }
+            }
+          }
+        }
+        
+        // Extract entity compositions (like Lane with entities { stations: Station[], ... })
+        if (entity.compositions && entity.compositions.type === 'EntityUseList' && entity.compositions.items) {
+          for (const item of entity.compositions.items) {
+            // Each item is an array with composition details
+            if (Array.isArray(item) && item.length >= 5) {
+              const compItem = item[4]; // The actual composition definition
+              if (compItem && compItem.name && compItem.type) {
+                const compName = compItem.name;
+                const compType = compItem.type;
+                const isArray = compItem.arrayIndex !== null;
+                
+                entities[compName] = isArray ? `${compType}[]` : compType;
+              }
+            }
+          }
+        }
+        
+        const entityTypeInfo = {
+          properties,
+          roles,
+          defaultProperties: properties
+        };
+        
+        // Add entities composition if present
+        if (Object.keys(entities).length > 0) {
+          entityTypeInfo.entities = entities;
+        }
+        
+        entityTypes[entityName] = entityTypeInfo;
+      }
+    }
+  }
+  
+  return entityTypes;
+}
+
+function extractEventTypes(element) {
+  const eventTypes = {};
+  
+  if (!element || !element.body) return eventTypes;
+  
+  traverse(element, node => {
+    if (node && node.type === 'EventDef') {
+      const eventName = node.name || (node.id && node.id.name) || node.id;
+      if (eventName) {
+        eventTypes[eventName] = {
+          type: 'complex',
+          parameters: [],
+          triggers: []
+        };
+      }
+    }
+  });
+  
+  return eventTypes;
+}
+
+// Convert action statements to JavaScript code
+function convertStatementsToJS(statements) {
+  if (!statements || !Array.isArray(statements)) return [];
+  
+  const codeLines = [];
+  
+  for (const stmt of statements) {
+    switch (stmt.type) {
+      case 'Assignment':
+        // Handle assignments like supervisor.outCommand.destination=stationC
+        const leftSide = stmt.left;
+        const rightValue = convertExpressionToJS(stmt.right);
+        codeLines.push(`${leftSide} = ${rightValue};`);
+        break;
+        
+      case 'Invocation':
+        // Handle connection invocations like :Command(supervisor, agv2) - Using SysADLRuntimeHelpers
+        const connection = stmt.connection;
+        const args = stmt.args && stmt.args.items ? stmt.args.items.join(', ') : '';
+        codeLines.push(`// Connection: ${connection}(${args})`);
+        if (args.trim()) {
+          const argsList = args.split(',').map(arg => arg.trim());
+          if (argsList.length >= 2) {
+            codeLines.push(`if (context.sysadlBase && context.sysadlBase.helpers) {`);
+            codeLines.push(`  context.sysadlBase.helpers.executeConnection('${connection}', '${argsList[0]}', '${argsList[1]}');`);
+            codeLines.push(`}`);
+          } else {
+            codeLines.push(`// Connection ${connection} with insufficient arguments`);
+          }
+        } else {
+          codeLines.push(`// Connection ${connection} with no arguments`);
+        }
+        break;
+        
+      case 'ExpressionStatement':
+        // Handle standalone expressions
+        const exprCode = convertExpressionToJS(stmt.expression);
+        codeLines.push(`${exprCode};`);
+        break;
+        
+      case 'IfStatement':
+        // Handle conditional statements
+        const condition = convertExpressionToJS(stmt.condition);
+        codeLines.push(`if (${condition}) {`);
+        if (stmt.then) {
+          const thenStatements = convertStatementsToJS(Array.isArray(stmt.then) ? stmt.then : [stmt.then]);
+          thenStatements.forEach(line => codeLines.push(`  ${line}`));
+        }
+        if (stmt.else) {
+          codeLines.push(`} else {`);
+          const elseStatements = convertStatementsToJS(Array.isArray(stmt.else) ? stmt.else : [stmt.else]);
+          elseStatements.forEach(line => codeLines.push(`  ${line}`));
+        }
+        codeLines.push(`}`);
+        break;
+        
+      case 'WhileStatement':
+        // Handle while loops
+        const whileCondition = convertExpressionToJS(stmt.condition);
+        codeLines.push(`while (${whileCondition}) {`);
+        if (stmt.body) {
+          const bodyStatements = convertStatementsToJS(Array.isArray(stmt.body) ? stmt.body : [stmt.body]);
+          bodyStatements.forEach(line => codeLines.push(`  ${line}`));
+        }
+        codeLines.push(`}`);
+        break;
+        
+      case 'ForStatement':
+        // Handle for loops
+        const init = stmt.init ? convertExpressionToJS(stmt.init) : '';
+        const test = stmt.test ? convertExpressionToJS(stmt.test) : '';
+        const update = stmt.update ? convertExpressionToJS(stmt.update) : '';
+        codeLines.push(`for (${init}; ${test}; ${update}) {`);
+        if (stmt.body) {
+          const forBodyStatements = convertStatementsToJS(Array.isArray(stmt.body) ? stmt.body : [stmt.body]);
+          forBodyStatements.forEach(line => codeLines.push(`  ${line}`));
+        }
+        codeLines.push(`}`);
+        break;
+        
+      case 'BlockStatement':
+        // Handle block statements
+        if (stmt.statements) {
+          const blockStatements = convertStatementsToJS(stmt.statements);
+          blockStatements.forEach(line => codeLines.push(line));
+        }
+        break;
+        
+      case 'ReturnStatement':
+        // Handle return statements
+        const returnValue = stmt.value ? convertExpressionToJS(stmt.value) : '';
+        codeLines.push(`return ${returnValue};`);
+        break;
+        
+      case 'VariableDeclaration':
+        // Handle variable declarations like let x = 5;
+        const varName = stmt.name || (stmt.id && stmt.id.name) || 'unknown';
+        const varValue = stmt.init ? convertExpressionToJS(stmt.init) : 'undefined';
+        const varType = stmt.kind || 'let'; // let, const, var
+        codeLines.push(`${varType} ${varName} = ${varValue};`);
+        break;
+        
+      default:
+        console.warn(`Warning: Unknown statement type '${stmt.type}' in convertStatementsToJS`);
+        codeLines.push(`// Unknown statement type: ${stmt.type}`);
+        // Try to extract any useful information
+        if (stmt.expression) {
+          const fallbackCode = convertExpressionToJS(stmt.expression);
+          codeLines.push(`${fallbackCode};`);
+        }
+        break;
+    }
+  }
+  
+  return codeLines;
+}
+
+// Convert expression AST to JavaScript code
+function convertExpressionToJS(expr) {
+  if (!expr) return 'null';
+  
+  switch (expr.type) {
+    case 'NameExpression':
+      // Handle enum values and identifiers
+      return `'${expr.name}'`;
+      
+    case 'StringLiteral':
+      return `"${expr.value}"`;
+      
+    case 'NumberLiteral':
+    case 'IntLiteral':
+    case 'RealLiteral':
+      return expr.value;
+      
+    case 'BooleanLiteral':
+      return expr.value;
+      
+    case 'QualifiedName':
+      // Handle qualified names like stationA.ID
+      if (expr.parts && Array.isArray(expr.parts)) {
+        return `'${expr.parts.join('.')}'`;
+      }
+      return `'${expr.name || 'unknown'}'`;
+      
+    case 'PropertyAccess':
+      // Handle property access like obj.property
+      const objName = convertExpressionToJS(expr.object);
+      const propName = expr.property;
+      return `${objName.replace(/'/g, '')}.${propName}`;
+      
+    case 'ArrayExpression':
+      // Handle array literals
+      if (expr.elements && Array.isArray(expr.elements)) {
+        const elements = expr.elements.map(el => convertExpressionToJS(el)).join(', ');
+        return `[${elements}]`;
+      }
+      return '[]';
+      
+    case 'ObjectExpression':
+      // Handle object literals
+      if (expr.properties && Array.isArray(expr.properties)) {
+        const props = expr.properties.map(prop => {
+          const key = prop.key ? convertExpressionToJS(prop.key) : '"unknown"';
+          const value = prop.value ? convertExpressionToJS(prop.value) : 'null';
+          return `${key}: ${value}`;
+        }).join(', ');
+        return `{${props}}`;
+      }
+      return '{}';
+      
+    case 'BinaryExpression':
+      // Handle binary operations like a + b, a == b
+      const left = convertExpressionToJS(expr.left);
+      const right = convertExpressionToJS(expr.right);
+      return `${left} ${expr.operator} ${right}`;
+      
+    case 'UnaryExpression':
+      // Handle unary operations like !expr, -expr
+      const operand = convertExpressionToJS(expr.operand);
+      return `${expr.operator}${operand}`;
+      
+    case 'ConditionalExpression':
+      // Handle ternary operator: condition ? then : else
+      const test = convertExpressionToJS(expr.test);
+      const consequent = convertExpressionToJS(expr.consequent);
+      const alternate = convertExpressionToJS(expr.alternate);
+      return `${test} ? ${consequent} : ${alternate}`;
+      
+    case 'CallExpression':
+      // Handle function calls
+      const callee = convertExpressionToJS(expr.callee);
+      const args = expr.arguments ? expr.arguments.map(arg => convertExpressionToJS(arg)).join(', ') : '';
+      return `${callee}(${args})`;
+      
+    default:
+      console.warn(`Warning: Unknown expression type '${expr.type}' in convertExpressionToJS`);
+      // Try to extract a reasonable value
+      if (expr.name) return `'${expr.name}'`;
+      if (expr.value !== undefined) return JSON.stringify(expr.value);
+      if (expr.id) return `'${expr.id}'`;
+      return `'${expr.type || 'unknown'}'`;
+  }
+}
+
+function extractProperties(element) {
+  const properties = {};
+  
+  if (!element || !element.body) return properties;
+  
+  traverse(element, node => {
+    if (node && node.type === 'PropertyDef') {
+      const propName = node.name || (node.id && node.id.name) || node.id;
+      if (propName) {
+        properties[propName] = node.valueType || node.type || 'String';
+      }
+    }
+  });
+  
+  return properties;
+}
+
+function extractEvents(element) {
+  const events = {};
+  const eventClasses = [];
+  
+  if (!element || !element.eventDefs) return { events, eventClasses };
+  
+  // Process EventDef nodes directly from eventDefs array
+  for (const eventDef of element.eventDefs) {
+    if (eventDef && eventDef.type === 'EventDef') {
+      const eventDefName = eventDef.name || (eventDef.id && eventDef.id.name) || eventDef.id;
+      if (eventDefName) {
+        const eventRules = [];
+        
+        // Extract ON...THEN rules from triggers
+        if (eventDef.triggers && Array.isArray(eventDef.triggers)) {
+          for (const trigger of eventDef.triggers) {
+            if (trigger.type === 'TriggerBlock') {
+              const triggerName = trigger.condition ? trigger.condition.name : 'unknown';
+              const actions = [];
+              
+              // Extract THEN actions
+              if (trigger.actions && Array.isArray(trigger.actions)) {
+                for (const action of trigger.actions) {
+                  if (action.type === 'ActionBlock') {
+                    // Convert statements to JavaScript code
+                    const bodyCode = convertStatementsToJS(action.statements || []);
+                    actions.push({
+                      name: action.name,
+                      body: bodyCode
+                    });
+                  }
+                }
+              }
+              
+              eventRules.push({
+                trigger: triggerName,
+                actions: actions,
+                conditions: trigger.condition ? [trigger.condition] : []
+              });
+            }
+          }
+        }
+        
+        // Create individual event class structure
+        const eventClass = {
+          name: eventDefName,
+          target: eventDef.target,
+          rules: eventRules,
+          type: 'rule-based'
+        };
+        
+        eventClasses.push(eventClass);
+        
+        // Simplified structure for backward compatibility
+        events[eventDefName] = {
+          type: 'rule-based',
+          target: eventDef.target,
+          parameters: [],
+          rules: eventRules
+        };
+      }
+    }
+  }
+  
+  return { events, eventClasses };
+}
+
+function extractScenes(element) {
+  const scenes = {};
+  
+  if (!element || !element.body) return scenes;
+  
+  // Look for Scene def nodes
+  traverse(element, node => {
+    if (node && node.type === 'SceneDef') {
+      const sceneName = node.name || (node.id && node.id.name) || node.id;
+      if (sceneName) {
+        const preConditions = [];
+        const postConditions = [];
+        
+        // Extract pre and post conditions
+        if (node.preConditions && Array.isArray(node.preConditions)) {
+          preConditions.push(...node.preConditions);
+        }
+        
+        if (node.postConditions && Array.isArray(node.postConditions)) {
+          postConditions.push(...node.postConditions);
+        }
+        
+        scenes[sceneName] = {
+          initialStates: {},
+          preConditions,
+          postConditions,
+          startEvent: node.startEvent || node.start,
+          finishEvent: node.finishEvent || node.finish
+        };
+      }
+    }
+  });
+  
+  return scenes;
+}
+
+// Enhanced Scene extraction with proper condition handling
+function extractScenesEnhanced(element) {
+  const scenes = {};
+  
+  if (!element || !element.scenes) return scenes;
+  
+  // Process scenes array directly from the SceneDefinitions element
+  for (const sceneDef of element.scenes) {
+    if (sceneDef && sceneDef.type === 'SceneDef') {
+      const sceneName = sceneDef.name || (sceneDef.id && sceneDef.id.name) || sceneDef.id;
+      if (sceneName) {
+        const preConditions = [];
+        const postConditions = [];
+        
+        // Extract pre-conditions from preconds array
+        if (sceneDef.preconds && Array.isArray(sceneDef.preconds)) {
+          preConditions.push(...sceneDef.preconds.map(cond => {
+            if (cond.type === 'ConditionBlock') {
+              return {
+                expression: `${cond.name} == ${cond.value}`,
+                type: 'condition',
+                name: cond.name,
+                value: cond.value
+              };
+            }
+            return {
+              expression: cond.expression || cond.condition || cond.statement || String(cond),
+              type: 'condition'
+            };
+          }));
+        }
+        
+        // Extract post-conditions from postconds array  
+        if (sceneDef.postconds && Array.isArray(sceneDef.postconds)) {
+          postConditions.push(...sceneDef.postconds.map(cond => {
+            if (cond.type === 'ConditionBlock') {
+              return {
+                expression: `${cond.name} == ${cond.value}`,
+                type: 'condition',
+                name: cond.name,
+                value: cond.value
+              };
+            }
+            return {
+              expression: cond.expression || cond.condition || cond.statement || String(cond),
+              type: 'condition'
+            };
+          }));
+        }
+        
+        scenes[sceneName] = {
+          initialStates: {},
+          preConditions,
+          postConditions,
+          startEvent: sceneDef.start || sceneDef.startEvent,
+          finishEvent: sceneDef.finish || sceneDef.finishEvent
+        };
+      }
+    }
+  }
+  
+  return scenes;
+}
+
+/**
+ * Generates JavaScript-native condition functions for Scene classes
+ * Converts JSON-based conditions to functional JavaScript code with context validation
+ * @param {Array} conditions - Array of condition objects from extractScenesEnhanced
+ * @param {string} conditionType - 'pre' or 'post' for condition type
+ * @returns {string} - JavaScript function code as string
+ */
+function generateJavaScriptConditions(conditions, conditionType) {
+  if (!conditions || conditions.length === 0) {
+    return `    // No ${conditionType}-conditions defined
+    return true;`;
+  }
+  
+  const functionBody = [];
+  functionBody.push(`    // Enhanced ${conditionType}-condition validation with context support`);
+  functionBody.push(`    if (!context) {`);
+  functionBody.push(`      throw new Error('Context is required for ${conditionType}-condition evaluation');`);
+  functionBody.push(`    }`);
+  functionBody.push(``);
+  functionBody.push(`    try {`);
+  
+  // Track declared entities to avoid duplicates
+  const declaredEntities = new Set();
+  
+  // Generate condition checks
+  const conditionChecks = [];
+  conditions.forEach((condition, index) => {
+    const expression = condition.expression || '';
+    
+    // Parse entity.property == value patterns
+    const match = expression.match(/^(\w+)\.(\w+)\s*==\s*(.+)$/);
+    if (match) {
+      const [, entityName, property, expectedValue] = match;
+      
+      functionBody.push(`      // Condition ${index + 1}: ${expression}`);
+      
+      // Declare entity only if not already declared
+      if (!declaredEntities.has(entityName)) {
+        functionBody.push(`      const ${entityName}Entity = this.getEntity(context, '${entityName}');`);
+        functionBody.push(`      if (!${entityName}Entity) {`);
+        functionBody.push(`        throw new Error('Entity ${entityName} not found in context');`);
+        functionBody.push(`      }`);
+        declaredEntities.add(entityName);
+      }
+      
+      const conditionVar = `condition${index + 1}`;
+      
+      // Handle different value types
+      if (expectedValue.includes('.ID')) {
+        // Handle stationC.ID references
+        const stationMatch = expectedValue.match(/^(\w+)\.ID$/);
+        if (stationMatch) {
+          const [, stationName] = stationMatch;
+          
+          // Declare station entity only if not already declared
+          if (!declaredEntities.has(stationName)) {
+            functionBody.push(`      const ${stationName}Entity = this.getEntity(context, '${stationName}');`);
+            functionBody.push(`      if (!${stationName}Entity) {`);
+            functionBody.push(`        throw new Error('Entity ${stationName} not found in context');`);
+            functionBody.push(`      }`);
+            declaredEntities.add(stationName);
+          }
+          
+          functionBody.push(`      const ${conditionVar} = this.compareValues(${entityName}Entity.${property}, ${stationName}Entity.properties.ID);`);
+        }
+      } else {
+        // Handle direct string values
+        const cleanValue = expectedValue.replace(/['"]/g, '');
+        functionBody.push(`      const ${conditionVar} = this.compareValues(${entityName}Entity.${property}, '${cleanValue}');`);
+      }
+      
+      conditionChecks.push(conditionVar);
+    } else {
+      // Fallback for complex expressions
+      functionBody.push(`      // Complex condition ${index + 1}: ${expression}`);
+      const conditionVar = `condition${index + 1}`;
+      functionBody.push(`      const ${conditionVar} = true; // TODO: Implement complex expression parsing`);
+      conditionChecks.push(conditionVar);
+    }
+  });
+  
+  functionBody.push(``);
+  if (conditionChecks.length > 1) {
+    functionBody.push(`      // All conditions must be satisfied`);
+    functionBody.push(`      const allConditionsMet = ${conditionChecks.join(' && ')};`);
+    functionBody.push(`      return allConditionsMet;`);
+  } else if (conditionChecks.length === 1) {
+    functionBody.push(`      return ${conditionChecks[0]};`);
+  }
+  
+  functionBody.push(`    } catch (error) {`);
+  functionBody.push(`      console.error(\`Error evaluating ${conditionType}-conditions for \${this.name}:\`, error.message);`);
+  functionBody.push(`      return false;`);
+  functionBody.push(`    }`);
+  
+  return functionBody.join('\n');
+}
+
+function extractScenarios(element) {
+  const scenarios = {};
+  
+  if (!element || !element.body) return scenarios;
+  
+  // Look for Scenario def nodes
+  traverse(element, node => {
+    if (node && node.type === 'ScenarioDef') {
+      const scenarioName = node.name || (node.id && node.id.name) || node.id;
+      if (scenarioName) {
+        const scenes = [];
+        const logic = [];
+        
+        // Extract referenced scenes and execution logic
+        if (node.body && Array.isArray(node.body)) {
+          for (const item of node.body) {
+            if (typeof item === 'string') {
+              // Simple scene reference
+              scenes.push(item);
+            } else if (item.type === 'SceneRef') {
+              scenes.push(item.name || item.id);
+            } else if (item.type === 'LoopStatement') {
+              logic.push({
+                type: 'loop',
+                condition: item.condition,
+                body: item.body
+              });
+            }
+          }
+        }
+        
+        scenarios[scenarioName] = {
+          scenes,
+          logic,
+          preConditions: [],
+          postConditions: []
+        };
+      }
+    }
+  });
+  
+  return scenarios;
+}
+
+/**
+ * Generate JavaScript execution code for scenario programming structures
+ * Translates SysADL programming constructs to explicit JavaScript code
+ * @param {Array} programmingStructures - Array of programming structure objects
+ * @returns {string} - JavaScript function body code
+ */
+function generateJavaScriptScenarioExecution(programmingStructures) {
+  if (!programmingStructures || programmingStructures.length === 0) {
+    return `    return { success: true, message: 'Empty scenario executed' };`;
+  }
+  
+  const functionBody = [];
+  functionBody.push(`    if (!context || !context.scenes) {`);
+  functionBody.push(`      throw new Error('Context with scenes registry is required for scenario execution');`);
+  functionBody.push(`    }`);
+  functionBody.push(``);
+  
+  // Track declared variables
+  const declaredVariables = new Set();
+  
+  // Process each programming structure
+  for (const structure of programmingStructures) {
+    console.log(`DEBUG: Processing structure type ${structure.type}:`, JSON.stringify(structure, null, 2));
+    
+    switch (structure.type) {
+      case 'VarDec':
+      case 'VariableDecl':
+        // let i: Integer = 1;
+        console.log(`DEBUG: Variable declaration structure:`, JSON.stringify(structure, null, 2));
+        
+        const varName = structure.name || (structure.id && structure.id.name) || structure.id;
+        let varValue = '1'; // default
+        
+        // Try multiple ways to extract the value
+        if (structure.value) {
+          if (Array.isArray(structure.value) && structure.value.length >= 3) {
+            // Format: ["=", [" "], {type: "NumberLiteral", value: 1}]
+            const valueObj = structure.value[2];
+            if (valueObj && typeof valueObj === 'object') {
+              if (valueObj.value !== undefined) {
+                varValue = valueObj.value;
+              } else if (valueObj.literal !== undefined) {
+                varValue = valueObj.literal;
+              } else {
+                varValue = JSON.stringify(valueObj);
+              }
+            }
+          } else if (typeof structure.value === 'object' && structure.value.value !== undefined) {
+            varValue = structure.value.value;
+          } else if (typeof structure.value === 'object' && structure.value.literal) {
+            varValue = structure.value.literal.value || structure.value.literal;
+          } else if (typeof structure.value === 'number' || typeof structure.value === 'string') {
+            varValue = structure.value;
+          } else {
+            console.log(`DEBUG: Cannot extract value from:`, JSON.stringify(structure.value, null, 2));
+            varValue = '1'; // fallback
+          }
+        } else if (structure.init) {
+          // Alternative property name for initial value
+          if (typeof structure.init === 'object' && structure.init.value !== undefined) {
+            varValue = structure.init.value;
+          } else if (typeof structure.init === 'object' && structure.init.literal) {
+            varValue = structure.init.literal.value || structure.init.literal;
+          } else {
+            varValue = structure.init;
+          }
+        }
+        
+        console.log(`DEBUG: Extracted varName=${varName}, varValue=${varValue}`);
+        
+        if (varName && !declaredVariables.has(varName)) {
+          functionBody.push(`    let ${varName} = ${varValue};`);
+          declaredVariables.add(varName);
+        }
+        break;
+        
+      case 'While':
+      case 'WhileStatement':
+        // while (i < 5) { ... }
+        let condition = 'true'; // default
+        
+        if (structure.condition) {
+          if (typeof structure.condition === 'string') {
+            condition = structure.condition;
+          } else if (typeof structure.condition === 'object' && structure.condition.left && (structure.condition.op || structure.condition.operator) && structure.condition.right) {
+            // Binary expression like {left: {name: 'i'}, operator: '<', right: {value: 5}}
+            const left = structure.condition.left.name || structure.condition.left;
+            const op = structure.condition.op || structure.condition.operator;
+            const right = structure.condition.right.value !== undefined ? structure.condition.right.value : structure.condition.right;
+            condition = `${left} ${op} ${right}`;
+          }
+        }
+        
+        functionBody.push(`    while (${condition}) {`);
+        
+        // Process body statements
+        const bodyStatements = structure.body ? 
+          (Array.isArray(structure.body) ? structure.body : 
+           (structure.body.body && Array.isArray(structure.body.body) ? structure.body.body : [])) : [];
+        
+        for (const bodyItem of bodyStatements) {
+          console.log(`DEBUG: Processing body item type ${bodyItem.type}:`, JSON.stringify(bodyItem, null, 2));
+          
+          if (bodyItem.type === 'ScenarioRef') {
+            // Scene or scenario call within while loop
+            const sceneName = bodyItem.name;
+            if (sceneName) {
+              if (sceneName.includes('SCN_')) {
+                functionBody.push(`      await this.executeScene('${sceneName}', context);`);
+              } else {
+                functionBody.push(`      await this.executeScenario('${sceneName}', context);`);
+              }
+            }
+          } else if (bodyItem.type === 'IncDec') {
+            // i++
+            const variable = bodyItem.name || 'i';
+            const operator = bodyItem.op || '++';
+            functionBody.push(`      ${variable}${operator};`);
+          }
+        }
+        
+        functionBody.push(`    }`);
+        break;
+        
+      case 'ScenarioRef':
+        // Scene or scenario call
+        const refName = structure.name;
+        if (refName) {
+          if (refName.includes('SCN_')) {
+            functionBody.push(`    await this.executeScene('${refName}', context);`);
+          } else {
+            functionBody.push(`    await this.executeScenario('${refName}', context);`);
+          }
+        }
+        break;
+        
+      case 'IncDec':
+        // i++
+        const incVariable = structure.name || 'i';
+        const incOperator = structure.op || '++';
+        functionBody.push(`    ${incVariable}${incOperator};`);
+        break;
+        
+      default:
+        console.log(`DEBUG: Unknown structure type: ${structure.type}`);
+        functionBody.push(`    // TODO: Handle ${structure.type}`);
+        break;
+    }
+  }
+  
+  functionBody.push(``);
+  functionBody.push(`    return { success: true, message: 'Scenario completed successfully' };`);
+  
+  return functionBody.join('\n');
+}
+
+// Generate explicit JavaScript execution for ScenarioExecution
+// Helper function to generate clean injection syntax
+function generateCleanInjectionSyntax(injection) {
+  if (!injection || !injection.eventName) return '';
+  
+  const eventName = injection.eventName;
+  
+  if (injection.type === 'single') {
+    if (injection.timing && injection.timing.type === 'after') {
+      if (injection.timing.scenario) {
+        // inject EventName after ScenarioName
+        return `    // inject ${eventName} after ${injection.timing.scenario};`;
+      } else if (injection.timing.delay) {
+        // inject EventName after 5s
+        return `    // inject ${eventName} after ${injection.timing.delay};`;
+      }
+    } else if (injection.timing && injection.timing.type === 'condition' && injection.timing.expression) {
+      // inject EventName when condition
+      return `    // inject ${eventName} when ${injection.timing.expression};`;
+    } else {
+      // inject EventName (immediate)
+      return `    // inject ${eventName};`;
+    }
+  } else if (injection.type === 'batch') {
+    const events = Array.isArray(injection.events) ? injection.events : [eventName];
+    const eventList = events.map(e => e).join(', ');
+    const mode = injection.mode || 'sequential';
+    
+    if (injection.timing && injection.timing.delay) {
+      // inject_batch [event1, event2] parallel after 2s
+      return `    // inject_batch [${eventList}] ${mode} after ${injection.timing.delay};`;
+    } else {
+      // inject_batch [event1, event2] sequential
+      return `    // inject_batch [${eventList}] ${mode};`;
+    }
+  }
+  
+  return `    // inject ${eventName};`;
+}
+
+function generateExplicitScenarioExecution(executionData) {
+  if (!executionData) {
+    return `    return { success: true, message: 'Empty scenario execution completed' };`;
+  }
+  
+  const functionBody = [];
+  functionBody.push(`    if (!context || !context.scenarios) {`);
+  functionBody.push(`      throw new Error('Context with scenarios registry is required for scenario execution');`);
+  functionBody.push(`    }`);
+  functionBody.push(``);
+  
+  // 1. State initialization (explicit JavaScript)
+  if (executionData.stateInitializations && executionData.stateInitializations.length > 0) {
+    functionBody.push(`    // Initialize environment state`);
+    for (const init of executionData.stateInitializations) {
+      if (init.type === 'assignment' && init.target && init.value) {
+        const pathParts = init.target.split('.');
+        if (pathParts.length === 2) {
+          // Direct entity property assignment like agv1.location
+          functionBody.push(`    this.sysadlBase.environmentConfig.${init.target} = '${init.value}';`);
+        }
+      }
+    }
+    functionBody.push(``);
+  }
+  
+  // 2. Event injections (clean natural syntax)
+  if (executionData.eventInjections && executionData.eventInjections.length > 0) {
+    functionBody.push(`    // Event injections`);
+    for (const injection of executionData.eventInjections) {
+      const cleanSyntax = generateCleanInjectionSyntax(injection);
+      if (cleanSyntax) {
+        functionBody.push(cleanSyntax);
+        
+        // Generate corresponding implementation
+        if (injection.type === 'single' && injection.eventName) {
+          if (injection.timing && injection.timing.type === 'after' && injection.timing.scenario) {
+            functionBody.push(`    context.eventScheduler.scheduleAfterScenario('${injection.eventName}', '${injection.timing.scenario}');`);
+          } else if (injection.timing && injection.timing.type === 'condition' && injection.timing.expression) {
+            functionBody.push(`    context.eventScheduler.scheduleOnCondition('${injection.eventName}', () => this.sysadlBase.environmentConfig.${injection.timing.expression});`);
+          } else if (injection.timing && injection.timing.delay) {
+            const delay = injection.timing.delay.replace(/s$/, '000'); // Convert 5s to 5000ms
+            functionBody.push(`    setTimeout(() => this.sysadlBase.eventInjector.injectEvent('${injection.eventName}'), ${delay});`);
+          } else {
+            functionBody.push(`    await this.sysadlBase.eventInjector.injectEvent('${injection.eventName}');`);
+          }
+        }
+      }
+    }
+    functionBody.push(``);
+  }
+  
+  // 3. Scenario executions (explicit JavaScript)
+  if (executionData.scenarios && executionData.scenarios.length > 0) {
+    functionBody.push(`    // Execute scenarios`);
+    for (const scenario of executionData.scenarios) {
+      if (scenario.name) {
+        functionBody.push(`    await this.executeScenario('${scenario.name}', context);`);
+      }
+    }
+    functionBody.push(``);
+  }
+  
+  // 4. Repeat statements (explicit JavaScript)
+  if (executionData.repeatStatements && executionData.repeatStatements.length > 0) {
+    functionBody.push(`    // Repeat executions`);
+    for (const repeat of executionData.repeatStatements) {
+      if (repeat.scenario && repeat.count) {
+        functionBody.push(`    for (let i = 0; i < ${repeat.count}; i++) {`);
+        functionBody.push(`      await this.executeScenario('${repeat.scenario}', context);`);
+        functionBody.push(`    }`);
+      }
+    }
+    functionBody.push(``);
+  }
+  
+  functionBody.push(`    return { success: true, message: 'Scenario execution completed successfully' };`);
+  
+  return functionBody.join('\n');
+}
+
+// Enhanced Scenario extraction with programming structures support
+function extractScenariosEnhanced(element) {
+  const scenarios = {};
+  
+  if (!element || !element.scenarios) return scenarios;
+  
+  // Process scenarios array directly from the ScenarioDefinitions element
+  for (const scenarioDef of element.scenarios) {
+    if (scenarioDef && scenarioDef.type === 'ScenarioDef') {
+      const scenarioName = scenarioDef.name || (scenarioDef.id && scenarioDef.id.name) || scenarioDef.id;
+      if (scenarioName) {
+        const scenes = [];
+        const programmingStructures = [];
+        
+        // DEBUG: Log scenario structure
+        console.log(`DEBUG: Processing scenario ${scenarioName}, body:`, JSON.stringify(scenarioDef.body, null, 2));
+        
+        // Extract body items (programming structures and scene references)
+        if (scenarioDef.body && Array.isArray(scenarioDef.body)) {
+          for (const item of scenarioDef.body) {
+            console.log(`DEBUG: Processing item type ${item.type}:`, JSON.stringify(item, null, 2));
+            
+            if (item.type === 'ScenarioRef') {
+              // Scene or Scenario reference
+              scenes.push(item.name);
+              programmingStructures.push(item);
+            } else if (item.type === 'VarDec' || item.type === 'VariableDecl') {
+              // Variable declaration (let i: Integer = 1)
+              programmingStructures.push(item);
+            } else if (item.type === 'While' || item.type === 'WhileStatement') {
+              // While loop structure
+              programmingStructures.push(item);
+              // Extract scenes from within the while loop
+              if (item.body && Array.isArray(item.body)) {
+                for (const bodyItem of item.body) {
+                  if (bodyItem.type === 'ScenarioRef') {
+                    scenes.push(bodyItem.name);
+                  }
+                }
+              }
+            } else if (item.type === 'IncDec') {
+              // Increment/decrement statements
+              programmingStructures.push(item);
+            } else {
+              // Any other programming structure
+              programmingStructures.push(item);
+            }
+          }
+        }
+        
+        scenarios[scenarioName] = {
+          scenes,
+          programmingStructures,
+          preConditions: [],
+          postConditions: []
+        };
+      }
+    }
+  }
+  
+  return scenarios;
+}
+
+function extractScenarioExecutionEnhanced(element) {
+  const execution = {
+    scenarios: [],
+    stateInitializations: [],
+    repeatStatements: [],
+    eventInjections: [],
+    executionMode: 'sequential'
+  };
+  
+  if (!element || !element.items) return execution;
+  
+  for (const item of element.items) {
+    switch (item.type) {
+      case 'Assignment':
+        // State initialization like "agv1.location = stationC.ID;"
+        execution.stateInitializations.push({
+          type: 'assignment',
+          target: item.left,
+          value: item.right.name || item.right.value || item.right,
+          source: item.right
+        });
+        break;
+        
+      case 'SceneRef':
+        // Scenario execution like "Scenario1;"
+        execution.scenarios.push({
+          type: 'scenario',
+          name: item.ref,
+          mode: 'normal'
+        });
+        break;
+        
+      case 'ExecutionEntry':
+        // Repeat statement like "repeat 5 Scenario1;"
+        execution.repeatStatements.push({
+          type: 'repeat',
+          count: parseInt(item.repeat) || 1,
+          scenario: item.scenario
+        });
+        break;
+        
+      case 'EventInjection':
+        // Event injection like "inject eventName;"
+        execution.eventInjections.push(parseEventInjectionStatement(item));
+        break;
+        
+      case 'EventInjectionBatch':
+        // Batch event injection like "inject_batch [event1, event2] parallel;"
+        execution.eventInjections.push(parseEventInjectionBatchStatement(item));
+        break;
+        
+      default:
+        // Handle other types if needed
+        break;
+    }
+  }
+  
+  return execution;
+}
+
+function parseEventInjectionStatement(stmt) {
+  // Parse event injection: inject eventName [timing]
+  return {
+    type: 'single',
+    eventName: stmt.eventName || stmt.name,
+    timing: parseEventTiming(stmt.timing),
+    parameters: stmt.parameters || {},
+    options: stmt.options || {}
+  };
+}
+
+function parseEventInjectionBatchStatement(stmt) {
+  // Parse batch event injection: inject_batch [event1, event2] [mode]
+  return {
+    type: 'batch',
+    events: stmt.events || [],
+    mode: stmt.mode || 'sequential', // sequential or parallel
+    timing: parseEventTiming(stmt.timing),
+    options: stmt.options || {}
+  };
+}
+
+// Helper function to convert AST expression to string
+function astExpressionToStringGlobal(node) {
+  if (!node) return '';
+  
+  // If node is already a string, return it
+  if (typeof node === 'string') {
+    return node;
+  }
+  
+  switch (node.type) {
+    case 'BinaryExpression':
+    case 'ComparisonExpression':
+    case 'LogicalExpression':
+      const left = astExpressionToStringGlobal(node.left);
+      const right = astExpressionToStringGlobal(node.right);
+      const op = node.operator;
+      return `${left} ${op} ${right}`;
+      
+    case 'NameExpression':
+      return node.name || '';
+      
+    case 'NaturalLiteral':
+      return String(node.value || 0);
+      
+    case 'RealLiteral':
+      return String(node.value || 0.0);
+      
+    case 'StringLiteral':
+      return `"${node.value || ''}"`;
+      
+    case 'PropertyAccessExpression':
+    case 'MemberAccessExpression':
+      const object = node.object ? astExpressionToStringGlobal(node.object) : '';
+      const property = node.property || node.member || '';
+      return `${object}.${property}`;
+      
+    default:
+      // For unknown types, try to handle them gracefully
+      if (node.value !== undefined) {
+        return String(node.value);
+      }
+      
+      if (node.name) {
+        return node.name;
+      }
+      
+      return '';
+  }
+}
+
+function parseEventTiming(timing) {
+  if (!timing) return { type: 'immediate' };
+  
+  switch (timing.type) {
+    case 'delay':
+      return { type: 'delay', value: timing.value || 0 };
+    case 'condition':
+      // Convert AST expression to JavaScript string
+      const expression = timing.expression ? astExpressionToStringGlobal(timing.expression) : 'true';
+      return { type: 'condition', expression: expression };
+    case 'before':
+      return { type: 'before', scenario: timing.scenario };
+    case 'after':
+      return { type: 'after', scenario: timing.scenario };
+    default:
+      return { type: 'immediate' };
+  }
+}
+
+function extractBindings(element) {
+  const bindings = {};
+  
+  if (!element || !element.body) return bindings;
+  
+  // Extract binding configurations from EnvironmentConfiguration body
+  if (Array.isArray(element.body)) {
+    for (const item of element.body) {
+      if (item.type === 'Binding' && item.left && item.right) {
+        bindings[item.left] = item.right;
+      }
+    }
+  }
+  
+  return bindings;
+}
+
+function extractInstances(element) {
+  const instances = {};
+  
+  if (!element || !element.mappings) return instances;
+  
+  // Extract instance declarations from EnvironmentConfiguration mappings
+  for (const mapping of element.mappings) {
+    // Instance declaration like "agv1:Vehicle;"
+    if (mapping.type === 'Instantiation' && mapping.instance && mapping.entityType) {
+      instances[mapping.instance] = {
+        type: mapping.entityType,
+        properties: {}
+      };
+    }
+    // Property assignment like "stationA.ID = "StationA";"
+    else if (mapping.type === 'Assignment' && mapping.left && mapping.right) {
+      if (mapping.left.includes('.') && !mapping.left.includes(':') && !mapping.left.includes('.entities.')) {
+        const [instanceName, propertyName] = mapping.left.split('.');
+        
+        // Initialize instance if not exist (could be inferred from property assignment)
+        if (!instances[instanceName]) {
+          instances[instanceName] = {
+            type: null, // Will be inferred or explicitly declared later
+            properties: {}
+          };
+        }
+        
+        // Add property
+        let propertyValue = mapping.right;
+        if (mapping.right.type === 'StringLiteral') {
+          propertyValue = mapping.right.value;
+        }
+        instances[instanceName].properties[propertyName] = propertyValue;
+      }
+    }
+  }
+  
+  return instances;
+}
+
+function extractConnections(element) {
+  const connections = {};
+  
+  if (!element || !element.connections) return connections;
+  
+  // Look through connections array directly
+  for (const conn of element.connections) {
+    if (conn && conn.type === 'ConnectionDef') {
+      const connectionName = conn.name || (conn.id && conn.id.name) || conn.id;
+      if (connectionName) {
+        // Extract from and to endpoints
+        let fromEndpoint = null;
+        let toEndpoint = null;
+        
+        if (conn.from) {
+          if (conn.from.entity && conn.from.port) {
+            fromEndpoint = `${conn.from.entity}.${conn.from.port}`;
+          }
+        }
+        
+        if (conn.to) {
+          if (conn.to.entity && conn.to.port) {
+            toEndpoint = `${conn.to.entity}.${conn.to.port}`;
+          }
+        }
+        
+        connections[connectionName] = {
+          type: 'connection',
+          from: fromEndpoint,
+          to: toEndpoint
+        };
+      }
+    }
+  }
+  
+  return connections;
+}
+
+function extractExecutionMode(element) {
+  if (!element || !element.mode) return 'sequential';
+  
+  // Extract execution mode from element
+  if (element.mode === 'parallel') return 'parallel';
+  if (element.mode === 'conditional') return 'conditional';
+  
+  return 'sequential';
+}
+
+// New helper functions for class-oriented architecture
+
+function extractAssociations(element) {
+  const associations = {};
+  
+  if (!element || !element.mappings) return associations;
+  
+  // Extract role associations from EnvironmentConfiguration mappings
+  for (const mapping of element.mappings) {
+    if (mapping.type === 'Association' && mapping.source && mapping.target) {
+      associations[mapping.source] = mapping.target;
+    }
+  }
+  
+  return associations;
+}
+
+function extractCompositions(element) {
+  const compositions = {};
+  
+  if (!element || !element.mappings) return compositions;
+  
+  // Extract composition assignments like lane1.entities.stations = [stationA, stationB, stationC]
+  for (const mapping of element.mappings) {
+    if (mapping.type === 'Assignment' && mapping.left && mapping.right) {
+      // Check if this is a composition assignment (instanceName.entities.property = [values])
+      if (mapping.left.includes('.entities.')) {
+        const leftPath = `this.${mapping.left}`;
+        // Parse the right side - could be an array literal or single value
+        let rightValue;
+        if (mapping.right.type === 'ArrayLiteralExpression' && Array.isArray(mapping.right.elements)) {
+          // Array of instance references
+          rightValue = `[${mapping.right.elements.map(ref => `this.${ref}`).join(', ')}]`;
+        } else if (typeof mapping.right === 'string') {
+          // Single value
+          rightValue = `this.${mapping.right}`;
+        } else {
+          // Fallback for other types
+          rightValue = `this.${mapping.right}`;
+        }
+        compositions[leftPath] = rightValue;
+      }
+    }
+  }
+  
+  return compositions;
+}
+
 async function main() {
   const argv = process.argv.slice(2);
   if (argv.length < 1) { console.error('Usage: transformer.js <input.sysadl> [outdir_or_outfile]'); process.exit(2); }
   const input = path.resolve(argv[0]);
   
-  // Check if second argument is a specific file or directory
-  let outDir, outFile;
-  if (argv[1]) {
-    const outPath = path.resolve(argv[1]);
-    if (path.extname(outPath) === '.js') {
-      // It's a specific file
-      outFile = outPath;
-      outDir = path.dirname(outPath);
-    } else {
-      // It's a directory
-      outDir = outPath;
-      outFile = null;
-    }
-  } else {
-    outDir = path.join(__dirname, 'generated');
-    outFile = null;
-  }
+  // Check for environment/scenario generation flags
+  const forceEnvGeneration = argv.includes('env') || argv.includes('scen');
+  
+  // Always generate files in the 'generated' directory
+  const outDir = path.join(__dirname, 'generated');
+  let outFile = null; // Let the system generate appropriate filenames
   
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
-  const parserPath = path.join(__dirname, '..', 'sysadl-parser.js');
+  const parserPath = path.join(__dirname, 'sysadl-parser.js');
   const parse = await loadParser(parserPath);
   const src = fs.readFileSync(input, 'utf8');
   const ast = parse(src, { grammarSource: { source: input, text: src } });
@@ -3105,6 +5031,76 @@ async function main() {
       }
     }
   });
+
+  // Function to detect environment/scenario elements in AST
+  function hasEnvironmentElements(ast) {
+    let hasEnvElements = false;
+    traverse(ast, n => {
+      if (!n || typeof n !== 'object') return;
+      const nodeType = n.type || '';
+      
+      // Check for ScenarioExecution specifically
+      if (n.keyword === 'ScenarioExecution' || (n.name === 'ScenarioExecution')) {
+        hasEnvElements = true;
+        return;
+      }
+      
+      if (nodeType === 'EnvironmentDefinition' || 
+          nodeType === 'EnvironmentConfiguration' ||
+          nodeType === 'EventsDefinitions' ||
+          nodeType === 'SceneDefinitions' ||
+          nodeType === 'ScenarioDefinitions' ||
+          nodeType === 'ScenarioExecution' ||
+          /Environment/i.test(nodeType) ||
+          /Scenario/i.test(nodeType) ||
+          /Scene/i.test(nodeType) ||
+          /Event.*Definition/i.test(nodeType)) {
+        hasEnvElements = true;
+      }
+    });
+    return hasEnvElements;
+  }
+
+  // Function to separate traditional and environment/scenario elements
+  function separateElements(ast) {
+    const traditionalElements = [];
+    const environmentElements = [];
+    
+    traverse(ast, n => {
+      if (!n || typeof n !== 'object') return;
+      const nodeType = n.type || '';
+      
+      // Environment/Scenario elements
+      if (nodeType === 'EnvironmentDefinition' || 
+          nodeType === 'EnvironmentConfiguration' ||
+          nodeType === 'EventsDefinitions' ||
+          nodeType === 'SceneDefinitions' ||
+          nodeType === 'ScenarioDefinitions' ||
+          nodeType === 'ScenarioExecution' ||
+          /Environment/i.test(nodeType) ||
+          /Scenario/i.test(nodeType) ||
+          /Scene/i.test(nodeType) ||
+          /Event.*Definition/i.test(nodeType)) {
+        environmentElements.push(n);
+      }
+      // Traditional elements
+      else if (nodeType === 'ComponentDef' ||
+               nodeType === 'ConnectorDef' ||
+               nodeType === 'PortDef' ||
+               nodeType === 'ActivityDef' ||
+               nodeType === 'ActionDef' ||
+               nodeType === 'ConstraintDef' ||
+               nodeType === 'Executable' ||
+               nodeType === 'Configuration' ||
+               /ComponentDef/i.test(nodeType) ||
+               /ConnectorDef/i.test(nodeType) ||
+               /PortDef/i.test(nodeType)) {
+        traditionalElements.push(n);
+      }
+    });
+    
+    return { traditionalElements, environmentElements };
+  }
 
   // collect SysADL types to embed
   function qnameToString(x){ try{ if(!x) return null; if(typeof x==='string') return x; if (x.name) return x.name; if (x.id && x.id.name) return x.id.name; if (Array.isArray(x.parts)) return x.parts.join('.'); }catch(e){} return null; }
@@ -5181,30 +7177,76 @@ async function main() {
   try { dbg('[DBG] rootDefs:', JSON.stringify(rootDefs || [])); } catch(e){}
   try { dbg('[DBG] parentMap:', JSON.stringify(parentMap || {})); } catch(e){}
 
-  let moduleCode = generateClassModule(outModelName, compUses, portUses, connectorDescriptors, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, compDefMap, portDefMap, embeddedTypes, connectorDefMap, packageMap, ast);
-  // remove JS comments (block and line) to ensure generator does not emit comments
-  try {
-    moduleCode = moduleCode.replace(/\/\*[\s\S]*?\*\//g, ''); // remove /* ... */
-    // Keep // comments since we now use them for section headers
-    // moduleCode = moduleCode.replace(/(^|[^\\:])\/\/.*$/gm, '$1'); // remove //... line comments (avoid chopping http://)
-  } catch(e) { /* ignore */ }
-  
-  // Use the predefined outFile if available, otherwise construct it
-  if (!outFile) {
-    outFile = path.join(outDir, path.basename(input, path.extname(input)) + '.js');
-  }
-  // Ensure parent directory exists and write the generated moduleCode
-  try {
-    const parent = path.dirname(outFile);
-    if (!fs.existsSync(parent)) fs.mkdirSync(parent, { recursive: true });
-  } catch (e) { /* ignore */ }
+  // Check if we have environment/scenario elements or forced generation
+  const hasEnvElements = hasEnvironmentElements(ast) || forceEnvGeneration;
+  const { traditionalElements, environmentElements } = separateElements(ast);
 
-  try {
-    fs.writeFileSync(outFile, moduleCode, 'utf8');
-    console.log('Generated', outFile);
-  } catch (e) {
-    console.error('Failed to write output file', outFile, e && e.stack ? e.stack : e);
-    process.exitCode = 1;
+  if (hasEnvElements) {
+    // Generate two separate files
+    console.log(`${forceEnvGeneration ? 'Forced' : 'Detected'} environment/scenario elements. Generating two files...`);
+    
+    // 1. Generate traditional model file
+    let traditionalCode = generateClassModule(outModelName, compUses, portUses, connectorDescriptors, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, compDefMap, portDefMap, embeddedTypes, connectorDefMap, packageMap, ast, false);
+    
+    // 2. Generate environment/scenario file  
+    let environmentCode = generateEnvironmentModule(outModelName, environmentElements, traditionalElements, ast, embeddedTypes, packageMap, input);
+    
+    // Remove JS comments from both files
+    try {
+      traditionalCode = traditionalCode.replace(/\/\*[\s\S]*?\*\//g, '');
+      environmentCode = environmentCode.replace(/\/\*[\s\S]*?\*\//g, '');
+    } catch(e) { /* ignore */ }
+    
+    // Determine output file paths
+    const baseName = path.basename(input, path.extname(input));
+    const traditionalFile = outFile || path.join(outDir, `${baseName}.js`);
+    const environmentFile = path.join(outDir, `${baseName}-env-scen.js`);
+    
+    // Write traditional model file
+    try {
+      const parent = path.dirname(traditionalFile);
+      if (!fs.existsSync(parent)) fs.mkdirSync(parent, { recursive: true });
+      fs.writeFileSync(traditionalFile, traditionalCode, 'utf8');
+      console.log('Generated traditional model:', traditionalFile);
+    } catch (e) {
+      console.error('Failed to write traditional model file', traditionalFile, e && e.stack ? e.stack : e);
+      process.exitCode = 1;
+    }
+    
+    // Write environment/scenario file
+    try {
+      const parent = path.dirname(environmentFile);
+      if (!fs.existsSync(parent)) fs.mkdirSync(parent, { recursive: true });
+      fs.writeFileSync(environmentFile, environmentCode, 'utf8');
+      console.log('Generated environment/scenario model:', environmentFile);
+    } catch (e) {
+      console.error('Failed to write environment file', environmentFile, e && e.stack ? e.stack : e);
+      process.exitCode = 1;
+    }
+  } else {
+    // Generate single traditional file (backward compatibility)
+    let moduleCode = generateClassModule(outModelName, compUses, portUses, connectorDescriptors, executables, activitiesToRegister, rootDefs, parentMap, compInstanceDef, compDefMap, portDefMap, embeddedTypes, connectorDefMap, packageMap, ast, false);
+    
+    // remove JS comments to ensure generator does not emit comments
+    try {
+      moduleCode = moduleCode.replace(/\/\*[\s\S]*?\*\//g, '');
+    } catch(e) { /* ignore */ }
+    
+    // Use the predefined outFile if available, otherwise construct it
+    if (!outFile) {
+      outFile = path.join(outDir, path.basename(input, path.extname(input)) + '.js');
+    }
+    
+    // Ensure parent directory exists and write the generated moduleCode
+    try {
+      const parent = path.dirname(outFile);
+      if (!fs.existsSync(parent)) fs.mkdirSync(parent, { recursive: true });
+      fs.writeFileSync(outFile, moduleCode, 'utf8');
+      console.log('Generated', outFile);
+    } catch (e) {
+      console.error('Failed to write output file', outFile, e && e.stack ? e.stack : e);
+      process.exitCode = 1;
+    }
   }
 }
 
@@ -5271,4 +7313,29 @@ function orderDatatypesByDependencies(datatypes, names) {
   return result;
 }
 
-main().catch(e => { console.error(e); process.exit(1); });
+// Export functions
+const transformerExports = {
+  generatePureJavaScriptFromSysADL,
+  sanitizeId,
+  extractConfigurations,
+  collectComponentUses,
+  collectPortUses,
+  generateClassModule
+};
+
+// Node.js environment
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = transformerExports;
+  
+  // Only run main if this is the main module
+  if (require.main === module) {
+    main().catch(e => { console.error(e); process.exit(1); });
+  }
+}
+
+// Browser environment
+if (typeof window !== 'undefined') {
+  window.Transformer = transformerExports;
+}
+
+})(); // End IIFE

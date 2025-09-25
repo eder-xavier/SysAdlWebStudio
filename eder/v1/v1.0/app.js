@@ -4,12 +4,45 @@
 import { parse as sysadlParse, SyntaxError as SysADLSyntaxError } from './sysadl-parser.js';
 window.SysADLParser = { parse: sysadlParse, SyntaxError: SysADLSyntaxError };
 
+// Importar definição de linguagem SysADL para Monaco
+import { registerSysADLLanguage } from './sysadl-monaco.js';
+
 // 1) Monaco via AMD
-const monacoReady = new Promise((resolve) => {
+const monacoReady = new Promise((resolve, reject) => {
   const amdRequire = window.amdRequire || window.require;
-  if (!amdRequire) return resolve();
-  amdRequire.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
-  amdRequire(['vs/editor/editor.main'], () => resolve());
+  if (!amdRequire) {
+    console.warn('AMD require not available, Monaco will not load');
+    reject(new Error('AMD require not available'));
+    return;
+  }
+  
+  try {
+    amdRequire.config({ 
+      paths: { 
+        'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' 
+      } 
+    });
+    
+    amdRequire(['vs/editor/editor.main'], () => {
+      console.log('Monaco successfully loaded via AMD');
+      
+      // Registrar linguagem SysADL após Monaco carregar
+      try {
+        registerSysADLLanguage();
+        console.log('✅ SysADL language support registered');
+      } catch (error) {
+        console.warn('⚠️ Error registering SysADL language:', error);
+      }
+      
+      resolve();
+    }, (err) => {
+      console.error('Error loading Monaco:', err);
+      reject(err);
+    });
+  } catch (error) {
+    console.error('Error setting up Monaco:', error);
+    reject(error);
+  }
 });
 
 // 2) UI refs
@@ -20,15 +53,13 @@ const els = {
   btnExample: document.getElementById('btnExample'),
   fileInput: document.getElementById('fileInput'),
   archOut: document.getElementById('archOut'),
-  simOut: document.getElementById('simOut'),
   copyArch: document.getElementById('copyArch'),
   saveArch: document.getElementById('saveArch'),
-  copySim: document.getElementById('copySim'),
-  saveSim: document.getElementById('saveSim'),
   log: document.getElementById('log'),
   clearLog: document.getElementById('clearLog'),
   traceToggle: document.getElementById('traceToggle'),
   loopCount: document.getElementById('loopCount'),
+  simulationParams: document.getElementById('simulationParams'),
   parseErr: document.getElementById('parseErr'),
 };
 
@@ -48,9 +79,14 @@ const els = {
 
 // 3) Monaco init
 let editor;
-await monacoReady;
-editor = monaco.editor.create(els.editor, {
-  value: `// Cole um modelo SysADL aqui e clique em Transformar ▶
+
+// Aguardar Monaco estar pronto
+monacoReady.then(() => {
+  console.log('Monaco loaded, creating editor...');
+  
+  try {
+    editor = monaco.editor.create(els.editor, {
+      value: `// Cole um modelo SysADL aqui e clique em Transformar ▶
 // Exemplo simples:
 model Sample
 configuration {
@@ -58,11 +94,98 @@ configuration {
   component Display d1;
   connector Wire w1 (s1.out -> d1.in);
 }`.trim(),
-  language: 'plaintext',
-  theme: 'vs-dark',
-  automaticLayout: true,
-  fontSize: 14,
-  minimap: { enabled: false }
+      language: 'sysadl',
+      theme: 'vs-dark',
+      automaticLayout: true,
+      fontSize: 14,
+      minimap: { enabled: false },
+      // Configurações adicionais para SysADL
+      wordWrap: 'on',
+      bracketPairColorization: {
+        enabled: true
+      },
+      suggest: {
+        showKeywords: true,
+        showSnippets: true
+      },
+      quickSuggestions: {
+        other: true,
+        comments: false,
+        strings: false
+      }
+    });
+    
+    console.log('Monaco editor created successfully with SysADL language support');
+  } catch (error) {
+    console.error('Error creating Monaco editor:', error);
+    
+    // Fallback: usar textarea simples
+    const fallbackTextarea = document.createElement('textarea');
+    fallbackTextarea.id = 'fallback-editor';
+    fallbackTextarea.style.cssText = `
+      width: 100%; 
+      height: 100%; 
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 14px;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      border: 1px solid #3c3c3c;
+      padding: 10px;
+      resize: none;
+    `;
+    fallbackTextarea.value = `// Cole um modelo SysADL aqui e clique em Transformar ▶
+// Exemplo simples:
+model Sample
+configuration {
+  component Sensor s1;
+  component Display d1;
+  connector Wire w1 (s1.out -> d1.in);
+}`;
+    
+    els.editor.appendChild(fallbackTextarea);
+    
+    // Simular interface do Monaco para compatibilidade
+    editor = {
+      getValue: () => fallbackTextarea.value,
+      setValue: (value) => { fallbackTextarea.value = value; }
+    };
+    
+    console.log('Fallback editor created');
+  }
+}).catch(error => {
+  console.error('Error loading Monaco:', error);
+  
+  // Fallback completo se Monaco não carregar
+  const fallbackTextarea = document.createElement('textarea');
+  fallbackTextarea.id = 'fallback-editor';
+  fallbackTextarea.style.cssText = `
+    width: 100%; 
+    height: 100%; 
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 14px;
+    background: #1e1e1e;
+    color: #d4d4d4;
+    border: 1px solid #3c3c3c;
+    padding: 10px;
+    resize: none;
+  `;
+  fallbackTextarea.value = `// Cole um modelo SysADL aqui e clique em Transformar ▶
+// Exemplo simples:
+model Sample
+configuration {
+  component Sensor s1;
+  component Display d1;
+  connector Wire w1 (s1.out -> d1.in);
+}`;
+  
+  els.editor.appendChild(fallbackTextarea);
+  
+  editor = {
+    getValue: () => fallbackTextarea.value,
+    setValue: (value) => { fallbackTextarea.value = value; }
+  };
+  
+  console.log('Complete fallback editor created');
 });
 
 // 4) Util: salvar arquivo
@@ -166,22 +289,8 @@ async function transformSysADLToJS(source){
 }
 
 // 7) Código de simulação padrão (snippet reutilizável pelo usuário)
-function buildSimulationSnippet(jsModuleVar='generated'){
-  return `// Shim CJS para rodar no browser
-${cjsPrelude()}
-
-//
-// ==== MÓDULO GERADO PELA TRANSFORMAÇÃO ====
-//
-${jsModuleVar}
-
-// Retorna o objeto exportado do módulo gerado
-;module.exports;
-`;
-}
-
 // 8) Execução (usa window.Simulator.run do arquivo simulator.js)
-function runSimulation(generatedCode, { trace=false, loops=1 }={}){
+function runSimulation(generatedCode, { trace=false, loops=1, params={} }={}){
   const prelude = cjsPrelude();
   const suffix = cjsReturn();
   const code = prelude + '\n' + generatedCode + suffix;
@@ -190,6 +299,7 @@ function runSimulation(generatedCode, { trace=false, loops=1 }={}){
     trace: !!trace,
     loop: loops > 1,
     count: Math.max(1, Number(loops)||1),
+    params: params // Passar parâmetros para o simulador
   };
 
   try{
@@ -210,10 +320,6 @@ els.btnTransform.addEventListener('click', async () => {
     const js = await transformSysADLToJS(src);
     els.archOut.textContent = js;
 
-    // também mostramos o snippet de simulação padrão
-    const snippet = buildSimulationSnippet('// (cole aqui o JS gerado acima)');
-    els.simOut.textContent = snippet;
-
   }catch(err){
     if (!els.archOut.textContent) {
       els.archOut.textContent = 'Erro na transformação (veja detalhes acima).';
@@ -230,32 +336,105 @@ els.btnRun.addEventListener('click', async () => {
   }
   const trace = !!els.traceToggle.checked;
   const loops = Number(els.loopCount.value || 1);
-  runSimulation(js, { trace, loops });
+  
+  // Processar parâmetros de simulação
+  let params = {};
+  const paramsText = els.simulationParams.value.trim();
+  if (paramsText) {
+    try {
+      params = JSON.parse(paramsText);
+      els.log.textContent += `[INFO] Parâmetros carregados: ${Object.keys(params).length} valores\n`;
+    } catch (error) {
+      els.log.textContent += `[ERRO] Parâmetros JSON inválidos: ${error.message}\n`;
+      return;
+    }
+  }
+  
+  runSimulation(js, { trace, loops, params });
 });
 
 els.copyArch.addEventListener('click', async () => {
   await navigator.clipboard.writeText(els.archOut.textContent);
 });
-els.copySim.addEventListener('click', async () => {
-  await navigator.clipboard.writeText(els.simOut.textContent);
-});
 els.saveArch.addEventListener('click', () => saveAs('arquitetura_gerada.js', els.archOut.textContent));
-els.saveSim.addEventListener('click', () => saveAs('simulacao_padrao.js', els.simOut.textContent));
 
 els.clearLog.addEventListener('click', () => { els.log.textContent = ''; });
 
 els.fileInput.addEventListener('change', async (ev) => {
+  console.log('File input changed');
   const f = ev.target.files && ev.target.files[0];
-  if (!f) return;
-  const txt = await f.text();
-  editor.setValue(txt);
+  if (!f) {
+    console.log('No file selected');
+    return;
+  }
+  
+  console.log('File selected:', f.name, 'size:', f.size);
+  
+  try {
+    const txt = await f.text();
+    console.log('File content loaded, length:', txt.length);
+    
+    if (editor && typeof editor.setValue === 'function') {
+      editor.setValue(txt);
+      console.log('Content set in editor');
+    } else {
+      console.error('Editor not available or setValue not a function');
+      // Fallback: se tiver textarea
+      const textarea = document.querySelector('#fallback-editor');
+      if (textarea) {
+        textarea.value = txt;
+        console.log('Content set in fallback textarea');
+      }
+    }
+  } catch (error) {
+    console.error('Error loading file:', error);
+  }
 });
 
-els.btnExample.addEventListener('click', () => {
-  editor.setValue(`model Demo
+els.btnExample.addEventListener('click', async () => {
+  console.log('Example button clicked');
+  try {
+    // Carrega o arquivo AGV-completo.sysadl
+    const response = await fetch('./AGV-completo.sysadl');
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const exampleCode = await response.text();
+    
+    if (editor && typeof editor.setValue === 'function') {
+      editor.setValue(exampleCode);
+      console.log('AGV-completo.sysadl loaded in Monaco editor');
+    } else {
+      console.error('Editor not available, trying fallback textarea');
+      const textarea = document.querySelector('#fallback-editor');
+      if (textarea) {
+        textarea.value = exampleCode;
+      } else {
+        console.error('No textarea fallback available');
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load AGV-completo.sysadl:', error);
+    // Fallback para exemplo simples
+    const exampleCode = `model Demo
 configuration {
   component Producer p1;
   component Consumer c1;
   connector Pipe link1 (p1.out -> c1.in);
-}`.trim());
+}`.trim();
+    
+    if (editor && typeof editor.setValue === 'function') {
+      editor.setValue(exampleCode);
+      console.log('Fallback example loaded in Monaco editor');
+    } else {
+      console.error('Editor not available, trying fallback textarea');
+      const textarea = document.querySelector('#fallback-editor');
+      if (textarea) {
+        textarea.value = exampleCode;
+        console.log('Fallback example loaded in textarea');
+      } else {
+        console.error('No editor available (neither Monaco nor fallback)');
+      }
+    }
+  }
 });

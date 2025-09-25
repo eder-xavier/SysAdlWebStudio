@@ -37,6 +37,14 @@
         </label>
         <button id="btnRun" class="success">Executar simulação</button>
       </div>
+      <div class="toolbar" style="margin-top: 10px; border-top: 1px solid #ddd; padding-top: 10px;">
+        <label style="display: block; margin-bottom: 5px;">
+          <strong>Parâmetros de Simulação (JSON):</strong>
+          <small style="color: #666;">Ex: {"s1.temp": 25, "s1.pressure": 100}</small>
+        </label>
+        <textarea id="simulationParams" placeholder='{"component.port": valor, "porta": valor}' 
+                  style="width: 100%; height: 60px; font-family: monospace; border: 1px solid #ccc; border-radius: 4px; padding: 8px;"></textarea>
+      </div>
       <div id="parseErr" class="err" role="status" aria-live="polite"></div>
     </section>
 
@@ -49,15 +57,6 @@
           <button id="saveArch">Baixar .js</button>
         </div>
         <pre id="archOut" class="pre"></pre>
-      </details>
-
-      <details open class="codeblock">
-        <summary>Código da simulação (padrão)</summary>
-        <div class="actions">
-          <button id="copySim">Copiar</button>
-          <button id="saveSim">Baixar .js</button>
-        </div>
-        <pre id="simOut" class="pre"></pre>
       </details>
     </section>
 
@@ -105,7 +104,7 @@
     };
   </script>
 
-  <script src="./SysADLBase.js"></script>
+  <script src="./sysadl-framework/SysADLBase.js"></script>
   <script src="./simulator.js"></script>
   <script src="./transformer.js"></script>
 
