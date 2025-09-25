@@ -3358,6 +3358,68 @@ class Scene extends Element {
       };
     }
   }
+
+  /**
+   * Generic execution method that works for all Scene subclasses across domains
+   * Executes the scene with enhanced validation and context management
+   * @param {Object} context - Execution context
+   * @returns {Object} - Execution result with validation status
+   */
+  async execute(context) {
+    try {
+      // Validate pre-conditions using JavaScript functions
+      const preConditionsPassed = this.validatePreConditions(context);
+      if (!preConditionsPassed) {
+        return {
+          success: false,
+          error: 'Pre-conditions not satisfied',
+          scene: this.name
+        };
+      }
+
+      // Execute scene logic (trigger start event)
+      const executionResult = await this.executeSceneLogic(context);
+
+      // Validate post-conditions using JavaScript functions
+      const postConditionsPassed = this.validatePostConditions(context);
+      if (!postConditionsPassed) {
+        return {
+          success: false,
+          error: 'Post-conditions not satisfied',
+          scene: this.name,
+          executionResult
+        };
+      }
+
+      return {
+        success: true,
+        scene: this.name,
+        executionResult
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        scene: this.name
+      };
+    }
+  }
+
+  /**
+   * Default validation methods - can be overridden by subclasses
+   * These provide fallback behavior for scenes without custom validation
+   */
+  validatePreConditions(context) {
+    // Default implementation - always returns true
+    // Subclasses should override this with their specific validation logic
+    return true;
+  }
+
+  validatePostConditions(context) {
+    // Default implementation - always returns true  
+    // Subclasses should override this with their specific validation logic
+    return true;
+  }
 }
 
 // Scenario class - represents scenarios with pre/post conditions and scenes

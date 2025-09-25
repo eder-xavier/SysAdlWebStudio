@@ -1061,47 +1061,6 @@ class SCN_MoveAGV1toA extends Scene {
       return false;
     }
   }
-
-  
-  async execute(context) {
-    try {
-      // Validate pre-conditions using JavaScript functions
-      const preConditionsPassed = this.validatePreConditions(context);
-      if (!preConditionsPassed) {
-        return {
-          success: false,
-          error: 'Pre-conditions not satisfied',
-          scene: this.name
-        };
-      }
-
-      // Execute scene logic (trigger start event)
-      const executionResult = await this.executeSceneLogic(context);
-
-      // Validate post-conditions using JavaScript functions
-      const postConditionsPassed = this.validatePostConditions(context);
-      if (!postConditionsPassed) {
-        return {
-          success: false,
-          error: 'Post-conditions not satisfied',
-          scene: this.name,
-          executionResult
-        };
-      }
-
-      return {
-        success: true,
-        scene: this.name,
-        executionResult
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error.message,
-        scene: this.name
-      };
-    }
-  }
 }
 
 // Enhanced Scene: SCN_MoveAGV2toC
@@ -1192,47 +1151,6 @@ class SCN_MoveAGV2toC extends Scene {
       return false;
     }
   }
-
-  
-  async execute(context) {
-    try {
-      // Validate pre-conditions using JavaScript functions
-      const preConditionsPassed = this.validatePreConditions(context);
-      if (!preConditionsPassed) {
-        return {
-          success: false,
-          error: 'Pre-conditions not satisfied',
-          scene: this.name
-        };
-      }
-
-      // Execute scene logic (trigger start event)
-      const executionResult = await this.executeSceneLogic(context);
-
-      // Validate post-conditions using JavaScript functions
-      const postConditionsPassed = this.validatePostConditions(context);
-      if (!postConditionsPassed) {
-        return {
-          success: false,
-          error: 'Post-conditions not satisfied',
-          scene: this.name,
-          executionResult
-        };
-      }
-
-      return {
-        success: true,
-        scene: this.name,
-        executionResult
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error.message,
-        scene: this.name
-      };
-    }
-  }
 }
 
 // Enhanced Scene: SCN_AGV1movePartToC
@@ -1315,47 +1233,6 @@ class SCN_AGV1movePartToC extends Scene {
       return false;
     }
   }
-
-  
-  async execute(context) {
-    try {
-      // Validate pre-conditions using JavaScript functions
-      const preConditionsPassed = this.validatePreConditions(context);
-      if (!preConditionsPassed) {
-        return {
-          success: false,
-          error: 'Pre-conditions not satisfied',
-          scene: this.name
-        };
-      }
-
-      // Execute scene logic (trigger start event)
-      const executionResult = await this.executeSceneLogic(context);
-
-      // Validate post-conditions using JavaScript functions
-      const postConditionsPassed = this.validatePostConditions(context);
-      if (!postConditionsPassed) {
-        return {
-          success: false,
-          error: 'Post-conditions not satisfied',
-          scene: this.name,
-          executionResult
-        };
-      }
-
-      return {
-        success: true,
-        scene: this.name,
-        executionResult
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error.message,
-        scene: this.name
-      };
-    }
-  }
 }
 
 // Enhanced Scene: SCN_AGV2movePartToE
@@ -1436,47 +1313,6 @@ class SCN_AGV2movePartToE extends Scene {
     } catch (error) {
       console.error(`Error evaluating post-conditions for ${this.name}:`, error.message);
       return false;
-    }
-  }
-
-  
-  async execute(context) {
-    try {
-      // Validate pre-conditions using JavaScript functions
-      const preConditionsPassed = this.validatePreConditions(context);
-      if (!preConditionsPassed) {
-        return {
-          success: false,
-          error: 'Pre-conditions not satisfied',
-          scene: this.name
-        };
-      }
-
-      // Execute scene logic (trigger start event)
-      const executionResult = await this.executeSceneLogic(context);
-
-      // Validate post-conditions using JavaScript functions
-      const postConditionsPassed = this.validatePostConditions(context);
-      if (!postConditionsPassed) {
-        return {
-          success: false,
-          error: 'Post-conditions not satisfied',
-          scene: this.name,
-          executionResult
-        };
-      }
-
-      return {
-        success: true,
-        scene: this.name,
-        executionResult
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error.message,
-        scene: this.name
-      };
     }
   }
 }
