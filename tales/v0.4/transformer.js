@@ -3502,7 +3502,7 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
   // Instantiate event definitions with Proxy pattern
   for (const { element, className } of eventDefinitions) {
     const eventsName = element.name || 'UnnamedEvents';
-    lines.push(`  model.events['${eventsName}'] = ${className}.create();`);
+    lines.push(`  model.events['${eventsName}'] = new ${className}();`);
   }
   
   // Instantiate scene definitions

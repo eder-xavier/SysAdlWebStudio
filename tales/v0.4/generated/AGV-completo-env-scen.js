@@ -1441,33 +1441,86 @@ class MyScenariosExecution extends ScenarioExecution {
       ...opts,
       targetScenarios: 'MyScenarios'
     });
+    
+    // Initialize execution mode
+    this.executionMode = 'sequential';
+    this.status = 'inactive';
+  }
+
+  // Override start method to handle custom execution logic
+  start(context = {}) {
+    console.log('[MyScenariosExecution] Starting custom scenario execution');
+    this.status = 'running';
+    
+    // Log start event
+    if (this.model && this.model.logEvent) {
+      this.model.logEvent({
+        elementType: 'scenario_execution_start',
+        execution: this.name,
+        when: Date.now()
+      });
+    }
+    
+    // Execute scenarios asynchronously
+    this.execute(context).then(result => {
+      console.log('[MyScenariosExecution] Execution completed:', result);
+      this.complete();
+    }).catch(error => {
+      console.error('[MyScenariosExecution] Execution failed:', error);
+      this.status = 'failed';
+    });
+    
+    return true; // Indicate successful start
+  }
+
+  // Complete execution
+  complete() {
+    this.status = 'completed';
+    
+    if (this.model && this.model.logEvent) {
+      this.model.logEvent({
+        elementType: 'scenario_execution_complete',
+        execution: this.name,
+        when: Date.now()
+      });
+    }
   }
 
   async execute(context) {
-    if (!context || !context.scenarios) {
-      throw new Error('Context with scenarios registry is required for scenario execution');
-    }
-
+    console.log('[MyScenariosExecution] Starting scenario execution with context:', Object.keys(context || {}));
+    
     // Initialize environment state
-    this.sysadlBase.environmentConfig.agv1.location = 'stationC.ID';
-    this.sysadlBase.environmentConfig.agv2.location = 'stationD.ID';
-    this.sysadlBase.environmentConfig.part.location = 'stationA.ID';
+    if (context.model && context.model.environmentConfiguration) {
+      const envConfig = context.model.environmentConfiguration;
+      if (envConfig.agv1) envConfig.agv1.location = 'StationC';
+      if (envConfig.agv2) envConfig.agv2.location = 'StationD';
+      if (envConfig.part) envConfig.part.location = 'StationA';
+    }
 
     // Event injections
     // inject AGV2atStationD after SCN_MoveAGV1toA;
-    context.eventScheduler.scheduleAfterScenario('AGV2atStationD', 'SCN_MoveAGV1toA');
-    // inject SetAGV2SensorStationD when agv1.location == stationA.ID;
-    context.eventScheduler.scheduleOnCondition('SetAGV2SensorStationD', () => this.sysadlBase.environmentConfig.agv1.location == stationA.ID);
+    if (context.eventScheduler) {
+      context.eventScheduler.scheduleAfterScenario('AGV2atStationD', 'SCN_MoveAGV1toA');
+      // inject SetAGV2SensorStationD when agv1.location == stationA.ID;
+      context.eventScheduler.scheduleOnCondition('SetAGV2SensorStationD', () => {
+        return context.model?.environmentConfiguration?.agv1?.location === 'StationA';
+      });
+    }
 
-    // Execute scenarios
-    await this.executeScenario('Scenario1', context);
-    await this.executeScenario('Scenario2', context);
-    await this.executeScenario('Scenario3', context);
-    await this.executeScenario('Scenario4', context);
+    // Execute scenarios using context.model if available
+    const model = context.model;
+    if (model && model.executeScenario) {
+      await model.executeScenario('Scenario1', context);
+      await model.executeScenario('Scenario2', context);
+      await model.executeScenario('Scenario3', context);
+      await model.executeScenario('Scenario4', context);
 
-    // Repeat executions
-    for (let i = 0; i < 5; i++) {
-      await this.executeScenario('Scenario1', context);
+      // Repeat executions
+      for (let i = 0; i < 5; i++) {
+        await model.executeScenario('Scenario1', context);
+      }
+    } else {
+      console.warn('[MyScenariosExecution] No model or executeScenario method found in context');
     }
 
     return { success: true, message: 'Scenario execution completed successfully' };
@@ -1489,7 +1542,7 @@ function createEnvironmentModel() {
   
   model.environments['MyFactory'] = new MyFactory();
   model.environments['MyFactoryConfiguration'] = new MyFactoryConfiguration();
-  model.events['MyEvents'] = MyEvents.create();
+  model.events['MyEvents'] = new MyEvents();
   model.scenes['MyScenes'] = new MyScenes();
   model.scenarios['MyScenarios'] = new MyScenarios();
   model.scenes['SCN_MoveAGV1toA'] = SCN_MoveAGV1toA;

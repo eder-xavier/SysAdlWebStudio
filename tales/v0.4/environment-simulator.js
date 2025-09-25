@@ -427,6 +427,35 @@ async function runSimulation() {
           events.forEach(e => console.log(JSON.stringify(e)));
         }
       }
+      
+      // Clean up timers and exit automatically for non-interactive mode
+      setTimeout(() => {
+        console.log('\n🔄 Cleaning up and exiting...');
+        
+        // Clear state monitoring interval if exists
+        if (model._stateMonitor) {
+          clearInterval(model._stateMonitor);
+          console.log('✓ State monitor cleaned up');
+        }
+        
+        // Clear ExecutionLogger flush interval if exists
+        if (model.executionLogger && model.executionLogger.flushInterval) {
+          clearInterval(model.executionLogger.flushInterval);
+          console.log('✓ ExecutionLogger flush timer cleaned up');
+        }
+        
+        // Final flush of any pending logs
+        if (model.executionLogger && model.executionLogger.flush) {
+          try {
+            model.executionLogger.flush();
+          } catch (e) {
+            // Silent fail on flush
+          }
+        }
+        
+        console.log('✓ Simulation completed - exiting gracefully');
+        process.exit(0);
+      }, 1000); // Wait 1 second for any final operations
     }
 
   } catch (error) {

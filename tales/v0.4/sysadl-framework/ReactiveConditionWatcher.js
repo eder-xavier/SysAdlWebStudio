@@ -13,7 +13,6 @@
 
 const { ReactiveStateManager } = require('./ReactiveStateManager');
 const { DependencyTracker } = require('./DependencyTracker');
-const SysADLBase = require('./SysADLBase');
 
 class ReactiveConditionWatcher {
   constructor(sysadlBase, options = {}) {
