@@ -3449,191 +3449,26 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
   // All Scenario classes are generated in section 9 
   // All functionality consolidated to eliminate duplication
   
-  // Generate ScenarioExecution classes with enhanced functionality
+  // Generate ScenarioExecution classes with explicit programming
   for (const { element, className } of scenarioExecutions) {
     const targetName = element.defs || element.target || element.to || element.scenarios || 'UnnamedScenarios';
     const executionName = `${targetName}Execution`;
     const executionData = extractScenarioExecutionEnhanced(element);
     
-    lines.push(`// Enhanced Scenario Execution: ${executionName}`);
+    lines.push(`// Scenario Execution with Explicit Programming: ${executionName}`);
     lines.push(`class ${className} extends ScenarioExecution {`);
     lines.push(`  constructor(name = '${executionName}', opts = {}) {`);
     lines.push(`    super(name, {`);
     lines.push(`      ...opts,`);
-    lines.push(`      targetScenarios: '${targetName}',`);
-    lines.push(`      scenarios: ${JSON.stringify(executionData.scenarios)},`);
-    lines.push(`      executionMode: '${executionData.executionMode}',`);
-    lines.push(`      stateInitializations: ${JSON.stringify(executionData.stateInitializations)},`);
-    lines.push(`      repeatStatements: ${JSON.stringify(executionData.repeatStatements)}`);
+    lines.push(`      targetScenarios: '${targetName}'`);
     lines.push(`    });`);
-    lines.push(`    `);
-    lines.push(`    // Store execution configuration for runtime`);
-    lines.push(`    this.executionConfig = {`);
-    lines.push(`      stateInitializations: ${JSON.stringify(executionData.stateInitializations)},`);
-    lines.push(`      scenarios: ${JSON.stringify(executionData.scenarios)},`);
-    lines.push(`      repeatStatements: ${JSON.stringify(executionData.repeatStatements)},`);
-    lines.push(`      eventInjections: ${JSON.stringify(executionData.eventInjections || [])}`);
-    lines.push(`    };`);
     lines.push(`  }`);
-    lines.push(`  `);
-    lines.push(`  // Initialize environment state before execution`);
-    lines.push(`  async initializeState() {`);
-    lines.push(`    this.sysadlBase.logger.log('🔧 Initializing scenario execution state');`);
-    lines.push(`    `);
-    lines.push(`    for (const init of this.executionConfig.stateInitializations) {`);
-    lines.push(`      await this.executeStateInitialization(init);`);
-    lines.push(`    }`);
-    lines.push(`    `);
-    lines.push(`    this.sysadlBase.logger.log('✅ State initialization completed');`);
-    lines.push(`    return true;`);
-    lines.push(`  }`);
-    lines.push(`  `);
-    lines.push(`  // Execute state initialization`);
-    lines.push(`  async executeStateInitialization(init) {`);
-    lines.push(`    const target = init.target;`);
-    lines.push(`    const value = init.value;`);
-    lines.push(`    `);
-    lines.push(`    this.sysadlBase.logger.log(\`📊 Setting \${target} = \${value}\`);`);
-    lines.push(`    `);
-    lines.push(`    // Parse target path and set value`);
-    lines.push(`    const pathParts = target.split('.');`);
-    lines.push(`    let currentObject = this.sysadlBase.environmentConfig;`);
-    lines.push(`    `);
-    lines.push(`    // Navigate to parent object`);
-    lines.push(`    for (let i = 0; i < pathParts.length - 1; i++) {`);
-    lines.push(`      if (currentObject[pathParts[i]]) {`);
-    lines.push(`        currentObject = currentObject[pathParts[i]];`);
-    lines.push(`      } else {`);
-    lines.push(`        this.sysadlBase.logger.log(\`⚠️ Could not find path: \${pathParts.slice(0, i + 1).join('.')}\`);`);
-    lines.push(`        return false;`);
-    lines.push(`      }`);
-    lines.push(`    }`);
-    lines.push(`    `);
-    lines.push(`    // Set final property`);
-    lines.push(`    const propertyName = pathParts[pathParts.length - 1];`);
-    lines.push(`    currentObject[propertyName] = value;`);
-    lines.push(`    `);
-    lines.push(`    return true;`);
-    lines.push(`  }`);
-    lines.push(`  `);
-    lines.push(`  // Execute scenario with repeat support`);
-    lines.push(`  async executeScenarioWithRepeat(scenarioName, repeatCount = 1) {`);
-    lines.push(`    this.sysadlBase.logger.log(\`🔄 Executing \${scenarioName} \${repeatCount} times\`);`);
-    lines.push(`    `);
-    lines.push(`    for (let i = 0; i < repeatCount; i++) {`);
-    lines.push(`      this.sysadlBase.logger.log(\`🔄 Iteration \${i + 1}/\${repeatCount} of \${scenarioName}\`);`);
-    lines.push(`      await this.executeScenario(scenarioName);`);
-    lines.push(`    }`);
-    lines.push(`    `);
-    lines.push(`    this.sysadlBase.logger.log(\`✅ Completed \${repeatCount} executions of \${scenarioName}\`);`);
-    lines.push(`    return true;`);
-    lines.push(`  }`);
-    lines.push(`  `);
-    lines.push(`  // Enhanced execution with state initialization, repeat support, and event injection`);
-    lines.push(`  async executeEnhanced() {`);
-    lines.push(`    this.sysadlBase.logger.log('🚀 Starting enhanced scenario execution');`);
-    lines.push(`    `);
-    lines.push(`    // Step 1: Initialize state`);
-    lines.push(`    await this.initializeState();`);
-    lines.push(`    `);
-    lines.push(`    // Step 2: Process event injections`);
-    lines.push(`    await this.processEventInjections();`);
-    lines.push(`    `);
-    lines.push(`    // Step 3: Execute scenarios`);
-    lines.push(`    for (const scenario of this.executionConfig.scenarios) {`);
-    lines.push(`      await this.executeScenario(scenario.name);`);
-    lines.push(`    }`);
-    lines.push(`    `);
-    lines.push(`    // Step 4: Execute repeat statements`);
-    lines.push(`    for (const repeat of this.executionConfig.repeatStatements) {`);
-    lines.push(`      await this.executeScenarioWithRepeat(repeat.scenario, repeat.count);`);
-    lines.push(`    }`);
-    lines.push(`    `);
-    lines.push(`    this.sysadlBase.logger.log('✅ Enhanced scenario execution completed');`);
-    lines.push(`    return true;`);
-    lines.push(`  }`);
+    lines.push(``);
     
-    // Add event injection processing methods
-    lines.push(`  `);
-    lines.push(`  // Process event injections`);
-    lines.push(`  async processEventInjections() {`);
-    lines.push(`    if (!this.executionConfig.eventInjections || this.executionConfig.eventInjections.length === 0) {`);
-    lines.push(`      return;`);
-    lines.push(`    }`);
-    lines.push(`    `);
-    lines.push(`    this.sysadlBase.logger.log('⚡ Processing event injections');`);
-    lines.push(`    `);
-    lines.push(`    for (const injection of this.executionConfig.eventInjections) {`);
-    lines.push(`      await this.executeEventInjection(injection);`);
-    lines.push(`    }`);
+    // Generate explicit JavaScript execute() method
+    lines.push(`  async execute(context) {`);
+    lines.push(generateExplicitScenarioExecution(executionData));
     lines.push(`  }`);
-    lines.push(`  `);
-    lines.push(`  // Execute a single event injection`);
-    lines.push(`  async executeEventInjection(injection) {`);
-    lines.push(`    try {`);
-    lines.push(`      if (injection.type === 'single') {`);
-    lines.push(`        await this.injectSingleEvent(injection);`);
-    lines.push(`      } else if (injection.type === 'batch') {`);
-    lines.push(`        await this.injectBatchEvents(injection);`);
-    lines.push(`      }`);
-    lines.push(`    } catch (error) {`);
-    lines.push(`      this.sysadlBase.logger.log(\`❌ Event injection failed: \${error.message}\`);`);
-    lines.push(`      throw error;`);
-    lines.push(`    }`);
-    lines.push(`  }`);
-    lines.push(`  `);
-    lines.push(`  // Inject a single event`);
-    lines.push(`  async injectSingleEvent(injection) {`);
-    lines.push(`    const delay = this.calculateEventDelay(injection.timing);`);
-    lines.push(`    `);
-    lines.push(`    this.sysadlBase.logger.log(\`⚡ Injecting event: \${injection.eventName} (delay: \${delay}ms)\`);`);
-    lines.push(`    `);
-    lines.push(`    return await this.sysadlBase.eventInjector.injectEvent(`);
-    lines.push(`      injection.eventName,`);
-    lines.push(`      injection.parameters,`);
-    lines.push(`      delay,`);
-    lines.push(`      injection.options`);
-    lines.push(`    );`);
-    lines.push(`  }`);
-    lines.push(`  `);
-    lines.push(`  // Inject batch events`);
-    lines.push(`  async injectBatchEvents(injection) {`);
-    lines.push(`    const eventSpecs = injection.events.map(eventName => ({`);
-    lines.push(`      eventName,`);
-    lines.push(`      parameters: injection.parameters || {},`);
-    lines.push(`      delay: this.calculateEventDelay(injection.timing),`);
-    lines.push(`      options: injection.options || {}`);
-    lines.push(`    }));`);
-    lines.push(`    `);
-    lines.push(`    this.sysadlBase.logger.log(\`⚡ Injecting batch events: \${injection.events.join(', ')} (mode: \${injection.mode})\`);`);
-    lines.push(`    `);
-    lines.push(`    return await this.sysadlBase.eventInjector.injectEventBatch(`);
-    lines.push(`      eventSpecs,`);
-    lines.push(`      { parallel: injection.mode === 'parallel' }`);
-    lines.push(`    );`);
-    lines.push(`  }`);
-    lines.push(`  `);
-    lines.push(`  // Calculate event delay based on timing specification`);
-    lines.push(`  calculateEventDelay(timing) {`);
-    lines.push(`    if (!timing) return 0;`);
-    lines.push(`    `);
-    lines.push(`    switch (timing.type) {`);
-    lines.push(`      case 'delay':`);
-    lines.push(`        return timing.value || 0;`);
-    lines.push(`      case 'immediate':`);
-    lines.push(`        return 0;`);
-    lines.push(`      case 'condition':`);
-    lines.push(`        // For conditions, evaluate later - return 0 for now`);
-    lines.push(`        return 0;`);
-    lines.push(`      case 'before':`);
-    lines.push(`      case 'after':`);
-    lines.push(`        // For scenario-relative timing, coordinate with scenario execution`);
-    lines.push(`        return 0;`);
-    lines.push(`      default:`);
-    lines.push(`        return 0;`);
-    lines.push(`    }`);
-    lines.push(`  }`);
-    
     lines.push(`}`);
     lines.push('');
   }
@@ -4547,6 +4382,127 @@ function generateJavaScriptScenarioExecution(programmingStructures) {
   return functionBody.join('\n');
 }
 
+// Generate explicit JavaScript execution for ScenarioExecution
+// Helper function to generate clean injection syntax
+function generateCleanInjectionSyntax(injection) {
+  if (!injection || !injection.eventName) return '';
+  
+  const eventName = injection.eventName;
+  
+  if (injection.type === 'single') {
+    if (injection.timing && injection.timing.type === 'after') {
+      if (injection.timing.scenario) {
+        // inject EventName after ScenarioName
+        return `    // inject ${eventName} after ${injection.timing.scenario};`;
+      } else if (injection.timing.delay) {
+        // inject EventName after 5s
+        return `    // inject ${eventName} after ${injection.timing.delay};`;
+      }
+    } else if (injection.timing && injection.timing.type === 'condition' && injection.timing.expression) {
+      // inject EventName when condition
+      return `    // inject ${eventName} when ${injection.timing.expression};`;
+    } else {
+      // inject EventName (immediate)
+      return `    // inject ${eventName};`;
+    }
+  } else if (injection.type === 'batch') {
+    const events = Array.isArray(injection.events) ? injection.events : [eventName];
+    const eventList = events.map(e => e).join(', ');
+    const mode = injection.mode || 'sequential';
+    
+    if (injection.timing && injection.timing.delay) {
+      // inject_batch [event1, event2] parallel after 2s
+      return `    // inject_batch [${eventList}] ${mode} after ${injection.timing.delay};`;
+    } else {
+      // inject_batch [event1, event2] sequential
+      return `    // inject_batch [${eventList}] ${mode};`;
+    }
+  }
+  
+  return `    // inject ${eventName};`;
+}
+
+function generateExplicitScenarioExecution(executionData) {
+  if (!executionData) {
+    return `    return { success: true, message: 'Empty scenario execution completed' };`;
+  }
+  
+  const functionBody = [];
+  functionBody.push(`    if (!context || !context.scenarios) {`);
+  functionBody.push(`      throw new Error('Context with scenarios registry is required for scenario execution');`);
+  functionBody.push(`    }`);
+  functionBody.push(``);
+  
+  // 1. State initialization (explicit JavaScript)
+  if (executionData.stateInitializations && executionData.stateInitializations.length > 0) {
+    functionBody.push(`    // Initialize environment state`);
+    for (const init of executionData.stateInitializations) {
+      if (init.type === 'assignment' && init.target && init.value) {
+        const pathParts = init.target.split('.');
+        if (pathParts.length === 2) {
+          // Direct entity property assignment like agv1.location
+          functionBody.push(`    this.sysadlBase.environmentConfig.${init.target} = '${init.value}';`);
+        }
+      }
+    }
+    functionBody.push(``);
+  }
+  
+  // 2. Event injections (clean natural syntax)
+  if (executionData.eventInjections && executionData.eventInjections.length > 0) {
+    functionBody.push(`    // Event injections`);
+    for (const injection of executionData.eventInjections) {
+      const cleanSyntax = generateCleanInjectionSyntax(injection);
+      if (cleanSyntax) {
+        functionBody.push(cleanSyntax);
+        
+        // Generate corresponding implementation
+        if (injection.type === 'single' && injection.eventName) {
+          if (injection.timing && injection.timing.type === 'after' && injection.timing.scenario) {
+            functionBody.push(`    context.eventScheduler.scheduleAfterScenario('${injection.eventName}', '${injection.timing.scenario}');`);
+          } else if (injection.timing && injection.timing.type === 'condition' && injection.timing.expression) {
+            functionBody.push(`    context.eventScheduler.scheduleOnCondition('${injection.eventName}', () => this.sysadlBase.environmentConfig.${injection.timing.expression});`);
+          } else if (injection.timing && injection.timing.delay) {
+            const delay = injection.timing.delay.replace(/s$/, '000'); // Convert 5s to 5000ms
+            functionBody.push(`    setTimeout(() => this.sysadlBase.eventInjector.injectEvent('${injection.eventName}'), ${delay});`);
+          } else {
+            functionBody.push(`    await this.sysadlBase.eventInjector.injectEvent('${injection.eventName}');`);
+          }
+        }
+      }
+    }
+    functionBody.push(``);
+  }
+  
+  // 3. Scenario executions (explicit JavaScript)
+  if (executionData.scenarios && executionData.scenarios.length > 0) {
+    functionBody.push(`    // Execute scenarios`);
+    for (const scenario of executionData.scenarios) {
+      if (scenario.name) {
+        functionBody.push(`    await this.executeScenario('${scenario.name}', context);`);
+      }
+    }
+    functionBody.push(``);
+  }
+  
+  // 4. Repeat statements (explicit JavaScript)
+  if (executionData.repeatStatements && executionData.repeatStatements.length > 0) {
+    functionBody.push(`    // Repeat executions`);
+    for (const repeat of executionData.repeatStatements) {
+      if (repeat.scenario && repeat.count) {
+        functionBody.push(`    for (let i = 0; i < ${repeat.count}; i++) {`);
+        functionBody.push(`      await this.executeScenario('${repeat.scenario}', context);`);
+        functionBody.push(`    }`);
+      }
+    }
+    functionBody.push(``);
+  }
+  
+  functionBody.push(`    return { success: true, message: 'Scenario execution completed successfully' };`);
+  
+  return functionBody.join('\n');
+}
+
 // Enhanced Scenario extraction with programming structures support
 function extractScenariosEnhanced(element) {
   const scenarios = {};
@@ -4692,6 +4648,56 @@ function parseEventInjectionBatchStatement(stmt) {
   };
 }
 
+// Helper function to convert AST expression to string
+function astExpressionToStringGlobal(node) {
+  if (!node) return '';
+  
+  // If node is already a string, return it
+  if (typeof node === 'string') {
+    return node;
+  }
+  
+  switch (node.type) {
+    case 'BinaryExpression':
+    case 'ComparisonExpression':
+    case 'LogicalExpression':
+      const left = astExpressionToStringGlobal(node.left);
+      const right = astExpressionToStringGlobal(node.right);
+      const op = node.operator;
+      return `${left} ${op} ${right}`;
+      
+    case 'NameExpression':
+      return node.name || '';
+      
+    case 'NaturalLiteral':
+      return String(node.value || 0);
+      
+    case 'RealLiteral':
+      return String(node.value || 0.0);
+      
+    case 'StringLiteral':
+      return `"${node.value || ''}"`;
+      
+    case 'PropertyAccessExpression':
+    case 'MemberAccessExpression':
+      const object = node.object ? astExpressionToStringGlobal(node.object) : '';
+      const property = node.property || node.member || '';
+      return `${object}.${property}`;
+      
+    default:
+      // For unknown types, try to handle them gracefully
+      if (node.value !== undefined) {
+        return String(node.value);
+      }
+      
+      if (node.name) {
+        return node.name;
+      }
+      
+      return '';
+  }
+}
+
 function parseEventTiming(timing) {
   if (!timing) return { type: 'immediate' };
   
@@ -4699,7 +4705,9 @@ function parseEventTiming(timing) {
     case 'delay':
       return { type: 'delay', value: timing.value || 0 };
     case 'condition':
-      return { type: 'condition', expression: timing.expression };
+      // Convert AST expression to JavaScript string
+      const expression = timing.expression ? astExpressionToStringGlobal(timing.expression) : 'true';
+      return { type: 'condition', expression: expression };
     case 'before':
       return { type: 'before', scenario: timing.scenario };
     case 'after':
