@@ -7,39 +7,71 @@
 
 // Event system support - Browser fallback
 let EventEmitter;
-if (typeof require !== 'undefined') {
+if (typeof window !== 'undefined') {
+  // Always define EventEmitter for browser
+  EventEmitter = class EventEmitter {
+    constructor() {
+      this._events = {};
+      this._maxListeners = 10;
+    }
+    setMaxListeners(n) {
+      this._maxListeners = n;
+      return this;
+    }
+    listenerCount(event) {
+      return (this._events[event] || []).length;
+    }
+    on(event, listener) {
+      if (!this._events[event]) this._events[event] = [];
+      this._events[event].push(listener);
+      return this;
+    }
+    off(event, listener) {
+      if (!this._events[event]) return this;
+      const index = this._events[event].indexOf(listener);
+      if (index > -1) this._events[event].splice(index, 1);
+      return this;
+    }
+    emit(event, ...args) {
+      if (!this._events[event]) return false;
+      this._events[event].forEach(listener => {
+        try {
+          listener.apply(this, args);
+        } catch (e) {
+          console.error('EventEmitter error:', e);
+        }
+      });
+      return this._events[event].length > 0;
+    }
+  };
+} else {
+  // Node.js: tentar require, senão fallback
   try {
     EventEmitter = require('events');
   } catch (e) {
-    // Browser fallback
     EventEmitter = class EventEmitter {
       constructor() {
         this._events = {};
         this._maxListeners = 10;
       }
-      
       setMaxListeners(n) {
         this._maxListeners = n;
         return this;
       }
-      
       listenerCount(event) {
         return (this._events[event] || []).length;
       }
-      
       on(event, listener) {
         if (!this._events[event]) this._events[event] = [];
         this._events[event].push(listener);
         return this;
       }
-      
       off(event, listener) {
         if (!this._events[event]) return this;
         const index = this._events[event].indexOf(listener);
         if (index > -1) this._events[event].splice(index, 1);
         return this;
       }
-      
       emit(event, ...args) {
         if (!this._events[event]) return false;
         this._events[event].forEach(listener => {
@@ -53,73 +85,13 @@ if (typeof require !== 'undefined') {
       }
     };
   }
-} else {
-  // Browser fallback EventEmitter
-  EventEmitter = class EventEmitter {
-    constructor() {
-      this._events = {};
-      this._maxListeners = 10;
-    }
-    
-    setMaxListeners(n) {
-      this._maxListeners = n;
-      return this;
-    }
-    
-    listenerCount(event) {
-      return (this._events[event] || []).length;
-    }
-    
-    on(event, listener) {
-      if (!this._events[event]) this._events[event] = [];
-      this._events[event].push(listener);
-      return this;
-    }
-    
-    off(event, listener) {
-      if (!this._events[event]) return this;
-      const index = this._events[event].indexOf(listener);
-      if (index > -1) this._events[event].splice(index, 1);
-      return this;
-    }
-    
-    emit(event, ...args) {
-      if (!this._events[event]) return false;
-      this._events[event].forEach(listener => {
-        try {
-          listener.apply(this, args);
-        } catch (e) {
-          console.error('EventEmitter error:', e);
-        }
-      });
-      return this._events[event].length > 0;
-    }
-  };
 }
 
 // Conditional imports
 let GenericDomainInterface, ExecutionLogger, EventInjector, SceneExecutor;
 let ScenarioExecutor, ExecutionController, ReactiveStateManager, ReactiveConditionWatcher;
 
-if (typeof require !== 'undefined') {
-  try {
-    // Import generic domain interface
-    ({ GenericDomainInterface } = require('./GenericDomainInterface'));
-
-    // Import Phase 4 components
-    ({ ExecutionLogger } = require('./ExecutionLogger'));
-    EventInjector = require('./EventInjector');
-    ({ SceneExecutor } = require('./SceneExecutor'));
-
-    // Import Phase 5 & 6 components
-    ({ ScenarioExecutor } = require('./ScenarioExecutor'));
-    ({ ExecutionController } = require('./ExecutionController'));
-    ({ ReactiveStateManager } = require('./ReactiveStateManager'));
-    ({ ReactiveConditionWatcher } = require('./ReactiveConditionWatcher'));
-  } catch (e) {
-    console.warn('Some SysADL components not available in browser environment:', e.message);
-  }
-} else {
+if (typeof window !== 'undefined') {
   // Browser stubs for missing components
   GenericDomainInterface = class GenericDomainInterface {
     constructor() {
@@ -136,7 +108,6 @@ if (typeof require !== 'undefined') {
       this.logLevel = options.logLevel || 'detailed';
       this.entries = [];
     }
-    
     log(message, data = null) {
       const entry = {
         timestamp: Date.now(),
@@ -4743,54 +4714,7 @@ class ScenarioDefinitions extends Element {
 }
 
 // Export everything
-module.exports = {
-  Model,
-  Element,
-  Component,
-  Connector,
-  Connection,
-  Port,
-  SimplePort,
-  CompositePort,
-  Activity,
-  Action,
-  BehavioralElement,
-  Constraint,
-  Executable,
-  Enum,
-  // Environment and Scenario classes
-  Entity,
-  Event,
-  events,
-  eventClasses,
-  Scene,
-  Scenario,
-  EnvironmentDefinition,
-  EnvironmentConfiguration,
-  ScenarioExecution,
-  EventsDefinitions,
-  SceneDefinitions,
-  ScenarioDefinitions,
-  // Event system
-  EventSystemManager,
-  eventSystemManager,
-  // Built-in primitive types
-  Int,
-  Boolean: SysADLBoolean,
-  String: SysADLString,
-  Void,
-  Real,
-  // Type system
-  ValueType,
-  DataType,
-  Dimension,
-  Unit,
-  // Factory functions
-  valueType,
-  dataType,
-  dimension,
-  unit
-};
+
 
 /**
  * Expression Evaluator for SysADL Conditions
@@ -5048,8 +4972,9 @@ class SysADLRuntimeHelpers {
   }
 }
 
-// Export ExpressionEvaluator
-module.exports.ExpressionEvaluator = ExpressionEvaluator;
+// Export ExpressionEvaluator (Node.js only)
+// (garantido apenas dentro do bloco Node.js)
+// (removido do escopo global para evitar erro no browser)
 
 // Export all components
 const sysadlExports = {
@@ -5078,7 +5003,7 @@ const sysadlExports = {
 };
 
 // Node.js environment
-if (typeof module !== 'undefined' && module.exports) {
+if (typeof module === 'object' && typeof module.exports === 'object') {
   Object.assign(module.exports, sysadlExports);
 }
 

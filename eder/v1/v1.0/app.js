@@ -4,6 +4,15 @@
 import { parse as sysadlParse, SyntaxError as SysADLSyntaxError } from './sysadl-parser.js';
 window.SysADLParser = { parse: sysadlParse, SyntaxError: SysADLSyntaxError };
 
+// Depuração: verificar se SysADLBase está disponível no window
+setTimeout(() => {
+  if (window.SysADLBase) {
+    console.log('[DEBUG] window.SysADLBase está disponível:', window.SysADLBase);
+  } else {
+    console.error('[ERRO] window.SysADLBase NÃO está disponível após carregamento!');
+  }
+}, 500);
+
 // Importar definição de linguagem SysADL para Monaco
 import { registerSysADLLanguage } from './sysadl-monaco.js';
 
@@ -43,7 +52,9 @@ const monacoReady = new Promise((resolve, reject) => {
     console.error('Error setting up Monaco:', error);
     reject(error);
   }
-});
+}); // <-- Adiciona o fechamento do executor da Promise
+
+// Fim do script principal
 
 // 2) UI refs
 const els = {
@@ -66,12 +77,7 @@ const els = {
 // Fallbacks caso um ambiente injete `module.exports` no browser
 (function ensureGlobalsFromModuleExports(){
   try {
-    if (!window.Transformer && window.module && window.module.exports && window.module.exports.generateClassModule) {
-      window.Transformer = window.module.exports;
-    }
-    if (!window.Simulator && window.module && window.module.exports && window.module.exports.run) {
-      window.Simulator = window.module.exports;
-    }
+    // In browser, window.Transformer and window.Simulator are set by their respective scripts
   } catch (_e) {}
 })();
 
@@ -154,7 +160,6 @@ configuration {
   }
 }).catch(error => {
   console.error('Error loading Monaco:', error);
-  
   // Fallback completo se Monaco não carregar
   const fallbackTextarea = document.createElement('textarea');
   fallbackTextarea.id = 'fallback-editor';
@@ -177,17 +182,13 @@ configuration {
   component Display d1;
   connector Wire w1 (s1.out -> d1.in);
 }`;
-  
   els.editor.appendChild(fallbackTextarea);
-  
   editor = {
     getValue: () => fallbackTextarea.value,
     setValue: (value) => { fallbackTextarea.value = value; }
   };
-  
   console.log('Complete fallback editor created');
 });
-
 // 4) Util: salvar arquivo
 function saveAs(filename, content){
   const blob = new Blob([content], {type:'text/plain;charset=utf-8'});
@@ -204,7 +205,11 @@ function cjsPrelude(){
     'var module = { exports: {} };',
     'var exports = module.exports;',
     'function require(p){',
-    "  if (p && String(p).includes('SysADLBase')) return window.SysADLBase;",
+    "  if (p && String(p).includes('SysADLBase')) {",
+    "    if (!window.SysADLBase) { console.error('[DEBUG] window.SysADLBase não está disponível!'); return {}; }",
+    "    console.log('[DEBUG] require(\"SysADLBase\") retornando:', window.SysADLBase);",
+    "    return window.SysADLBase;",
+    "  }",
     "  throw new Error('require não suportado no browser: '+p);",
     '}'
   ].join('\n');
@@ -314,19 +319,29 @@ function runSimulation(generatedCode, { trace=false, loops=1, params={} }={}){
 
 // 9) Handlers UI
 els.btnTransform.addEventListener('click', async () => {
+  console.log('[DEBUG] Botão Transformar clicado');
   els.log.textContent = '';
   const src = editor.getValue();
-  try{
+  if (!window.Transformer) {
+    console.error('[DEBUG] window.Transformer NÃO está disponível');
+    els.archOut.textContent = 'Erro: Transformer não carregado.';
+    return;
+  } else {
+    console.log('[DEBUG] window.Transformer está disponível:', window.Transformer);
+  }
+  try {
     const js = await transformSysADLToJS(src);
     els.archOut.textContent = js;
-
-  }catch(err){
+    if (window.Prism) { Prism.highlightElement(els.archOut); }
+    console.log('[DEBUG] Transformação realizada com sucesso');
+  } catch (err) {
     if (!els.archOut.textContent) {
       els.archOut.textContent = 'Erro na transformação (veja detalhes acima).';
+      if (window.Prism) { Prism.highlightElement(els.archOut); }
     }
-    console.error(err);
+    console.error('[DEBUG] Erro na transformação:', err);
   }
-});
+        });
 
 els.btnRun.addEventListener('click', async () => {
   const js = els.archOut.textContent.trim();
@@ -334,9 +349,13 @@ els.btnRun.addEventListener('click', async () => {
     els.log.textContent += '[AVISO] Gere o JS primeiro (Transformar ▶).\n';
     return;
   }
+  if (!window.SysADLBase) {
+    els.log.textContent += '[ERRO] O runtime SysADLBase não está disponível! Verifique se o arquivo SysADLBase.js foi carregado corretamente.\n';
+    console.error('[DEBUG] window.SysADLBase não está disponível!');
+    return;
+  }
   const trace = !!els.traceToggle.checked;
   const loops = Number(els.loopCount.value || 1);
-  
   // Processar parâmetros de simulação
   let params = {};
   const paramsText = els.simulationParams.value.trim();
@@ -349,7 +368,6 @@ els.btnRun.addEventListener('click', async () => {
       return;
     }
   }
-  
   runSimulation(js, { trace, loops, params });
 });
 
@@ -367,13 +385,10 @@ els.fileInput.addEventListener('change', async (ev) => {
     console.log('No file selected');
     return;
   }
-  
   console.log('File selected:', f.name, 'size:', f.size);
-  
   try {
     const txt = await f.text();
     console.log('File content loaded, length:', txt.length);
-    
     if (editor && typeof editor.setValue === 'function') {
       editor.setValue(txt);
       console.log('Content set in editor');
@@ -389,9 +404,10 @@ els.fileInput.addEventListener('change', async (ev) => {
   } catch (error) {
     console.error('Error loading file:', error);
   }
-});
+    highlightArchOutJS();
+  });
 
-els.btnExample.addEventListener('click', async () => {
+  els.btnExample.addEventListener('click', async () => {
   console.log('Example button clicked');
   try {
     // Carrega o arquivo AGV-completo.sysadl
