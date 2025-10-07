@@ -85,6 +85,14 @@ button.secondary{ background:#10141c; color:var(--muted); }
   overflow:auto; max-height:320px; white-space:pre;
 }
 
+/* Monaco Editor para código gerado (segunda janela) */
+#codeEditor {
+  height: 450px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+}
+
 .log{
   background:#0a0d12; color:#cbd5e1; padding:12px; border-radius:10px;
   border:1px solid var(--border); font-family:var(--mono);

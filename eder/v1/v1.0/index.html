@@ -7,7 +7,6 @@
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="preconnect" href="https://unpkg.com" crossorigin>
   <link rel="stylesheet" href="./styles.css" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
 </head>
 <body>
   <header class="app-header">
@@ -64,7 +63,7 @@
           <button id="saveArch">Baixar .js</button>
         </div>
         <div id="archOutContainer" style="position:relative;">
-          <pre id="archOut" class="language-javascript style="background:#1e1e1e;color:#d4d4d4;padding:16px;border-radius:8px;overflow:auto;max-height:350px;"></pre>
+          <div id="codeEditor" class="editor" aria-label="Código JavaScript Gerado"></div>
         </div>
       </details>
     </section>
@@ -85,9 +84,7 @@
   </script>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
 
-  <!-- Prism.js para destaque de sintaxe JS -->
-  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-javascript.min.js"></script>
+
   <!-- Runtime base + simulador + transformador (do usuário) -->
   <!-- Neutralizar shims CommonJS de extensões (garantir branch de browser) -->
   <script>
@@ -117,10 +114,9 @@
   </script>
 
   <script src="./sysadl-framework/SysADLBase.js"></script>
-  <script src="./transformer.js"></script>
   <script src="./simulator.js"></script>
 
-  <!-- App (ESM): importa o parser e expõe no window) -->
+  <!-- Carrega app Node.js -->
   <script type="module" src="./app.js"></script>
 </body>
 </html>
