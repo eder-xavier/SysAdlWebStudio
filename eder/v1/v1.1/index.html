@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SysADL ▶ JS — Simulator</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://unpkg.com" crossorigin>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>SysADL ▶ JavaScript — Simulation</h1>
+    <div class="header-actions">
+      <label class="file-input">
+        <input id="fileInput" type="file" accept=".sysadl,.txt" />
+        <span>Load .sysadl</span>
+      </label>
+      <button id="btnExample" class="secondary">Carregar exemplo</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="panel">
+      <h2>1) SysADL Code</h2>
+      <div id="editor" class="editor" aria-label="Editor SysADL"></div>
+      <div class="toolbar">
+        <button id="btnTransform">Transform ▶</button>
+        <div class="spacer"></div>
+        <label class="switch">
+          <input id="traceToggle" type="checkbox" />
+          <span>Traçar execução</span>
+        </label>
+        <label class="switch">
+          <span>Iterações</span>
+          <input id="loopCount" type="number" min="1" step="1" value="1" />
+        </label>
+        <button id="btnRun" class="success">Simulate</button>
+      </div>
+      <div class="toolbar" style="margin-top: 10px; border-top: 1px solid #ddd; padding-top: 10px;">
+        <label style="display: block; margin-bottom: 5px;">
+          <strong>Parâmetros de Simulação (JSON):</strong>
+          <small style="color: #666;">Ex: {"s1.temp": 25, "s1.pressure": 100}</small>
+        </label>
+        <textarea id="simulationParams" placeholder='{"component.port": valor, "porta": valor}' 
+                  style="width: 100%; min-height: 120px; font-family: 'Fira Mono', 'Consolas', monospace; font-size: 15px; border: 2px solid #1976d2; border-radius: 6px; padding: 12px; background: #f7f7f7; color: #222; resize: vertical; box-shadow: 0 2px 8px #0001;"
+                  spellcheck="false"
+                  autocomplete="off"
+                  autocorrect="off"
+                  autocapitalize="off"
+                  ></textarea>
+        <button id="copyParams" style="margin-top:6px;float:right;">Copiar parâmetros</button>
+      </div>
+      <div id="parseErr" class="err" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="panel">
+      <h2>2) Código gerado</h2>
+      <details open class="codeblock">
+        <summary>Código da arquitetura (gerado do .sysadl)</summary>
+        <div class="actions">
+          <button id="copyArch">Copy</button>
+          <button id="saveArch">Download .js</button>
+          <button id="btnVisualize" class="secondary">Visualizar Arquitetura</button>
+        </div>
+        <div id="archOutContainer" style="position:relative;">
+          <div id="codeEditor" class="editor" aria-label="Código JavaScript Gerado"></div>
+        </div>
+      </details>
+    </section>
+
+    <section class="panel">
+      <h2>3) Visualização da Arquitetura</h2>
+      <div style="margin-bottom: 10px; padding: 8px; background: transparent; border-radius: 4px;">
+        <strong>Legenda:</strong>
+        <ul style="list-style: none; padding: 0; margin: 5px 0;">
+          <li><span style="color: #0288d1;">■</span> Componente Principal (Caixa Azul)</li>
+          <li><span style="color: #4caf50;">■</span> Subcomponente (Caixa Verde)</li>
+          <li><span style="color: #ffca28;">●</span> Porta de Saída (Círculo Amarelo)</li>
+          <li><span style="color: #d32f2f;">●</span> Porta de Entrada (Círculo Vermelho)</li>
+          <li><span style="color: #d32f2f;">→</span> Conector/Fluxo (Aresta Vermelha)</li>
+        </ul>
+      </div>
+      <div id="architectureViz" class="editor" style="height: 450px; border: 1px solid var(--border); border-radius: 8px;"></div>
+    </section>
+
+    <section class="panel">
+      <h2>4) Log / Saída da simulação</h2>
+      <div class="actions">
+        <button id="clearLog" class="secondary">Limpar</button>
+      </div>
+      <pre id="log" class="log"></pre>
+    </section>
+  </main>
+
+  <!-- Monaco (AMD loader) -->
+  <script>
+    window.amdRequire = window.require;
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+
+  <!-- Runtime base + simulador + transformador -->
+  <script>
+    try { window.module = undefined; window.exports = undefined; } catch (e) {}
+  </script>
+
+  <script>
+    var normalizeEntry = function(entry) {
+      try {
+        const seen = new WeakSet();
+        return JSON.parse(JSON.stringify(entry, (k, v) => {
+          if (typeof v === 'function') return `[Function ${v.name||'anonymous'}]`;
+          if (v instanceof Error) return { name: v.name, message: v.message };
+          if (typeof v === 'object' && v !== null) {
+            if (seen.has(v)) return '[Circular]';
+            seen.add(v);
+          }
+          return v;
+        }));
+      } catch (e) {
+        return { error: e && e.message ? e.message : String(e) };
+      }
+    };
+  </script>
+
+  <script src="./sysadl-framework/SysADLBase.js"></script>
+  <script src="./simulator.js"></script>
+  <script type="module" src="./visualizer.js"></script>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
