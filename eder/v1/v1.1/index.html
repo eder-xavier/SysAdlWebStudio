@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -16,78 +16,78 @@
         <input id="fileInput" type="file" accept=".sysadl,.txt" />
         <span>Load .sysadl</span>
       </label>
-      <button id="btnExample" class="secondary">Carregar exemplo</button>
+      <!-- <button id="btnExample" class="secondary">Carregar exemplo</button> -->
     </div>
   </header>
 
   <main class="container">
     <section class="panel">
-      <h2>1) SysADL Code</h2>
-      <div id="editor" class="editor" aria-label="Editor SysADL"></div>
+      <h2>1) SysADL Source</h2>
+      <div id="editor" class="editor" aria-label="SysADL editor"></div>
       <div class="toolbar">
         <button id="btnTransform">Transform ▶</button>
         <div class="spacer"></div>
         <label class="switch">
           <input id="traceToggle" type="checkbox" />
-          <span>Traçar execução</span>
+        <span>Trace execution</span>
         </label>
         <label class="switch">
-          <span>Iterações</span>
+          <span>Iterations</span>
           <input id="loopCount" type="number" min="1" step="1" value="1" />
         </label>
         <button id="btnRun" class="success">Simulate</button>
       </div>
       <div class="toolbar" style="margin-top: 10px; border-top: 1px solid #ddd; padding-top: 10px;">
         <label style="display: block; margin-bottom: 5px;">
-          <strong>Parâmetros de Simulação (JSON):</strong>
-          <small style="color: #666;">Ex: {"s1.temp": 25, "s1.pressure": 100}</small>
+          <strong>Simulation Parameters (JSON):</strong>
+          <small style="color: #666;">e.g. {"s1.temp": 25, "s1.pressure": 100}</small>
         </label>
-        <textarea id="simulationParams" placeholder='{"component.port": valor, "porta": valor}' 
+        <textarea id="simulationParams" placeholder='{"component.port": value}' 
                   style="width: 100%; min-height: 120px; font-family: 'Fira Mono', 'Consolas', monospace; font-size: 15px; border: 2px solid #1976d2; border-radius: 6px; padding: 12px; background: #f7f7f7; color: #222; resize: vertical; box-shadow: 0 2px 8px #0001;"
                   spellcheck="false"
                   autocomplete="off"
                   autocorrect="off"
                   autocapitalize="off"
                   ></textarea>
-        <button id="copyParams" style="margin-top:6px;float:right;">Copiar parâmetros</button>
+        <button id="copyParams" style="margin-top:6px;float:right;">Copy parameters</button>
       </div>
       <div id="parseErr" class="err" role="status" aria-live="polite"></div>
     </section>
 
     <section class="panel">
-      <h2>2) Código gerado</h2>
+      <h2>2) Generated JavaScript</h2>
       <details open class="codeblock">
-        <summary>Código da arquitetura (gerado do .sysadl)</summary>
+        <summary>Architecture code (generated from .sysadl)</summary>
         <div class="actions">
           <button id="copyArch">Copy</button>
           <button id="saveArch">Download .js</button>
-          <button id="btnVisualize" class="secondary">Visualizar Arquitetura</button>
+          <button id="btnVisualize" class="secondary">Visualize Architecture</button>
         </div>
         <div id="archOutContainer" style="position:relative;">
-          <div id="codeEditor" class="editor" aria-label="Código JavaScript Gerado"></div>
+          <div id="codeEditor" class="editor" aria-label="Generated JavaScript code editor"></div>
         </div>
       </details>
     </section>
 
     <section class="panel">
-      <h2>3) Visualização da Arquitetura</h2>
-      <div style="margin-bottom: 10px; padding: 8px; background: transparent; border-radius: 4px;">
-        <strong>Legenda:</strong>
+      <h2>3) Architecture Visualization</h2>
+      <div style="margin-bottom: 10px; padding: 12px; background: rgba(241,245,255,0.6); border-radius: 12px; border:1px solid rgba(214,222,235,0.6);">
+        <strong>Legend:</strong>
         <ul style="list-style: none; padding: 0; margin: 5px 0;">
-          <li><span style="color: #0288d1;">■</span> Componente Principal (Caixa Azul)</li>
-          <li><span style="color: #4caf50;">■</span> Subcomponente (Caixa Verde)</li>
-          <li><span style="color: #ffca28;">●</span> Porta de Saída (Círculo Amarelo)</li>
-          <li><span style="color: #d32f2f;">●</span> Porta de Entrada (Círculo Vermelho)</li>
-          <li><span style="color: #d32f2f;">→</span> Conector/Fluxo (Aresta Vermelha)</li>
+          <li><span style="display:inline-block;width:14px;height:14px;border-radius:4px;background:#1d3557;margin-right:6px;"></span>Root component</li>
+          <li><span style="display:inline-block;width:14px;height:14px;border-radius:4px;background:#264772;margin-right:6px;"></span>Nested component</li>
+          <li><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#0ea5e9;margin-right:8px;border:2px solid #0b5675;"></span>Output port</li>
+          <li><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#f97316;margin-right:8px;border:2px solid #c2410c;"></span>Input port</li>
+          <li><span style="display:inline-block;width:24px;height:2px;background:#1d4ed8;margin-right:8px;border-radius:1px;"></span>Connector / flow</li>
         </ul>
       </div>
-      <div id="architectureViz" class="editor" style="height: 450px; border: 1px solid var(--border); border-radius: 8px;"></div>
+      <div id="architectureViz" aria-label="Architecture visualization canvas"></div>
     </section>
 
     <section class="panel">
-      <h2>4) Log / Saída da simulação</h2>
+      <h2>4) Simulation Log / Output</h2>
       <div class="actions">
-        <button id="clearLog" class="secondary">Limpar</button>
+        <button id="clearLog" class="secondary">Clear log</button>
       </div>
       <pre id="log" class="log"></pre>
     </section>

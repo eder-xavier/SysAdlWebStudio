@@ -293,6 +293,14 @@ class SysADLBase extends Element {
   addConnector(conn) {
     if (!conn || !conn.name) return;
     this.connectors[conn.name] = conn;
+    if (typeof conn.setParentComponent === 'function') {
+      conn.setParentComponent(this);
+    } else {
+      conn.parentComponent = this;
+      if (this._model && !conn._model) {
+        conn._model = this._model;
+      }
+    }
   }
 
   addPort(p) {
@@ -1356,6 +1364,8 @@ class Component extends SysADLBase {
     this.participants = [];
     this.activityName = null; // Direct reference to activity name
     this._model = null;
+    this.boundParticipants = {};
+    this.parentComponent = null;
     
     // Generic schemas provided externally (no hardcoded values)
     this.participantSchema = opts.participantSchema || {};
@@ -1625,38 +1635,143 @@ class Component extends SysADLBase {
            (this._model && this._model.classRegistry && this._model.classRegistry[className]) ||
            eval(className);
   }
+
+  setParentComponent(component) {
+    this.parentComponent = component;
+    if (component && component._model) {
+      this._model = component._model;
+    }
+  }
   
   // GENERIC: Bind external ports with validation
   bind(externalFromPort, externalToPort) {
-    const participants = Object.keys(this.participantSchema);
+    const participants = this.participantSchema ? Object.keys(this.participantSchema) : [];
     
     if (participants.length === 0) {
       // Fallback to legacy behavior if no schema
       return this.bindLegacy(externalFromPort, externalToPort);
     }
     
-    // Generic strategy: first participant = source, second = target
-    const fromParticipantName = participants[0];
-    const toParticipantName = participants[1];
+    const [fromParticipantName, toParticipantName] = this.resolvePrimaryRoles();
     
     // Handle composite ports
-    if (this.participantSchema[fromParticipantName]?.portType === 'composite') {
+    if (fromParticipantName && this.participantSchema[fromParticipantName]?.portType === 'composite') {
       this.bindCompositePort(fromParticipantName, externalFromPort);
-    } else {
+    } else if (fromParticipantName) {
       this.performBinding(fromParticipantName, externalFromPort, 'source');
     }
     
-    if (this.participantSchema[toParticipantName]?.portType === 'composite') {
+    if (toParticipantName && this.participantSchema[toParticipantName]?.portType === 'composite') {
       this.bindCompositePort(toParticipantName, externalToPort);
-    } else {
+    } else if (toParticipantName) {
       this.performBinding(toParticipantName, externalToPort, 'target');
     }
+
+    this.recordExternalBinding(fromParticipantName, externalFromPort, 'source');
+    this.recordExternalBinding(toParticipantName, externalToPort, 'target');
+  }
+
+  resolvePrimaryRoles() {
+    const flow = Array.isArray(this.flowSchema) && this.flowSchema.length > 0
+      ? this.flowSchema[0]
+      : (this.props && Array.isArray(this.props.flowSchema) && this.props.flowSchema.length > 0
+          ? this.props.flowSchema[0]
+          : null);
+
+    if (flow && flow.from && flow.to) {
+      return [flow.from, flow.to];
+    }
+
+    const participants = this.participantSchema ? Object.entries(this.participantSchema) : [];
+    const sourceTuple = participants.find(([_, schema]) => (schema?.role === 'source') || (schema?.direction === 'out'));
+    const targetTuple = participants.find(([_, schema]) => (schema?.role === 'target') || (schema?.direction === 'in'));
+
+    const fallback = participants.map(([key]) => key);
+
+    return [
+      sourceTuple ? sourceTuple[0] : fallback[0],
+      targetTuple ? targetTuple[0] : fallback[1]
+    ];
+  }
+
+  recordLegacyBinding(fromPort, toPort) {
+    this.recordExternalBinding('legacy_source', fromPort, 'source');
+    this.recordExternalBinding('legacy_target', toPort, 'target');
+  }
+
+  recordExternalBinding(participantName, externalPort, bindingDirection) {
+    if (!participantName || !externalPort) return;
+    if (!this.boundParticipants) this.boundParticipants = {};
+
+    const schema = this.participantSchema ? this.participantSchema[participantName] : null;
+    const ownerPath = this.extractOwnerName(externalPort);
+    const componentName = ownerPath && ownerPath.includes('.')
+      ? ownerPath.split('.')[0]
+      : ownerPath;
+
+    this.boundParticipants[participantName] = {
+      componentName: componentName || ownerPath || (this._model && this._model.name) || null,
+      ownerPath: ownerPath || componentName || null,
+      portName: externalPort.name || null,
+      direction: externalPort.direction || schema?.direction || bindingDirection || null,
+      portClass: (externalPort.constructor && externalPort.constructor.name) || schema?.portClass || null,
+      portRef: externalPort
+    };
+  }
+
+  extractOwnerName(externalPort) {
+    if (!externalPort) return null;
+    if (externalPort.owner) return externalPort.owner;
+    if (externalPort.props && externalPort.props.owner) return externalPort.props.owner;
+
+    const resolved = this.resolveComponentNameFromPort(externalPort);
+    if (resolved) return resolved;
+
+    if (this.parentComponent && this.parentComponent.name) {
+      return this.parentComponent.name;
+    }
+
+    return (this._model && this._model.name) || null;
+  }
+
+  resolveComponentNameFromPort(port) {
+    if (!port) return null;
+    const model = this._model;
+
+    if (!model) return null;
+
+    if (model.ports) {
+      for (const [name, modelPort] of Object.entries(model.ports)) {
+        if (modelPort === port) return model.name || null;
+      }
+    }
+
+    if (!model.components) return null;
+
+    const queue = [...Object.values(model.components)];
+    while (queue.length > 0) {
+      const component = queue.shift();
+      if (!component) continue;
+
+      if (component.ports) {
+        for (const [name, componentPort] of Object.entries(component.ports)) {
+          if (componentPort === port) return component.name;
+        }
+      }
+
+      if (component.components) {
+        queue.push(...Object.values(component.components));
+      }
+    }
+
+    return null;
   }
   
   // LEGACY: Maintain compatibility for connectors without schema
   bindLegacy(fromPort, toPort) {
     if (!fromPort || !toPort) return;
     this.participants = this.participants || [];
+    this.recordLegacyBinding(fromPort, toPort);
     
     // Add both ports as participants if not already present
     if (!this.participants.some(p => p === fromPort)) {

@@ -4,1007 +4,1224 @@
 const { Model, Component, Port, SimplePort, CompositePort, Connector, Activity, Action, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit, Constraint, Executable } = require('../sysadl-framework/SysADLBase');
 
 // Types
-const EN_InfraredCode = new Enum("increase", "decrease", "turn_on", "turn_off");
-const EN_TypeSensor = new Enum("temperature", "humidity", "presence");
-const DT_DataSensor = dataType('DataSensor', { id: String, value: String, typeSensor: EN_TypeSensor });
-const DT_Sensor = dataType('Sensor', { room: String, type_sensor: EN_TypeSensor, id: String });
-const DT_Schedule = dataType('Schedule', { timestamp: Int });
-const DT_Location = dataType('Location', { latitude: Real, longitude: Real });
-const DT_Room = dataType('Room', { id: String, building: String });
-const DT_SmartPlaceComponents_AirConditioner = dataType('AirConditioner', { room: String, id: String });
-const DT_FrameList = dataType('FrameList', {});
-const DT_Measurement = dataType('Measurement', { value: String, schedule: DT_Schedule, sensor: DT_Sensor });
-const DT_UpdateDB = dataType('UpdateDB', { idAirCond: String, currentTime: DT_Schedule, actionTemp: EN_InfraredCode });
-const DT_Building = dataType('Building', { id: String, location: DT_Location });
-const DT_Intervention = dataType('Intervention', { icAirCond: EN_InfraredCode, airCond: DT_SmartPlaceComponents_AirConditioner, schedule: DT_Schedule });
-const DT_ContextInformation = dataType('ContextInformation', { sensor: DT_Sensor, air_conditioner: DT_SmartPlaceComponents_AirConditioner, room: DT_Room, building: DT_Building });
-const DT_RestFulRaspeberry = dataType('RestFulRaspeberry', { ip: String, port: String, path: String, i: DT_Intervention, m: DT_Measurement });
+const EN_NotificationToSupervisory = new Enum("departed", "arrived", "passed", "traveling");
+const EN_NotificationFromArm = new Enum("loaded", "unloaded");
+const EN_CommandToArm = new Enum("load", "unload", "idle");
+const EN_NotificationFromMotor = new Enum("started", "stopped");
+const EN_CommandToMotor = new Enum("start", "stop");
+const DT_Location = dataType('Location', { location: String });
+const DT_Status = dataType('Status', { location: DT_Location, destination: DT_Location, command: EN_CommandToArm });
+const DT_VehicleData = dataType('VehicleData', { destination: DT_Location, command: EN_CommandToArm });
 
 // Ports
-class PT_SmartPlacePorts_ValueOPT extends SimplePort {
+class PT_ComponentsAGV_inLocation extends SimplePort {
   constructor(name, opts = {}) {
-    super(name, "out", { ...{ expectedType: "Int" }, ...opts });
+    super(name, "in", { ...{ expectedType: "Location" }, ...opts });
   }
 }
-class PT_SmartPlacePorts_ValueIPT extends SimplePort {
+class PT_ComponentsAGV_outLocation extends SimplePort {
   constructor(name, opts = {}) {
-    super(name, "in", { ...{ expectedType: "Int" }, ...opts });
+    super(name, "out", { ...{ expectedType: "Location" }, ...opts });
   }
 }
-class PT_SmartPlacePorts_ReservationResponseIPT extends SimplePort {
+class PT_PortsAGV_inStatus extends SimplePort {
   constructor(name, opts = {}) {
-    super(name, "in", { ...{ expectedType: "Boolean" }, ...opts });
+    super(name, "in", { ...{ expectedType: "Status" }, ...opts });
   }
 }
-class PT_SmartPlacePorts_ReservationResponseOPT extends SimplePort {
+class PT_PortsAGV_outStatus extends SimplePort {
   constructor(name, opts = {}) {
-    super(name, "out", { ...{ expectedType: "Boolean" }, ...opts });
+    super(name, "out", { ...{ expectedType: "Status" }, ...opts });
   }
 }
-class PT_SmartPlacePorts_RequestOPT extends SimplePort {
+class PT_PortsAGV_inVehicleData extends SimplePort {
   constructor(name, opts = {}) {
-    super(name, "out", { ...{ expectedType: "String" }, ...opts });
+    super(name, "in", { ...{ expectedType: "VehicleData" }, ...opts });
   }
 }
-class PT_SmartPlacePorts_RequestIPT extends SimplePort {
+class PT_PortsAGV_outVehicleData extends SimplePort {
   constructor(name, opts = {}) {
-    super(name, "in", { ...{ expectedType: "String" }, ...opts });
+    super(name, "out", { ...{ expectedType: "VehicleData" }, ...opts });
   }
 }
-class PT_SmartPlacePorts_InfraredSignalIPT extends SimplePort {
+class PT_PortsAGV_inNotificationFromMotor extends SimplePort {
   constructor(name, opts = {}) {
-    super(name, "in", { ...{ expectedType: "Void" }, ...opts });
+    super(name, "in", { ...{ expectedType: "NotificationFromMotor" }, ...opts });
   }
 }
-class PT_SmartPlacePorts_InfraredSignalOPT extends SimplePort {
+class PT_PortsAGV_outNotificationFromMotor extends SimplePort {
   constructor(name, opts = {}) {
-    super(name, "out", { ...{ expectedType: "Void" }, ...opts });
+    super(name, "out", { ...{ expectedType: "NotificationFromMotor" }, ...opts });
   }
 }
-class PT_SmartPlacePorts_ContextInformationOPT extends SimplePort {
+class PT_PortsAGV_inCommandToMotor extends SimplePort {
   constructor(name, opts = {}) {
-    super(name, "out", { ...{ expectedType: "ContextInformation" }, ...opts });
+    super(name, "in", { ...{ expectedType: "CommandToMotor" }, ...opts });
   }
 }
-class PT_SmartPlacePorts_ContextInformationIPT extends SimplePort {
+class PT_PortsAGV_outCommandToMotor extends SimplePort {
   constructor(name, opts = {}) {
-    super(name, "in", { ...{ expectedType: "ContextInformation" }, ...opts });
+    super(name, "out", { ...{ expectedType: "CommandToMotor" }, ...opts });
   }
 }
-class PT_SmartPlacePorts_UndefinedOPT extends SimplePort {
+class PT_PortsAGV_inNotificationFromArm extends SimplePort {
   constructor(name, opts = {}) {
-    super(name, "out", { ...{ expectedType: "Void" }, ...opts });
+    super(name, "in", { ...{ expectedType: "NotificationFromArm" }, ...opts });
   }
 }
-class PT_SmartPlacePorts_UndefinedIPT extends SimplePort {
+class PT_PortsAGV_outNotificationFromArm extends SimplePort {
   constructor(name, opts = {}) {
-    super(name, "in", { ...{ expectedType: "Void" }, ...opts });
+    super(name, "out", { ...{ expectedType: "NotificationFromArm" }, ...opts });
   }
 }
-class PT_SmartPlacePorts_CommandIPT extends SimplePort {
+class PT_PortsAGV_inCommandToArm extends SimplePort {
   constructor(name, opts = {}) {
-    super(name, "in", { ...{ expectedType: "InfraredCode" }, ...opts });
+    super(name, "in", { ...{ expectedType: "CommandToArm" }, ...opts });
   }
 }
-class PT_SmartPlacePorts_CommandOPT extends SimplePort {
+class PT_PortsAGV_outCommandToArm extends SimplePort {
   constructor(name, opts = {}) {
-    super(name, "out", { ...{ expectedType: "InfraredCode" }, ...opts });
+    super(name, "out", { ...{ expectedType: "CommandToArm" }, ...opts });
   }
 }
-class PT_SmartPlacePorts_RestfulRaspberryIPT extends SimplePort {
+class PT_PortsAGV_inNotificationToSupervisory extends SimplePort {
   constructor(name, opts = {}) {
-    super(name, "in", { ...{ expectedType: "RestFulRaspeberry" }, ...opts });
+    super(name, "in", { ...{ expectedType: "NotificationToSupervisory" }, ...opts });
   }
 }
-class PT_SmartPlacePorts_RestfulRaspberryOPT extends SimplePort {
+class PT_PortsAGV_outNotificationToSupervisory extends SimplePort {
   constructor(name, opts = {}) {
-    super(name, "out", { ...{ expectedType: "RestFulRaspeberry" }, ...opts });
+    super(name, "out", { ...{ expectedType: "NotificationToSupervisory" }, ...opts });
   }
 }
-class PT_SmartPlacePorts_DataBaseRespOPT extends SimplePort {
-  constructor(name, opts = {}) {
-    super(name, "out", { ...{ expectedType: "String" }, ...opts });
-  }
-}
-class PT_SmartPlacePorts_DataBaseRespIPT extends SimplePort {
-  constructor(name, opts = {}) {
-    super(name, "in", { ...{ expectedType: "String" }, ...opts });
-  }
-}
-class PT_SmartPlacePorts_ScheduleOPT extends SimplePort {
-  constructor(name, opts = {}) {
-    super(name, "out", { ...{ expectedType: "Schedule" }, ...opts });
-  }
-}
-class PT_SmartPlacePorts_ScheduleIPT extends SimplePort {
-  constructor(name, opts = {}) {
-    super(name, "in", { ...{ expectedType: "Schedule" }, ...opts });
-  }
-}
-class PT_SmartPlacePorts_UpdateIPT extends SimplePort {
-  constructor(name, opts = {}) {
-    super(name, "in", { ...{ expectedType: "UpdateDB" }, ...opts });
-  }
-}
-class PT_SmartPlacePorts_UpdateOPT extends SimplePort {
-  constructor(name, opts = {}) {
-    super(name, "out", { ...{ expectedType: "UpdateDB" }, ...opts });
-  }
-}
-class PT_SmartPlacePorts_FrameListIPT extends SimplePort {
-  constructor(name, opts = {}) {
-    super(name, "in", { ...{ expectedType: "FrameList" }, ...opts });
-  }
-}
-class PT_SmartPlacePorts_FrameListOPT extends SimplePort {
-  constructor(name, opts = {}) {
-    super(name, "out", { ...{ expectedType: "FrameList" }, ...opts });
-  }
-}
-class PT_SmartPlacePorts_DataBaseO2I extends CompositePort {
+class PT_PortsAGV_IAGVSystem extends CompositePort {
   constructor(name, opts = {}) {
     super(name, 'composite', opts);
     // Add sub-ports
-    this.addSubPort("reqODB", new SimplePort("reqODB", "in", { ...{ expectedType: "RequestOPT" }, owner: this.owner }));
-    this.addSubPort("respIDB", new SimplePort("respIDB", "in", { ...{ expectedType: "DataBaseRespIPT" }, owner: this.owner }));
+    this.addSubPort("inMoveToStation", new SimplePort("inMoveToStation", "in", { ...{ expectedType: "VehicleData" }, owner: this.owner }));
+    this.addSubPort("outNotifications", new SimplePort("outNotifications", "out", { ...{ expectedType: "NotificationToSupervisory" }, owner: this.owner }));
   }
 }
-class PT_SmartPlacePorts_DataBaseI2O extends CompositePort {
+class PT_PortsAGV_ISupervisorySystem extends CompositePort {
   constructor(name, opts = {}) {
     super(name, 'composite', opts);
     // Add sub-ports
-    this.addSubPort("reqIDB", new SimplePort("reqIDB", "in", { ...{ expectedType: "RequestIPT" }, owner: this.owner }));
-    this.addSubPort("respODB", new SimplePort("respODB", "in", { ...{ expectedType: "DataBaseRespOPT" }, owner: this.owner }));
-  }
-}
-class PT_SmartPlacePorts_ReservationInformationO2I extends CompositePort {
-  constructor(name, opts = {}) {
-    super(name, 'composite', opts);
-    // Add sub-ports
-    this.addSubPort("reqORI", new SimplePort("reqORI", "in", { ...{ expectedType: "RequestOPT" }, owner: this.owner }));
-    this.addSubPort("respIRI", new SimplePort("respIRI", "in", { ...{ expectedType: "ReservationResponseIPT" }, owner: this.owner }));
-  }
-}
-class PT_SmartPlacePorts_ReservationInformationI2O extends CompositePort {
-  constructor(name, opts = {}) {
-    super(name, 'composite', opts);
-    // Add sub-ports
-    this.addSubPort("reqIRI", new SimplePort("reqIRI", "in", { ...{ expectedType: "RequestIPT" }, owner: this.owner }));
-    this.addSubPort("respORI", new SimplePort("respORI", "in", { ...{ expectedType: "ReservationResponseOPT" }, owner: this.owner }));
-  }
-}
-class PT_SmartPlacePorts_ContextO2I extends CompositePort {
-  constructor(name, opts = {}) {
-    super(name, 'composite', opts);
-    // Add sub-ports
-    this.addSubPort("reqOC", new SimplePort("reqOC", "in", { ...{ expectedType: "RequestOPT" }, owner: this.owner }));
-    this.addSubPort("respIC", new SimplePort("respIC", "in", { ...{ expectedType: "ContextInformationIPT" }, owner: this.owner }));
-  }
-}
-class PT_SmartPlacePorts_ContextI2O extends CompositePort {
-  constructor(name, opts = {}) {
-    super(name, 'composite', opts);
-    // Add sub-ports
-    this.addSubPort("reqIC", new SimplePort("reqIC", "in", { ...{ expectedType: "RequestIPT" }, owner: this.owner }));
-    this.addSubPort("respOC", new SimplePort("respOC", "in", { ...{ expectedType: "ContextInformationOPT" }, owner: this.owner }));
+    this.addSubPort("outMoveToStation", new SimplePort("outMoveToStation", "out", { ...{ expectedType: "VehicleData" }, owner: this.owner }));
+    this.addSubPort("inNotifications", new SimplePort("inNotifications", "in", { ...{ expectedType: "NotificationToSupervisory" }, owner: this.owner }));
   }
 }
 
 // Connectors
-class CN_SmartPlaceConnectors_UndefinedCN extends Connector {
+class CN_ConnectorsAGV_notifySupervisory extends Connector {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
       participantSchema: {
-        undO: {
-          portClass: 'PT_SmartPlacePorts_UndefinedOPT',
+        nsIPT: {
+          portClass: 'PT_PortsAGV_inNotificationToSupervisory',
           direction: 'out',
-          dataType: 'Void',
+          dataType: 'NotificationToSupervisory',
           role: 'source'
         },
-        undI: {
-          portClass: 'PT_SmartPlacePorts_UndefinedIPT',
+        nsOPT: {
+          portClass: 'PT_PortsAGV_outNotificationToSupervisory',
           direction: 'out',
-          dataType: 'Void',
+          dataType: 'NotificationToSupervisory',
           role: 'target'
         }
       },
       flowSchema: [
         {
-          from: 'undO',
-          to: 'undI',
-          dataType: 'Void'
+          from: 'nsOPT',
+          to: 'nsIPT',
+          dataType: 'NotificationToSupervisory'
         }
       ]
     });
   }
 }
-class CN_SmartPlaceConnectors_SendValueCN extends Connector {
+class CN_ConnectorsAGV_sendVehicleData extends Connector {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
       participantSchema: {
-        vO: {
-          portClass: 'PT_SmartPlacePorts_ValueOPT',
+        vdOPT: {
+          portClass: 'PT_PortsAGV_outVehicleData',
           direction: 'out',
-          dataType: 'Int',
+          dataType: 'VehicleData',
           role: 'source'
         },
-        vI: {
-          portClass: 'PT_SmartPlacePorts_ValueIPT',
+        vdIPT: {
+          portClass: 'PT_PortsAGV_inVehicleData',
           direction: 'out',
-          dataType: 'Int',
+          dataType: 'VehicleData',
           role: 'target'
         }
       },
       flowSchema: [
         {
-          from: 'vO',
-          to: 'vI',
-          dataType: 'Int'
+          from: 'vdOPT',
+          to: 'vdIPT',
+          dataType: 'VehicleData'
         }
       ]
     });
   }
 }
-class CN_SmartPlaceConnectors_InfraCodeCN extends Connector {
+class CN_ConnectorsAGV_notificationMotor extends Connector {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
       participantSchema: {
-        cmdI: {
-          portClass: 'PT_SmartPlacePorts_CommandIPT',
+        nmOPT: {
+          portClass: 'PT_PortsAGV_outNotificationFromMotor',
           direction: 'out',
-          dataType: 'InfraredCode',
+          dataType: 'NotificationFromMotor',
           role: 'source'
         },
-        cmdO: {
-          portClass: 'PT_SmartPlacePorts_CommandOPT',
+        nmIPT: {
+          portClass: 'PT_PortsAGV_inNotificationFromMotor',
           direction: 'out',
-          dataType: 'InfraredCode',
+          dataType: 'NotificationFromMotor',
           role: 'target'
         }
       },
       flowSchema: [
         {
-          from: 'cmdO',
-          to: 'cmdI',
-          dataType: 'InfraredCode'
+          from: 'nmOPT',
+          to: 'nmIPT',
+          dataType: 'NotificationFromMotor'
         }
       ]
     });
   }
 }
-class CN_SmartPlaceConnectors_CmdRestfulCN extends Connector {
+class CN_ConnectorsAGV_commandArm extends Connector {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
       participantSchema: {
-        restI: {
-          portClass: 'PT_SmartPlacePorts_RestfulRaspberryIPT',
+        caOPT: {
+          portClass: 'PT_PortsAGV_outCommandToArm',
           direction: 'out',
-          dataType: 'RestFulRaspeberry',
+          dataType: 'CommandToArm',
           role: 'source'
         },
-        restO: {
-          portClass: 'PT_SmartPlacePorts_RestfulRaspberryOPT',
+        caIPT: {
+          portClass: 'PT_PortsAGV_inCommandToArm',
           direction: 'out',
-          dataType: 'RestFulRaspeberry',
+          dataType: 'CommandToArm',
           role: 'target'
         }
       },
       flowSchema: [
         {
-          from: 'restO',
-          to: 'restI',
-          dataType: 'RestFulRaspeberry'
+          from: 'caOPT',
+          to: 'caIPT',
+          dataType: 'CommandToArm'
         }
       ]
     });
   }
 }
-class CN_SmartPlaceConnectors_SendReservationInfoCN extends Connector {
+class CN_ConnectorsAGV_notificationArm extends Connector {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
       participantSchema: {
-        rrRespI: {
-          portClass: 'PT_SmartPlacePorts_ValueIPT',
+        naIPT: {
+          portClass: 'PT_PortsAGV_inNotificationFromArm',
           direction: 'out',
-          dataType: 'Boolean',
+          dataType: 'NotificationFromArm',
           role: 'source'
         },
-        rRespO: {
-          portClass: 'PT_SmartPlacePorts_ValueOPT',
+        naOPT: {
+          portClass: 'PT_PortsAGV_outNotificationFromArm',
           direction: 'out',
-          dataType: 'Boolean',
+          dataType: 'NotificationFromArm',
           role: 'target'
         }
       },
       flowSchema: [
         {
-          from: 'rRespO',
-          to: 'rrRespI',
-          dataType: 'Boolean'
+          from: 'naOPT',
+          to: 'naIPT',
+          dataType: 'NotificationFromArm'
         }
       ]
     });
   }
 }
-class CN_SmartPlaceConnectors_RequestCN extends Connector {
+class CN_ConnectorsAGV_commandMotor extends Connector {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
       participantSchema: {
-        rReqO: {
-          portClass: 'PT_SmartPlacePorts_RequestOPT',
+        cmOPT: {
+          portClass: 'PT_PortsAGV_outCommandToMotor',
           direction: 'out',
-          dataType: 'String',
+          dataType: 'CommandToMotor',
           role: 'source'
         },
-        rReqI: {
-          portClass: 'PT_SmartPlacePorts_RequestIPT',
+        cmIPT: {
+          portClass: 'PT_PortsAGV_inCommandToMotor',
           direction: 'out',
-          dataType: 'String',
+          dataType: 'CommandToMotor',
           role: 'target'
         }
       },
       flowSchema: [
         {
-          from: 'rReqO',
-          to: 'rReqI',
-          dataType: 'String'
+          from: 'cmOPT',
+          to: 'cmIPT',
+          dataType: 'CommandToMotor'
         }
       ]
     });
   }
 }
-class CN_SmartPlaceConnectors_SendContextCN extends Connector {
-  constructor(name, opts = {}) {
-    super(name, {
-      ...opts,
-      participantSchema: {
-        ciI: {
-          portClass: 'PT_SmartPlacePorts_ContextInformationIPT',
-          direction: 'out',
-          dataType: 'ContextInformation',
-          role: 'source'
-        },
-        ciO: {
-          portClass: 'PT_SmartPlacePorts_ContextInformationOPT',
-          direction: 'out',
-          dataType: 'ContextInformation',
-          role: 'target'
-        }
-      },
-      flowSchema: [
-        {
-          from: 'ciO',
-          to: 'ciI',
-          dataType: 'ContextInformation'
-        }
-      ]
-    });
-  }
-}
-class CN_SmartPlaceConnectors_InfraredSignalCN extends Connector {
-  constructor(name, opts = {}) {
-    super(name, {
-      ...opts,
-      participantSchema: {
-        isI: {
-          portClass: 'PT_SmartPlacePorts_InfraredSignalIPT',
-          direction: 'out',
-          dataType: 'Void',
-          role: 'source'
-        },
-        isO: {
-          portClass: 'PT_SmartPlacePorts_InfraredSignalOPT',
-          direction: 'out',
-          dataType: 'Void',
-          role: 'target'
-        }
-      },
-      flowSchema: [
-        {
-          from: 'isO',
-          to: 'isI',
-          dataType: 'Void'
-        }
-      ]
-    });
-  }
-}
-class CN_SmartPlaceConnectors_ReservationCN extends Connector {
+class CN_ConnectorsAGV_interactionAGVAndSupervisory extends Connector {
   constructor(name, port1, port2, opts = {}) {
     super(name, opts);
     // Composite connector with internal connectors
     this.port1 = port1;
     this.port2 = port2;
-    this.rri = new CN_SmartPlaceConnectors_RequestCN("rri");
-    this.sri = new CN_SmartPlaceConnectors_SendReservationInfoCN("sri");
+    this.nS = new CN_ConnectorsAGV_notifySupervisory("nS");
+    this.sVD = new CN_ConnectorsAGV_sendVehicleData("sVD");
     
     // Extract sub-ports and bind to internal connectors
     if (port1 && port2) {
-      // RequestCN: rReqO -> rReqI
-      this.rri.bind(
-        this.port1.getSubPort('rReqO'),
-        this.port2.getSubPort('rReqI')
+      // notifySupervisory: nsOPT -> nsIPT
+      this.nS.bind(
+        this.port1.getSubPort('nsOPT'),
+        this.port2.getSubPort('nsIPT')
       );
-      // SendReservationInfoCN: rRespO -> rrRespI
-      this.sri.bind(
-        this.port1.getSubPort('rRespO'),
-        this.port2.getSubPort('rrRespI')
+      // sendVehicleData: vdOPT -> vdIPT
+      this.sVD.bind(
+        this.port1.getSubPort('vdOPT'),
+        this.port2.getSubPort('vdIPT')
       );
     }
     
     this.connectors = this.connectors || {};
-    this.connectors["rri"] = this.rri;
+    this.connectors["nS"] = this.nS;
     this.connectors = this.connectors || {};
-    this.connectors["sri"] = this.sri;
+    this.connectors["sVD"] = this.sVD;
   }
 }
-class CN_SmartPlaceConnectors_QueryDataBaseCN extends Connector {
-  constructor(name, port1, port2, opts = {}) {
-    super(name, opts);
-    // Composite connector with internal connectors
-    this.port1 = port1;
-    this.port2 = port2;
-    this.req = new CN_SmartPlaceConnectors_RequestCN("req");
-    this.resp = new CN_SmartPlaceConnectors_SendPostgreSQLInfoCN("resp");
-    
-    // Extract sub-ports and bind to internal connectors
-    if (port1 && port2) {
-      // RequestCN: rReqO -> rReqI
-      this.req.bind(
-        this.port1.getSubPort('rReqO'),
-        this.port2.getSubPort('rReqI')
-      );
-      // SendPostgreSQLInfoCN: psqlO -> psqlI
-      this.resp.bind(
-        this.port1.getSubPort('psqlO'),
-        this.port2.getSubPort('psqlI')
-      );
-    }
-    
-    this.connectors = this.connectors || {};
-    this.connectors["req"] = this.req;
-    this.connectors = this.connectors || {};
-    this.connectors["resp"] = this.resp;
-  }
-}
-class CN_SmartPlaceConnectors_SendPostgreSQLInfoCN extends Connector {
+class CN_ConnectorsAGV_locationVehicle extends Connector {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
       participantSchema: {
-        psqlO: {
-          portClass: 'PT_SmartPlacePorts_DataBaseRespOPT',
+        lOPT: {
+          portClass: 'PT_ComponentsAGV_outLocation',
           direction: 'out',
-          dataType: 'String',
+          dataType: 'Location',
           role: 'source'
         },
-        psqlI: {
-          portClass: 'PT_SmartPlacePorts_DataBaseRespIPT',
+        lIPT: {
+          portClass: 'PT_ComponentsAGV_inLocation',
           direction: 'out',
-          dataType: 'String',
+          dataType: 'Location',
           role: 'target'
         }
       },
       flowSchema: [
         {
-          from: 'psqlO',
-          to: 'psqlI',
-          dataType: 'String'
+          from: 'lOPT',
+          to: 'lIPT',
+          dataType: 'Location'
         }
       ]
     });
   }
 }
-class CN_SmartPlaceConnectors_ScheduleCN extends Connector {
+class CN_ComponentsAGV_status extends Connector {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
       participantSchema: {
-        dO: {
-          portClass: 'PT_SmartPlacePorts_ScheduleOPT',
+        sOPT: {
+          portClass: 'PT_PortsAGV_outStatus',
           direction: 'out',
-          dataType: 'Schedule',
+          dataType: 'Status',
           role: 'source'
         },
-        dI: {
-          portClass: 'PT_SmartPlacePorts_ScheduleIPT',
+        sIPT: {
+          portClass: 'PT_PortsAGV_inStatus',
           direction: 'out',
-          dataType: 'Schedule',
+          dataType: 'Status',
           role: 'target'
         }
       },
       flowSchema: [
         {
-          from: 'dO',
-          to: 'dI',
-          dataType: 'Schedule'
+          from: 'sOPT',
+          to: 'sIPT',
+          dataType: 'Status'
         }
       ]
     });
-  }
-}
-class CN_SmartPlaceConnectors_FrameListCN extends Connector {
-  constructor(name, opts = {}) {
-    super(name, {
-      ...opts,
-      participantSchema: {
-        fI: {
-          portClass: 'PT_SmartPlacePorts_FrameListIPT',
-          direction: 'out',
-          dataType: 'FrameList',
-          role: 'source'
-        },
-        fO: {
-          portClass: 'PT_SmartPlacePorts_FrameListOPT',
-          direction: 'out',
-          dataType: 'FrameList',
-          role: 'target'
-        }
-      },
-      flowSchema: [
-        {
-          from: 'fO',
-          to: 'fI',
-          dataType: 'FrameList'
-        }
-      ]
-    });
-  }
-}
-class CN_SmartPlaceConnectors_ContextCN extends Connector {
-  constructor(name, port1, port2, opts = {}) {
-    super(name, opts);
-    // Composite connector with internal connectors
-    this.port1 = port1;
-    this.port2 = port2;
-    this.req = new CN_SmartPlaceConnectors_RequestCN("req");
-    this.resp = new CN_SmartPlaceConnectors_SendContextCN("resp");
-    
-    // Extract sub-ports and bind to internal connectors
-    if (port1 && port2) {
-      // RequestCN: rReqO -> rReqI
-      this.req.bind(
-        this.port1.getSubPort('rReqO'),
-        this.port2.getSubPort('rReqI')
-      );
-      // SendContextCN: ciO -> ciI
-      this.resp.bind(
-        this.port1.getSubPort('ciO'),
-        this.port2.getSubPort('ciI')
-      );
-    }
-    
-    this.connectors = this.connectors || {};
-    this.connectors["req"] = this.req;
-    this.connectors = this.connectors || {};
-    this.connectors["resp"] = this.resp;
   }
 }
 
 // Components
-class CP_SmartPlaceComponents_SmartPlaceWeb extends Component {
+class CP_ComponentsAGV_SupervisorySystem extends Component {
+  constructor(name, opts={}) {
+      super(name, { ...opts, isBoundary: true });
+      // Add ports from component definition
+      this.addPort(new PT_PortsAGV_ISupervisorySystem("in_outDataSup", { owner: name }));
+    }
+}
+class CP_ComponentsAGV_AGVSystem extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_ContextInformationOPT("co", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_RestfulRaspberryIPT("rr", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_DataBaseO2I("db", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_UpdateOPT("u", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_ContextO2I("ctx", { owner: name }));
+      this.addPort(new PT_PortsAGV_outStatus("sendStatus", { owner: name }));
+      this.addPort(new PT_PortsAGV_IAGVSystem("in_outDataAGV", { owner: name }));
     }
 }
-class CP_SmartPlaceComponents_RoomReservationSystem extends Component {
+class CP_ComponentsAGV_DisplaySystem extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_ReservationInformationI2O("ri", { owner: name }));
+      this.addPort(new PT_PortsAGV_inStatus("receiveStatus", { owner: name }));
     }
 }
-class CP_SmartPlaceComponents_OrionContextBroker extends Component {
+class CP_ComponentsAGV_Motor extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_ContextInformationIPT("ci", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_ContextI2O("ctx", { owner: name }));
+      this.addPort(new PT_PortsAGV_inCommandToMotor("start_stop", { owner: name }));
+      this.addPort(new PT_PortsAGV_outNotificationFromMotor("started_stopped", { owner: name }));
     }
 }
-class CP_SmartPlaceComponents_TemperatureAndHumiditySensor extends Component {
+class CP_ComponentsAGV_ArrivalSensor extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_ValueOPT("temperature", { owner: name }));
+      this.addPort(new PT_ComponentsAGV_outLocation("arrivalDetected", { owner: name }));
     }
 }
-class CP_SmartPlaceComponents_PresenceSensor extends Component {
+class CP_ComponentsAGV_RobotArm extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_ValueOPT("presence", { owner: name }));
+      this.addPort(new PT_PortsAGV_inCommandToArm("start", { owner: name }));
+      this.addPort(new PT_PortsAGV_outNotificationFromArm("started", { owner: name }));
     }
 }
-class CP_SmartPlaceComponents_DB_PostgreSQL extends Component {
-  constructor(name, opts={}) {
-      super(name, { ...opts, isBoundary: true });
-      // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_DataBaseI2O("db", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_UpdateIPT("u", { owner: name }));
-    }
-}
-class CP_SmartPlaceComponents_AirConditioner extends Component {
+class CP_ComponentsAGV_VehicleControl extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_InfraredSignalIPT("is", { owner: name }));
+      this.addPort(new PT_PortsAGV_outStatus("sendStatus", { owner: name }));
+      this.addPort(new PT_ComponentsAGV_inLocation("arrivalDetected", { owner: name }));
+      this.addPort(new PT_PortsAGV_outCommandToArm("startArm", { owner: name }));
+      this.addPort(new PT_PortsAGV_inNotificationFromArm("startedArm", { owner: name }));
+      this.addPort(new PT_PortsAGV_inNotificationFromMotor("started_stopped", { owner: name }));
+      this.addPort(new PT_PortsAGV_outCommandToMotor("start_stop", { owner: name }));
+      this.addPort(new PT_PortsAGV_IAGVSystem("in_outDataAGV", { owner: name }));
     }
 }
-class CP_SmartPlaceComponents_Led extends Component {
+class CP_ComponentsAGV_CheckStation extends Component {
   constructor(name, opts={}) {
-      super(name, { ...opts, isBoundary: true, activityName: "RaspberryControllerAC" });
+      super(name, { ...opts, activityName: "CheckStationAC" });
       // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_CommandIPT("c", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_InfraredSignalOPT("is", { owner: name }));
+      this.addPort(new PT_PortsAGV_inNotificationFromMotor("ack", { owner: name }));
+      this.addPort(new PT_ComponentsAGV_outLocation("location", { owner: name }));
+      this.addPort(new PT_ComponentsAGV_inLocation("destination", { owner: name }));
+      this.addPort(new PT_PortsAGV_outCommandToMotor("stop", { owner: name }));
+      this.addPort(new PT_ComponentsAGV_inLocation("arrivalDetected", { owner: name }));
+      this.addPort(new PT_PortsAGV_outNotificationToSupervisory("passed", { owner: name }));
     }
 }
-class CP_SmartPlaceComponents_Raspberry extends Component {
+class CP_ComponentsAGV_ControlArm extends Component {
   constructor(name, opts={}) {
-      super(name, { ...opts, activityName: "RaspberryControllerAC" });
+      super(name, { ...opts, activityName: "ControlArmAC" });
       // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_CommandOPT("c", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_ReservationInformationO2I("ri", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_FrameListIPT("f", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_ValueIPT("temperature", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_ValueIPT("presence", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_RestfulRaspberryOPT("rr", { owner: name }));
+      this.addPort(new PT_PortsAGV_inCommandToArm("cmd", { owner: name }));
+      this.addPort(new PT_PortsAGV_inNotificationFromMotor("ack", { owner: name }));
+      this.addPort(new PT_PortsAGV_outCommandToArm("startArm", { owner: name }));
     }
 }
-class CP_SmartPlaceComponents_Camera extends Component {
+class CP_ComponentsAGV_NotifierMotor extends Component {
   constructor(name, opts={}) {
-      super(name, { ...opts, isBoundary: true, activityName: "RaspberryControllerAC" });
+      super(name, { ...opts, activityName: "NotifierMotorAC" });
       // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_FrameListOPT("f", { owner: name }));
+      this.addPort(new PT_PortsAGV_inNotificationFromMotor("inAck", { owner: name }));
+      this.addPort(new PT_PortsAGV_outNotificationToSupervisory("ack", { owner: name }));
+      this.addPort(new PT_PortsAGV_outNotificationFromMotor("outAck", { owner: name }));
     }
 }
-class CP_SmartPlaceComponents_CamMonitor extends Component {
+class CP_ComponentsAGV_StartMoving extends Component {
   constructor(name, opts={}) {
-      super(name, { ...opts, isBoundary: true });
+      super(name, { ...opts, activityName: "StartMovingAC" });
       // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_FrameListIPT("f", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_ValueOPT("numPeople", { owner: name }));
+      this.addPort(new PT_PortsAGV_inVehicleData("move", { owner: name }));
+      this.addPort(new PT_PortsAGV_outCommandToArm("cmd", { owner: name }));
+      this.addPort(new PT_ComponentsAGV_outLocation("destination", { owner: name }));
+      this.addPort(new PT_PortsAGV_outCommandToMotor("start", { owner: name }));
     }
 }
-class CP_SmartPlaceComponents_TemperatureController extends Component {
+class CP_ComponentsAGV_NotifierArm extends Component {
   constructor(name, opts={}) {
-      super(name, opts);
+      super(name, { ...opts, activityName: "NotifierArmAC" });
       // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_ValueIPT("presence", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_RestfulRaspberryOPT("rrasp", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_ReservationInformationO2I("ri", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_ValueIPT("temperature", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_ValueIPT("numPeople", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_CommandOPT("c", { owner: name }));
+      this.addPort(new PT_PortsAGV_outNotificationToSupervisory("arrivedStatus", { owner: name }));
+      this.addPort(new PT_PortsAGV_inNotificationFromArm("loaded_unloaded", { owner: name }));
     }
 }
-class CP_SmartPlaceComponents_DB_SQLite extends Component {
+class CP_ComponentsAGV_VehicleTimer extends Component {
   constructor(name, opts={}) {
-      super(name, { ...opts, isBoundary: true });
+      super(name, { ...opts, activityName: "VehicleTimerAC" });
       // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_ReservationInformationI2O("ri", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_ReservationResponseIPT("rresp", { owner: name }));
+      this.addPort(new PT_PortsAGV_outStatus("AGVStatus", { owner: name }));
+      this.addPort(new PT_ComponentsAGV_inLocation("location", { owner: name }));
+      this.addPort(new PT_ComponentsAGV_inLocation("destination", { owner: name }));
+      this.addPort(new PT_PortsAGV_inCommandToArm("cmd", { owner: name }));
     }
 }
-class CP_SmartPlaceComponents_Fotosensor extends Component {
-  constructor(name, opts={}) {
-      super(name, { ...opts, isBoundary: true });
-      // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_UndefinedOPT("u", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_InfraredSignalIPT("is", { owner: name }));
-    }
-}
-class CP_SmartPlaceComponents_AirConditionerController extends Component {
-  constructor(name, opts={}) {
-      super(name, { ...opts, isBoundary: true });
-      // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_UndefinedIPT("u", { owner: name }));
-    }
-}
-class CP_SmartPlaceComponents_RegistrationController extends Component {
-  constructor(name, opts={}) {
-      super(name, opts);
-      // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_ContextInformationOPT("ci", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_ContextInformationIPT("regUi", { owner: name }));
-    }
-}
-class CP_SmartPlaceComponents_ReportGenerator extends Component {
-  constructor(name, opts={}) {
-      super(name, opts);
-      // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_ContextInformationIPT("a", { owner: name }));
-    }
-}
-class CP_SmartPlaceComponents_GraphicsGenerator extends Component {
-  constructor(name, opts={}) {
-      super(name, { ...opts, isBoundary: true });
-      // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_DataBaseO2I("db", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_ContextO2I("ctx", { owner: name }));
-    }
-}
-class CP_SmartPlaceComponents_HistoricController extends Component {
-  constructor(name, opts={}) {
-      super(name, opts);
-      // Add ports from component definition
-      this.addPort(new PT_SmartPlacePorts_RestfulRaspberryIPT("rr", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_UpdateOPT("u", { owner: name }));
-      this.addPort(new PT_SmartPlacePorts_ContextO2I("ctx", { owner: name }));
-    }
-}
-class CP_SmartPlaceComponents_SmartPlace extends Component { }
+class CP_ComponentsAGV_FactoryAutomationSystem extends Component { }
 
 // ===== Behavioral Element Classes =====
-// Activity class: RaspberryControllerAC
-class AC_SmartPlaceComponents_RaspberryControllerAC extends Activity {
+// Activity class: StartMovingAC
+class AC_ComponentsAGV_StartMovingAC extends Activity {
   constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
     super(name, component, inputPorts, delegates, {
       ...opts,
-      inParameters: [{"name":"restful","type":"Pin","direction":"in"},{"name":"signal","type":"Pin","direction":"in"}],
+      inParameters: [{"name":"move","type":"Pin","direction":"in"},{"name":"cmd","type":"Pin","direction":"in"},{"name":"destination","type":"Pin","direction":"in"},{"name":"start","type":"Pin","direction":"in"}],
       outParameters: []
     });
   }
 }
 
-// Activity class: TemperatureControllerAC
-class AC_SmartPlaceComponents_TemperatureControllerAC extends Activity {
+// Activity class: NotifierMotorAC
+class AC_ComponentsAGV_NotifierMotorAC extends Activity {
   constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
     super(name, component, inputPorts, delegates, {
       ...opts,
-      inParameters: [{"name":"presence","type":"Pin","direction":"in"},{"name":"temperature","type":"Pin","direction":"in"},{"name":"numPeople","type":"Pin","direction":"in"},{"name":"reservation","type":"Pin","direction":"in"},{"name":"restful","type":"Pin","direction":"in"},{"name":"cmd","type":"Pin","direction":"in"},{"name":"query_reservation","type":"Pin","direction":"in"}],
+      inParameters: [{"name":"inStatusMotor","type":"Pin","direction":"in"},{"name":"outStatusMotor","type":"Pin","direction":"in"},{"name":"ack","type":"Pin","direction":"in"}],
       outParameters: []
     });
   }
 }
 
-// Activity class: UpdateContextSensorsAC
-class AC_SmartPlaceComponents_UpdateContextSensorsAC extends Activity {
+// Activity class: CheckStationAC
+class AC_ComponentsAGV_CheckStationAC extends Activity {
   constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
     super(name, component, inputPorts, delegates, {
       ...opts,
-      inParameters: [{"name":"dataSensor","type":"Pin","direction":"in"},{"name":"currentTime","type":"Pin","direction":"in"},{"name":"infoCtx","type":"Pin","direction":"in"}],
+      inParameters: [{"name":"statusMotor","type":"Pin","direction":"in"},{"name":"destination","type":"Pin","direction":"in"},{"name":"inLocation","type":"Pin","direction":"in"},{"name":"stopMotor","type":"Pin","direction":"in"},{"name":"outLocation","type":"Pin","direction":"in"},{"name":"passed","type":"Pin","direction":"in"}],
       outParameters: []
     });
   }
 }
 
-// Action class: RaspberryControllerAN
-class AN_SmartPlaceComponents_RaspberryControllerAN extends Action {
-  constructor(name, opts = {}) {
-    super(name, {
+// Activity class: ControlArmAC
+class AC_ComponentsAGV_ControlArmAC extends Activity {
+  constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
+    super(name, component, inputPorts, delegates, {
       ...opts,
-      inParameters: [{"name":"restful","type":"Pin","direction":"in"}],
-      outParameters: [],
-      constraints: ["RaspberryControllerEQ"],
+      inParameters: [{"name":"cmd","type":"Pin","direction":"in"},{"name":"statusMotor","type":"Pin","direction":"in"},{"name":"startArm","type":"Pin","direction":"in"}],
+      outParameters: []
     });
   }
 }
 
-// Action class: PresenceLast15MinAN
-class AN_SmartPlaceComponents_PresenceLast15MinAN extends Action {
-  constructor(name, opts = {}) {
-    super(name, {
+// Activity class: NotifierArmAC
+class AC_ComponentsAGV_NotifierArmAC extends Activity {
+  constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
+    super(name, component, inputPorts, delegates, {
       ...opts,
-      inParameters: [{"name":"respPres15","type":"Pin","direction":"in"}],
-      outParameters: [],
+      inParameters: [{"name":"statusArm","type":"Pin","direction":"in"},{"name":"ack","type":"Pin","direction":"in"}],
+      outParameters: []
     });
   }
 }
 
-// Action class: ChangeTempAN
-class AN_SmartPlaceComponents_ChangeTempAN extends Action {
-  constructor(name, opts = {}) {
-    super(name, {
+// Activity class: VehicleTimerAC
+class AC_ComponentsAGV_VehicleTimerAC extends Activity {
+  constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
+    super(name, component, inputPorts, delegates, {
       ...opts,
-      inParameters: [{"name":"lastAdjustTemp","type":"Pin","direction":"in"},{"name":"currentTime","type":"Pin","direction":"in"}],
-      outParameters: [],
+      inParameters: [{"name":"destination","type":"Pin","direction":"in"},{"name":"location","type":"Pin","direction":"in"},{"name":"cmd","type":"Pin","direction":"in"},{"name":"status","type":"Pin","direction":"in"}],
+      outParameters: []
     });
   }
 }
 
-// Action class: IncreaseDecreaseTempAN
-class AN_SmartPlaceComponents_IncreaseDecreaseTempAN extends Action {
+// Action class: SendStartMotorAN
+class AN_ComponentsAGV_SendStartMotorAN extends Action {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [{"name":"lastPresence","type":"Pin","direction":"in"},{"name":"lastAdjustTemp","type":"Pin","direction":"in"},{"name":"temp","type":"Pin","direction":"in"}],
+      inParameters: [{"name":"move","type":"Pin","direction":"in"}],
       outParameters: [],
-      constraints: ["TurnOffEQ"],
+      delegates: [{"from":"SendStartMotorAN","to":"cmd"}],
+      constraints: ["SendStartMotorEQ"],
+      executableName: "SendStartMotorEX",
     });
   }
 }
 
-// Action class: UpdateDataBaseAN
-class AN_SmartPlaceComponents_UpdateDataBaseAN extends Action {
+// Action class: SendCommandAN
+class AN_ComponentsAGV_SendCommandAN extends Action {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [{"name":"restful","type":"Pin","direction":"in"},{"name":"currentTime","type":"Pin","direction":"in"}],
+      inParameters: [{"name":"move","type":"Pin","direction":"in"}],
       outParameters: [],
-      constraints: ["UpdateDataBaseEQ"],
+      delegates: [{"from":"SendCommandAN","to":"cmd"},{"from":"move","to":"move"}],
+      constraints: ["SendCommandEQ"],
+      executableName: "SendCommandEX",
     });
   }
 }
 
-// Action class: UpdateContextSensorsAN
-class AN_SmartPlaceComponents_UpdateContextSensorsAN extends Action {
+// Action class: SendDestinationAN
+class AN_ComponentsAGV_SendDestinationAN extends Action {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [{"name":"dataSensor","type":"Pin","direction":"in"},{"name":"currentTime","type":"Pin","direction":"in"}],
+      inParameters: [{"name":"move","type":"Pin","direction":"in"}],
       outParameters: [],
-      constraints: ["UpdateContextSensorsEQ"],
+      delegates: [{"from":"SendDestinationAN","to":"destination"},{"from":"move","to":"move"}],
+      constraints: ["SendDestinationEQ"],
+      executableName: "SendDestinationEX",
     });
   }
 }
 
-// Action class: SaveLastPresenceAN
-class AN_SmartPlaceComponents_SaveLastPresenceAN extends Action {
+// Action class: NotifyAGVFromMotorAN
+class AN_ComponentsAGV_NotifyAGVFromMotorAN extends Action {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [{"name":"presence","type":"Pin","direction":"in"},{"name":"numPeople","type":"Pin","direction":"in"},{"name":"currentTime","type":"Pin","direction":"in"}],
+      inParameters: [{"name":"statusMotor","type":"Pin","direction":"in"}],
       outParameters: [],
-      constraints: ["SaveLastPresenceEQ"],
+      delegates: [{"from":"NotifyAGVFromMotorAN","to":"outStatusMotor"},{"from":"statusMotor","to":"inStatusMotor"}],
+      constraints: ["NotifyAGVFromMotorEQ"],
+      executableName: "NotifyAGVFromMotorEX",
     });
   }
 }
 
-// Action class: TurnOnAN
-class AN_SmartPlaceComponents_TurnOnAN extends Action {
+// Action class: NotifySupervisoryFromMotorAN
+class AN_ComponentsAGV_NotifySupervisoryFromMotorAN extends Action {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [{"name":"presence","type":"Pin","direction":"in"},{"name":"numPeople","type":"Pin","direction":"in"},{"name":"reservation","type":"Pin","direction":"in"}],
+      inParameters: [{"name":"statusMotor","type":"Pin","direction":"in"}],
       outParameters: [],
-      constraints: ["TurnOnEQ"],
+      delegates: [{"from":"NotifySupervisoryFromMotorAN","to":"ack"},{"from":"statusMotor","to":"statusMotor"}],
+      constraints: ["NotifySupervisoryFromMotorEQ"],
+      executableName: "NotifySupervisoryFromMotorEX",
     });
   }
 }
 
-// Action class: TurnOffAN
-class AN_SmartPlaceComponents_TurnOffAN extends Action {
+// Action class: CompareStationsAN
+class AN_ComponentsAGV_CompareStationsAN extends Action {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [{"name":"presence","type":"Pin","direction":"in"},{"name":"numPeople","type":"Pin","direction":"in"},{"name":"lastPresence","type":"Pin","direction":"in"},{"name":"currentTime","type":"Pin","direction":"in"}],
+      inParameters: [{"name":"statusMotor","type":"Pin","direction":"in"},{"name":"destination","type":"Pin","direction":"in"},{"name":"location","type":"Pin","direction":"in"}],
       outParameters: [],
+      delegates: [{"from":"CompareStationsAN","to":"result"},{"from":"location","to":"loc"},{"from":"destination","to":"dest"},{"from":"statusMotor","to":"statusMotor"}],
+      constraints: ["CompareStationsEQ","NotificationMotorIsStartedEQ"],
+      executableName: "CompareStationsEX",
     });
   }
 }
 
-// Constraint class: RaspberryControllerEQ
-class CT_SmartPlaceComponents_RaspberryControllerEQ extends Constraint {
+// Action class: StopMotorAN
+class AN_ComponentsAGV_StopMotorAN extends Action {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [{"name":"comparisonResult","type":"Pin","direction":"in"}],
+      outParameters: [],
+      delegates: [{"from":"comparisonResult","to":"result"},{"from":"StopMotorAN","to":"cmd"}],
+      constraints: ["StopMotorEQ"],
+      executableName: "StopMotorEX",
+    });
+  }
+}
+
+// Action class: PassedMotorAN
+class AN_ComponentsAGV_PassedMotorAN extends Action {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [{"name":"comparisonResult","type":"Pin","direction":"in"}],
+      outParameters: [],
+      delegates: [{"from":"PassedMotorAN","to":"ack"},{"from":"comparisonResult","to":"result"}],
+      constraints: ["PassedMotorEQ"],
+      executableName: "PassedMotorEX",
+    });
+  }
+}
+
+// Action class: SendCurrentLocationAN
+class AN_ComponentsAGV_SendCurrentLocationAN extends Action {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [{"name":"location","type":"Pin","direction":"in"}],
+      outParameters: [],
+      delegates: [{"from":"location","to":"inLocation"},{"from":"SendCurrentLocationAN","to":"outLocation"}],
+      constraints: ["SendCurrentLocationEQ"],
+      executableName: "SendCurrentLocationEX",
+    });
+  }
+}
+
+// Action class: ControlArmAN
+class AN_ComponentsAGV_ControlArmAN extends Action {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [{"name":"cmd","type":"Pin","direction":"in"},{"name":"statusMotor","type":"Pin","direction":"in"}],
+      outParameters: [],
+      delegates: [{"from":"ControlArmAN","to":"startArm"},{"from":"statusMotor","to":"statusMotor"},{"from":"cmd","to":"cmd"}],
+      constraints: ["ControlArmEQ"],
+      executableName: "ControlArmEX",
+    });
+  }
+}
+
+// Action class: NotifierArmAN
+class AN_ComponentsAGV_NotifierArmAN extends Action {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [{"name":"statusArm","type":"Pin","direction":"in"}],
+      outParameters: [],
+      delegates: [{"from":"NotifierArmAN","to":"ack"}],
+      constraints: ["NotifierArmEQ"],
+      executableName: "NotifierArmEX",
+    });
+  }
+}
+
+// Action class: VehicleTimerAN
+class AN_ComponentsAGV_VehicleTimerAN extends Action {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [{"name":"destination","type":"Pin","direction":"in"},{"name":"location","type":"Pin","direction":"in"},{"name":"cmd","type":"Pin","direction":"in"}],
+      outParameters: [],
+      delegates: [{"from":"VehicleTimerAN","to":"s"},{"from":"location","to":"loc"},{"from":"destination","to":"dest"},{"from":"cmd","to":"cmd"}],
+      constraints: ["VehicleTimerEQ"],
+      executableName: "VehicleTimerEX",
+    });
+  }
+}
+
+// Constraint class: SendStartMotorEQ
+class CT_ComponentsAGV_SendStartMotorEQ extends Constraint {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
       inParameters: [],
       outParameters: [],
-      equation: "\"a\"",
-      constraintFunction: function(params) {// Executable expression: "a"
-          const {  } = params;
-          
-          return "a";
-        }
-    });
-  }
-}
-
-// Constraint class: SaveLastPresenceEQ
-class CT_SmartPlaceComponents_SaveLastPresenceEQ extends Constraint {
-  constructor(name, opts = {}) {
-    super(name, {
-      ...opts,
-      inParameters: [],
-      outParameters: [],
-      equation: "(((presence == 1) || (numPeople > 0)) ? (lastPresence == currentTime) : (lastPresence == null))",
-      constraintFunction: function(params) {// Conditional constraint: (((presence == 1) || (numPeople > 0)) ? (lastPresence == currentTime) : (lastPresence == null))
-          const { presence, numPeople, lastPresence, currentTime } = params;
+      equation: "(cmd == CommandToMotor.start)",
+      constraintFunction: function(params) {// Constraint equation: (cmd == CommandToMotor.start)
+          const { CommandToMotor, start } = params;
           
           // Type validation
-          if (typeof presence !== 'number') throw new Error('Parameter presence must be a Real (number)');
-          if (typeof numPeople !== 'number') throw new Error('Parameter numPeople must be a Real (number)');
-          if (typeof lastPresence !== 'number') throw new Error('Parameter lastPresence must be a Real (number)');
-          if (typeof currentTime !== 'number') throw new Error('Parameter currentTime must be a Real (number)');
-          return ((presence == 1) || (numPeople > 0)) ? (lastPresence == currentTime) : (lastPresence == null);
+          if (typeof CommandToMotor !== 'number') throw new Error('Parameter CommandToMotor must be a Real (number)');
+          if (typeof start !== 'number') throw new Error('Parameter start must be a Real (number)');
+          return cmd == CommandToMotor.start;
         }
     });
   }
 }
 
-// Constraint class: TurnOnEQ
-class CT_SmartPlaceComponents_TurnOnEQ extends Constraint {
+// Constraint class: SendDestinationEQ
+class CT_ComponentsAGV_SendDestinationEQ extends Constraint {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
       inParameters: [],
       outParameters: [],
-      equation: "(((reservation == true) && ((presence == 1) || (numPeople > 0))) ? (ic == InfraredCode.turn_on) : (ic == InfraredCode.turn_off))",
-      constraintFunction: function(params) {// Conditional constraint: (((reservation == true) && ((presence == 1) || (numPeople > 0))) ? (ic == InfraredCode.turn_on) : (ic == InfraredCode.turn_off))
-          const { reservation, presence, numPeople, ic, InfraredCode, turn_on, turn_off } = params;
+      equation: "(destination == move.destination)",
+      constraintFunction: function(params) {// Constraint equation: (destination == move.destination)
+          const { move } = params;
           
           // Type validation
-          if (typeof reservation !== 'number') throw new Error('Parameter reservation must be a Real (number)');
-          if (typeof presence !== 'number') throw new Error('Parameter presence must be a Real (number)');
-          if (typeof numPeople !== 'number') throw new Error('Parameter numPeople must be a Real (number)');
-          if (typeof ic !== 'number') throw new Error('Parameter ic must be a Real (number)');
-          if (typeof InfraredCode !== 'number') throw new Error('Parameter InfraredCode must be a Real (number)');
-          if (typeof turn_on !== 'number') throw new Error('Parameter turn_on must be a Real (number)');
-          if (typeof turn_off !== 'number') throw new Error('Parameter turn_off must be a Real (number)');
-          return ((reservation == true) && ((presence == 1) || (numPeople > 0))) ? (ic == InfraredCode.turn_on) : (ic == InfraredCode.turn_off);
+          if (typeof move !== 'number') throw new Error('Parameter move must be a Real (number)');
+          return destination == move.destination;
         }
     });
   }
 }
 
-// Constraint class: TurnOffEQ
-class CT_SmartPlaceComponents_TurnOffEQ extends Constraint {
+// Constraint class: NotifyAGVFromMotorEQ
+class CT_ComponentsAGV_NotifyAGVFromMotorEQ extends Constraint {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
       inParameters: [],
       outParameters: [],
-      equation: "((((presence == 0) && (numPeople == 0)) && ((currentTime - lastPresence) > 15)) ? (ic == InfraredCode.turn_off) : (ic == InfraredCode.turn_on))",
-      constraintFunction: function(params) {// Conditional constraint: ((((presence == 0) && (numPeople == 0)) && ((currentTime - lastPresence) > 15)) ? (ic == InfraredCode.turn_off) : (ic == InfraredCode.turn_on))
-          const { presence, numPeople, currentTime, lastPresence, ic, InfraredCode, turn_off, turn_on } = params;
+      equation: "(outStatusMotor == inStatusMotor)",
+      constraintFunction: function(params) {// Constraint equation: (outStatusMotor == inStatusMotor)
+          const { inStatusMotor } = params;
           
           // Type validation
-          if (typeof presence !== 'number') throw new Error('Parameter presence must be a Real (number)');
-          if (typeof numPeople !== 'number') throw new Error('Parameter numPeople must be a Real (number)');
-          if (typeof currentTime !== 'number') throw new Error('Parameter currentTime must be a Real (number)');
-          if (typeof lastPresence !== 'number') throw new Error('Parameter lastPresence must be a Real (number)');
-          if (typeof ic !== 'number') throw new Error('Parameter ic must be a Real (number)');
-          if (typeof InfraredCode !== 'number') throw new Error('Parameter InfraredCode must be a Real (number)');
-          if (typeof turn_off !== 'number') throw new Error('Parameter turn_off must be a Real (number)');
-          if (typeof turn_on !== 'number') throw new Error('Parameter turn_on must be a Real (number)');
-          return (((presence == 0) && (numPeople == 0)) && ((currentTime - lastPresence) > 15)) ? (ic == InfraredCode.turn_off) : (ic == InfraredCode.turn_on);
+          if (typeof inStatusMotor !== 'number') throw new Error('Parameter inStatusMotor must be a Real (number)');
+          return outStatusMotor == inStatusMotor;
         }
     });
   }
 }
 
-// Constraint class: UpdateDataBaseEQ
-class CT_SmartPlaceComponents_UpdateDataBaseEQ extends Constraint {
+// Constraint class: SendCommandEQ
+class CT_ComponentsAGV_SendCommandEQ extends Constraint {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
       inParameters: [],
       outParameters: [],
-      equation: "\"a\"",
-      constraintFunction: function(params) {// Executable expression: "a"
-          const {  } = params;
+      equation: "(cmd == move.command)",
+      constraintFunction: function(params) {// Constraint equation: (cmd == move.command)
+          const { move, command } = params;
           
-          return "a";
+          // Type validation
+          if (typeof move !== 'number') throw new Error('Parameter move must be a Real (number)');
+          if (typeof command !== 'number') throw new Error('Parameter command must be a Real (number)');
+          return cmd == move.command;
         }
     });
   }
 }
 
-// Constraint class: UpdateContextSensorsEQ
-class CT_SmartPlaceComponents_UpdateContextSensorsEQ extends Constraint {
+// Constraint class: NotifySupervisoryFromMotorEQ
+class CT_ComponentsAGV_NotifySupervisoryFromMotorEQ extends Constraint {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
       inParameters: [],
       outParameters: [],
-      equation: "\"a\"",
-      constraintFunction: function(params) {// Executable expression: "a"
+      equation: "((statusMotor == NotificationFromMotor.started) ? (ack == NotificationToSupervisory.departed) : (ack == NotificationToSupervisory.traveling))",
+      constraintFunction: function(params) {// Conditional constraint: ((statusMotor == NotificationFromMotor.started) ? (ack == NotificationToSupervisory.departed) : (ack == NotificationToSupervisory.traveling))
+          const { statusMotor, NotificationFromMotor, started, ack, NotificationToSupervisory, departed, traveling } = params;
+          
+          // Type validation
+          if (typeof statusMotor !== 'number') throw new Error('Parameter statusMotor must be a Real (number)');
+          if (typeof NotificationFromMotor !== 'number') throw new Error('Parameter NotificationFromMotor must be a Real (number)');
+          if (typeof started !== 'number') throw new Error('Parameter started must be a Real (number)');
+          if (typeof ack !== 'number') throw new Error('Parameter ack must be a Real (number)');
+          if (typeof NotificationToSupervisory !== 'number') throw new Error('Parameter NotificationToSupervisory must be a Real (number)');
+          if (typeof departed !== 'number') throw new Error('Parameter departed must be a Real (number)');
+          if (typeof traveling !== 'number') throw new Error('Parameter traveling must be a Real (number)');
+          return (statusMotor == NotificationFromMotor.started) ? (ack == NotificationToSupervisory.departed) : (ack == NotificationToSupervisory.traveling);
+        }
+    });
+  }
+}
+
+// Constraint class: NotificationMotorIsStartedEQ
+class CT_ComponentsAGV_NotificationMotorIsStartedEQ extends Constraint {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      outParameters: [],
+      equation: "(statusMotor == NotificationFromMotor.started)",
+      constraintFunction: function(params) {// Constraint equation: (statusMotor == NotificationFromMotor.started)
+          const { NotificationFromMotor, started } = params;
+          
+          // Type validation
+          if (typeof NotificationFromMotor !== 'number') throw new Error('Parameter NotificationFromMotor must be a Real (number)');
+          if (typeof started !== 'number') throw new Error('Parameter started must be a Real (number)');
+          return statusMotor == NotificationFromMotor.started;
+        }
+    });
+  }
+}
+
+// Constraint class: CompareStationsEQ
+class CT_ComponentsAGV_CompareStationsEQ extends Constraint {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      outParameters: [],
+      equation: "((dest == loc) ? (result == true) : (result == false))",
+      constraintFunction: function(params) {// Conditional constraint: ((dest == loc) ? (result == true) : (result == false))
+          const { dest, loc, result } = params;
+          
+          // Type validation
+          if (typeof dest !== 'number') throw new Error('Parameter dest must be a Real (number)');
+          if (typeof loc !== 'number') throw new Error('Parameter loc must be a Real (number)');
+          if (typeof result !== 'number') throw new Error('Parameter result must be a Real (number)');
+          return (dest == loc) ? (result == true) : (result == false);
+        }
+    });
+  }
+}
+
+// Constraint class: StopMotorEQ
+class CT_ComponentsAGV_StopMotorEQ extends Constraint {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      outParameters: [],
+      equation: "((result == true) ? (cmd == CommandToMotor.stop) : (cmd == SysADL.types.Void))",
+      constraintFunction: function(params) {// Conditional constraint: ((result == true) ? (cmd == CommandToMotor.stop) : (cmd == SysADL.types.Void))
+          const { result, cmd, CommandToMotor, stop, SysADL, Void } = params;
+          
+          // Type validation
+          if (typeof result !== 'number') throw new Error('Parameter result must be a Real (number)');
+          if (typeof cmd !== 'number') throw new Error('Parameter cmd must be a Real (number)');
+          if (typeof CommandToMotor !== 'number') throw new Error('Parameter CommandToMotor must be a Real (number)');
+          if (typeof stop !== 'number') throw new Error('Parameter stop must be a Real (number)');
+          if (typeof SysADL !== 'number') throw new Error('Parameter SysADL must be a Real (number)');
+          if (typeof Void !== 'number') throw new Error('Parameter Void must be a Real (number)');
+          return (result == true) ? (cmd == CommandToMotor.stop) : (cmd == SysADL.types.Void);
+        }
+    });
+  }
+}
+
+// Constraint class: PassedMotorEQ
+class CT_ComponentsAGV_PassedMotorEQ extends Constraint {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      outParameters: [],
+      equation: "((result == false) ? (ack == NotificationToSupervisory.passed) : (ack == SysADL.types.Void))",
+      constraintFunction: function(params) {// Conditional constraint: ((result == false) ? (ack == NotificationToSupervisory.passed) : (ack == SysADL.types.Void))
+          const { result, ack, NotificationToSupervisory, passed, SysADL, Void } = params;
+          
+          // Type validation
+          if (typeof result !== 'number') throw new Error('Parameter result must be a Real (number)');
+          if (typeof ack !== 'number') throw new Error('Parameter ack must be a Real (number)');
+          if (typeof NotificationToSupervisory !== 'number') throw new Error('Parameter NotificationToSupervisory must be a Real (number)');
+          if (typeof passed !== 'number') throw new Error('Parameter passed must be a Real (number)');
+          if (typeof SysADL !== 'number') throw new Error('Parameter SysADL must be a Real (number)');
+          if (typeof Void !== 'number') throw new Error('Parameter Void must be a Real (number)');
+          return (result == false) ? (ack == NotificationToSupervisory.passed) : (ack == SysADL.types.Void);
+        }
+    });
+  }
+}
+
+// Constraint class: SendCurrentLocationEQ
+class CT_ComponentsAGV_SendCurrentLocationEQ extends Constraint {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      outParameters: [],
+      equation: "(outLocation == inLocation)",
+      constraintFunction: function(params) {// Constraint equation: (outLocation == inLocation)
+          const { inLocation } = params;
+          
+          // Type validation
+          if (typeof inLocation !== 'number') throw new Error('Parameter inLocation must be a Real (number)');
+          return outLocation == inLocation;
+        }
+    });
+  }
+}
+
+// Constraint class: ControlArmEQ
+class CT_ComponentsAGV_ControlArmEQ extends Constraint {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      outParameters: [],
+      equation: "((statusMotor == NotificationFromMotor.stopped) ? (startArm == cmd) : (startArm == CommandToArm.idle))",
+      constraintFunction: function(params) {// Conditional constraint: ((statusMotor == NotificationFromMotor.stopped) ? (startArm == cmd) : (startArm == CommandToArm.idle))
+          const { statusMotor, NotificationFromMotor, stopped, startArm, cmd, CommandToArm, idle } = params;
+          
+          // Type validation
+          if (typeof statusMotor !== 'number') throw new Error('Parameter statusMotor must be a Real (number)');
+          if (typeof NotificationFromMotor !== 'number') throw new Error('Parameter NotificationFromMotor must be a Real (number)');
+          if (typeof stopped !== 'number') throw new Error('Parameter stopped must be a Real (number)');
+          if (typeof startArm !== 'number') throw new Error('Parameter startArm must be a Real (number)');
+          if (typeof cmd !== 'number') throw new Error('Parameter cmd must be a Real (number)');
+          if (typeof CommandToArm !== 'number') throw new Error('Parameter CommandToArm must be a Real (number)');
+          if (typeof idle !== 'number') throw new Error('Parameter idle must be a Real (number)');
+          return (statusMotor == NotificationFromMotor.stopped) ? (startArm == cmd) : (startArm == CommandToArm.idle);
+        }
+    });
+  }
+}
+
+// Constraint class: NotifierArmEQ
+class CT_ComponentsAGV_NotifierArmEQ extends Constraint {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      outParameters: [],
+      equation: "(ack == NotificationToSupervisory.arrived)",
+      constraintFunction: function(params) {// Constraint equation: (ack == NotificationToSupervisory.arrived)
+          const { NotificationToSupervisory, arrived } = params;
+          
+          // Type validation
+          if (typeof NotificationToSupervisory !== 'number') throw new Error('Parameter NotificationToSupervisory must be a Real (number)');
+          if (typeof arrived !== 'number') throw new Error('Parameter arrived must be a Real (number)');
+          return ack == NotificationToSupervisory.arrived;
+        }
+    });
+  }
+}
+
+// Constraint class: VehicleTimerEQ
+class CT_ComponentsAGV_VehicleTimerEQ extends Constraint {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      outParameters: [],
+      equation: "(((s.destination == dest) && (s.location == loc)) && (s.command == cmd))",
+      constraintFunction: function(params) {// Executable expression: (((s.destination == dest) && (s.location == loc)) && (s.command == cmd))
           const {  } = params;
           
-          return "a";
+          return (((s.destination == dest) && (s.location == loc)) && (s.command == cmd));
+        }
+    });
+  }
+}
+
+// Executable class: SendStartMotorEX
+class EX_ComponentsAGV_SendStartMotorEX extends Executable {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      body: "executable def SendStartMotorEX ( in move : VehicleData) : out CommandToMotor {\r\n\t\treturn CommandToMotor::start;\r\n\t}",
+      executableFunction: function(params) {
+          // Type validation
+          // Type validation for move: (auto-detected from usage)
+          const { move } = params;
+          return CommandToMotor.start;
+        }
+    });
+  }
+}
+
+// Executable class: SendCommandEX
+class EX_ComponentsAGV_SendCommandEX extends Executable {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      body: "executable def SendCommandEX ( in move : VehicleData) : out CommandToArm {\r\n\t\treturn move->command;\r\n\t}",
+      executableFunction: function(params) {
+          // Type validation
+          // Type validation for move: (auto-detected from usage)
+          const { move } = params;
+          return move.command;
+        }
+    });
+  }
+}
+
+// Executable class: SendDestinationEX
+class EX_ComponentsAGV_SendDestinationEX extends Executable {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      body: "executable def SendDestinationEX ( in move : VehicleData) : out Location {\r\n\t\treturn move->destination;\r\n\t}",
+      executableFunction: function(params) {
+          // Type validation
+          // Type validation for move: (auto-detected from usage)
+          const { move } = params;
+          return move.destination;
+        }
+    });
+  }
+}
+
+// Executable class: NotifyAGVFromMotorEX
+class EX_ComponentsAGV_NotifyAGVFromMotorEX extends Executable {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      body: "executable def NotifyAGVFromMotorEX ( in statusMotor : NotificationFromMotor) : \r\n\tout NotificationFromMotor{\r\n\t\treturn statusMotor;\r\n\t}",
+      executableFunction: function(params) {
+          // Type validation
+          // Type validation for statusMotor: (auto-detected from usage)
+          const { statusMotor } = params;
+          return statusMotor;
+        }
+    });
+  }
+}
+
+// Executable class: NotifySupervisoryFromMotorEX
+class EX_ComponentsAGV_NotifySupervisoryFromMotorEX extends Executable {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      body: "executable def NotifySupervisoryFromMotorEX ( in statusMotor : NotificationFromMotor) : \r\n\t\tout\tNotificationToSupervisory {\r\n\t\tif (statusMotor == NotificationFromMotor::started) \r\n\t\t\treturn NotificationToSupervisory::departed;\r\n\t\telse\r\n\t\t\treturn NotificationToSupervisory::traveling;\r\n\t}",
+      executableFunction: function(params) {
+          // Type validation
+          // Type validation for statusMotor: (auto-detected from usage)
+          const { statusMotor } = params;
+          if (statusMotor == NotificationFromMotor.started) {
+          return NotificationToSupervisory.departed;
+        } else {
+          return NotificationToSupervisory.traveling;
+        }
+        }
+    });
+  }
+}
+
+// Executable class: CompareStationsEX
+class EX_ComponentsAGV_CompareStationsEX extends Executable {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      body: "executable def CompareStationsEX ( in destination : Location, in location : Location, \r\n\t\tin statusMotor : NotificationFromMotor) : \tout Boolean {\r\n\t\tif(statusMotor == NotificationFromMotor::started && destination == location)\r\n\t\t\treturn true;\r\n\t\telse\r\n\t\t\treturn false;\r\n\t}",
+      executableFunction: function(params) {
+          // Type validation
+          // Type validation for destination: (auto-detected from usage)
+          // Type validation for location: (auto-detected from usage)
+          // Type validation for statusMotor: (auto-detected from usage)
+          const { destination, location, statusMotor } = params;
+          if(statusMotor == NotificationFromMotor.started && destination == location) {
+          return true;
+        } else {
+          return false;
+        }
+        }
+    });
+  }
+}
+
+// Executable class: StopMotorEX
+class EX_ComponentsAGV_StopMotorEX extends Executable {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      body: "executable def StopMotorEX ( in comparisonResult : Boolean) :\r\n\tout CommandToMotor {\r\n\t\tif(comparisonResult == true)\r\n\t\t\treturn CommandToMotor::stop;\r\n\t\telse\r\n\t\t\treturn null;\r\n\t}",
+      executableFunction: function(params) {
+          // Type validation
+          // Type validation for comparisonResult: (auto-detected from usage)
+          const { comparisonResult } = params;
+          if(comparisonResult == true) {
+          return CommandToMotor.stop;
+        } else {
+          return null;
+        }
+        }
+    });
+  }
+}
+
+// Executable class: PassedMotorEX
+class EX_ComponentsAGV_PassedMotorEX extends Executable {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      body: "executable def PassedMotorEX ( in comparisonResult : Boolean) :\r\n\tout NotificationToSupervisory {\r\n\t\tif(comparisonResult == false)\r\n\t\t\treturn NotificationToSupervisory::passed;\r\n\t\telse\r\n\t\t\treturn null;\r\n\t}",
+      executableFunction: function(params) {
+          // Type validation
+          // Type validation for comparisonResult: (auto-detected from usage)
+          const { comparisonResult } = params;
+          if(comparisonResult == false) {
+          return NotificationToSupervisory.passed;
+        } else {
+          return null;
+        }
+        }
+    });
+  }
+}
+
+// Executable class: SendCurrentLocationEX
+class EX_ComponentsAGV_SendCurrentLocationEX extends Executable {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      body: "executable def SendCurrentLocationEX ( in location : Location)\r\n\t: out Location {\r\n\t\treturn location;\r\n\t}",
+      executableFunction: function(params) {
+          // Type validation
+          // Type validation for location: (auto-detected from usage)
+          const { location } = params;
+          return location;
+        }
+    });
+  }
+}
+
+// Executable class: ControlArmEX
+class EX_ComponentsAGV_ControlArmEX extends Executable {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      body: "executable def ControlArmEX ( in statusMotor : NotificationFromMotor, in cmd : CommandToArm) : out CommandToArm {\r\n\t\tif(statusMotor == NotificationFromMotor::stopped)\r\n\t\t\treturn cmd;\r\n\t\telse\r\n\t\t\treturn CommandToArm::idle;\r\n\t}",
+      executableFunction: function(params) {
+          // Type validation
+          // Type validation for statusMotor: (auto-detected from usage)
+          // Type validation for cmd: (auto-detected from usage)
+          const { statusMotor, cmd } = params;
+          if(statusMotor == NotificationFromMotor.stopped) {
+          return cmd;
+        } else {
+          return CommandToArm.idle;
+        }
+        }
+    });
+  }
+}
+
+// Executable class: NotifierArmEX
+class EX_ComponentsAGV_NotifierArmEX extends Executable {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      body: "executable def NotifierArmEX ( in statusArm : NotificationFromArm) : \r\n\tout\tNotificationToSupervisory {\r\n\t\treturn NotificationToSupervisory::arrived;\r\n\t}",
+      executableFunction: function(params) {
+          // Type validation
+          // Type validation for statusArm: (auto-detected from usage)
+          const { statusArm } = params;
+          return NotificationToSupervisory.arrived;
+        }
+    });
+  }
+}
+
+// Executable class: VehicleTimerEX
+class EX_ComponentsAGV_VehicleTimerEX extends Executable {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+      inParameters: [],
+      body: "executable def VehicleTimerEX ( in location : Location, in cmd : CommandToArm, \r\n\t\tin destination : Location) : out Status {\r\n\t\t\r\n\t\tlet s : Status;\r\n\t\ts->destination = destination;\r\n\t\ts->location = location;\r\n\t\ts->command = cmd;\r\n\t\t\r\n\t\treturn s;\r\n\t}",
+      executableFunction: function(params) {
+          // Type validation
+          // Type validation for location: (auto-detected from usage)
+          // Type validation for cmd: (auto-detected from usage)
+          // Type validation for destination: (auto-detected from usage)
+          const { location, cmd, destination } = params;
+          let s;
+		s.destination = destination;
+		s.location = location;
+		s.command = cmd;
+		
+		return s;
         }
     });
   }
@@ -1015,363 +1232,144 @@ class CT_SmartPlaceComponents_UpdateContextSensorsEQ extends Constraint {
 class SysADLArchitecture extends Model {
   constructor(){
     super("SysADLArchitecture");
-    this.SmartPlace = new CP_SmartPlaceComponents_SmartPlace("SmartPlace", { sysadlDefinition: "SmartPlace" });
-    this.addComponent(this.SmartPlace);
-    this.SmartPlace.ac = new CP_SmartPlaceComponents_AirConditioner("ac", { sysadlDefinition: "AirConditioner" });
-    this.SmartPlace.addComponent(this.SmartPlace.ac);
-    this.SmartPlace.Camera = new CP_SmartPlaceComponents_Camera("Camera", { isBoundary: true, sysadlDefinition: "Camera" });
-    this.SmartPlace.addComponent(this.SmartPlace.Camera);
-    this.SmartPlace.Led = new CP_SmartPlaceComponents_Led("Led", { isBoundary: true, sysadlDefinition: "Led" });
-    this.SmartPlace.addComponent(this.SmartPlace.Led);
-    this.SmartPlace.ocb = new CP_SmartPlaceComponents_OrionContextBroker("ocb", { isBoundary: true, sysadlDefinition: "OrionContextBroker" });
-    this.SmartPlace.addComponent(this.SmartPlace.ocb);
-    this.SmartPlace.ps = new CP_SmartPlaceComponents_PresenceSensor("ps", { isBoundary: true, sysadlDefinition: "PresenceSensor" });
-    this.SmartPlace.addComponent(this.SmartPlace.ps);
-    this.SmartPlace.psql = new CP_SmartPlaceComponents_DB_PostgreSQL("psql", { isBoundary: true, sysadlDefinition: "DB_PostgreSQL" });
-    this.SmartPlace.addComponent(this.SmartPlace.psql);
-    this.SmartPlace.Raspberry = new CP_SmartPlaceComponents_Raspberry("Raspberry", { sysadlDefinition: "Raspberry" });
-    this.SmartPlace.addComponent(this.SmartPlace.Raspberry);
-    this.SmartPlace.rrs = new CP_SmartPlaceComponents_RoomReservationSystem("rrs", { isBoundary: true, sysadlDefinition: "RoomReservationSystem" });
-    this.SmartPlace.addComponent(this.SmartPlace.rrs);
-    this.SmartPlace.spw = new CP_SmartPlaceComponents_SmartPlaceWeb("spw", { sysadlDefinition: "SmartPlaceWeb" });
-    this.SmartPlace.addComponent(this.SmartPlace.spw);
-    this.SmartPlace.ths = new CP_SmartPlaceComponents_TemperatureAndHumiditySensor("ths", { isBoundary: true, sysadlDefinition: "TemperatureAndHumiditySensor" });
-    this.SmartPlace.addComponent(this.SmartPlace.ths);
-    this.SmartPlace.ac.acc = new CP_SmartPlaceComponents_AirConditionerController("acc", { isBoundary: true, sysadlDefinition: "AirConditionerController" });
-    this.SmartPlace.ac.addComponent(this.SmartPlace.ac.acc);
-    this.SmartPlace.Raspberry.cm = new CP_SmartPlaceComponents_CamMonitor("cm", { isBoundary: true, sysadlDefinition: "CamMonitor" });
-    this.SmartPlace.Raspberry.addComponent(this.SmartPlace.Raspberry.cm);
-    this.SmartPlace.ac.f = new CP_SmartPlaceComponents_Fotosensor("f", { isBoundary: true, sysadlDefinition: "Fotosensor" });
-    this.SmartPlace.ac.addComponent(this.SmartPlace.ac.f);
-    this.SmartPlace.spw.gg = new CP_SmartPlaceComponents_GraphicsGenerator("gg", { isBoundary: true, sysadlDefinition: "GraphicsGenerator" });
-    this.SmartPlace.spw.addComponent(this.SmartPlace.spw.gg);
-    this.SmartPlace.spw.hc = new CP_SmartPlaceComponents_HistoricController("hc", { sysadlDefinition: "HistoricController" });
-    this.SmartPlace.spw.addComponent(this.SmartPlace.spw.hc);
-    this.SmartPlace.spw.rc = new CP_SmartPlaceComponents_RegistrationController("rc", { sysadlDefinition: "RegistrationController" });
-    this.SmartPlace.spw.addComponent(this.SmartPlace.spw.rc);
-    this.SmartPlace.spw.rg = new CP_SmartPlaceComponents_ReportGenerator("rg", { sysadlDefinition: "ReportGenerator" });
-    this.SmartPlace.spw.addComponent(this.SmartPlace.spw.rg);
-    this.SmartPlace.Raspberry.sqlite = new CP_SmartPlaceComponents_DB_SQLite("sqlite", { isBoundary: true, sysadlDefinition: "DB_SQLite" });
-    this.SmartPlace.Raspberry.addComponent(this.SmartPlace.Raspberry.sqlite);
-    this.SmartPlace.Raspberry.tc = new CP_SmartPlaceComponents_TemperatureController("tc", { sysadlDefinition: "TemperatureController" });
-    this.SmartPlace.Raspberry.addComponent(this.SmartPlace.Raspberry.tc);
+    this.FactoryAutomationSystem = new CP_ComponentsAGV_FactoryAutomationSystem("FactoryAutomationSystem", { sysadlDefinition: "FactoryAutomationSystem" });
+    this.addComponent(this.FactoryAutomationSystem);
+    this.FactoryAutomationSystem.agvs = new CP_ComponentsAGV_AGVSystem("agvs", { sysadlDefinition: "AGVSystem" });
+    this.FactoryAutomationSystem.addComponent(this.FactoryAutomationSystem.agvs);
+    this.FactoryAutomationSystem.ds = new CP_ComponentsAGV_DisplaySystem("ds", { isBoundary: true, sysadlDefinition: "DisplaySystem" });
+    this.FactoryAutomationSystem.addComponent(this.FactoryAutomationSystem.ds);
+    this.FactoryAutomationSystem.ss = new CP_ComponentsAGV_SupervisorySystem("ss", { isBoundary: true, sysadlDefinition: "SupervisorySystem" });
+    this.FactoryAutomationSystem.addComponent(this.FactoryAutomationSystem.ss);
+    this.FactoryAutomationSystem.agvs.as = new CP_ComponentsAGV_ArrivalSensor("as", { isBoundary: true, sysadlDefinition: "ArrivalSensor" });
+    this.FactoryAutomationSystem.agvs.addComponent(this.FactoryAutomationSystem.agvs.as);
+    this.FactoryAutomationSystem.agvs.m = new CP_ComponentsAGV_Motor("m", { isBoundary: true, sysadlDefinition: "Motor" });
+    this.FactoryAutomationSystem.agvs.addComponent(this.FactoryAutomationSystem.agvs.m);
+    this.FactoryAutomationSystem.agvs.ra = new CP_ComponentsAGV_RobotArm("ra", { isBoundary: true, sysadlDefinition: "RobotArm" });
+    this.FactoryAutomationSystem.agvs.addComponent(this.FactoryAutomationSystem.agvs.ra);
+    this.FactoryAutomationSystem.agvs.vc = new CP_ComponentsAGV_VehicleControl("vc", { sysadlDefinition: "VehicleControl" });
+    this.FactoryAutomationSystem.agvs.addComponent(this.FactoryAutomationSystem.agvs.vc);
+    this.FactoryAutomationSystem.agvs.vc.ca = new CP_ComponentsAGV_ControlArm("ca", { sysadlDefinition: "ControlArm" });
+    this.FactoryAutomationSystem.agvs.vc.addComponent(this.FactoryAutomationSystem.agvs.vc.ca);
+    this.FactoryAutomationSystem.agvs.vc.cs = new CP_ComponentsAGV_CheckStation("cs", { sysadlDefinition: "CheckStation" });
+    this.FactoryAutomationSystem.agvs.vc.addComponent(this.FactoryAutomationSystem.agvs.vc.cs);
+    this.FactoryAutomationSystem.agvs.vc.na = new CP_ComponentsAGV_NotifierArm("na", { sysadlDefinition: "NotifierArm" });
+    this.FactoryAutomationSystem.agvs.vc.addComponent(this.FactoryAutomationSystem.agvs.vc.na);
+    this.FactoryAutomationSystem.agvs.vc.nm = new CP_ComponentsAGV_NotifierMotor("nm", { sysadlDefinition: "NotifierMotor" });
+    this.FactoryAutomationSystem.agvs.vc.addComponent(this.FactoryAutomationSystem.agvs.vc.nm);
+    this.FactoryAutomationSystem.agvs.vc.sm = new CP_ComponentsAGV_StartMoving("sm", { sysadlDefinition: "StartMoving" });
+    this.FactoryAutomationSystem.agvs.vc.addComponent(this.FactoryAutomationSystem.agvs.vc.sm);
+    this.FactoryAutomationSystem.agvs.vc.vt = new CP_ComponentsAGV_VehicleTimer("vt", { sysadlDefinition: "VehicleTimer" });
+    this.FactoryAutomationSystem.agvs.vc.addComponent(this.FactoryAutomationSystem.agvs.vc.vt);
 
-    this.SmartPlace.ac.addConnector(new CN_SmartPlaceConnectors_UndefinedCN("u"));
-    const u = this.SmartPlace.ac.connectors["u"];
-    u.bind(this.SmartPlace.getPort("uF"), this.SmartPlace.getPort("uAcc"));
-    this.SmartPlace.Raspberry.addConnector(new CN_SmartPlaceConnectors_SendValueCN("countPeople"));
-    const countPeople = this.SmartPlace.Raspberry.connectors["countPeople"];
-    countPeople.bind(this.SmartPlace.getPort("numPeopleCm"), this.SmartPlace.getPort("numPeopleTc"));
-    this.SmartPlace.Raspberry.addConnector(new CN_SmartPlaceConnectors_ReservationCN("rn"));
-    const rn = this.SmartPlace.Raspberry.connectors["rn"];
-    rn.bind(this.SmartPlace.getPort("riTc"), this.SmartPlace.rrs.getPort("ri"));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_QueryDataBaseCN("qdb"));
-    const qdb = this.SmartPlace.connectors["qdb"];
-    qdb.bind(this.getPort("dbSpw"), this.SmartPlace.spw.getPort("db"));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendPostgreSQLInfoCN("spsqli"));
-    const spsqli = this.SmartPlace.connectors["spsqli"];
-    spsqli.bind(this.getPort("uSpw"), this.SmartPlace.spw.getPort("u"));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendContextCN("ci1"));
-    const ci1 = this.SmartPlace.connectors["ci1"];
-    ci1.bind(this.getPort("coSpw"), this.SmartPlace.ocb.getPort("ci"));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_ContextCN("c"));
-    const c = this.SmartPlace.connectors["c"];
-    c.bind(this.SmartPlace.spw.getPort("ctx"), this.getPort("ctxSpw"));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_CmdRestfulCN("cr"));
-    const cr = this.SmartPlace.connectors["cr"];
-    cr.bind(this.SmartPlace.spw.getPort("rr"), this.getPort("rrSpw"));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendValueCN("sendPresence"));
-    const sendPresence = this.SmartPlace.connectors["sendPresence"];
-    sendPresence.bind(this.getPort("presencePs"), this.SmartPlace.ps.getPort("presence"));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_FrameListCN("fl"));
-    const fl = this.SmartPlace.connectors["fl"];
-    fl.bind(this.getPort("fCam"), this.SmartPlace.Raspberry.getPort("f"));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_SendValueCN("sendTempHumi"));
-    const sendTempHumi = this.SmartPlace.connectors["sendTempHumi"];
-    sendTempHumi.bind(this.getPort("temperatureThs"), this.SmartPlace.ths.getPort("temperature"));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_ReservationCN("rn"));
-    const rn_2 = this.SmartPlace.connectors["rn"];
-    rn_2.bind(this.SmartPlace.rrs.getPort("ri"), this.getPort("riRrs"));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_InfraCodeCN("ic"));
-    const ic = this.SmartPlace.connectors["ic"];
-    ic.bind(this.SmartPlace.Led.getPort("c"), this.getPort("cLed"));
-    this.SmartPlace.addConnector(new CN_SmartPlaceConnectors_InfraredSignalCN("is"));
-    const is = this.SmartPlace.connectors["is"];
-    is.bind(this.getPort("isLed"), this.getPort("isAc"));
+    this.FactoryAutomationSystem.agvs.addConnector(new CN_ConnectorsAGV_locationVehicle("arrived"));
+    const arrived = this.FactoryAutomationSystem.agvs.connectors["arrived"];
+    arrived.bind(this.FactoryAutomationSystem.getPort("arrivalDetected_out"), this.FactoryAutomationSystem.getPort("arrivalDetected_in"));
+    this.FactoryAutomationSystem.agvs.addConnector(new CN_ConnectorsAGV_notificationArm("ackArm"));
+    const ackArm = this.FactoryAutomationSystem.agvs.connectors["ackArm"];
+    ackArm.bind(this.FactoryAutomationSystem.agvs.ra.getPort("started"), this.FactoryAutomationSystem.agvs.vc.getPort("startedArm"));
+    this.FactoryAutomationSystem.agvs.addConnector(new CN_ConnectorsAGV_commandArm("cmdArm"));
+    const cmdArm = this.FactoryAutomationSystem.agvs.connectors["cmdArm"];
+    cmdArm.bind(this.FactoryAutomationSystem.agvs.vc.getPort("startArm"), this.FactoryAutomationSystem.agvs.ra.getPort("start"));
+    this.FactoryAutomationSystem.agvs.addConnector(new CN_ConnectorsAGV_notificationMotor("ackMotor"));
+    const ackMotor = this.FactoryAutomationSystem.agvs.connectors["ackMotor"];
+    ackMotor.bind(this.FactoryAutomationSystem.getPort("started_stopped_out"), this.FactoryAutomationSystem.getPort("started_stopped_in"));
+    this.FactoryAutomationSystem.agvs.addConnector(new CN_ConnectorsAGV_commandMotor("cmdMotor"));
+    const cmdMotor = this.FactoryAutomationSystem.agvs.connectors["cmdMotor"];
+    cmdMotor.bind(this.FactoryAutomationSystem.getPort("start_stop_out"), this.FactoryAutomationSystem.getPort("start_stop_in"));
+    this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_locationVehicle("destinationStation2"));
+    const destinationStation2 = this.FactoryAutomationSystem.agvs.vc.connectors["destinationStation2"];
+    destinationStation2.bind(this.FactoryAutomationSystem.agvs.vc.cs.getPort("destination"), this.FactoryAutomationSystem.agvs.getPort("destination_vt"));
+    this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_locationVehicle("destinationStation"));
+    const destinationStation = this.FactoryAutomationSystem.agvs.vc.connectors["destinationStation"];
+    destinationStation.bind(this.FactoryAutomationSystem.agvs.vc.cs.getPort("destination"), this.FactoryAutomationSystem.agvs.getPort("destination_cs"));
+    this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_commandArm("command"));
+    const command = this.FactoryAutomationSystem.agvs.vc.connectors["command"];
+    command.bind(this.FactoryAutomationSystem.agvs.getPort("cmd_sm"), this.FactoryAutomationSystem.agvs.vc.ca.getPort("cmd"));
+    this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_commandArm("command2"));
+    const command2 = this.FactoryAutomationSystem.agvs.vc.connectors["command2"];
+    command2.bind(this.FactoryAutomationSystem.agvs.getPort("cmd_sm"), this.FactoryAutomationSystem.agvs.getPort("cmd_ca"));
+    this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_locationVehicle("currentLocation"));
+    const currentLocation = this.FactoryAutomationSystem.agvs.vc.connectors["currentLocation"];
+    currentLocation.bind(this.FactoryAutomationSystem.agvs.getPort("location_cs"), this.FactoryAutomationSystem.agvs.getPort("location_vt"));
+    this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_notificationMotor("sendNotificationMotor"));
+    const sendNotificationMotor = this.FactoryAutomationSystem.agvs.vc.connectors["sendNotificationMotor"];
+    sendNotificationMotor.bind(this.FactoryAutomationSystem.agvs.vc.nm.getPort("outAck"), this.FactoryAutomationSystem.agvs.getPort("ack_ca"));
+    this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_notificationMotor("sendNotificationMotor2"));
+    const sendNotificationMotor2 = this.FactoryAutomationSystem.agvs.vc.connectors["sendNotificationMotor2"];
+    sendNotificationMotor2.bind(this.FactoryAutomationSystem.agvs.vc.nm.getPort("outAck"), this.FactoryAutomationSystem.agvs.getPort("ack_cs"));
+    this.FactoryAutomationSystem.addConnector(new CN_ConnectorsAGV_interactionAGVAndSupervisory("dataExchange"));
+    const dataExchange = this.FactoryAutomationSystem.connectors["dataExchange"];
+    dataExchange.bind(this.getPort("in_outDataS"), this.getPort("in_outDataAgv"));
+    this.FactoryAutomationSystem.addConnector(new CN_ComponentsAGV_status("updateStatus"));
+    const updateStatus = this.FactoryAutomationSystem.connectors["updateStatus"];
+    updateStatus.bind(this.FactoryAutomationSystem.agvs.getPort("sendStatus"), this.FactoryAutomationSystem.ds.getPort("receiveStatus"));
 
-    const ac_spw = new AC_SmartPlaceComponents_RaspberryControllerAC(
-      "RaspberryControllerAC",
-      "spw",
-      ["u"],
-      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
+    const ac_StartMoving = new AC_ComponentsAGV_StartMovingAC(
+      "StartMovingAC",
+      "StartMoving",
+      [],
+      [{"from":"destination","to":"sc"},{"from":"cmd","to":"sd"},{"from":"start","to":"ssm"},{"from":"move","to":"moveSD"},{"from":"move","to":"moveSC"},{"from":"move","to":"moveSSM"}]
     );
-    this.registerActivity("RaspberryControllerAC", ac_spw);
-    const ac_rrs = new AC_SmartPlaceComponents_RaspberryControllerAC(
-      "RaspberryControllerAC",
-      "rrs",
-      ["ri"],
-      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
+    const ssm = new AN_ComponentsAGV_SendStartMotorAN("ssm");
+    ac_StartMoving.registerAction(ssm);
+    const sc = new AN_ComponentsAGV_SendCommandAN("sc");
+    ac_StartMoving.registerAction(sc);
+    const sd = new AN_ComponentsAGV_SendDestinationAN("sd");
+    ac_StartMoving.registerAction(sd);
+    this.registerActivity("StartMovingAC", ac_StartMoving);
+    const ac_NotifierMotor = new AC_ComponentsAGV_NotifierMotorAC(
+      "NotifierMotorAC",
+      "NotifierMotor",
+      [],
+      [{"from":"outStatusMotor","to":"nagvm"},{"from":"ack","to":"nsm"},{"from":"inStatusMotor","to":"statusMotor"},{"from":"inStatusMotor","to":"statusMotor"}]
     );
-    this.registerActivity("RaspberryControllerAC", ac_rrs);
-    const ac_ocb = new AC_SmartPlaceComponents_RaspberryControllerAC(
-      "RaspberryControllerAC",
-      "ocb",
-      ["ci"],
-      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
+    const nagvm = new AN_ComponentsAGV_NotifyAGVFromMotorAN("nagvm");
+    ac_NotifierMotor.registerAction(nagvm);
+    const nsm = new AN_ComponentsAGV_NotifySupervisoryFromMotorAN("nsm");
+    ac_NotifierMotor.registerAction(nsm);
+    this.registerActivity("NotifierMotorAC", ac_NotifierMotor);
+    const ac_CheckStation = new AC_ComponentsAGV_CheckStationAC(
+      "CheckStationAC",
+      "CheckStation",
+      [],
+      [{"from":"statusMotor","to":"NotificationsMotor"},{"from":"destination","to":"Destinations"},{"from":"inLocation","to":"location"},{"from":"outLocation","to":"scl"},{"from":"inLocation","to":"location"},{"from":"stopMotor","to":"sm"},{"from":"passed","to":"pm"}]
     );
-    this.registerActivity("RaspberryControllerAC", ac_ocb);
-    const ac_ths = new AC_SmartPlaceComponents_RaspberryControllerAC(
-      "RaspberryControllerAC",
-      "ths",
-      ["temperature"],
-      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
+    const cs = new AN_ComponentsAGV_CompareStationsAN("cs");
+    ac_CheckStation.registerAction(cs);
+    const sm = new AN_ComponentsAGV_StopMotorAN("sm");
+    ac_CheckStation.registerAction(sm);
+    const pm = new AN_ComponentsAGV_PassedMotorAN("pm");
+    ac_CheckStation.registerAction(pm);
+    const scl = new AN_ComponentsAGV_SendCurrentLocationAN("scl");
+    ac_CheckStation.registerAction(scl);
+    this.registerActivity("CheckStationAC", ac_CheckStation);
+    const ac_ControlArm = new AC_ComponentsAGV_ControlArmAC(
+      "ControlArmAC",
+      "ControlArm",
+      [],
+      [{"from":"startArm","to":"ca"},{"from":"cmd","to":"cmd"},{"from":"statusMotor","to":"statusMotor"}]
     );
-    this.registerActivity("RaspberryControllerAC", ac_ths);
-    const ac_ps = new AC_SmartPlaceComponents_RaspberryControllerAC(
-      "RaspberryControllerAC",
-      "ps",
-      ["presence"],
-      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
+    const ca = new AN_ComponentsAGV_ControlArmAN("ca");
+    ac_ControlArm.registerAction(ca);
+    this.registerActivity("ControlArmAC", ac_ControlArm);
+    const ac_NotifierArm = new AC_ComponentsAGV_NotifierArmAC(
+      "NotifierArmAC",
+      "NotifierArm",
+      [],
+      [{"from":"ack","to":"na"},{"from":"statusArm","to":"statusArm"}]
     );
-    this.registerActivity("RaspberryControllerAC", ac_ps);
-    const ac_psql = new AC_SmartPlaceComponents_RaspberryControllerAC(
-      "RaspberryControllerAC",
-      "psql",
-      ["u"],
-      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
+    const na = new AN_ComponentsAGV_NotifierArmAN("na");
+    ac_NotifierArm.registerAction(na);
+    this.registerActivity("NotifierArmAC", ac_NotifierArm);
+    const ac_VehicleTimer = new AC_ComponentsAGV_VehicleTimerAC(
+      "VehicleTimerAC",
+      "VehicleTimer",
+      [],
+      [{"from":"status","to":"vt"},{"from":"cmd","to":"cmd"},{"from":"destination","to":"destination"},{"from":"location","to":"location"}]
     );
-    this.registerActivity("RaspberryControllerAC", ac_psql);
-    const ac_ac = new AC_SmartPlaceComponents_RaspberryControllerAC(
-      "RaspberryControllerAC",
-      "ac",
-      ["is"],
-      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
-    );
-    this.registerActivity("RaspberryControllerAC", ac_ac);
-    const ac_Led = new AC_SmartPlaceComponents_RaspberryControllerAC(
-      "RaspberryControllerAC",
-      "Led",
-      ["c"],
-      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
-    );
-    this.registerActivity("RaspberryControllerAC", ac_Led);
-    const ac_Raspberry = new AC_SmartPlaceComponents_RaspberryControllerAC(
-      "RaspberryControllerAC",
-      "Raspberry",
-      ["f"],
-      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
-    );
-    this.registerActivity("RaspberryControllerAC", ac_Raspberry);
-    const ac_Camera = new AC_SmartPlaceComponents_RaspberryControllerAC(
-      "RaspberryControllerAC",
-      "Camera",
-      ["f"],
-      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
-    );
-    this.registerActivity("RaspberryControllerAC", ac_Camera);
-    const ac_cm = new AC_SmartPlaceComponents_RaspberryControllerAC(
-      "RaspberryControllerAC",
-      "cm",
-      ["f"],
-      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
-    );
-    this.registerActivity("RaspberryControllerAC", ac_cm);
-    const ac_tc = new AC_SmartPlaceComponents_RaspberryControllerAC(
-      "RaspberryControllerAC",
-      "tc",
-      ["presence"],
-      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
-    );
-    this.registerActivity("RaspberryControllerAC", ac_tc);
-    const ac_sqlite = new AC_SmartPlaceComponents_RaspberryControllerAC(
-      "RaspberryControllerAC",
-      "sqlite",
-      ["ri"],
-      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
-    );
-    this.registerActivity("RaspberryControllerAC", ac_sqlite);
-    const ac_f = new AC_SmartPlaceComponents_RaspberryControllerAC(
-      "RaspberryControllerAC",
-      "f",
-      ["u"],
-      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
-    );
-    this.registerActivity("RaspberryControllerAC", ac_f);
-    const ac_acc = new AC_SmartPlaceComponents_RaspberryControllerAC(
-      "RaspberryControllerAC",
-      "acc",
-      ["u"],
-      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
-    );
-    this.registerActivity("RaspberryControllerAC", ac_acc);
-    const ac_rc = new AC_SmartPlaceComponents_RaspberryControllerAC(
-      "RaspberryControllerAC",
-      "rc",
-      ["ci"],
-      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
-    );
-    this.registerActivity("RaspberryControllerAC", ac_rc);
-    const ac_rg = new AC_SmartPlaceComponents_RaspberryControllerAC(
-      "RaspberryControllerAC",
-      "rg",
-      ["a"],
-      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
-    );
-    this.registerActivity("RaspberryControllerAC", ac_rg);
-    const ac_gg = new AC_SmartPlaceComponents_RaspberryControllerAC(
-      "RaspberryControllerAC",
-      "gg",
-      ["db"],
-      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
-    );
-    this.registerActivity("RaspberryControllerAC", ac_gg);
-    const ac_hc = new AC_SmartPlaceComponents_RaspberryControllerAC(
-      "RaspberryControllerAC",
-      "hc",
-      ["u"],
-      [{"from":"signal","to":"rc"},{"from":"restful","to":"restfulRc"}]
-    );
-    this.registerActivity("RaspberryControllerAC", ac_hc);
-    const ac_tc_2 = new AC_SmartPlaceComponents_TemperatureControllerAC(
-      "TemperatureControllerAC",
-      "tc",
-      ["presence"],
-      [{"from":"presence","to":"presenceSlp"},{"from":"numPeople","to":"numPeopleSlp"},{"from":"reservation","to":"reservationTon"},{"from":"numPeople","to":"numPeopleTon"},{"from":"presence","to":"presenceTon"},{"from":"cmd","to":"turnon"}]
-    );
-    this.registerActivity("TemperatureControllerAC", ac_tc_2);
-    const ac_spw_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
-      "UpdateContextSensorsAC",
-      "spw",
-      ["a","rr"],
-      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
-    );
-    this.registerActivity("UpdateContextSensorsAC", ac_spw_2);
-    const ac_rrs_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
-      "UpdateContextSensorsAC",
-      "rrs",
-      ["ri"],
-      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
-    );
-    this.registerActivity("UpdateContextSensorsAC", ac_rrs_2);
-    const ac_ocb_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
-      "UpdateContextSensorsAC",
-      "ocb",
-      ["ci"],
-      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
-    );
-    this.registerActivity("UpdateContextSensorsAC", ac_ocb_2);
-    const ac_ths_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
-      "UpdateContextSensorsAC",
-      "ths",
-      ["temperature"],
-      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
-    );
-    this.registerActivity("UpdateContextSensorsAC", ac_ths_2);
-    const ac_ps_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
-      "UpdateContextSensorsAC",
-      "ps",
-      ["presence"],
-      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
-    );
-    this.registerActivity("UpdateContextSensorsAC", ac_ps_2);
-    const ac_psql_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
-      "UpdateContextSensorsAC",
-      "psql",
-      ["db"],
-      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
-    );
-    this.registerActivity("UpdateContextSensorsAC", ac_psql_2);
-    const ac_ac_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
-      "UpdateContextSensorsAC",
-      "ac",
-      ["is"],
-      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
-    );
-    this.registerActivity("UpdateContextSensorsAC", ac_ac_2);
-    const ac_Led_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
-      "UpdateContextSensorsAC",
-      "Led",
-      ["c"],
-      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
-    );
-    this.registerActivity("UpdateContextSensorsAC", ac_Led_2);
-    const ac_Raspberry_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
-      "UpdateContextSensorsAC",
-      "Raspberry",
-      ["c"],
-      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
-    );
-    this.registerActivity("UpdateContextSensorsAC", ac_Raspberry_2);
-    const ac_Camera_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
-      "UpdateContextSensorsAC",
-      "Camera",
-      ["f"],
-      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
-    );
-    this.registerActivity("UpdateContextSensorsAC", ac_Camera_2);
-    const ac_cm_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
-      "UpdateContextSensorsAC",
-      "cm",
-      ["f"],
-      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
-    );
-    this.registerActivity("UpdateContextSensorsAC", ac_cm_2);
-    const ac_tc_3 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
-      "UpdateContextSensorsAC",
-      "tc",
-      ["presence"],
-      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
-    );
-    this.registerActivity("UpdateContextSensorsAC", ac_tc_3);
-    const ac_sqlite_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
-      "UpdateContextSensorsAC",
-      "sqlite",
-      ["ri"],
-      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
-    );
-    this.registerActivity("UpdateContextSensorsAC", ac_sqlite_2);
-    const ac_f_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
-      "UpdateContextSensorsAC",
-      "f",
-      ["u"],
-      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
-    );
-    this.registerActivity("UpdateContextSensorsAC", ac_f_2);
-    const ac_acc_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
-      "UpdateContextSensorsAC",
-      "acc",
-      ["u"],
-      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
-    );
-    this.registerActivity("UpdateContextSensorsAC", ac_acc_2);
-    const ac_rc_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
-      "UpdateContextSensorsAC",
-      "rc",
-      ["ci"],
-      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
-    );
-    this.registerActivity("UpdateContextSensorsAC", ac_rc_2);
-    const ac_rg_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
-      "UpdateContextSensorsAC",
-      "rg",
-      ["a"],
-      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
-    );
-    this.registerActivity("UpdateContextSensorsAC", ac_rg_2);
-    const ac_gg_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
-      "UpdateContextSensorsAC",
-      "gg",
-      ["db"],
-      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
-    );
-    this.registerActivity("UpdateContextSensorsAC", ac_gg_2);
-    const ac_hc_2 = new AC_SmartPlaceComponents_UpdateContextSensorsAC(
-      "UpdateContextSensorsAC",
-      "hc",
-      ["rr"],
-      [{"from":"infoCtx","to":"ucs"},{"from":"currentTime","to":"currentTime"},{"from":"dataSensor","to":"dataSensor"}]
-    );
-    this.registerActivity("UpdateContextSensorsAC", ac_hc_2);
+    const vt = new AN_ComponentsAGV_VehicleTimerAN("vt");
+    ac_VehicleTimer.registerAction(vt);
+    this.registerActivity("VehicleTimerAC", ac_VehicleTimer);
   }
 
 }
@@ -1380,59 +1378,45 @@ function createModel(){
   const model = new SysADLArchitecture();
   
   model.typeRegistry = {
-    'InfraredCode': 'EN_InfraredCode',
-    'TypeSensor': 'EN_TypeSensor',
+    'NotificationToSupervisory': 'EN_NotificationToSupervisory',
+    'NotificationFromArm': 'EN_NotificationFromArm',
+    'CommandToArm': 'EN_CommandToArm',
+    'NotificationFromMotor': 'EN_NotificationFromMotor',
+    'CommandToMotor': 'EN_CommandToMotor',
   };
   
   // Module context for class resolution
   model._moduleContext = {
-    PT_SmartPlacePorts_ValueOPT,
-    PT_SmartPlacePorts_ValueIPT,
-    PT_SmartPlacePorts_ReservationResponseIPT,
-    PT_SmartPlacePorts_ReservationResponseOPT,
-    PT_SmartPlacePorts_RequestOPT,
-    PT_SmartPlacePorts_RequestIPT,
-    PT_SmartPlacePorts_InfraredSignalIPT,
-    PT_SmartPlacePorts_InfraredSignalOPT,
-    PT_SmartPlacePorts_ContextInformationOPT,
-    PT_SmartPlacePorts_ContextInformationIPT,
-    PT_SmartPlacePorts_UndefinedOPT,
-    PT_SmartPlacePorts_UndefinedIPT,
-    PT_SmartPlacePorts_CommandIPT,
-    PT_SmartPlacePorts_CommandOPT,
-    PT_SmartPlacePorts_RestfulRaspberryIPT,
-    PT_SmartPlacePorts_RestfulRaspberryOPT,
-    PT_SmartPlacePorts_DataBaseRespOPT,
-    PT_SmartPlacePorts_DataBaseRespIPT,
-    PT_SmartPlacePorts_ScheduleOPT,
-    PT_SmartPlacePorts_ScheduleIPT,
-    PT_SmartPlacePorts_UpdateIPT,
-    PT_SmartPlacePorts_UpdateOPT,
-    PT_SmartPlacePorts_FrameListIPT,
-    PT_SmartPlacePorts_FrameListOPT,
-    PT_SmartPlacePorts_DataBaseO2I,
-    PT_SmartPlacePorts_DataBaseI2O,
-    PT_SmartPlacePorts_ReservationInformationO2I,
-    PT_SmartPlacePorts_ReservationInformationI2O,
-    PT_SmartPlacePorts_ContextO2I,
-    PT_SmartPlacePorts_ContextI2O,
-    CN_SmartPlaceConnectors_UndefinedCN,
-    CN_SmartPlaceConnectors_SendValueCN,
-    CN_SmartPlaceConnectors_InfraCodeCN,
-    CN_SmartPlaceConnectors_CmdRestfulCN,
-    CN_SmartPlaceConnectors_SendReservationInfoCN,
-    CN_SmartPlaceConnectors_RequestCN,
-    CN_SmartPlaceConnectors_SendContextCN,
-    CN_SmartPlaceConnectors_InfraredSignalCN,
-    CN_SmartPlaceConnectors_ReservationCN,
-    CN_SmartPlaceConnectors_QueryDataBaseCN,
-    CN_SmartPlaceConnectors_SendPostgreSQLInfoCN,
-    CN_SmartPlaceConnectors_ScheduleCN,
-    CN_SmartPlaceConnectors_FrameListCN,
-    CN_SmartPlaceConnectors_ContextCN,
+    PT_ComponentsAGV_inLocation,
+    PT_ComponentsAGV_outLocation,
+    PT_PortsAGV_inStatus,
+    PT_PortsAGV_outStatus,
+    PT_PortsAGV_inVehicleData,
+    PT_PortsAGV_outVehicleData,
+    PT_PortsAGV_inNotificationFromMotor,
+    PT_PortsAGV_outNotificationFromMotor,
+    PT_PortsAGV_inCommandToMotor,
+    PT_PortsAGV_outCommandToMotor,
+    PT_PortsAGV_inNotificationFromArm,
+    PT_PortsAGV_outNotificationFromArm,
+    PT_PortsAGV_inCommandToArm,
+    PT_PortsAGV_outCommandToArm,
+    PT_PortsAGV_inNotificationToSupervisory,
+    PT_PortsAGV_outNotificationToSupervisory,
+    PT_PortsAGV_IAGVSystem,
+    PT_PortsAGV_ISupervisorySystem,
+    CN_ConnectorsAGV_notifySupervisory,
+    CN_ConnectorsAGV_sendVehicleData,
+    CN_ConnectorsAGV_notificationMotor,
+    CN_ConnectorsAGV_commandArm,
+    CN_ConnectorsAGV_notificationArm,
+    CN_ConnectorsAGV_commandMotor,
+    CN_ConnectorsAGV_interactionAGVAndSupervisory,
+    CN_ConnectorsAGV_locationVehicle,
+    CN_ComponentsAGV_status,
   };
   
   return model;
 }
 
-module.exports = { createModel, SysADLArchitecture, EN_InfraredCode, EN_TypeSensor, DT_DataSensor, DT_RestFulRaspeberry, DT_Sensor, DT_Measurement, DT_Schedule, DT_Location, DT_Building, DT_Room, DT_SmartPlaceComponents_AirConditioner, DT_ContextInformation, DT_UpdateDB, DT_FrameList, DT_Intervention, PT_SmartPlacePorts_ValueOPT, PT_SmartPlacePorts_ValueIPT, PT_SmartPlacePorts_ReservationResponseIPT, PT_SmartPlacePorts_ReservationResponseOPT, PT_SmartPlacePorts_RequestOPT, PT_SmartPlacePorts_RequestIPT, PT_SmartPlacePorts_InfraredSignalIPT, PT_SmartPlacePorts_InfraredSignalOPT, PT_SmartPlacePorts_ContextInformationOPT, PT_SmartPlacePorts_ContextInformationIPT, PT_SmartPlacePorts_UndefinedOPT, PT_SmartPlacePorts_UndefinedIPT, PT_SmartPlacePorts_CommandIPT, PT_SmartPlacePorts_CommandOPT, PT_SmartPlacePorts_RestfulRaspberryIPT, PT_SmartPlacePorts_RestfulRaspberryOPT, PT_SmartPlacePorts_DataBaseRespOPT, PT_SmartPlacePorts_DataBaseRespIPT, PT_SmartPlacePorts_ScheduleOPT, PT_SmartPlacePorts_ScheduleIPT, PT_SmartPlacePorts_UpdateIPT, PT_SmartPlacePorts_UpdateOPT, PT_SmartPlacePorts_FrameListIPT, PT_SmartPlacePorts_FrameListOPT, PT_SmartPlacePorts_DataBaseO2I, PT_SmartPlacePorts_DataBaseI2O, PT_SmartPlacePorts_ReservationInformationO2I, PT_SmartPlacePorts_ReservationInformationI2O, PT_SmartPlacePorts_ContextO2I, PT_SmartPlacePorts_ContextI2O };
+module.exports = { createModel, SysADLArchitecture, EN_NotificationToSupervisory, EN_NotificationFromArm, EN_CommandToArm, EN_NotificationFromMotor, EN_CommandToMotor, DT_Status, DT_Location, DT_VehicleData, PT_ComponentsAGV_inLocation, PT_ComponentsAGV_outLocation, PT_PortsAGV_inStatus, PT_PortsAGV_outStatus, PT_PortsAGV_inVehicleData, PT_PortsAGV_outVehicleData, PT_PortsAGV_inNotificationFromMotor, PT_PortsAGV_outNotificationFromMotor, PT_PortsAGV_inCommandToMotor, PT_PortsAGV_outCommandToMotor, PT_PortsAGV_inNotificationFromArm, PT_PortsAGV_outNotificationFromArm, PT_PortsAGV_inCommandToArm, PT_PortsAGV_outCommandToArm, PT_PortsAGV_inNotificationToSupervisory, PT_PortsAGV_outNotificationToSupervisory, PT_PortsAGV_IAGVSystem, PT_PortsAGV_ISupervisorySystem };

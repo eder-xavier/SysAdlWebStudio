@@ -1,103 +1,120 @@
-Documentação do Sistema de Visualização de Arquitetura SysADL
-Este documento descreve as funcionalidades do sistema de visualização de arquiteturas baseado em SysADL, os arquivos responsáveis por sua implementação, e os pontos que ainda não estão funcionando corretamente.
-Funcionalidades do Sistema
+SysADL Web Studio – Architecture Visualization
+==============================================
 
-Transformação de Modelos SysADL: Converte código SysADL em JavaScript dinâmico usando um transformador (ex.: sysadl-parser.js e sysadl-transformer).
-Criação de Modelos Dinâmicos: Gera instâncias de modelos (ex.: SysADLModel) a partir do código JavaScript transformado, utilizando createDynamicModel em visualizer.js.
-Visualização de Arquitetura: Renderiza componentes, portas e conectores como um grafo interativo usando a biblioteca vis-network, com suporte a zoom e tooltips.
-Design Moderno: Exibe subcomponentes como retângulos com padding, portas como círculos coloridos (amarelo para out, vermelho para in), e conectores como arestas com rótulos e setas.
-Logs e Depuração: Fornece logs detalhados (ex.: [INFO], [DEBUG], [AVISO]) para rastrear o processamento de componentes e conectores.
-Legenda Interativa: Mostra uma legenda com as cores associadas a componentes, portas e conectores.
+This document describes the current state of the **v1.1** workspace, how the SysADL → JavaScript pipeline works, how the browser visualizer renders architectures, and which gaps or caveats still exist. It replaces the previous Portuguese draft so the whole team can rely on a single, up‑to‑date reference.
 
-Arquivos Responsáveis
+---
 
-index.html:
+## 1. Project Overview
 
-Contém a estrutura HTML da interface, incluindo o editor de código, botões de transformação e visualização, e o painel de log.
-Integra app.js e carrega dependências como vis-network.
+The workspace provides a client–server toolchain that transforms SysADL models into executable JavaScript and then visualises the resulting architecture.
+
+* **Transformation** happens on the Node.js backend (`server-node.js`, `transformer.js`, `sysadl-parser.js`, `sysadl.peg`). Each POST to `/api/transform` writes the SysADL source to a temp file, runs the transformer, and returns the generated JS plus metadata.
+* **Simulation** is handled in the browser through `simulator.js` (which re‑uses the CommonJS prelude to execute the generated code).
+* **Visualisation** occurs entirely on the client. `visualizer.js` evaluates the generated bundle, instantiates the `SysADLModel`, and uses `vis-network` to render components, ports, and connectors.
+
+All UX is orchestrated by `app.js` and `index.html`, with presentation controlled by `styles.css`.
+
+---
+
+## 2. Key Files and Responsibilities
+
+| File | Purpose |
+| --- | --- |
+| `index.html` | Static shell: Monaco editors, toolbar, log window, legend, and the architecture canvas. |
+| `styles.css` | “SysADL Studio” inspired light theme covering panels, buttons, Monaco overrides, and the visualisation container. |
+| `app.js` | Front-end controller. Loads Monaco, calls the `/api/transform` endpoint, triggers visualisation, runs simulations, and mirrors log messages to the UI. |
+| `visualizer.js` | Creates the dynamic model, extracts nodes/edges, pins ports to component borders, enforces connector direction, and instantiates the `vis-network` canvas. |
+| `sysadl-framework/SysADLBase.js` | Browser-friendly runtime used by the generated models. The recent changes record `boundParticipants` so the visualiser can locate concrete source/target ports. |
+| `generated/` | Output from the transformation step (e.g. `Simple.js`, `SysADLModel.js`). Helpful when debugging binding metadata. |
+| `server-node.js` | Minimal HTTP server that proxies transformation requests to `transformer.js` and serves static assets. |
+
+---
+
+## 3. Transformation & Visualisation Flow
+
+1. **Author SysADL** in the left Monaco editor.
+2. **Transform ▶** triggers `transformSysADLToJS` in `app.js`, which POSTs to `/api/transform`.
+3. The Node.js server runs `transformer.js`, deposits JS in `generated/`, and responds with the JS text plus metadata (chosen file path, LOC, timestamps).
+4. The generated JS is stored in the right Monaco editor and can be downloaded or copied.
+5. **Visualize Architecture** calls `renderVisualization('architectureViz', js, logEl)`.
+6. `visualizer.js`:
+   - Strips `"use strict"` directives, evaluates the bundle, and invokes `createModel()`.
+   - Walks the model tree, creating nodes for components and ports and capturing per-component port groups.
+   - Uses `boundParticipants` (and participant schema fallbacks) to reconstruct connector flows.
+   - Forces all edges to run from **output** to **input** ports; when bindings arrive inverted, the edge endpoints are swapped.
+   - Lays components out **horizontally by level** (root → right) and pins ports directly against the component rectangles so the graph resembles SysADL Studio diagrams.
+   - Registers hooks for `afterDrawing`, `zoom`, `dragEnd`, and `resize` to keep ports attached to component edges as the user interacts with the canvas.
+
+7. The log panel mirrors key events (`[INFO]`, `[WARN]`, `[ERROR]`) to help diagnose malformed models or transformation failures.
+
+---
+
+## 4. Current Visualisation Behaviour
+
+* **Component layout:** Deterministic, left‑to‑right. Each nesting level increases the x coordinate; siblings are vertically spaced for readability.
+* **Port docking:** Input ports appear on the **left edge**, output ports on the **right edge**, and any port without direction (rare) sits below the component. Docking recomputes after stabilisation, zoom, drag, or resize.
+* **Edges:** Straight segments with arrowheads, centred labels, and consistent colours. Connectors now reliably map to their bound ports (no more null endpoints).
+* **Legend:** Updated to reflect the new palette (root vs nested component, input vs output ports, connector legend).
+* **Theme:** The entire UI, including Monaco editors, adopts the SysADL Studio inspired light look; the architecture canvas has no internal padding so the network can use the full area.
+
+---
+
+## 5. Known Limitations & Open Items
+
+1. **Runtime assumptions:** Port docking depends on the component bounding box returned by `vis-network`. Extreme zoom levels or manual coordinate edits could introduce slight misalignment; if more precision is required we may add explicit node dimensions or custom shapes.
+2. **Composite/other ports:** Ports without direction fall to the bottom edge; if the metamodel introduces special categories we may need additional orientation rules.
+3. **Generated metadata:** The transformer doesn’t always emit everything we’d like (e.g. some participant schemas still mark both roles as `direction: 'out'`). The visualiser compensates, but improving the generator would simplify the code.
+4. **Testing coverage:** Manual verification has been performed with `generated/Simple.js` and `generated/SysADLModel.js`, but there is no automated regression suite. Consider adding snapshot or DOM-based tests for the visualiser.
+5. **Internationalisation:** Logs from the legacy runtime (`SysADLBase.js`) are still partially localised; the UI and documentation are now fully in English, but we haven’t homogenised every console string in the runtime.
+
+---
+
+## 6. Running the Project Locally
+
+1. Install dependencies (Node.js 18+ recommended):
+   ```bash
+   npm install
+   ```
+   (Only packages listed in `package.json` are required; most assets are fetched from CDNs.)
+
+2. Start the Node.js server from `v1.1`:
+   ```bash
+   node server-node.js
+   ```
+   The server listens on `http://localhost:3000`, serves static assets from the directory, and exposes `/api/transform`.
+
+3. Open `http://localhost:3000` in a modern browser (Chrome, Edge, Firefox).
+
+4. Optional: inspect logs in the terminal to monitor transformation requests or errors returned by `transformer.js`.
+
+---
+
+## 7. Troubleshooting Checklist
+
+| Symptom | Possible Cause | Suggested Fix |
+| --- | --- | --- |
+| “Transformation error” banner | `transformer.js` threw or returned `success: false`. | Inspect `generated/` for stale files and check the server console for the stderr dump. |
+| Architecture canvas stays blank | Generated JS failed to evaluate or `createModel` threw. | Check the log panel for `[ERROR] Failed to evaluate/generated model` entries. |
+| Ports appear misaligned | Canvas not fully stabilised, or zoom ended mid-frame. | Allow one extra redraw (the hooks normally handle this); as a fallback, trigger a slight zoom in/out. |
+| Connectors missing | Model lacks `boundParticipants`, or participant schema is empty. | Verify the connector metadata in the generated file; if absent, the generator must be updated. |
+
+---
+
+## 8. Future Improvements
+
+* Add automated tests that load the generated JS in a headless DOM and assert the number/type of rendered nodes.
+* Surface connector metadata (activity name, data type) in a side panel or tooltip summary, similar to SysADL Studio.
+* Offer export options (PNG/SVG) for the rendered graph.
+* Provide multi-language support if Portuguese UI needs to be restored.
+
+---
+
+### Revision History
+
+| Date | Summary |
+| --- | --- |
+| 2025‑10‑28 | Layout overhauled, ports docked to component edges, connector direction enforced. |
+| 2025‑10‑27 | Legendary redesign, English UI strings, initial connector binding fixes. |
 
 
-app.js:
-
-Gerencia a interação do usuário (ex.: clique em "Transform ▶" e "Visualizar Arquitetura").
-Faz requisições ao servidor Node.js (http://localhost:3000/api/transform) e chama renderVisualization do visualizer.js.
-
-
-visualizer.js:
-
-Responsável por criar o modelo dinâmico a partir do código JavaScript gerado.
-Extrai dados de arquitetura (nós e arestas) e renderiza o grafo com vis-network.
-Implementa a lógica para mapear componentes, portas e conectores, incluindo o uso de bindings para conectar portas.
-
-
-sysadl-framework/SysADLBase.js:
-
-Define as classes base (Component, Port, Connector, etc.) usadas pelo modelo gerado (ex.: CP_Elements_SensorCP, CN_Elements_FarToCelCN).
-
-
-sysadl-parser.js e sysadl-transformer:
-
-Processam o código SysADL e geram o JavaScript correspondente (ex.: Simple.js).
-
-
-simulator.js e sysadl-monaco.js:
-
-Suportam simulação e edição de código SysADL, respectivamente, mas não estão diretamente envolvidos na visualização.
-
-
-
-Pontos Não Funcionando Corretamente
-
-Conectores Não Aparecem na Visualização:
-
-Os conectores (c1, c2, c3) no modelo Simple não são renderizados como arestas no grafo.
-Log atual: [AVISO] Conector com informações incompletas: c1, from: null.source, to: null.target, indicando falha no mapeamento das portas.
-Causa: O método bind (ex.: c1.bind(this.getPort("temp1"), this.SystemCP.tempMon.getPort("s1"))) usa portas como temp1, que não estão definidas como nós independentes, e os bindings não estão sendo capturados corretamente pelo visualizer.js.
-
-
-Arestas Limitadas:
-
-A visualização mostra apenas 6 arestas (provavelmente ligações tracejadas entre componentes e portas), enquanto o esperado são 9 arestas (6 tracejadas + 3 para conectores).
-Isso sugere que a extração de flowSchema e participantSchema não está traduzindo os bindings em conexões visíveis.
-
-
-Mapeamento de Portas Incorreto:
-
-As portas referenciadas em bind (ex.: temp1, temp2, avg) não correspondem às portas reais dos subcomponentes (ex.: s1.current, tempMon.s1), causando falha na associação.
-O findComponentByPortRole não está interpretando corretamente as associações de bind, resultando em fromCompName e toCompName como null.
-
-
-Compatibilidade com Outros Modelos:
-
-Embora o sistema deva suportar modelos como AGV-completo.sysadl e RTC.sysadl, a falha no mapeamento de bindings pode afetar a visualização em outros contextos, dependendo da estrutura dos conectores.
-
-
-
-Ações Recomendadas
-
-Depuração de bindings:
-
-Verificar no console se model.components.SystemCP.connectors.c1.bindings contém os mapeamentos esperados (ex.: { f: { owner: 's1', port: { name: 'current' } }, c: { owner: 'tempMon', port: { name: 's1' } } }).
-Se vazio, investigar se o SysADLBase.js está atualizando corretamente os bindings após bind.
-
-
-Ajuste no visualizer.js:
-
-Melhorar findComponentByPortRole para rastrear dinamicamente as portas associadas via bind, possivelmente analisando o histórico de chamadas no construtor de SysADLModel.
-
-
-Validação com SysADL:
-
-Compartilhar o código SysADL do Simple para confirmar a definição dos conectores (ex.: connector c1 (s1.current -> tempMon.s1)), ajudando a alinhar o mapeamento.
-
-
-Testes Adicionais:
-
-Testar com um modelo simples (ex.: connector w1 (s1.out -> d1.in)) para isolar o problema.
-Verificar a renderização de conectores em AGV-completo.sysadl ou RTC.sysadl após correção.
-
-
-
-Contato
-Para suporte ou atualizações, consulte os logs ou compartilhe feedback com os desenvolvedores.
-Última atualização: 09:30 AM -03, Segunda-feira, 20 de Outubro de 2025

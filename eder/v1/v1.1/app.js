@@ -1,5 +1,5 @@
-// App simplificado para usar servidor Node.js
-// Elimina necessidade de wrappers e compatibilidade browser
+// Simplified app that relies on the Node.js server
+// Removes browser wrapper requirements
 
 import { parse as sysadlParse, SyntaxError as SysADLSyntaxError } from './sysadl-parser.js';
 import { registerSysADLLanguage } from './sysadl-monaco.js';
@@ -69,10 +69,10 @@ monacoReady.then(() => {
   console.log('Monaco loaded, creating editors...');
   
   try {
-    // Editor SysADL (primeira janela)
+    // SysADL editor (left pane)
     editor = monaco.editor.create(els.editor, {
-      value: `// Cole um modelo SysADL aqui e clique em Transformar ▶
-// Exemplo simples:
+      value: `// Paste a SysADL model here and click Transform ▶
+// Simple example:
 model Sample
 configuration {
   component Sensor s1;
@@ -90,9 +90,9 @@ configuration {
       quickSuggestions: { other: true, comments: false, strings: false }
     });
     
-    // Editor JavaScript (segunda janela - read-only)
+    // Generated JavaScript editor (read-only)
     codeEditor = monaco.editor.create(els.codeEditor, {
-      value: '// Código JavaScript gerado aparecerá aqui após a transformação',
+      value: '// Generated JavaScript will appear here after the transformation',
       language: 'javascript',
       theme: 'vs-dark',
       automaticLayout: true,
@@ -120,7 +120,7 @@ configuration {
 
 // Fallback editor
 function createFallbackEditor() {
-  // SysADL Editor
+  // SysADL editor (fallback)
   const fallbackTextarea = document.createElement('textarea');
   fallbackTextarea.id = 'fallback-editor';
   fallbackTextarea.style.cssText = `
@@ -138,7 +138,7 @@ configuration {
   
   els.editor.appendChild(fallbackTextarea);
   
-  // Code Editor (read-only)
+  // Generated code editor (read-only)
   const fallbackCodeArea = document.createElement('textarea');
   fallbackCodeArea.id = 'fallback-code-editor';
   fallbackCodeArea.style.cssText = `
@@ -147,7 +147,7 @@ configuration {
     font-size: 14px; background: #1e1e1e; color: #d4d4d4;
     border: 1px solid #3c3c3c; padding: 10px; resize: none;
   `;
-  fallbackCodeArea.value = '// Código JavaScript gerado aparecerá aqui após a transformação';
+  fallbackCodeArea.value = '// Generated JavaScript will appear here after the transformation';
   fallbackCodeArea.readOnly = true;
   
   els.codeEditor.appendChild(fallbackCodeArea);
@@ -165,14 +165,14 @@ configuration {
   console.log('✅ Fallback editors created');
 }
 
-// 4) Função de transformação usando servidor Node.js
+// 4) Transform SysADL using the Node.js server
 async function transformSysADLToJS(source) {
   els.parseErr.textContent = '';
   
   try {
-    console.log('🔄 Enviando código para servidor Node.js...');
+    console.log('🔄 Sending SysADL code to the Node.js server...');
     
-    // Fazer requisição para o servidor Node.js
+    // Request transformation from the Node.js server
     const response = await fetch('/api/transform', {
       method: 'POST',
       headers: {
@@ -188,28 +188,28 @@ async function transformSysADLToJS(source) {
     });
     
     if (!response.ok) {
-      throw new Error(`Erro HTTP: ${response.status}`);
+      throw new Error(`HTTP error: ${response.status}`);
     }
     
     const result = await response.json();
     
     if (!result.success) {
-      throw new Error(result.error || 'Erro desconhecido na transformação');
+      throw new Error(result.error || 'Unknown transformation error');
     }
     
-    console.log('✅ Transformação concluída pelo servidor');
+    console.log('✅ Transformation completed by the server');
     console.log('📊 Metadata:', result.metadata);
     
     return result.javascript;
     
   } catch (error) {
-    console.error('❌ Erro na transformação:', error);
-    els.parseErr.textContent = `Erro na transformação: ${error.message}`;
+    console.error('❌ Transformation error:', error);
+    els.parseErr.textContent = `Transformation error: ${error.message}`;
     throw error;
   }
 }
 
-// 5) Utilitários
+// 5) Utilities
 function saveAs(filename, content) {
   const blob = new Blob([content], {type:'text/plain;charset=utf-8'});
   const url = URL.createObjectURL(blob);
@@ -225,10 +225,10 @@ function cjsPrelude() {
     'var exports = module.exports;',
     'function require(p){',
     "  if (p && String(p).includes('SysADLBase')) {",
-    "    if (!window.SysADLBase) { console.error('window.SysADLBase não disponível!'); return {}; }",
+    "    if (!window.SysADLBase) { console.error('window.SysADLBase is not available!'); return {}; }",
     "    return window.SysADLBase;",
     "  }",
-    "  throw new Error('require não suportado no browser: '+p);",
+    "  throw new Error('require is not supported in the browser: '+p);",
     '}'
   ].join('\n');
 }
@@ -237,7 +237,7 @@ function cjsReturn() {
   return '\n;module.exports';
 }
 
-// 6) Execução de simulação
+// 6) Simulation execution
 function runSimulation(generatedCode, { trace=false, loops=1, params={} }={}) {
   const prelude = cjsPrelude();
   const suffix = cjsReturn();
@@ -255,39 +255,39 @@ function runSimulation(generatedCode, { trace=false, loops=1, params={} }={}) {
     els.log.textContent += output + '\n';
     els.log.scrollTop = els.log.scrollHeight;
   } catch(err) {
-    els.log.textContent += '\n[ERRO] ' + err.message + '\n';
+    els.log.textContent += `\n[ERROR] ${err.message}\n`;
     console.error(err);
   }
 }
 
 // 7) Event Handlers
 els.btnTransform.addEventListener('click', async () => {
-  console.log('🔄 Botão Transformar clicado');
+  console.log('🔄 Transform button clicked');
   els.log.textContent = '';
   const src = editor.getValue();
   
   try {
     const js = await transformSysADLToJS(src);
     codeEditor.setValue(js);
-    console.log('✅ Transformação realizada com sucesso');
+    console.log('✅ Transformation completed successfully');
   } catch (err) {
-    if (!codeEditor.getValue() || codeEditor.getValue().trim() === '// Código JavaScript gerado aparecerá aqui após a transformação') {
-      codeEditor.setValue('// Erro na transformação (veja detalhes acima).');
+    if (!codeEditor.getValue() || codeEditor.getValue().trim() === '// Generated JavaScript will appear here after the transformation') {
+      codeEditor.setValue('// Transformation failed (see details above).');
     }
-    console.error('❌ Erro na transformação:', err);
+    console.error('❌ Transformation error:', err);
   }
 });
 
 els.btnVisualize.addEventListener('click', () => {
-  console.log('🔍 Botão Visualizar Arquitetura clicado');
+  console.log('🔍 Visualize architecture button clicked');
   const js = codeEditor.getValue().trim();
-  if (!js || js === '// Código JavaScript gerado aparecerá aqui após a transformação') {
-    els.log.textContent += '[AVISO] Gere o JS primeiro (Transformar ▶).\n';
+  if (!js || js === '// Generated JavaScript will appear here after the transformation') {
+    els.log.textContent += '[WARN] Generate the JS first (Transform ▶).\n';
     return;
   }
   if (!els.architectureViz) {
-    console.warn('Contêiner de visualização não encontrado');
-    els.log.textContent += '[ERRO] Contêiner de visualização não encontrado\n';
+    console.warn('Visualization container not found');
+    els.log.textContent += '[ERROR] Visualization container not found\n';
     return;
   }
   renderVisualization('architectureViz', js, els.log);
@@ -295,12 +295,12 @@ els.btnVisualize.addEventListener('click', () => {
 
 els.btnRun.addEventListener('click', async () => {
   const js = codeEditor.getValue().trim();
-  if (!js || js === '// Código JavaScript gerado aparecerá aqui após a transformação') {
-    els.log.textContent += '[AVISO] Gere o JS primeiro (Transformar ▶).\n';
+  if (!js || js === '// Generated JavaScript will appear here after the transformation') {
+    els.log.textContent += '[WARN] Generate the JS first (Transform ▶).\n';
     return;
   }
   if (!window.SysADLBase) {
-    els.log.textContent += '[ERRO] SysADLBase não disponível!\n';
+    els.log.textContent += '[ERROR] window.SysADLBase not available!\n';
     return;
   }
   
@@ -312,9 +312,9 @@ els.btnRun.addEventListener('click', async () => {
   if (paramsText) {
     try {
       params = JSON.parse(paramsText);
-      els.log.textContent += `[INFO] Parâmetros carregados: ${Object.keys(params).length} valores\n`;
+      els.log.textContent += `[INFO] Parameters loaded: ${Object.keys(params).length} entries\n`;
     } catch (error) {
-      els.log.textContent += `[ERRO] Parâmetros JSON inválidos: ${error.message}\n`;
+      els.log.textContent += `[ERROR] Invalid JSON parameters: ${error.message}\n`;
       return;
     }
   }
@@ -327,7 +327,7 @@ els.copyArch.addEventListener('click', async () => {
 });
 
 els.saveArch.addEventListener('click', () => 
-  saveAs('arquitetura_gerada.js', codeEditor.getValue())
+  saveAs('generated_architecture.js', codeEditor.getValue())
 );
 
 els.clearLog.addEventListener('click', () => { 
@@ -363,7 +363,7 @@ els.btnExample.addEventListener('click', async () => {
         if (textarea) textarea.value = exampleCode;
       }
     } else {
-      throw new Error('Arquivo não encontrado');
+      throw new Error('File not found');
     }
   } catch (error) {
     console.error('Failed to load example:', error);
@@ -383,4 +383,4 @@ configuration {
   }
 });
 
-console.log('✅ App carregado - usando servidor Node.js para transformações');
+console.log('✅ App ready - using Node.js server for transformations');
