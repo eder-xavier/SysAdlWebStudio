@@ -3465,9 +3465,33 @@ function generateEnvironmentModule(modelName, environmentElements, traditionalEl
     lines.push(`  }`);
     lines.push(``);
     
-    // Generate explicit JavaScript execute() method
-    lines.push(`  async execute(context) {`);
+    // Generate explicit JavaScript start() method that overrides base class
+    lines.push(`  start() {`);
+    lines.push(`    // Build execution context`);
+    lines.push(`    const context = this.buildExecutionContext();`);
+    lines.push(``);
+    lines.push(`    // Execute scenario logic asynchronously`);
+    lines.push(`    this.executeAsync(context).catch(error => {`);
+    lines.push(`      if (this.model?.logger) {`);
+    lines.push(`        this.model.logger.logExecution({`);
+    lines.push(`          type: 'scenario.execution.failed',`);
+    lines.push(`          name: this.name,`);
+    lines.push(`          context: { error: error.message, stack: error.stack }`);
+    lines.push(`        });`);
+    lines.push(`      }`);
+    lines.push(`      console.error('[ERROR] Scenario execution failed:', error);`);
+    lines.push(`    });`);
+    lines.push(``);
+    lines.push(`    // Return true immediately to indicate execution started`);
+    lines.push(`    return true;`);
+    lines.push(`  }`);
+    lines.push(``);
+    lines.push(`  async executeAsync(context) {`);
+    lines.push(`    try {`);
     lines.push(generateExplicitScenarioExecution(executionData));
+    lines.push(`    } catch (error) {`);
+    lines.push(`      throw error;`);
+    lines.push(`    }`);
     lines.push(`  }`);
     lines.push(`}`);
     lines.push('');
@@ -4334,7 +4358,29 @@ function generateJavaScriptScenarioExecution(programmingStructures) {
             const sceneName = bodyItem.name;
             if (sceneName) {
               if (sceneName.includes('SCN_')) {
+                const sanitizedSceneName = sanitizeId(sceneName);
+                functionBody.push(`      // Execute scene with logging`);
+                functionBody.push(`      if (context.model?.logger) {`);
+                functionBody.push(`        context.model.logger.logExecution({`);
+                functionBody.push(`          type: 'scene.execution.started',`);
+                functionBody.push(`          name: '${sceneName}',`);
+                functionBody.push(`          context: { withinLoop: true, scenario: this.name }`);
+                functionBody.push(`        });`);
+                functionBody.push(`      }`);
+                functionBody.push(`      const sceneStartTime_${sanitizedSceneName} = Date.now();`);
                 functionBody.push(`      await this.executeScene('${sceneName}', context);`);
+                functionBody.push(`      if (context.model?.logger) {`);
+                functionBody.push(`        context.model.logger.logExecution({`);
+                functionBody.push(`          type: 'scene.execution.completed',`);
+                functionBody.push(`          name: '${sceneName}',`);
+                functionBody.push(`          context: { withinLoop: true, scenario: this.name },`);
+                functionBody.push(`          metrics: { duration: Date.now() - sceneStartTime_${sanitizedSceneName} }`);
+                functionBody.push(`        });`);
+                functionBody.push(`      }`);
+                functionBody.push(`      // Notify EventScheduler about scene completion`);
+                functionBody.push(`      if (context.eventScheduler?.notifyScenarioCompleted) {`);
+                functionBody.push(`        context.eventScheduler.notifyScenarioCompleted('${sceneName}');`);
+                functionBody.push(`      }`);
               } else {
                 functionBody.push(`      await this.executeScenario('${sceneName}', context);`);
               }
@@ -4355,7 +4401,28 @@ function generateJavaScriptScenarioExecution(programmingStructures) {
         const refName = structure.name;
         if (refName) {
           if (refName.includes('SCN_')) {
+            functionBody.push(`    // Execute scene with logging`);
+            functionBody.push(`    if (context.model?.logger) {`);
+            functionBody.push(`      context.model.logger.logExecution({`);
+            functionBody.push(`        type: 'scene.execution.started',`);
+            functionBody.push(`        name: '${refName}',`);
+            functionBody.push(`        context: { scenario: this.name }`);
+            functionBody.push(`      });`);
+            functionBody.push(`    }`);
+            functionBody.push(`    const sceneStartTime_${sanitizeId(refName)} = Date.now();`);
             functionBody.push(`    await this.executeScene('${refName}', context);`);
+            functionBody.push(`    if (context.model?.logger) {`);
+            functionBody.push(`      context.model.logger.logExecution({`);
+            functionBody.push(`        type: 'scene.execution.completed',`);
+            functionBody.push(`        name: '${refName}',`);
+            functionBody.push(`        context: { scenario: this.name },`);
+            functionBody.push(`        metrics: { duration: Date.now() - sceneStartTime_${sanitizeId(refName)} }`);
+            functionBody.push(`      });`);
+            functionBody.push(`    }`);
+            functionBody.push(`    // Notify EventScheduler about scene completion`);
+            functionBody.push(`    if (context.eventScheduler?.notifyScenarioCompleted) {`);
+            functionBody.push(`      context.eventScheduler.notifyScenarioCompleted('${refName}');`);
+            functionBody.push(`    }`);
           } else {
             functionBody.push(`    await this.executeScenario('${refName}', context);`);
           }
@@ -4433,6 +4500,18 @@ function generateExplicitScenarioExecution(executionData) {
   functionBody.push(`    }`);
   functionBody.push(``);
   
+  // Log scenario execution start
+  functionBody.push(`    // Log scenario execution start`);
+  functionBody.push(`    if (context.model?.logger) {`);
+  functionBody.push(`      context.model.logger.logExecution({`);
+  functionBody.push(`        type: 'scenario.execution.started',`);
+  functionBody.push(`        name: this.name,`);
+  functionBody.push(`        context: { executionMode: '${executionData.executionMode || 'sequential'}' }`);
+  functionBody.push(`      });`);
+  functionBody.push(`    }`);
+  functionBody.push(`    const executionStartTime = Date.now();`);
+  functionBody.push(``);
+  
   // 1. State initialization (explicit JavaScript)
   if (executionData.stateInitializations && executionData.stateInitializations.length > 0) {
     functionBody.push(`    // Initialize environment state`);
@@ -4440,8 +4519,10 @@ function generateExplicitScenarioExecution(executionData) {
       if (init.type === 'assignment' && init.target && init.value) {
         const pathParts = init.target.split('.');
         if (pathParts.length === 2) {
-          // Direct entity property assignment like agv1.location
-          functionBody.push(`    this.sysadlBase.environmentConfig.${init.target} = '${init.value}';`);
+          // Direct entity property assignment like agv1.location via model
+          functionBody.push(`    if (context.model?.environmentConfig) {`);
+          functionBody.push(`      context.model.environmentConfig.${init.target} = '${init.value}';`);
+          functionBody.push(`    }`);
         }
       }
     }
@@ -4459,14 +4540,32 @@ function generateExplicitScenarioExecution(executionData) {
         // Generate corresponding implementation
         if (injection.type === 'single' && injection.eventName) {
           if (injection.timing && injection.timing.type === 'after' && injection.timing.scenario) {
-            functionBody.push(`    context.eventScheduler.scheduleAfterScenario('${injection.eventName}', '${injection.timing.scenario}');`);
+            functionBody.push(`    if (context.eventScheduler) {`);
+            functionBody.push(`      context.eventScheduler.scheduleAfterScenario('${injection.eventName}', '${injection.timing.scenario}');`);
+            functionBody.push(`    }`);
           } else if (injection.timing && injection.timing.type === 'condition' && injection.timing.expression) {
-            functionBody.push(`    context.eventScheduler.scheduleOnCondition('${injection.eventName}', () => this.sysadlBase.environmentConfig.${injection.timing.expression});`);
+            // Transform expression to access environmentConfig properties
+            // Example: "agv1.location == stationA.ID" becomes 
+            // "context.model?.environmentConfig?.agv1?.location == context.model?.environmentConfig?.stationA?.ID"
+            let transformedExpr = injection.timing.expression;
+            
+            // Match entity property references (e.g., agv1.location, stationA.ID)
+            transformedExpr = transformedExpr.replace(/(\w+)\.(\w+)/g, 
+              (match, entity, property) => `context.model?.environmentConfig?.${entity}?.${property}`
+            );
+            
+            functionBody.push(`    if (context.eventScheduler) {`);
+            functionBody.push(`      context.eventScheduler.scheduleOnCondition('${injection.eventName}', () => ${transformedExpr});`);
+            functionBody.push(`    }`);
           } else if (injection.timing && injection.timing.delay) {
             const delay = injection.timing.delay.replace(/s$/, '000'); // Convert 5s to 5000ms
-            functionBody.push(`    setTimeout(() => this.sysadlBase.eventInjector.injectEvent('${injection.eventName}'), ${delay});`);
+            functionBody.push(`    if (context.model?.eventInjector) {`);
+            functionBody.push(`      setTimeout(() => context.model.eventInjector.injectEvent('${injection.eventName}'), ${delay});`);
+            functionBody.push(`    }`);
           } else {
-            functionBody.push(`    await this.sysadlBase.eventInjector.injectEvent('${injection.eventName}');`);
+            functionBody.push(`    if (context.model?.eventInjector) {`);
+            functionBody.push(`      await context.model.eventInjector.injectEvent('${injection.eventName}');`);
+            functionBody.push(`    }`);
           }
         }
       }
@@ -4498,6 +4597,17 @@ function generateExplicitScenarioExecution(executionData) {
     functionBody.push(``);
   }
   
+  // Log scenario execution completion
+  functionBody.push(`    // Log scenario execution completion`);
+  functionBody.push(`    if (context.model?.logger) {`);
+  functionBody.push(`      context.model.logger.logExecution({`);
+  functionBody.push(`        type: 'scenario.execution.completed',`);
+  functionBody.push(`        name: this.name,`);
+  functionBody.push(`        context: { executionMode: '${executionData.executionMode || 'sequential'}' },`);
+  functionBody.push(`        metrics: { duration: Date.now() - executionStartTime }`);
+  functionBody.push(`      });`);
+  functionBody.push(`    }`);
+  functionBody.push(``);
   functionBody.push(`    return { success: true, message: 'Scenario execution completed successfully' };`);
   
   return functionBody.join('\n');

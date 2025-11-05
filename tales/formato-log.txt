@@ -1,0 +1,26 @@
+🔄 Hierarquia de Eventos Sugerida:
+
+scenario.started
+├── scenario.initializing
+├── scene.started
+│   ├── scene.preconditions.validating
+│   ├── scene.preconditions.validated
+│   ├── event.triggered
+│   │   ├── entity.property.changed
+│   │   ├── entity.role.updated
+│   │   └── connection.activated
+│   ├── scene.postconditions.validating
+│   ├── scene.postconditions.validated
+│   └── scene.completed
+├── scenario.progress
+└── scenario.completed
+
+
+{"seq":1,"when":"00:00.000","what":"scenario.started","who":"Scenario1","context":{"totalScenes":4}}
+{"seq":2,"when":"00:00.100","what":"scene.started","who":"SCN_MoveAGV1toA","context":{"startEvent":"cmdSupervisor","finishEvent":"AGV1NotifArriveA"}}
+{"seq":3,"when":"00:00.150","what":"scene.preconditions.validated","who":"SCN_MoveAGV1toA","context":{"checks":[{"test":"agv1.location == stationC.ID","passed":true}]}}
+{"seq":4,"when":"00:00.200","what":"entity.event.triggered","who":"supervisor","context":{"event":"cmdSupervisor","causedBy":"scene.start"}}
+{"seq":5,"when":"00:00.250","what":"entity.property.changed","who":"supervisor","context":{"property":"outCommand.destination","from":null,"to":"stationC","triggeredBy":"cmdSupervisor"}}
+{"seq":6,"when":"00:00.300","what":"connection.activated","who":"Command","context":{"from":"supervisor","to":"agv2","protocol":"outCommand→inCommand"}}
+{"seq":7,"when":"00:00.350","what":"entity.role.updated","who":"agv1","context":{"role":"outNotification","property":"notification","value":"traveling","associatedWith":"agvs.in_outDataAgv.outNotifications"}}
+{"seq":8,"when":"00:01.000","what":"scene.completed","who":"SCN_MoveAGV1toA","context":{"duration":"0.9s","result":"success","eventsProcessed":5}}

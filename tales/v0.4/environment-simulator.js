@@ -125,40 +125,25 @@ function listEnvironmentElements(model) {
   }
 }
 
-// Enhanced event logging for environment models
+// Enhanced event logging for environment models (now uses ExecutionLogger)
 function setupEnvironmentLogging(model) {
+  // Note: Event logging is now handled by ExecutionLogger with narrative format.
+  // This function is kept for compatibility but most logging happens through
+  // model.logger.logExecution() which outputs narrative logs to console and file.
+  
+  // If model still has legacy logEvent, we can intercept for debugging
   if (typeof model.logEvent === 'function') {
     const originalLogEvent = model.logEvent.bind(model);
     model.logEvent = function(event) {
-      // Enhanced formatting for environment/scenario events
-      if (event.elementType) {
-        switch (event.elementType) {
-          case 'scenario_execution_start':
-            console.log(`[SCENARIO] Started execution: ${event.execution}`);
-            break;
-          case 'scenario_execution_complete':
-            console.log(`[SCENARIO] Completed execution: ${event.execution}`);
-            break;
-          case 'scenario_execution_stopped':
-            console.log(`[SCENARIO] Stopped execution: ${event.execution}`);
-            break;
-          case 'entity_property_change':
-            console.log(`[ENTITY] ${event.entity}.${event.property} = ${event.value}`);
-            break;
-          case 'event_triggered':
-            console.log(`[EVENT] Triggered: ${event.event}`);
-            break;
-          case 'scene_activated':
-            console.log(`[SCENE] Activated: ${event.scene}`);
-            break;
-          case 'action_property_change':
-            console.log(`[BINDING] ${event.action}.${event.property} = ${event.value}`);
-            break;
-          default:
-            console.log(`[EVENT] ${event.elementType}:`, event);
-        }
-      } else {
-        console.log('[EVENT]', event);
+      // Legacy events are redirected to new logger if available
+      if (model.logger && model.logger.logExecution) {
+        // Convert legacy event format to narrative format
+        const narrativeEvent = {
+          type: event.elementType || 'unknown',
+          name: event.entity || event.execution || event.event || event.scene || event.action || 'unnamed',
+          context: event
+        };
+        model.logger.logExecution(narrativeEvent);
       }
       
       return originalLogEvent(event);
@@ -169,19 +154,19 @@ function setupEnvironmentLogging(model) {
 // Function to setup reactive monitoring system
 function setupReactiveMonitoring(model, options) {
   try {
-    console.log('\n🚀 Initializing Reactive Monitoring System...');
+    console.log('\n[START] Initializing Reactive Monitoring System...');
     
     // Initialize reactive system if model supports it
     if (model.conditionWatcher) {
-      console.log('✓ Model already has ReactiveConditionWatcher - enhanced monitoring active');
+      console.log('[OK] Model already has ReactiveConditionWatcher - enhanced monitoring active');
       
       // Setup automatic state change detection
       if (model.state && typeof model.state === 'object') {
-        console.log('✓ State monitoring enabled - tracking property changes');
+        console.log('[OK] State monitoring enabled - tracking property changes');
         
         // Monitor key state changes and log them
         const originalState = JSON.stringify(model.state, null, 2);
-        console.log('📊 Initial state snapshot:');
+        console.log('[INFO] Initial state snapshot:');
         console.log(originalState);
         
         // Set up periodic state monitoring if streaming
@@ -190,7 +175,7 @@ function setupReactiveMonitoring(model, options) {
           const stateMonitor = setInterval(() => {
             const currentStateString = JSON.stringify(model.state, null, 2);
             if (currentStateString !== lastStateString) {
-              console.log('\n🔄 State Change Detected:');
+              console.log('\n[CHANGE] State Change Detected:');
               console.log(currentStateString);
               lastStateString = currentStateString;
             }
@@ -203,18 +188,18 @@ function setupReactiveMonitoring(model, options) {
       
       // Display registered conditions if available
       if (model.conditionWatcher.conditions && model.conditionWatcher.conditions.size > 0) {
-        console.log(`✓ ${model.conditionWatcher.conditions.size} reactive conditions registered:`);
+        console.log(`[OK] ${model.conditionWatcher.conditions.size} reactive conditions registered:`);
         for (const [id, condition] of model.conditionWatcher.conditions) {
           console.log(`  - ${id}: "${condition.expression}"`);
         }
       }
     } else {
-      console.log('ℹ️  Model does not have ReactiveConditionWatcher - basic monitoring only');
+      console.log('[INFO] Model does not have ReactiveConditionWatcher - basic monitoring only');
     }
     
-    console.log('🎯 Reactive monitoring setup complete!\n');
+    console.log('[DONE] Reactive monitoring setup complete!\n');
   } catch (error) {
-    console.warn('⚠️  Error setting up reactive monitoring:', error.message);
+    console.warn('[WARN] Error setting up reactive monitoring:', error.message);
   }
 }
 
@@ -285,26 +270,26 @@ async function runSimulation() {
         if (options.scenario) {
           const scenarioName = options.scenario.split('=')[1];
           if (model.scenarioExecutions[scenarioName]) {
-            console.log(`Starting scenario execution: ${scenarioName}`);
+            console.log(`[START] Starting scenario execution: ${scenarioName}`);
             try {
               const success = model.startScenarioExecution(scenarioName);
               if (success) {
-                console.log(`✓ Scenario execution '${scenarioName}' started successfully`);
+                console.log(`[OK] Scenario execution '${scenarioName}' started successfully`);
               } else {
-                console.log(`✗ Failed to start scenario execution '${scenarioName}'`);
+                console.log(`[ERROR] Failed to start scenario execution '${scenarioName}'`);
               }
             } catch (error) {
-              console.error(`Error starting scenario execution: ${error.message}`);
+              console.error(`[ERROR] Error starting scenario execution: ${error.message}`);
             }
           } else {
-            console.log(`Scenario execution '${scenarioName}' not found`);
-            console.log(`Available executions: ${executions.join(', ')}`);
+            console.log(`[WARN] Scenario execution '${scenarioName}' not found`);
+            console.log(`[INFO] Available executions: ${executions.join(', ')}`);
           }
         } else {
-          console.log('Available scenario executions:');
+          console.log('[INFO] Available scenario executions:');
           executions.forEach(name => console.log(`  - ${name}`));
           console.log('');
-          console.log('To start a scenario execution, use: --scenario=NAME');
+          console.log('[INFO] To start a scenario execution, use: --scenario=NAME');
         }
       }
     }
@@ -430,30 +415,31 @@ async function runSimulation() {
       
       // Clean up timers and exit automatically for non-interactive mode
       setTimeout(() => {
-        console.log('\n🔄 Cleaning up and exiting...');
+        console.log('\n[INFO] Cleaning up and exiting...');
         
         // Clear state monitoring interval if exists
         if (model._stateMonitor) {
           clearInterval(model._stateMonitor);
-          console.log('✓ State monitor cleaned up');
+          console.log('[OK] State monitor cleaned up');
         }
         
         // Clear ExecutionLogger flush interval if exists
-        if (model.executionLogger && model.executionLogger.flushInterval) {
-          clearInterval(model.executionLogger.flushInterval);
-          console.log('✓ ExecutionLogger flush timer cleaned up');
+        if (model.logger && model.logger.flushInterval) {
+          clearInterval(model.logger.flushInterval);
+          console.log('[OK] ExecutionLogger flush timer cleaned up');
         }
         
         // Final flush of any pending logs
-        if (model.executionLogger && model.executionLogger.flush) {
+        if (model.logger && model.logger.flush) {
           try {
-            model.executionLogger.flush();
+            model.logger.flush();
+            console.log('[OK] Final log flush completed');
           } catch (e) {
-            // Silent fail on flush
+            console.log('[WARN] Could not flush logs:', e.message);
           }
         }
         
-        console.log('✓ Simulation completed - exiting gracefully');
+        console.log('[DONE] Simulation completed - exiting gracefully');
         process.exit(0);
       }, 1000); // Wait 1 second for any final operations
     }

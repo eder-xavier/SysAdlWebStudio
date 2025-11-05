@@ -15,12 +15,14 @@
 
 const fs = require('fs').promises;
 const path = require('path');
+const { LOG_PREFIXES, getConsolePrefix, formatConsoleMessage } = require('./LoggingConstants');
 
 class ExecutionLogger {
   constructor(modelName, options = {}) {
     this.modelName = modelName;
     this.sessionId = this.generateSessionId();
     this.startTime = Date.now();
+    this.sequenceCounter = 0;
     
     // Configuration
     this.config = {
@@ -56,7 +58,7 @@ class ExecutionLogger {
     // Initialize logging
     this.initializeLogging();
 
-    console.log(`📊 ExecutionLogger initialized for model: ${modelName}`);
+    console.log(`${LOG_PREFIXES.START} ExecutionLogger initialized for model: ${modelName}`);
     console.log(`   Session ID: ${this.sessionId}`);
     console.log(`   Log level: ${this.config.logLevel}`);
   }
@@ -94,60 +96,185 @@ class ExecutionLogger {
   }
 
   /**
-   * Log execution of any SysADL element
+   * Format relative time in mm:ss.SSS format
+   */
+  formatRelativeTime(timestamp) {
+    const elapsed = timestamp - this.startTime;
+    const minutes = Math.floor(elapsed / 60000);
+    const seconds = Math.floor((elapsed % 60000) / 1000);
+    const ms = elapsed % 1000;
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
+  }
+
+  /**
+   * Determine detail level for event type
+   * Hybrid approach: verbose for structural events, compact for others
+   */
+  getDetailLevel(elementType) {
+    if (!elementType) return 'compact';
+    
+    const verboseTypes = [
+      'scenario.started', 'scenario.completed', 'scenario.execution',
+      'scene.completed',
+      'preconditions.validated', 'postconditions.validated',
+      'validation', 'error', 'warning'
+    ];
+    
+    return verboseTypes.some(type => elementType.includes(type)) ? 'verbose' : 'compact';
+  }
+
+  /**
+   * Generate human-readable summary from event data
+   */
+  generateSummary(elementType, elementName, context) {
+    if (!elementType) return `${elementName || 'Event'}`;
+    
+    const templates = {
+      'scenario.started': (name) => `Starting scenario: ${name}`,
+      'scenario.completed': (name, ctx) => `Scenario ${name} completed ${ctx?.result || 'successfully'}`,
+      'scenario.execution.started': (name) => `Starting scenario execution: ${name}`,
+      'scenario.execution.completed': (name) => `Scenario execution ${name} completed`,
+      
+      'scene.started': (name) => `Executing scene: ${name}`,
+      'scene.completed': (name, ctx) => `Scene ${name} completed in ${ctx?.duration || '?'}ms`,
+      'scene.preconditions.validated': (name, ctx) => `Scene ${name} pre-conditions ${ctx?.result || 'validated'}`,
+      'scene.postconditions.validated': (name, ctx) => `Scene ${name} post-conditions ${ctx?.result || 'validated'}`,
+      
+      'entity.property.changed': (name, ctx) => 
+        `${name} changed ${ctx?.property || 'property'} to ${ctx?.to !== undefined ? ctx.to : '?'}`,
+      'entity.role.updated': (name, ctx) => 
+        `${name} updated role ${ctx?.role || 'role'} to ${ctx?.value !== undefined ? ctx.value : '?'}`,
+      
+      'event.triggered': (name, ctx) => 
+        `Event ${ctx?.event || name} triggered${ctx?.entity ? ` on ${ctx.entity}` : ''}`,
+      'event.completed': (name) => `Event ${name} completed`,
+      'event.injected': (name, ctx) => 
+        ctx?.injectionType === 'when' 
+          ? `Event ${name} injected by reactive condition`
+          : `Event ${name} injected after ${ctx?.afterScene || 'scene'}`,
+      'event.injection.registered': (name, ctx) => 
+        `Registered event injection: ${name} ${ctx?.injectionType || ''}`,
+      
+      'connection.activated': (name, ctx) => 
+        `Connection ${name}: ${ctx?.from || '?'} → ${ctx?.to || '?'}`,
+      
+      'environment.initialized': (name, ctx) => 
+        `Environment ${name} initialized with ${ctx?.entities || 0} entities`
+    };
+    
+    const template = templates[elementType];
+    return template ? template(elementName, context) : `${elementType}: ${elementName}`;
+  }
+
+  /**
+   * Compact context for non-verbose events
+   */
+  compactContext(context) {
+    if (!context || typeof context !== 'object') return context;
+    
+    // Keep only essential fields
+    const essential = {};
+    const essentialFields = [
+      'property', 'from', 'to', 'value',
+      'event', 'entity', 'role',
+      'result', 'duration',
+      'injectionType', 'afterScene', 'condition'
+    ];
+    
+    for (const field of essentialFields) {
+      if (context[field] !== undefined) {
+        essential[field] = context[field];
+      }
+    }
+    
+    return Object.keys(essential).length > 0 ? essential : context;
+  }
+
+  /**
+   * Select metadata fields based on event type
+   */
+  selectMetadata(elementType, elementInfo) {
+    const metadata = {};
+    
+    // Core trace fields for structural events
+    if (elementType && (
+      elementType.includes('scenario') || 
+      elementType.includes('scene') || 
+      elementType.includes('validation')
+    )) {
+      metadata.trace = {};
+      
+      if (elementInfo.parent) metadata.trace.parent = elementInfo.parent;
+      if (elementInfo.scenario) metadata.trace.scenario = elementInfo.scenario;
+      if (elementInfo.scene) metadata.trace.scene = elementInfo.scene;
+      if (elementInfo.causedBy) metadata.trace.causedBy = elementInfo.causedBy;
+    }
+    
+    // Metrics for completion events
+    if (elementType && elementType.includes('completed')) {
+      if (elementInfo.duration !== undefined || elementInfo.context?.duration !== undefined) {
+        metadata.metrics = {
+          duration: elementInfo.duration || elementInfo.context?.duration || 0
+        };
+        
+        if (elementInfo.context?.eventsProcessed) {
+          metadata.metrics.eventsProcessed = elementInfo.context.eventsProcessed;
+        }
+        if (elementInfo.context?.scenesExecuted) {
+          metadata.metrics.scenesExecuted = elementInfo.context.scenesExecuted;
+        }
+      }
+    }
+    
+    // Validation details
+    if (elementType && elementType.includes('validation')) {
+      if (elementInfo.context?.checks || elementInfo.context?.result) {
+        metadata.validation = {
+          result: elementInfo.context?.result || 'unknown',
+          checks: elementInfo.context?.checks || []
+        };
+      }
+    }
+    
+    // Error details
+    if (elementType && (elementType.includes('error') || elementInfo.errors?.length > 0)) {
+      metadata.error = {
+        code: elementInfo.error?.code || 'UNKNOWN_ERROR',
+        message: elementInfo.errors?.[0] || elementInfo.error?.message || 'An error occurred'
+      };
+    }
+    
+    return metadata;
+  }
+
+  /**
+   * Log execution of any SysADL element (Narrative Format)
    */
   logExecution(elementInfo) {
     const timestamp = Date.now();
-    const executionTime = timestamp - this.startTime;
-    const executionId = this.generateExecutionId();
-
-    // Create comprehensive log entry
+    const elementType = elementInfo.type || 'unknown';
+    const elementName = elementInfo.name || 'unnamed';
+    
+    // Determine detail level for this event
+    const detailLevel = this.getDetailLevel(elementType);
+    
+    // Build narrative log entry
     const logEntry = {
-      // Basic identification
-      executionId,
-      sessionId: this.sessionId,
+      // Core fields (always present)
+      seq: ++this.sequenceCounter,
+      when: this.formatRelativeTime(timestamp),
       timestamp,
-      executionTime,
+      what: elementType,
+      who: elementName,
+      summary: this.generateSummary(elementType, elementName, elementInfo.context || {}),
       
-      // Element information
-      elementType: elementInfo.type || 'unknown',
-      elementName: elementInfo.name || 'unnamed',
-      elementPath: elementInfo.path || '',
+      // Context (full or compact based on detail level)
+      context: detailLevel === 'verbose' 
+        ? (elementInfo.context || {})
+        : this.compactContext(elementInfo.context || {}),
       
-      // State information
-      initialState: elementInfo.initialState || null,
-      finalState: elementInfo.finalState || null,
-      stateChanges: elementInfo.stateChanges || [],
-      
-      // Execution context
-      triggerEvent: elementInfo.trigger || null,
-      executionResult: elementInfo.result || 'unknown',
-      executionDuration: elementInfo.duration || 0,
-      
-      // Conditions and validations
-      preConditions: elementInfo.preConditions || [],
-      postConditions: elementInfo.postConditions || [],
-      conditionResults: elementInfo.conditionResults || [],
-      
-      // Event chain information
-      parentExecution: elementInfo.parent || null,
-      childExecutions: elementInfo.children || [],
-      eventChain: elementInfo.eventChain || [],
-      
-      // Error and warning information
-      errors: elementInfo.errors || [],
-      warnings: elementInfo.warnings || [],
-      
-      // Performance metrics
-      memoryUsage: this.config.enableMemoryTracking ? this.getMemoryUsage() : null,
-      cpuUsage: this.config.enablePerformanceTracking ? this.getCpuUsage() : null,
-      
-      // Additional metadata
-      metadata: elementInfo.metadata || {},
-      
-      // Retry information
-      retryCount: elementInfo.retryCount || 0,
-      isRetry: elementInfo.isRetry || false
+      // Selective metadata based on event type
+      ...this.selectMetadata(elementType, elementInfo)
     };
 
     // Add to execution log
@@ -472,40 +599,42 @@ class ExecutionLogger {
   /**
    * Update session metrics
    */
+  /**
+   * Update session metrics (adapted for narrative format)
+   */
   updateMetrics(logEntry) {
     this.sessionMetrics.totalExecutions++;
     
-    // Update by type
-    const type = logEntry.elementType;
+    // Update by type (using 'what' field)
+    const type = logEntry.what;
     if (!this.sessionMetrics.executionsByType[type]) {
       this.sessionMetrics.executionsByType[type] = 0;
     }
     this.sessionMetrics.executionsByType[type]++;
     
-    // Update by result
-    const result = logEntry.executionResult;
+    // Update by result (from context.result or validation.result)
+    const result = logEntry.context?.result || logEntry.validation?.result || 'unknown';
     if (!this.sessionMetrics.executionsByResult[result]) {
       this.sessionMetrics.executionsByResult[result] = 0;
     }
     this.sessionMetrics.executionsByResult[result]++;
     
-    // Update timing
-    if (logEntry.executionDuration > 0) {
-      this.sessionMetrics.totalExecutionTime += logEntry.executionDuration;
+    // Update timing (from metrics.duration)
+    const duration = logEntry.metrics?.duration || 0;
+    if (duration > 0) {
+      this.sessionMetrics.totalExecutionTime += duration;
       this.sessionMetrics.averageExecutionTime = 
         this.sessionMetrics.totalExecutionTime / this.sessionMetrics.totalExecutions;
     }
     
-    // Update memory
-    if (logEntry.memoryUsage && logEntry.memoryUsage.heapUsed > this.sessionMetrics.peakMemoryUsage) {
-      this.sessionMetrics.peakMemoryUsage = logEntry.memoryUsage.heapUsed;
-    }
+    // Update memory (not tracked in narrative format by default)
+    // Could be added as optional metadata if needed
     
-    // Update error/warning counts
-    if (logEntry.errors && logEntry.errors.length > 0) {
+    // Update error/warning counts (from error field or context)
+    if (logEntry.error || logEntry.what.includes('error')) {
       this.sessionMetrics.errorCount++;
     }
-    if (logEntry.warnings && logEntry.warnings.length > 0) {
+    if (logEntry.what.includes('warning') || logEntry.context?.warnings) {
       this.sessionMetrics.warningCount++;
     }
   }
@@ -526,12 +655,18 @@ class ExecutionLogger {
   /**
    * Write console log
    */
+  /**
+   * Write narrative log to console with text-only prefixes
+   */
   writeConsoleLog(logEntry) {
-    const timestamp = this.formatTimestamp(logEntry.timestamp);
-    const duration = logEntry.executionDuration > 0 ? ` (${logEntry.executionDuration}ms)` : '';
-    const result = this.getResultEmoji(logEntry.executionResult);
+    const message = formatConsoleMessage(
+      logEntry.what,       // eventType
+      logEntry.when,       // relative time
+      logEntry.summary,    // human-readable summary
+      logEntry.context     // context object
+    );
     
-    console.log(`[${timestamp}] ${result} ${logEntry.elementType}:${logEntry.elementName}${duration}`);
+    console.log(message);
   }
 
   /**
@@ -603,20 +738,6 @@ class ExecutionLogger {
 
   formatTimestamp(timestamp) {
     return new Date(timestamp).toISOString().substring(11, 23); // HH:mm:ss.SSS
-  }
-
-  getResultEmoji(result) {
-    const emojis = {
-      'success': '✅',
-      'failure': '❌',
-      'error': '💥',
-      'warning': '⚠️',
-      'started': '🚀',
-      'completed': '🏁',
-      'timeout': '⏰',
-      'retry': '🔄'
-    };
-    return emojis[result] || '📝';
   }
 
   getMemoryUsage() {

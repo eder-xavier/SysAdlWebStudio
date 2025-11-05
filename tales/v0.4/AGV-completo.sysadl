@@ -936,6 +936,9 @@ EventsDefinitions MyEvents to MyFactoryConfiguration {
       THEN AGV1NotifArriveAUnoaded {
         agv1.outNotification.notification="unloaded";
         :Notify(agv1, supervisor); } 
+	ON AGV1atStationA
+      THEN AGV1DetectedStationA {
+      	agv1.sensor = stationA; }	
   }
   Event def AGV2Events for agv2 {
     ON cmdAGV2toC					 
@@ -1096,6 +1099,8 @@ ScenarioExecution to MyScenarios {
   
   // ✅ Exemplo 2: Disparar quando condição for atendida  
   inject SetAGV2SensorStationD when agv1.location == stationA.ID;
+  
+  inject AGV1atStationA after cmdAGV1toA;
   
   Scenario1;
   Scenario2;

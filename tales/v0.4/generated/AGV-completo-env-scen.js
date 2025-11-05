@@ -527,6 +527,22 @@ class MyEvents extends EventsDefinitions {
             return results;
           }
         },
+        {
+          trigger: 'AGV1atStationA',
+          tasks: {
+            AGV1DetectedStationA: (context) => {
+              agv1.sensor = 'stationA';
+              return true;
+            },
+          },
+          execute: (context) => {
+            if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing AGV1Events: AGV1atStationA -> AGV1DetectedStationA');
+            const results = [];
+            const currentRule = this.AGV1Events.rules.find(r => r.trigger === 'AGV1atStationA');
+            results.push(currentRule.tasks.AGV1DetectedStationA(context));
+            return results;
+          }
+        },
       ],
       hasRule: (triggerName) => {
         return this.AGV1Events.rules.some(rule => rule.trigger === triggerName);
@@ -1341,10 +1357,94 @@ class Scenario1 extends Scenario {
       throw new Error('Context with scenes registry is required for scenario execution');
     }
 
+    // Execute scene with logging
+    if (context.model?.logger) {
+      context.model.logger.logExecution({
+        type: 'scene.execution.started',
+        name: 'SCN_MoveAGV1toA',
+        context: { scenario: this.name }
+      });
+    }
+    const sceneStartTime_SCN_MoveAGV1toA = Date.now();
     await this.executeScene('SCN_MoveAGV1toA', context);
+    if (context.model?.logger) {
+      context.model.logger.logExecution({
+        type: 'scene.execution.completed',
+        name: 'SCN_MoveAGV1toA',
+        context: { scenario: this.name },
+        metrics: { duration: Date.now() - sceneStartTime_SCN_MoveAGV1toA }
+      });
+    }
+    // Notify EventScheduler about scene completion
+    if (context.eventScheduler?.notifyScenarioCompleted) {
+      context.eventScheduler.notifyScenarioCompleted('SCN_MoveAGV1toA');
+    }
+    // Execute scene with logging
+    if (context.model?.logger) {
+      context.model.logger.logExecution({
+        type: 'scene.execution.started',
+        name: 'SCN_MoveAGV2toC',
+        context: { scenario: this.name }
+      });
+    }
+    const sceneStartTime_SCN_MoveAGV2toC = Date.now();
     await this.executeScene('SCN_MoveAGV2toC', context);
+    if (context.model?.logger) {
+      context.model.logger.logExecution({
+        type: 'scene.execution.completed',
+        name: 'SCN_MoveAGV2toC',
+        context: { scenario: this.name },
+        metrics: { duration: Date.now() - sceneStartTime_SCN_MoveAGV2toC }
+      });
+    }
+    // Notify EventScheduler about scene completion
+    if (context.eventScheduler?.notifyScenarioCompleted) {
+      context.eventScheduler.notifyScenarioCompleted('SCN_MoveAGV2toC');
+    }
+    // Execute scene with logging
+    if (context.model?.logger) {
+      context.model.logger.logExecution({
+        type: 'scene.execution.started',
+        name: 'SCN_AGV1movePartToC',
+        context: { scenario: this.name }
+      });
+    }
+    const sceneStartTime_SCN_AGV1movePartToC = Date.now();
     await this.executeScene('SCN_AGV1movePartToC', context);
+    if (context.model?.logger) {
+      context.model.logger.logExecution({
+        type: 'scene.execution.completed',
+        name: 'SCN_AGV1movePartToC',
+        context: { scenario: this.name },
+        metrics: { duration: Date.now() - sceneStartTime_SCN_AGV1movePartToC }
+      });
+    }
+    // Notify EventScheduler about scene completion
+    if (context.eventScheduler?.notifyScenarioCompleted) {
+      context.eventScheduler.notifyScenarioCompleted('SCN_AGV1movePartToC');
+    }
+    // Execute scene with logging
+    if (context.model?.logger) {
+      context.model.logger.logExecution({
+        type: 'scene.execution.started',
+        name: 'SCN_AGV2movePartToE',
+        context: { scenario: this.name }
+      });
+    }
+    const sceneStartTime_SCN_AGV2movePartToE = Date.now();
     await this.executeScene('SCN_AGV2movePartToE', context);
+    if (context.model?.logger) {
+      context.model.logger.logExecution({
+        type: 'scene.execution.completed',
+        name: 'SCN_AGV2movePartToE',
+        context: { scenario: this.name },
+        metrics: { duration: Date.now() - sceneStartTime_SCN_AGV2movePartToE }
+      });
+    }
+    // Notify EventScheduler about scene completion
+    if (context.eventScheduler?.notifyScenarioCompleted) {
+      context.eventScheduler.notifyScenarioCompleted('SCN_AGV2movePartToE');
+    }
 
     return { success: true, message: 'Scenario completed successfully' };
   }
@@ -1363,10 +1463,94 @@ class Scenario2 extends Scenario {
       throw new Error('Context with scenes registry is required for scenario execution');
     }
 
+    // Execute scene with logging
+    if (context.model?.logger) {
+      context.model.logger.logExecution({
+        type: 'scene.execution.started',
+        name: 'SCN_MoveAGV1toA',
+        context: { scenario: this.name }
+      });
+    }
+    const sceneStartTime_SCN_MoveAGV1toA = Date.now();
     await this.executeScene('SCN_MoveAGV1toA', context);
+    if (context.model?.logger) {
+      context.model.logger.logExecution({
+        type: 'scene.execution.completed',
+        name: 'SCN_MoveAGV1toA',
+        context: { scenario: this.name },
+        metrics: { duration: Date.now() - sceneStartTime_SCN_MoveAGV1toA }
+      });
+    }
+    // Notify EventScheduler about scene completion
+    if (context.eventScheduler?.notifyScenarioCompleted) {
+      context.eventScheduler.notifyScenarioCompleted('SCN_MoveAGV1toA');
+    }
+    // Execute scene with logging
+    if (context.model?.logger) {
+      context.model.logger.logExecution({
+        type: 'scene.execution.started',
+        name: 'SCN_MoveAGV2toC',
+        context: { scenario: this.name }
+      });
+    }
+    const sceneStartTime_SCN_MoveAGV2toC = Date.now();
     await this.executeScene('SCN_MoveAGV2toC', context);
+    if (context.model?.logger) {
+      context.model.logger.logExecution({
+        type: 'scene.execution.completed',
+        name: 'SCN_MoveAGV2toC',
+        context: { scenario: this.name },
+        metrics: { duration: Date.now() - sceneStartTime_SCN_MoveAGV2toC }
+      });
+    }
+    // Notify EventScheduler about scene completion
+    if (context.eventScheduler?.notifyScenarioCompleted) {
+      context.eventScheduler.notifyScenarioCompleted('SCN_MoveAGV2toC');
+    }
+    // Execute scene with logging
+    if (context.model?.logger) {
+      context.model.logger.logExecution({
+        type: 'scene.execution.started',
+        name: 'SCN_AGV2movePartToE',
+        context: { scenario: this.name }
+      });
+    }
+    const sceneStartTime_SCN_AGV2movePartToE = Date.now();
     await this.executeScene('SCN_AGV2movePartToE', context);
+    if (context.model?.logger) {
+      context.model.logger.logExecution({
+        type: 'scene.execution.completed',
+        name: 'SCN_AGV2movePartToE',
+        context: { scenario: this.name },
+        metrics: { duration: Date.now() - sceneStartTime_SCN_AGV2movePartToE }
+      });
+    }
+    // Notify EventScheduler about scene completion
+    if (context.eventScheduler?.notifyScenarioCompleted) {
+      context.eventScheduler.notifyScenarioCompleted('SCN_AGV2movePartToE');
+    }
+    // Execute scene with logging
+    if (context.model?.logger) {
+      context.model.logger.logExecution({
+        type: 'scene.execution.started',
+        name: 'SCN_AGV1movePartToC',
+        context: { scenario: this.name }
+      });
+    }
+    const sceneStartTime_SCN_AGV1movePartToC = Date.now();
     await this.executeScene('SCN_AGV1movePartToC', context);
+    if (context.model?.logger) {
+      context.model.logger.logExecution({
+        type: 'scene.execution.completed',
+        name: 'SCN_AGV1movePartToC',
+        context: { scenario: this.name },
+        metrics: { duration: Date.now() - sceneStartTime_SCN_AGV1movePartToC }
+      });
+    }
+    // Notify EventScheduler about scene completion
+    if (context.eventScheduler?.notifyScenarioCompleted) {
+      context.eventScheduler.notifyScenarioCompleted('SCN_AGV1movePartToC');
+    }
 
     return { success: true, message: 'Scenario completed successfully' };
   }
@@ -1387,8 +1571,50 @@ class Scenario3 extends Scenario {
 
     let i = 1;
     while (i < 5) {
+      // Execute scene with logging
+      if (context.model?.logger) {
+        context.model.logger.logExecution({
+          type: 'scene.execution.started',
+          name: 'SCN_MoveAGV1toA',
+          context: { withinLoop: true, scenario: this.name }
+        });
+      }
+      const sceneStartTime_SCN_MoveAGV1toA = Date.now();
       await this.executeScene('SCN_MoveAGV1toA', context);
+      if (context.model?.logger) {
+        context.model.logger.logExecution({
+          type: 'scene.execution.completed',
+          name: 'SCN_MoveAGV1toA',
+          context: { withinLoop: true, scenario: this.name },
+          metrics: { duration: Date.now() - sceneStartTime_SCN_MoveAGV1toA }
+        });
+      }
+      // Notify EventScheduler about scene completion
+      if (context.eventScheduler?.notifyScenarioCompleted) {
+        context.eventScheduler.notifyScenarioCompleted('SCN_MoveAGV1toA');
+      }
+      // Execute scene with logging
+      if (context.model?.logger) {
+        context.model.logger.logExecution({
+          type: 'scene.execution.started',
+          name: 'SCN_AGV1movePartToC',
+          context: { withinLoop: true, scenario: this.name }
+        });
+      }
+      const sceneStartTime_SCN_AGV1movePartToC = Date.now();
       await this.executeScene('SCN_AGV1movePartToC', context);
+      if (context.model?.logger) {
+        context.model.logger.logExecution({
+          type: 'scene.execution.completed',
+          name: 'SCN_AGV1movePartToC',
+          context: { withinLoop: true, scenario: this.name },
+          metrics: { duration: Date.now() - sceneStartTime_SCN_AGV1movePartToC }
+        });
+      }
+      // Notify EventScheduler about scene completion
+      if (context.eventScheduler?.notifyScenarioCompleted) {
+        context.eventScheduler.notifyScenarioCompleted('SCN_AGV1movePartToC');
+      }
       i++;
     }
 
@@ -1441,89 +1667,94 @@ class MyScenariosExecution extends ScenarioExecution {
       ...opts,
       targetScenarios: 'MyScenarios'
     });
-    
-    // Initialize execution mode
-    this.executionMode = 'sequential';
-    this.status = 'inactive';
   }
 
-  // Override start method to handle custom execution logic
-  start(context = {}) {
-    console.log('[MyScenariosExecution] Starting custom scenario execution');
-    this.status = 'running';
-    
-    // Log start event
-    if (this.model && this.model.logEvent) {
-      this.model.logEvent({
-        elementType: 'scenario_execution_start',
-        execution: this.name,
-        when: Date.now()
-      });
-    }
-    
-    // Execute scenarios asynchronously
-    this.execute(context).then(result => {
-      console.log('[MyScenariosExecution] Execution completed:', result);
-      this.complete();
-    }).catch(error => {
-      console.error('[MyScenariosExecution] Execution failed:', error);
-      this.status = 'failed';
+  start() {
+    // Build execution context
+    const context = this.buildExecutionContext();
+
+    // Execute scenario logic asynchronously
+    this.executeAsync(context).catch(error => {
+      if (this.model?.logger) {
+        this.model.logger.logExecution({
+          type: 'scenario.execution.failed',
+          name: this.name,
+          context: { error: error.message, stack: error.stack }
+        });
+      }
+      console.error('[ERROR] Scenario execution failed:', error);
     });
-    
-    return true; // Indicate successful start
+
+    // Return true immediately to indicate execution started
+    return true;
   }
 
-  // Complete execution
-  complete() {
-    this.status = 'completed';
-    
-    if (this.model && this.model.logEvent) {
-      this.model.logEvent({
-        elementType: 'scenario_execution_complete',
-        execution: this.name,
-        when: Date.now()
+  async executeAsync(context) {
+    try {
+    if (!context || !context.scenarios) {
+      throw new Error('Context with scenarios registry is required for scenario execution');
+    }
+
+    // Log scenario execution start
+    if (context.model?.logger) {
+      context.model.logger.logExecution({
+        type: 'scenario.execution.started',
+        name: this.name,
+        context: { executionMode: 'sequential' }
       });
     }
-  }
+    const executionStartTime = Date.now();
 
-  async execute(context) {
-    console.log('[MyScenariosExecution] Starting scenario execution with context:', Object.keys(context || {}));
-    
     // Initialize environment state
-    if (context.model && context.model.environmentConfiguration) {
-      const envConfig = context.model.environmentConfiguration;
-      if (envConfig.agv1) envConfig.agv1.location = 'StationC';
-      if (envConfig.agv2) envConfig.agv2.location = 'StationD';
-      if (envConfig.part) envConfig.part.location = 'StationA';
+    if (context.model?.environmentConfig) {
+      context.model.environmentConfig.agv1.location = 'stationC.ID';
+    }
+    if (context.model?.environmentConfig) {
+      context.model.environmentConfig.agv2.location = 'stationD.ID';
+    }
+    if (context.model?.environmentConfig) {
+      context.model.environmentConfig.part.location = 'stationA.ID';
     }
 
     // Event injections
     // inject AGV2atStationD after SCN_MoveAGV1toA;
     if (context.eventScheduler) {
       context.eventScheduler.scheduleAfterScenario('AGV2atStationD', 'SCN_MoveAGV1toA');
-      // inject SetAGV2SensorStationD when agv1.location == stationA.ID;
-      context.eventScheduler.scheduleOnCondition('SetAGV2SensorStationD', () => {
-        return context.model?.environmentConfiguration?.agv1?.location === 'StationA';
+    }
+    // inject SetAGV2SensorStationD when agv1.location == stationA.ID;
+    if (context.eventScheduler) {
+      context.eventScheduler.scheduleOnCondition('SetAGV2SensorStationD', () => context.model?.environmentConfig?.agv1?.location == context.model?.environmentConfig?.stationA?.ID);
+    }
+    // inject AGV1atStationA after cmdAGV1toA;
+    if (context.eventScheduler) {
+      context.eventScheduler.scheduleAfterScenario('AGV1atStationA', 'cmdAGV1toA');
+    }
+
+    // Execute scenarios
+    await this.executeScenario('Scenario1', context);
+    await this.executeScenario('Scenario2', context);
+    await this.executeScenario('Scenario3', context);
+    await this.executeScenario('Scenario4', context);
+
+    // Repeat executions
+    for (let i = 0; i < 5; i++) {
+      await this.executeScenario('Scenario1', context);
+    }
+
+    // Log scenario execution completion
+    if (context.model?.logger) {
+      context.model.logger.logExecution({
+        type: 'scenario.execution.completed',
+        name: this.name,
+        context: { executionMode: 'sequential' },
+        metrics: { duration: Date.now() - executionStartTime }
       });
     }
 
-    // Execute scenarios using context.model if available
-    const model = context.model;
-    if (model && model.executeScenario) {
-      await model.executeScenario('Scenario1', context);
-      await model.executeScenario('Scenario2', context);
-      await model.executeScenario('Scenario3', context);
-      await model.executeScenario('Scenario4', context);
-
-      // Repeat executions
-      for (let i = 0; i < 5; i++) {
-        await model.executeScenario('Scenario1', context);
-      }
-    } else {
-      console.warn('[MyScenariosExecution] No model or executeScenario method found in context');
-    }
-
     return { success: true, message: 'Scenario execution completed successfully' };
+    } catch (error) {
+      throw error;
+    }
   }
 }
 
