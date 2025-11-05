@@ -4364,7 +4364,8 @@ function generateJavaScriptScenarioExecution(programmingStructures) {
                 functionBody.push(`        context.model.logger.logExecution({`);
                 functionBody.push(`          type: 'scene.execution.started',`);
                 functionBody.push(`          name: '${sceneName}',`);
-                functionBody.push(`          context: { withinLoop: true, scenario: this.name }`);
+                functionBody.push(`          context: { withinLoop: true, scenario: this.name },`);
+                functionBody.push(`          trace: { withinLoop: true, scenario: this.name, sceneName: '${sceneName}' }`);
                 functionBody.push(`        });`);
                 functionBody.push(`      }`);
                 functionBody.push(`      const sceneStartTime_${sanitizedSceneName} = Date.now();`);
@@ -4374,6 +4375,7 @@ function generateJavaScriptScenarioExecution(programmingStructures) {
                 functionBody.push(`          type: 'scene.execution.completed',`);
                 functionBody.push(`          name: '${sceneName}',`);
                 functionBody.push(`          context: { withinLoop: true, scenario: this.name },`);
+                functionBody.push(`          trace: { withinLoop: true, scenario: this.name, sceneName: '${sceneName}' },`);
                 functionBody.push(`          metrics: { duration: Date.now() - sceneStartTime_${sanitizedSceneName} }`);
                 functionBody.push(`        });`);
                 functionBody.push(`      }`);
@@ -4406,7 +4408,8 @@ function generateJavaScriptScenarioExecution(programmingStructures) {
             functionBody.push(`      context.model.logger.logExecution({`);
             functionBody.push(`        type: 'scene.execution.started',`);
             functionBody.push(`        name: '${refName}',`);
-            functionBody.push(`        context: { scenario: this.name }`);
+            functionBody.push(`        context: { scenario: this.name },`);
+            functionBody.push(`        trace: { scenario: this.name, sceneName: '${refName}' }`);
             functionBody.push(`      });`);
             functionBody.push(`    }`);
             functionBody.push(`    const sceneStartTime_${sanitizeId(refName)} = Date.now();`);
@@ -4416,6 +4419,7 @@ function generateJavaScriptScenarioExecution(programmingStructures) {
             functionBody.push(`        type: 'scene.execution.completed',`);
             functionBody.push(`        name: '${refName}',`);
             functionBody.push(`        context: { scenario: this.name },`);
+            functionBody.push(`        trace: { scenario: this.name, sceneName: '${refName}' },`);
             functionBody.push(`        metrics: { duration: Date.now() - sceneStartTime_${sanitizeId(refName)} }`);
             functionBody.push(`      });`);
             functionBody.push(`    }`);

@@ -1160,7 +1160,9 @@ class Component extends SysADLBase {
     if (!this.activityName || !this._model) return null;
     return this._model._activities[this.activityName];
   }
-}class Connector extends SysADLBase {
+}
+
+class Connector extends SysADLBase {
   constructor(name, opts = {}){ 
     super(name, opts); 
     this.participants = [];
@@ -3467,6 +3469,28 @@ class Scene extends Element {
     try {
       // Validate pre-conditions using JavaScript functions
       const preConditionsPassed = this.validatePreConditions(context);
+      
+      // Log pre-condition validation result
+      if (this.model && this.model.logger) {
+        this.model.logger.logExecution({
+          type: preConditionsPassed ? 'scene.precondition.validated' : 'scene.precondition.validation.failed',
+          name: this.name,
+          summary: preConditionsPassed 
+            ? `Pre-conditions validated for ${this.name}`
+            : `Pre-conditions validation failed for ${this.name}`,
+          context: {
+            sceneName: this.name,
+            scenario: context.scenarioName || context.scenario,
+            passed: preConditionsPassed
+          },
+          trace: {
+            scenario: context.scenarioName || context.scenario,
+            sceneName: this.name,
+            validationType: 'pre-condition'
+          }
+        });
+      }
+      
       if (!preConditionsPassed) {
         return {
           success: false,
@@ -3480,6 +3504,28 @@ class Scene extends Element {
 
       // Validate post-conditions using JavaScript functions
       const postConditionsPassed = this.validatePostConditions(context);
+      
+      // Log post-condition validation result
+      if (this.model && this.model.logger) {
+        this.model.logger.logExecution({
+          type: postConditionsPassed ? 'scene.postcondition.validated' : 'scene.postcondition.validation.failed',
+          name: this.name,
+          summary: postConditionsPassed
+            ? `Post-conditions validated for ${this.name}`
+            : `Post-conditions validation failed for ${this.name}`,
+          context: {
+            sceneName: this.name,
+            scenario: context.scenarioName || context.scenario,
+            passed: postConditionsPassed
+          },
+          trace: {
+            scenario: context.scenarioName || context.scenario,
+            sceneName: this.name,
+            validationType: 'post-condition'
+          }
+        });
+      }
+      
       if (!postConditionsPassed) {
         return {
           success: false,
@@ -3660,6 +3706,7 @@ class Scenario extends Element {
     // Try to find and execute as scene first
     if (context.scenes && context.scenes[name]) {
       const sceneInstance = new context.scenes[name]();
+      sceneInstance.model = this.model; // Set model reference so scene can access logger
       if (sceneInstance.execute) {
         return await sceneInstance.execute(context);
       }

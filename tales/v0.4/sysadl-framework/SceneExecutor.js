@@ -201,17 +201,95 @@ class SceneExecutor {
   async validatePreConditions(execution) {
     const { scene, context } = execution;
     
+    console.log(`[DEBUG validatePreConditions] Scene: ${scene.name}, has method: ${typeof scene.validatePreConditions}`);
+    
+    // Check if scene has validatePreConditions method (generated code style)
+    if (typeof scene.validatePreConditions === 'function') {
+      console.log(`🔍 Validating pre-conditions for: ${scene.name}`);
+      
+      try {
+        const result = scene.validatePreConditions(context);
+        
+        // Log the validation result
+        this.sysadlBase.logger?.logExecution({
+          what: result ? 'scene.precondition.validated' : 'scene.precondition.validation.failed',
+          who: scene.name,
+          summary: result 
+            ? `Pre-conditions validated for ${scene.name}`
+            : `Pre-conditions validation failed for ${scene.name}`,
+          context: {
+            sceneName: scene.name,
+            scenario: context.scenarioName || context.scenario,
+            result: result,
+            passed: result === true
+          },
+          trace: {
+            scenario: context.scenarioName || context.scenario,
+            sceneName: scene.name,
+            validationType: 'pre-condition'
+          }
+        });
+
+        // Force immediate flush to ensure validation is logged before any exception
+        if (this.sysadlBase.logger && typeof this.sysadlBase.logger.flush === 'function') {
+          await this.sysadlBase.logger.flush();
+        }
+        // Small delay to ensure write completion
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        if (!result) {
+          throw new Error(`Pre-condition validation returned false`);
+        }
+
+        console.log(`✅ All pre-conditions validated for: ${scene.name}`);
+        return;
+      } catch (error) {
+        // Log the validation failure
+        this.sysadlBase.logger?.logExecution({
+          what: 'scene.precondition.validation.failed',
+          who: scene.name,
+          summary: `Pre-condition validation failed for ${scene.name}`,
+          context: {
+            sceneName: scene.name,
+            scenario: context.scenarioName || context.scenario,
+            error: error.message
+          },
+          trace: {
+            scenario: context.scenarioName || context.scenario,
+            sceneName: scene.name,
+            validationType: 'pre-condition'
+          }
+        });
+        
+        // Force immediate flush to ensure validation failure is logged
+        await this.sysadlBase.logger?.flush();
+        
+        throw new Error(`Pre-condition validation failed: ${error.message}`);
+      }
+    }
+    
+    // Legacy support: check for preConditions array
     if (!scene.preConditions || scene.preConditions.length === 0) {
       return; // No pre-conditions to validate
     }
 
     console.log(`🔍 Validating pre-conditions for: ${scene.name}`);
 
+    const conditionResults = [];
+    let allPassed = true;
+
     for (const condition of scene.preConditions) {
       try {
         const result = await this.evaluateCondition(condition, context);
         
+        conditionResults.push({
+          expression: condition.expression || condition,
+          result: result,
+          status: result ? 'passed' : 'failed'
+        });
+
         if (!result) {
+          allPassed = false;
           throw new Error(`Pre-condition failed: ${condition.expression || condition}`);
         }
 
@@ -220,11 +298,47 @@ class SceneExecutor {
         }
 
       } catch (error) {
+        // Log the validation failure
+        this.sysadlBase.logger?.logExecution({
+          what: 'scene.precondition.validation.failed',
+          who: scene.name,
+          summary: `Pre-condition validation failed for ${scene.name}`,
+          context: {
+            sceneName: scene.name,
+            scenario: context.scenarioName || context.scenario,
+            conditions: conditionResults,
+            error: error.message
+          },
+          trace: {
+            scenario: context.scenarioName || context.scenario,
+            sceneName: scene.name,
+            validationType: 'pre-condition'
+          }
+        });
         throw new Error(`Pre-condition validation failed: ${error.message}`);
       }
     }
 
     console.log(`✅ All pre-conditions validated for: ${scene.name}`);
+
+    // Log successful validation
+    this.sysadlBase.logger?.logExecution({
+      what: 'scene.precondition.validated',
+      who: scene.name,
+      summary: `All pre-conditions validated for ${scene.name}`,
+      context: {
+        sceneName: scene.name,
+        scenario: context.scenarioName || context.scenario,
+        conditions: conditionResults,
+        totalConditions: conditionResults.length,
+        allPassed: allPassed
+      },
+      trace: {
+        scenario: context.scenarioName || context.scenario,
+        sceneName: scene.name,
+        validationType: 'pre-condition'
+          }
+    });
   }
 
   /**
@@ -314,17 +428,89 @@ class SceneExecutor {
   async validatePostConditions(execution) {
     const { scene, context } = execution;
     
+    // Check if scene has validatePostConditions method (generated code style)
+    if (typeof scene.validatePostConditions === 'function') {
+      console.log(`🔍 Validating post-conditions for: ${scene.name}`);
+      
+      try {
+        const result = scene.validatePostConditions(context);
+        
+        // Log the validation result
+        this.sysadlBase.logger?.logExecution({
+          what: result ? 'scene.postcondition.validated' : 'scene.postcondition.validation.failed',
+          who: scene.name,
+          summary: result
+            ? `Post-conditions validated for ${scene.name}`
+            : `Post-conditions validation failed for ${scene.name}`,
+          context: {
+            sceneName: scene.name,
+            scenario: context.scenarioName || context.scenario,
+            result: result,
+            passed: result === true
+          },
+          trace: {
+            scenario: context.scenarioName || context.scenario,
+            sceneName: scene.name,
+            validationType: 'post-condition'
+          }
+        });
+
+        // Force immediate flush to ensure validation is logged
+        await this.sysadlBase.logger?.flush();
+
+        if (!result) {
+          throw new Error(`Post-condition validation returned false`);
+        }
+
+        console.log(`✅ All post-conditions validated for: ${scene.name}`);
+        return;
+      } catch (error) {
+        // Log the validation failure
+        this.sysadlBase.logger?.logExecution({
+          what: 'scene.postcondition.validation.failed',
+          who: scene.name,
+          summary: `Post-condition validation failed for ${scene.name}`,
+          context: {
+            sceneName: scene.name,
+            scenario: context.scenarioName || context.scenario,
+            error: error.message
+          },
+          trace: {
+            scenario: context.scenarioName || context.scenario,
+            sceneName: scene.name,
+            validationType: 'post-condition'
+          }
+        });
+        
+        // Force immediate flush to ensure validation failure is logged
+        await this.sysadlBase.logger?.flush();
+        
+        throw new Error(`Post-condition validation failed: ${error.message}`);
+      }
+    }
+    
+    // Legacy support: check for postConditions array
     if (!scene.postConditions || scene.postConditions.length === 0) {
       return; // No post-conditions to validate
     }
 
     console.log(`🔍 Validating post-conditions for: ${scene.name}`);
 
+    const conditionResults = [];
+    let allPassed = true;
+
     for (const condition of scene.postConditions) {
       try {
         const result = await this.evaluateCondition(condition, context);
         
+        conditionResults.push({
+          expression: condition.expression || condition,
+          result: result,
+          status: result ? 'passed' : 'failed'
+        });
+
         if (!result) {
+          allPassed = false;
           throw new Error(`Post-condition failed: ${condition.expression || condition}`);
         }
 
@@ -333,11 +519,47 @@ class SceneExecutor {
         }
 
       } catch (error) {
+        // Log the validation failure
+        this.sysadlBase.logger?.logExecution({
+          what: 'scene.postcondition.validation.failed',
+          who: scene.name,
+          summary: `Post-condition validation failed for ${scene.name}`,
+          context: {
+            sceneName: scene.name,
+            scenario: context.scenarioName || context.scenario,
+            conditions: conditionResults,
+            error: error.message
+          },
+          trace: {
+            scenario: context.scenarioName || context.scenario,
+            sceneName: scene.name,
+            validationType: 'post-condition'
+          }
+        });
         throw new Error(`Post-condition validation failed: ${error.message}`);
       }
     }
 
     console.log(`✅ All post-conditions validated for: ${scene.name}`);
+
+    // Log successful validation
+    this.sysadlBase.logger?.logExecution({
+      what: 'scene.postcondition.validated',
+      who: scene.name,
+      summary: `All post-conditions validated for ${scene.name}`,
+      context: {
+        sceneName: scene.name,
+        scenario: context.scenarioName || context.scenario,
+        conditions: conditionResults,
+        totalConditions: conditionResults.length,
+        allPassed: allPassed
+      },
+      trace: {
+        scenario: context.scenarioName || context.scenario,
+        sceneName: scene.name,
+        validationType: 'post-condition'
+      }
+    });
   }
 
   /**

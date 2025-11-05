@@ -196,18 +196,25 @@ class ExecutionLogger {
   selectMetadata(elementType, elementInfo) {
     const metadata = {};
     
-    // Core trace fields for structural events
-    if (elementType && (
-      elementType.includes('scenario') || 
-      elementType.includes('scene') || 
-      elementType.includes('validation')
-    )) {
-      metadata.trace = {};
-      
-      if (elementInfo.parent) metadata.trace.parent = elementInfo.parent;
-      if (elementInfo.scenario) metadata.trace.scenario = elementInfo.scenario;
-      if (elementInfo.scene) metadata.trace.scene = elementInfo.scene;
-      if (elementInfo.causedBy) metadata.trace.causedBy = elementInfo.causedBy;
+    // If trace was passed explicitly in elementInfo, use it directly
+    if (elementInfo.trace && typeof elementInfo.trace === 'object' && Object.keys(elementInfo.trace).length > 0) {
+      // Debug: log when trace is found
+      // console.log('[DEBUG] Trace found:', elementInfo.trace);
+      metadata.trace = elementInfo.trace;
+    } else {
+      // Core trace fields for structural events (build from root-level fields)
+      if (elementType && (
+        elementType.includes('scenario') || 
+        elementType.includes('scene') || 
+        elementType.includes('validation')
+      )) {
+        metadata.trace = {};
+        
+        if (elementInfo.parent) metadata.trace.parent = elementInfo.parent;
+        if (elementInfo.scenario) metadata.trace.scenario = elementInfo.scenario;
+        if (elementInfo.scene) metadata.trace.scene = elementInfo.scene;
+        if (elementInfo.causedBy) metadata.trace.causedBy = elementInfo.causedBy;
+      }
     }
     
     // Metrics for completion events

@@ -24,3 +24,97 @@ scenario.started
 {"seq":6,"when":"00:00.300","what":"connection.activated","who":"Command","context":{"from":"supervisor","to":"agv2","protocol":"outCommand→inCommand"}}
 {"seq":7,"when":"00:00.350","what":"entity.role.updated","who":"agv1","context":{"role":"outNotification","property":"notification","value":"traveling","associatedWith":"agvs.in_outDataAgv.outNotifications"}}
 {"seq":8,"when":"00:01.000","what":"scene.completed","who":"SCN_MoveAGV1toA","context":{"duration":"0.9s","result":"success","eventsProcessed":5}}
+
+
+
+
+// Evento estrutural (verbose + metadados ricos)
+{
+  "seq": 1,
+  "when": "00:00.000",
+  "timestamp": 1730764800000,
+  "what": "scenario.started",
+  "who": "Scenario1",
+  "summary": "Starting scenario execution",
+  "context": {
+    "totalScenes": 4,
+    "expectedDuration": "~5s"
+  },
+  "trace": {
+    "depth": 0,
+    "scenario": "Scenario1"
+  },
+  "metrics": {
+    "sessionStartTime": 1730764800000
+  }
+}
+
+// Evento interno (compact + metadados mínimos)
+{
+  "seq": 5,
+  "when": "00:00.250",
+  "what": "entity.property.changed",
+  "who": "supervisor",
+  "summary": "Commanded AGV2 to Station C",
+  "context": {
+    "property": "outCommand.destination",
+    "to": "stationC",
+    "triggeredBy": "cmdSupervisor"
+  },
+  "trace": {
+    "scenario": "Scenario1",
+    "scene": "SCN_MoveAGV1toA"
+  }
+}
+
+// Evento de validação (verbose + metadados de validação)
+{
+  "seq": 8,
+  "when": "00:00.900",
+  "timestamp": 1730764800900,
+  "what": "scene.postconditions.validated",
+  "who": "SCN_MoveAGV1toA",
+  "summary": "Post-conditions validated successfully",
+  "context": {
+    "checks": [
+      {"condition": "agv1.location == stationA.ID", "result": true},
+      {"condition": "part.location == stationA.ID", "result": true}
+    ]
+  },
+  "trace": {
+    "parent": "evt-002",
+    "scenario": "Scenario1",
+    "scene": "SCN_MoveAGV1toA"
+  },
+  "validation": {
+    "result": "passed",
+    "totalChecks": 2,
+    "passedChecks": 2
+  }
+}
+
+// Evento de completion (verbose + metadados de performance)
+{
+  "seq": 9,
+  "when": "00:01.000",
+  "timestamp": 1730764801000,
+  "what": "scene.completed",
+  "who": "SCN_MoveAGV1toA",
+  "summary": "Scene completed successfully",
+  "context": {
+    "startEvent": "cmdSupervisor",
+    "finishEvent": "AGV1NotifArriveA",
+    "result": "success"
+  },
+  "trace": {
+    "parent": "evt-001",
+    "scenario": "Scenario1",
+    "scene": "SCN_MoveAGV1toA"
+  },
+  "metrics": {
+    "duration": 900,
+    "eventsTriggered": 5,
+    "propertiesChanged": 8,
+    "connectionsActivated": 3
+  }
+}

@@ -1362,7 +1362,8 @@ class Scenario1 extends Scenario {
       context.model.logger.logExecution({
         type: 'scene.execution.started',
         name: 'SCN_MoveAGV1toA',
-        context: { scenario: this.name }
+        context: { scenario: this.name },
+        trace: { scenario: this.name, sceneName: 'SCN_MoveAGV1toA' }
       });
     }
     const sceneStartTime_SCN_MoveAGV1toA = Date.now();
@@ -1372,6 +1373,7 @@ class Scenario1 extends Scenario {
         type: 'scene.execution.completed',
         name: 'SCN_MoveAGV1toA',
         context: { scenario: this.name },
+        trace: { scenario: this.name, sceneName: 'SCN_MoveAGV1toA' },
         metrics: { duration: Date.now() - sceneStartTime_SCN_MoveAGV1toA }
       });
     }
@@ -1384,7 +1386,8 @@ class Scenario1 extends Scenario {
       context.model.logger.logExecution({
         type: 'scene.execution.started',
         name: 'SCN_MoveAGV2toC',
-        context: { scenario: this.name }
+        context: { scenario: this.name },
+        trace: { scenario: this.name, sceneName: 'SCN_MoveAGV2toC' }
       });
     }
     const sceneStartTime_SCN_MoveAGV2toC = Date.now();
@@ -1394,6 +1397,7 @@ class Scenario1 extends Scenario {
         type: 'scene.execution.completed',
         name: 'SCN_MoveAGV2toC',
         context: { scenario: this.name },
+        trace: { scenario: this.name, sceneName: 'SCN_MoveAGV2toC' },
         metrics: { duration: Date.now() - sceneStartTime_SCN_MoveAGV2toC }
       });
     }
@@ -1406,7 +1410,8 @@ class Scenario1 extends Scenario {
       context.model.logger.logExecution({
         type: 'scene.execution.started',
         name: 'SCN_AGV1movePartToC',
-        context: { scenario: this.name }
+        context: { scenario: this.name },
+        trace: { scenario: this.name, sceneName: 'SCN_AGV1movePartToC' }
       });
     }
     const sceneStartTime_SCN_AGV1movePartToC = Date.now();
@@ -1416,6 +1421,7 @@ class Scenario1 extends Scenario {
         type: 'scene.execution.completed',
         name: 'SCN_AGV1movePartToC',
         context: { scenario: this.name },
+        trace: { scenario: this.name, sceneName: 'SCN_AGV1movePartToC' },
         metrics: { duration: Date.now() - sceneStartTime_SCN_AGV1movePartToC }
       });
     }
@@ -1428,7 +1434,8 @@ class Scenario1 extends Scenario {
       context.model.logger.logExecution({
         type: 'scene.execution.started',
         name: 'SCN_AGV2movePartToE',
-        context: { scenario: this.name }
+        context: { scenario: this.name },
+        trace: { scenario: this.name, sceneName: 'SCN_AGV2movePartToE' }
       });
     }
     const sceneStartTime_SCN_AGV2movePartToE = Date.now();
@@ -1438,6 +1445,7 @@ class Scenario1 extends Scenario {
         type: 'scene.execution.completed',
         name: 'SCN_AGV2movePartToE',
         context: { scenario: this.name },
+        trace: { scenario: this.name, sceneName: 'SCN_AGV2movePartToE' },
         metrics: { duration: Date.now() - sceneStartTime_SCN_AGV2movePartToE }
       });
     }
@@ -1468,7 +1476,8 @@ class Scenario2 extends Scenario {
       context.model.logger.logExecution({
         type: 'scene.execution.started',
         name: 'SCN_MoveAGV1toA',
-        context: { scenario: this.name }
+        context: { scenario: this.name },
+        trace: { scenario: this.name, sceneName: 'SCN_MoveAGV1toA' }
       });
     }
     const sceneStartTime_SCN_MoveAGV1toA = Date.now();
@@ -1478,6 +1487,7 @@ class Scenario2 extends Scenario {
         type: 'scene.execution.completed',
         name: 'SCN_MoveAGV1toA',
         context: { scenario: this.name },
+        trace: { scenario: this.name, sceneName: 'SCN_MoveAGV1toA' },
         metrics: { duration: Date.now() - sceneStartTime_SCN_MoveAGV1toA }
       });
     }
@@ -1490,7 +1500,8 @@ class Scenario2 extends Scenario {
       context.model.logger.logExecution({
         type: 'scene.execution.started',
         name: 'SCN_MoveAGV2toC',
-        context: { scenario: this.name }
+        context: { scenario: this.name },
+        trace: { scenario: this.name, sceneName: 'SCN_MoveAGV2toC' }
       });
     }
     const sceneStartTime_SCN_MoveAGV2toC = Date.now();
@@ -1500,6 +1511,7 @@ class Scenario2 extends Scenario {
         type: 'scene.execution.completed',
         name: 'SCN_MoveAGV2toC',
         context: { scenario: this.name },
+        trace: { scenario: this.name, sceneName: 'SCN_MoveAGV2toC' },
         metrics: { duration: Date.now() - sceneStartTime_SCN_MoveAGV2toC }
       });
     }
@@ -1512,7 +1524,8 @@ class Scenario2 extends Scenario {
       context.model.logger.logExecution({
         type: 'scene.execution.started',
         name: 'SCN_AGV2movePartToE',
-        context: { scenario: this.name }
+        context: { scenario: this.name },
+        trace: { scenario: this.name, sceneName: 'SCN_AGV2movePartToE' }
       });
     }
     const sceneStartTime_SCN_AGV2movePartToE = Date.now();
@@ -1522,6 +1535,7 @@ class Scenario2 extends Scenario {
         type: 'scene.execution.completed',
         name: 'SCN_AGV2movePartToE',
         context: { scenario: this.name },
+        trace: { scenario: this.name, sceneName: 'SCN_AGV2movePartToE' },
         metrics: { duration: Date.now() - sceneStartTime_SCN_AGV2movePartToE }
       });
     }
@@ -1534,7 +1548,8 @@ class Scenario2 extends Scenario {
       context.model.logger.logExecution({
         type: 'scene.execution.started',
         name: 'SCN_AGV1movePartToC',
-        context: { scenario: this.name }
+        context: { scenario: this.name },
+        trace: { scenario: this.name, sceneName: 'SCN_AGV1movePartToC' }
       });
     }
     const sceneStartTime_SCN_AGV1movePartToC = Date.now();
@@ -1544,6 +1559,7 @@ class Scenario2 extends Scenario {
         type: 'scene.execution.completed',
         name: 'SCN_AGV1movePartToC',
         context: { scenario: this.name },
+        trace: { scenario: this.name, sceneName: 'SCN_AGV1movePartToC' },
         metrics: { duration: Date.now() - sceneStartTime_SCN_AGV1movePartToC }
       });
     }
@@ -1576,7 +1592,8 @@ class Scenario3 extends Scenario {
         context.model.logger.logExecution({
           type: 'scene.execution.started',
           name: 'SCN_MoveAGV1toA',
-          context: { withinLoop: true, scenario: this.name }
+          context: { withinLoop: true, scenario: this.name },
+          trace: { withinLoop: true, scenario: this.name, sceneName: 'SCN_MoveAGV1toA' }
         });
       }
       const sceneStartTime_SCN_MoveAGV1toA = Date.now();
@@ -1586,6 +1603,7 @@ class Scenario3 extends Scenario {
           type: 'scene.execution.completed',
           name: 'SCN_MoveAGV1toA',
           context: { withinLoop: true, scenario: this.name },
+          trace: { withinLoop: true, scenario: this.name, sceneName: 'SCN_MoveAGV1toA' },
           metrics: { duration: Date.now() - sceneStartTime_SCN_MoveAGV1toA }
         });
       }
@@ -1598,7 +1616,8 @@ class Scenario3 extends Scenario {
         context.model.logger.logExecution({
           type: 'scene.execution.started',
           name: 'SCN_AGV1movePartToC',
-          context: { withinLoop: true, scenario: this.name }
+          context: { withinLoop: true, scenario: this.name },
+          trace: { withinLoop: true, scenario: this.name, sceneName: 'SCN_AGV1movePartToC' }
         });
       }
       const sceneStartTime_SCN_AGV1movePartToC = Date.now();
@@ -1608,6 +1627,7 @@ class Scenario3 extends Scenario {
           type: 'scene.execution.completed',
           name: 'SCN_AGV1movePartToC',
           context: { withinLoop: true, scenario: this.name },
+          trace: { withinLoop: true, scenario: this.name, sceneName: 'SCN_AGV1movePartToC' },
           metrics: { duration: Date.now() - sceneStartTime_SCN_AGV1movePartToC }
         });
       }
