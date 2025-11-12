@@ -1,24 +1,103 @@
-// v0.3 runtime (renamed and adapted from v0.2)
-// Generic SysADL runtime without domain-specific configurations
+// v0.3 runtime - Universal Module Definition (UMD)
+// Compatible with Node.js and Browser environments
 
-// Exports: Model, Element, Component, Connector, Port, Activity, Action, Executable helper
+(function (root, factory) {
+  if (typeof module === 'object' && typeof module.exports === 'object') {
+    // Node.js / CommonJS
+    module.exports = factory(
+      require('events'),
+      require('./GenericDomainInterface'),
+      require('./ExecutionLogger'),
+      require('./EventInjector'),
+      require('./SceneExecutor'),
+      require('./ScenarioExecutor'),
+      require('./ExecutionController'),
+      require('./ReactiveStateManager'),
+      require('./ReactiveConditionWatcher')
+    );
+  } else {
+    // Browser - assign directly to window
+    const sysadlBase = factory();
+    if (typeof window !== 'undefined') {
+      window.SysADLBase = sysadlBase;
+    }
+    root.SysADLBase = sysadlBase;
+  }
+}(typeof self !== 'undefined' ? self : this, function (
+  eventsModule,
+  GenericDomainInterfaceModule,
+  ExecutionLoggerModule,
+  EventInjectorModule,
+  SceneExecutorModule,
+  ScenarioExecutorModule,
+  ExecutionControllerModule,
+  ReactiveStateManagerModule,
+  ReactiveConditionWatcherModule
+) {
+  'use strict';
 
-// Event system support
-const EventEmitter = require('events');
+  // EventEmitter for Node.js or Browser
+  let EventEmitter;
+  if (eventsModule) {
+    EventEmitter = eventsModule.EventEmitter || eventsModule;
+  } else {
+    // Browser EventEmitter shim
+    EventEmitter = class EventEmitter {
+      constructor() {
+        this._events = {};
+        this._maxListeners = 10;
+      }
+      setMaxListeners(n) {
+        this._maxListeners = n;
+        return this;
+      }
+      listenerCount(event) {
+        return (this._events[event] || []).length;
+      }
+      on(event, listener) {
+        if (!this._events[event]) this._events[event] = [];
+        this._events[event].push(listener);
+        return this;
+      }
+      off(event, listener) {
+        if (!this._events[event]) return this;
+        this._events[event] = this._events[event].filter(l => l !== listener);
+        return this;
+      }
+      once(event, listener) {
+        const onceWrapper = (...args) => {
+          this.off(event, onceWrapper);
+          listener.apply(this, args);
+        };
+        this.on(event, onceWrapper);
+        return this;
+      }
+      emit(event, ...args) {
+        if (!this._events[event]) return false;
+        const listeners = [...this._events[event]];
+        listeners.forEach(listener => listener.apply(this, args));
+        return listeners.length > 0;
+      }
+      removeAllListeners(event) {
+        if (event) {
+          delete this._events[event];
+        } else {
+          this._events = {};
+        }
+        return this;
+      }
+    };
+  }
 
-// Import generic domain interface
-const { GenericDomainInterface } = require('./GenericDomainInterface');
-
-// Import Phase 4 components
-const { ExecutionLogger } = require('./ExecutionLogger');
-const EventInjector = require('./EventInjector');
-const { SceneExecutor } = require('./SceneExecutor');
-
-// Import Phase 5 & 6 components
-const { ScenarioExecutor } = require('./ScenarioExecutor');
-const { ExecutionController } = require('./ExecutionController');
-const { ReactiveStateManager } = require('./ReactiveStateManager');
-const { ReactiveConditionWatcher } = require('./ReactiveConditionWatcher');
+  // Extract imported modules or use stubs
+  const GenericDomainInterface = GenericDomainInterfaceModule?.GenericDomainInterface || class {};
+  const ExecutionLogger = ExecutionLoggerModule?.ExecutionLogger || class {};
+  const EventInjector = EventInjectorModule || class {};
+  const SceneExecutor = SceneExecutorModule?.SceneExecutor || class {};
+  const ScenarioExecutor = ScenarioExecutorModule?.ScenarioExecutor || class {};
+  const ExecutionController = ExecutionControllerModule?.ExecutionController || class {};
+  const ReactiveStateManager = ReactiveStateManagerModule?.ReactiveStateManager || class {};
+  const ReactiveConditionWatcher = ReactiveConditionWatcherModule?.ReactiveConditionWatcher || class {};
 
 // Global Event System Manager
 class EventSystemManager {
@@ -87,6 +166,14 @@ class SysADLBase extends Element {
   addConnector(conn) {
     if (!conn || !conn.name) return;
     this.connectors[conn.name] = conn;
+    if (typeof conn.setParentComponent === 'function') {
+      conn.setParentComponent(this);
+    } else {
+      conn.parentComponent = this;
+      if (this._model && !conn._model) {
+        conn._model = this._model;
+      }
+    }
   }
 
   addPort(p) {
@@ -1168,6 +1255,8 @@ class Connector extends SysADLBase {
     this.participants = [];
     this.activityName = null; // Direct reference to activity name
     this._model = null;
+    this.boundParticipants = {};
+    this.parentComponent = null;
     
     // Generic schemas provided externally (no hardcoded values)
     this.participantSchema = opts.participantSchema || {};
@@ -1431,6 +1520,13 @@ class Connector extends SysADLBase {
     return null;
   }
   
+  setParentComponent(component) {
+    this.parentComponent = component;
+    if (component && component._model) {
+      this._model = component._model;
+    }
+  }
+  
   // GENERIC: Resolve connector class
   resolveConnectorClass(className) {
     return global[className] || 
@@ -1447,28 +1543,53 @@ class Connector extends SysADLBase {
       return this.bindLegacy(externalFromPort, externalToPort);
     }
     
-    // Generic strategy: first participant = source, second = target
-    const fromParticipantName = participants[0];
-    const toParticipantName = participants[1];
+    const [fromParticipantName, toParticipantName] = this.resolvePrimaryRoles();
     
     // Handle composite ports
-    if (this.participantSchema[fromParticipantName]?.portType === 'composite') {
+    if (fromParticipantName && this.participantSchema[fromParticipantName]?.portType === 'composite') {
       this.bindCompositePort(fromParticipantName, externalFromPort);
-    } else {
+    } else if (fromParticipantName) {
       this.performBinding(fromParticipantName, externalFromPort, 'source');
     }
     
-    if (this.participantSchema[toParticipantName]?.portType === 'composite') {
+    if (toParticipantName && this.participantSchema[toParticipantName]?.portType === 'composite') {
       this.bindCompositePort(toParticipantName, externalToPort);
-    } else {
+    } else if (toParticipantName) {
       this.performBinding(toParticipantName, externalToPort, 'target');
     }
+
+    this.recordExternalBinding(fromParticipantName, externalFromPort, 'source');
+    this.recordExternalBinding(toParticipantName, externalToPort, 'target');
+  }
+
+  resolvePrimaryRoles() {
+    const flow = Array.isArray(this.flowSchema) && this.flowSchema.length > 0
+      ? this.flowSchema[0]
+      : (this.props && Array.isArray(this.props.flowSchema) && this.props.flowSchema.length > 0
+          ? this.props.flowSchema[0]
+          : null);
+
+    if (flow && flow.from && flow.to) {
+      return [flow.from, flow.to];
+    }
+
+    const participants = this.participantSchema ? Object.entries(this.participantSchema) : [];
+    const sourceTuple = participants.find(([_, schema]) => (schema?.role === 'source') || (schema?.direction === 'out'));
+    const targetTuple = participants.find(([_, schema]) => (schema?.role === 'target') || (schema?.direction === 'in'));
+
+    const fallback = participants.map(([key]) => key);
+
+    return [
+      sourceTuple ? sourceTuple[0] : fallback[0],
+      targetTuple ? targetTuple[0] : fallback[1]
+    ];
   }
   
   // LEGACY: Maintain compatibility for connectors without schema
   bindLegacy(fromPort, toPort) {
     if (!fromPort || !toPort) return;
     this.participants = this.participants || [];
+    this.recordLegacyBinding(fromPort, toPort);
     
     // Add both ports as participants if not already present
     if (!this.participants.some(p => p === fromPort)) {
@@ -1477,6 +1598,79 @@ class Connector extends SysADLBase {
     if (!this.participants.some(p => p === toPort)) {
       this.participants.push(toPort);
     }
+  }
+
+  recordLegacyBinding(fromPort, toPort) {
+    this.recordExternalBinding('legacy_source', fromPort, 'source');
+    this.recordExternalBinding('legacy_target', toPort, 'target');
+  }
+
+  recordExternalBinding(participantName, externalPort, bindingDirection) {
+    if (!participantName || !externalPort) return;
+    if (!this.boundParticipants) this.boundParticipants = {};
+
+    const schema = this.participantSchema ? this.participantSchema[participantName] : null;
+    const ownerPath = this.extractOwnerName(externalPort);
+    const componentName = ownerPath && ownerPath.includes('.')
+      ? ownerPath.split('.')[0]
+      : ownerPath;
+
+    this.boundParticipants[participantName] = {
+      componentName: componentName || ownerPath || (this._model && this._model.name) || null,
+      ownerPath: ownerPath || componentName || null,
+      portName: externalPort.name || null,
+      direction: externalPort.direction || schema?.direction || bindingDirection || null,
+      portClass: (externalPort.constructor && externalPort.constructor.name) || schema?.portClass || null,
+      portRef: externalPort
+    };
+  }
+
+  extractOwnerName(externalPort) {
+    if (!externalPort) return null;
+    if (externalPort.owner) return externalPort.owner;
+    if (externalPort.props && externalPort.props.owner) return externalPort.props.owner;
+
+    const resolved = this.resolveComponentNameFromPort(externalPort);
+    if (resolved) return resolved;
+
+    if (this.parentComponent && this.parentComponent.name) {
+      return this.parentComponent.name;
+    }
+
+    return (this._model && this._model.name) || null;
+  }
+
+  resolveComponentNameFromPort(port) {
+    if (!port) return null;
+    const model = this._model;
+
+    if (!model) return null;
+
+    if (model.ports) {
+      for (const [name, modelPort] of Object.entries(model.ports)) {
+        if (modelPort === port) return model.name || null;
+      }
+    }
+
+    if (!model.components) return null;
+
+    const queue = [...Object.values(model.components)];
+    while (queue.length > 0) {
+      const component = queue.shift();
+      if (!component) continue;
+
+      if (component.ports) {
+        for (const [name, componentPort] of Object.entries(component.ports)) {
+          if (componentPort === port) return component.name;
+        }
+      }
+
+      if (component.components) {
+        queue.push(...Object.values(component.components));
+      }
+    }
+
+    return null;
   }
   
   // GENERIC: Perform binding based on direction
@@ -4772,55 +4966,7 @@ class ScenarioDefinitions extends Element {
   }
 }
 
-// Export everything
-module.exports = {
-  Model,
-  Element,
-  Component,
-  Connector,
-  Connection,
-  Port,
-  SimplePort,
-  CompositePort,
-  Activity,
-  Action,
-  BehavioralElement,
-  Constraint,
-  Executable,
-  Enum,
-  // Environment and Scenario classes
-  Entity,
-  Event,
-  events,
-  eventClasses,
-  Scene,
-  Scenario,
-  EnvironmentDefinition,
-  EnvironmentConfiguration,
-  ScenarioExecution,
-  EventsDefinitions,
-  SceneDefinitions,
-  ScenarioDefinitions,
-  // Event system
-  EventSystemManager,
-  eventSystemManager,
-  // Built-in primitive types
-  Int,
-  Boolean: SysADLBoolean,
-  String: SysADLString,
-  Void,
-  Real,
-  // Type system
-  ValueType,
-  DataType,
-  Dimension,
-  Unit,
-  // Factory functions
-  valueType,
-  dataType,
-  dimension,
-  unit
-};
+// Note: Exports are handled by UMD wrapper at the end of file
 
 /**
  * Expression Evaluator for SysADL Conditions
@@ -5078,13 +5224,17 @@ class SysADLRuntimeHelpers {
   }
 }
 
-// Export ExpressionEvaluator
-module.exports.ExpressionEvaluator = ExpressionEvaluator;
+// UMD Return - Export all classes
+return {
+  Model, Component, Port, SimplePort, CompositePort, Connector,
+  Activity, Action, Constraint, Executable, Enum, Int, Boolean, String, Real, Void,
+  valueType, dataType, dimension, unit,
+  Element, SysADLBase, EventEmitter,
+  EventSystemManager,
+  Entity, Connection, Scene, Scenario, EnvironmentDefinition, EnvironmentConfiguration,
+  ScenarioExecution, EventsDefinitions, SceneDefinitions, ScenarioDefinitions,
+  ExpressionEvaluator, SysADLRuntimeHelpers,
+  ExecutionLogger, EventInjector, SceneExecutor
+};
 
-// Export SysADL Runtime Helpers
-module.exports.SysADLRuntimeHelpers = SysADLRuntimeHelpers;
-
-// Export Phase 4 Components
-module.exports.ExecutionLogger = ExecutionLogger;
-module.exports.EventInjector = EventInjector;
-module.exports.SceneExecutor = SceneExecutor;
+}));

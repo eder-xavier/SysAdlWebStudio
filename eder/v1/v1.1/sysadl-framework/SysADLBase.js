@@ -1,54 +1,47 @@
-// v0.3 runtime (renamed and adapted from v0.2)
-// Generic SysADL runtime without domain-specific configurations
-// Browser-safe version
+// v0.3 runtime - Universal Module Definition (UMD)
+// Compatible with Node.js and Browser environments
 
-(function() {
+(function (root, factory) {
+  if (typeof module === 'object' && typeof module.exports === 'object') {
+    // Node.js / CommonJS
+    module.exports = factory(
+      require('events'),
+      require('./GenericDomainInterface'),
+      require('./ExecutionLogger'),
+      require('./EventInjector'),
+      require('./SceneExecutor'),
+      require('./ScenarioExecutor'),
+      require('./ExecutionController'),
+      require('./ReactiveStateManager'),
+      require('./ReactiveConditionWatcher')
+    );
+  } else {
+    // Browser - assign directly to window
+    const sysadlBase = factory();
+    if (typeof window !== 'undefined') {
+      window.SysADLBase = sysadlBase;
+    }
+    root.SysADLBase = sysadlBase;
+  }
+}(typeof self !== 'undefined' ? self : this, function (
+  eventsModule,
+  GenericDomainInterfaceModule,
+  ExecutionLoggerModule,
+  EventInjectorModule,
+  SceneExecutorModule,
+  ScenarioExecutorModule,
+  ExecutionControllerModule,
+  ReactiveStateManagerModule,
+  ReactiveConditionWatcherModule
+) {
   'use strict';
 
-// Event system support - Browser fallback
-let EventEmitter;
-if (typeof window !== 'undefined') {
-  // Always define EventEmitter for browser
-  EventEmitter = class EventEmitter {
-    constructor() {
-      this._events = {};
-      this._maxListeners = 10;
-    }
-    setMaxListeners(n) {
-      this._maxListeners = n;
-      return this;
-    }
-    listenerCount(event) {
-      return (this._events[event] || []).length;
-    }
-    on(event, listener) {
-      if (!this._events[event]) this._events[event] = [];
-      this._events[event].push(listener);
-      return this;
-    }
-    off(event, listener) {
-      if (!this._events[event]) return this;
-      const index = this._events[event].indexOf(listener);
-      if (index > -1) this._events[event].splice(index, 1);
-      return this;
-    }
-    emit(event, ...args) {
-      if (!this._events[event]) return false;
-      this._events[event].forEach(listener => {
-        try {
-          listener.apply(this, args);
-        } catch (e) {
-          console.error('EventEmitter error:', e);
-        }
-      });
-      return this._events[event].length > 0;
-    }
-  };
-} else {
-  // Node.js: tentar require, senão fallback
-  try {
-    EventEmitter = require('events');
-  } catch (e) {
+  // EventEmitter for Node.js or Browser
+  let EventEmitter;
+  if (eventsModule) {
+    EventEmitter = eventsModule.EventEmitter || eventsModule;
+  } else {
+    // Browser EventEmitter shim
     EventEmitter = class EventEmitter {
       constructor() {
         this._events = {};
@@ -68,163 +61,43 @@ if (typeof window !== 'undefined') {
       }
       off(event, listener) {
         if (!this._events[event]) return this;
-        const index = this._events[event].indexOf(listener);
-        if (index > -1) this._events[event].splice(index, 1);
+        this._events[event] = this._events[event].filter(l => l !== listener);
+        return this;
+      }
+      once(event, listener) {
+        const onceWrapper = (...args) => {
+          this.off(event, onceWrapper);
+          listener.apply(this, args);
+        };
+        this.on(event, onceWrapper);
         return this;
       }
       emit(event, ...args) {
         if (!this._events[event]) return false;
-        this._events[event].forEach(listener => {
-          try {
-            listener.apply(this, args);
-          } catch (e) {
-            console.error('EventEmitter error:', e);
-          }
-        });
-        return this._events[event].length > 0;
+        const listeners = [...this._events[event]];
+        listeners.forEach(listener => listener.apply(this, args));
+        return listeners.length > 0;
+      }
+      removeAllListeners(event) {
+        if (event) {
+          delete this._events[event];
+        } else {
+          this._events = {};
+        }
+        return this;
       }
     };
   }
-}
 
-// Conditional imports
-let GenericDomainInterface, ExecutionLogger, EventInjector, SceneExecutor;
-let ScenarioExecutor, ExecutionController, ReactiveStateManager, ReactiveConditionWatcher;
-
-if (typeof window !== 'undefined') {
-  // Browser stubs for missing components
-  GenericDomainInterface = class GenericDomainInterface {
-    constructor() {
-      console.log('GenericDomainInterface stub for browser');
-    }
-  };
-
-  ExecutionLogger = class ExecutionLogger extends EventEmitter {
-    constructor(modelName, options = {}) {
-      super();
-      this.modelName = modelName;
-      this.sessionId = `${modelName}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-      this.options = options;
-      this.logLevel = options.logLevel || 'detailed';
-      this.entries = [];
-    }
-    log(message, data = null) {
-      const entry = {
-        timestamp: Date.now(),
-        message,
-        data,
-        logLevel: this.logLevel
-      };
-      this.entries.push(entry);
-      console.log(`[${this.sessionId}] ${message}`, data || '');
-      this.emit('log', entry);
-    }
-    
-    warn(message, data = null) {
-      this.log(`⚠️ ${message}`, data);
-    }
-    
-    error(message, data = null) {
-      this.log(`❌ ${message}`, data);
-    }
-  };
-
-  EventInjector = class EventInjector extends EventEmitter {
-    constructor() {
-      super();
-      console.log('EventInjector stub for browser');
-    }
-    
-    injectEvent(event, data = {}) {
-      console.log('Event injected:', event, data);
-      this.emit('eventInjected', { event, data });
-      return true;
-    }
-  };
-
-  SceneExecutor = class SceneExecutor extends EventEmitter {
-    constructor() {
-      super();
-      console.log('SceneExecutor stub for browser');
-    }
-    
-    executeScene(scene, context = {}) {
-      console.log('Scene executed:', scene);
-      this.emit('sceneExecuted', { scene, context });
-      return Promise.resolve({ success: true, scene });
-    }
-  };
-
-  ScenarioExecutor = class ScenarioExecutor extends EventEmitter {
-    constructor() {
-      super();
-      console.log('ScenarioExecutor stub for browser');
-    }
-    
-    executeScenario(scenario, context = {}) {
-      console.log('Scenario executed:', scenario);
-      this.emit('scenarioExecuted', { scenario, context });
-      return Promise.resolve({ success: true, scenario });
-    }
-  };
-
-  ExecutionController = class ExecutionController extends EventEmitter {
-    constructor() {
-      super();
-      console.log('ExecutionController stub for browser');
-    }
-    
-    start() {
-      console.log('ExecutionController started');
-      this.emit('started');
-      return Promise.resolve({ success: true });
-    }
-    
-    stop() {
-      console.log('ExecutionController stopped');
-      this.emit('stopped');
-      return Promise.resolve({ success: true });
-    }
-  };
-
-  ReactiveStateManager = class ReactiveStateManager extends EventEmitter {
-    constructor() {
-      super();
-      this.state = {};
-      console.log('ReactiveStateManager stub for browser');
-    }
-    
-    setState(key, value) {
-      this.state[key] = value;
-      console.log('State set:', key, value);
-      this.emit('stateChanged', { key, value });
-    }
-    
-    getState(key) {
-      return this.state[key];
-    }
-  };
-
-  ReactiveConditionWatcher = class ReactiveConditionWatcher extends EventEmitter {
-    constructor() {
-      super();
-      this.conditions = [];
-      console.log('ReactiveConditionWatcher stub for browser');
-    }
-    
-    addCondition(condition, callback) {
-      this.conditions.push({ condition, callback });
-      console.log('Condition added:', condition);
-      this.emit('conditionAdded', { condition });
-    }
-    
-    evaluateConditions() {
-      console.log('Evaluating conditions...');
-      this.emit('conditionsEvaluated');
-      return true;
-    }
-  };
-}
+  // Extract imported modules or use stubs
+  const GenericDomainInterface = GenericDomainInterfaceModule?.GenericDomainInterface || class {};
+  const ExecutionLogger = ExecutionLoggerModule?.ExecutionLogger || class {};
+  const EventInjector = EventInjectorModule || class {};
+  const SceneExecutor = SceneExecutorModule?.SceneExecutor || class {};
+  const ScenarioExecutor = ScenarioExecutorModule?.ScenarioExecutor || class {};
+  const ExecutionController = ExecutionControllerModule?.ExecutionController || class {};
+  const ReactiveStateManager = ReactiveStateManagerModule?.ReactiveStateManager || class {};
+  const ReactiveConditionWatcher = ReactiveConditionWatcherModule?.ReactiveConditionWatcher || class {};
 
 // Global Event System Manager
 class EventSystemManager {
@@ -1164,6 +1037,22 @@ class Model extends SysADLBase {
     this.environments = {};
     this.activeScenarioExecution = null;
     this._scenarioExecutionMode = false;
+    
+    // Inicializar EventScheduler
+    if (!this.eventScheduler) {
+      const EventScheduler = require('./EventScheduler');
+      this.eventScheduler = new EventScheduler(this, this.logger);
+      
+      if (this.logger) {
+        this.logger.logExecution({
+          type: 'event.scheduler.initialized',
+          name: 'EventScheduler',
+          context: {
+            checkIntervalMs: this.eventScheduler.checkIntervalMs
+          }
+        });
+      }
+    }
   }
 
   // Register scenario execution
@@ -1358,7 +1247,9 @@ class Component extends SysADLBase {
     if (!this.activityName || !this._model) return null;
     return this._model._activities[this.activityName];
   }
-}class Connector extends SysADLBase {
+}
+
+class Connector extends SysADLBase {
   constructor(name, opts = {}){ 
     super(name, opts); 
     this.participants = [];
@@ -1629,13 +1520,6 @@ class Component extends SysADLBase {
     return null;
   }
   
-  // GENERIC: Resolve connector class
-  resolveConnectorClass(className) {
-    return global[className] || 
-           (this._model && this._model.classRegistry && this._model.classRegistry[className]) ||
-           eval(className);
-  }
-
   setParentComponent(component) {
     this.parentComponent = component;
     if (component && component._model) {
@@ -1643,9 +1527,16 @@ class Component extends SysADLBase {
     }
   }
   
+  // GENERIC: Resolve connector class
+  resolveConnectorClass(className) {
+    return global[className] || 
+           (this._model && this._model.classRegistry && this._model.classRegistry[className]) ||
+           eval(className);
+  }
+  
   // GENERIC: Bind external ports with validation
   bind(externalFromPort, externalToPort) {
-    const participants = this.participantSchema ? Object.keys(this.participantSchema) : [];
+    const participants = Object.keys(this.participantSchema);
     
     if (participants.length === 0) {
       // Fallback to legacy behavior if no schema
@@ -1692,6 +1583,21 @@ class Component extends SysADLBase {
       sourceTuple ? sourceTuple[0] : fallback[0],
       targetTuple ? targetTuple[0] : fallback[1]
     ];
+  }
+  
+  // LEGACY: Maintain compatibility for connectors without schema
+  bindLegacy(fromPort, toPort) {
+    if (!fromPort || !toPort) return;
+    this.participants = this.participants || [];
+    this.recordLegacyBinding(fromPort, toPort);
+    
+    // Add both ports as participants if not already present
+    if (!this.participants.some(p => p === fromPort)) {
+      this.participants.push(fromPort);
+    }
+    if (!this.participants.some(p => p === toPort)) {
+      this.participants.push(toPort);
+    }
   }
 
   recordLegacyBinding(fromPort, toPort) {
@@ -1765,21 +1671,6 @@ class Component extends SysADLBase {
     }
 
     return null;
-  }
-  
-  // LEGACY: Maintain compatibility for connectors without schema
-  bindLegacy(fromPort, toPort) {
-    if (!fromPort || !toPort) return;
-    this.participants = this.participants || [];
-    this.recordLegacyBinding(fromPort, toPort);
-    
-    // Add both ports as participants if not already present
-    if (!this.participants.some(p => p === fromPort)) {
-      this.participants.push(fromPort);
-    }
-    if (!this.participants.some(p => p === toPort)) {
-      this.participants.push(toPort);
-    }
   }
   
   // GENERIC: Perform binding based on direction
@@ -3137,16 +3028,19 @@ class Entity extends Element {
     // Notify associated entities if this is a communication property
     this.notifyAssociatedEntities(propName, value, oldValue);
     
-    // Log property change
-    if (this.model && this.model.logEvent) {
-      this.model.logEvent({
-        elementType: 'entity_property_change',
-        entity: this.name,
-        entityType: this.entityType,
-        property: propName,
-        oldValue,
-        newValue: value,
-        when: Date.now()
+    // Log property change in narrative format
+    if (this.model && this.model.logger) {
+      this.model.logger.logExecution({
+        type: 'entity.property.changed',
+        name: this.name,
+        context: {
+          entityType: this.entityType,
+          property: propName,
+          from: oldValue,
+          to: value,
+          hasPropagation: !!this.bindings[propName],
+          hasNotifications: Object.keys(this.associations.outgoing).length > 0
+        }
       });
     }
   }
@@ -3387,7 +3281,26 @@ class Connection extends Element {
 
   // Set connection property
   setProperty(propName, value) {
+    const oldValue = this.properties[propName];
     this.properties[propName] = value;
+    
+    // Log connection property change in narrative format
+    if (this.model && this.model.logger) {
+      this.model.logger.logExecution({
+        type: 'connection.property.changed',
+        name: this.name,
+        context: {
+          connectionType: this.connectionType,
+          property: propName,
+          from: oldValue,
+          to: value,
+          endpoints: {
+            from: this.from,
+            to: this.to
+          }
+        }
+      });
+    }
   }
 
   // Get connection property
@@ -3428,17 +3341,29 @@ class Event extends Element {
 
   // Execute event action
   execute(context) {
-    if (this.model && this.model.logEvent) {
-      this.model.logEvent({
-        elementType: 'event_execute',
-        event: this.name,
-        when: Date.now()
-      });
-    }
-
+    const startTime = Date.now();
+    
     if (this.action) {
       try {
         const result = this.action(context);
+        const duration = Date.now() - startTime;
+        
+        // Log event execution in narrative format
+        if (this.model && this.model.logger) {
+          this.model.logger.logExecution({
+            type: 'event.executed',
+            name: this.name,
+            context: {
+              eventType: this.eventType,
+              parameters: this.parameters,
+              result: result ? 'success' : 'failure',
+              triggersCount: this.triggers.length
+            },
+            metrics: {
+              duration
+            }
+          });
+        }
         
         // Trigger dependent events
         for (const triggerEvent of this.triggers) {
@@ -3450,6 +3375,22 @@ class Event extends Element {
         return result;
       } catch (e) {
         console.warn(`Event ${this.name} execution failed:`, e);
+        
+        // Log error
+        if (this.model && this.model.logger) {
+          this.model.logger.logExecution({
+            type: 'event.error',
+            name: this.name,
+            context: {
+              eventType: this.eventType
+            },
+            error: {
+              code: 'EVENT_EXECUTION_ERROR',
+              message: e.message
+            }
+          });
+        }
+        
         return false;
       }
     }
@@ -3508,21 +3449,37 @@ class Scene extends Element {
 
   // Initialize scene - set all entities to their initial states
   initialize() {
+    const entitiesInitialized = [];
+    
     for (const entity of this.entities) {
       const initialState = this.initialStates[entity.name];
       if (initialState) {
+        const propsSet = [];
         for (const [prop, value] of Object.entries(initialState)) {
           entity.setProperty(prop, value);
+          propsSet.push(prop);
         }
+        entitiesInitialized.push({
+          entity: entity.name,
+          properties: propsSet
+        });
       }
     }
     this.active = true;
     
-    if (this.model && this.model.logEvent) {
-      this.model.logEvent({
-        elementType: 'scene_initialize',
-        scene: this.name,
-        when: Date.now()
+    // Log scene initialization in narrative format
+    if (this.model && this.model.logger) {
+      this.model.logger.logExecution({
+        type: 'scene.initialized',
+        name: this.name,
+        context: {
+          entitiesCount: this.entities.length,
+          entitiesInitialized: entitiesInitialized.length,
+          constraintsCount: this.constraints.length
+        },
+        trace: {
+          entities: entitiesInitialized
+        }
       });
     }
   }
@@ -3553,17 +3510,33 @@ class Scene extends Element {
       return null;
     }
     
-    // Check in context.entities first (most common location)
-    if (context.entities && context.entities[entityName]) {
-      return context.entities[entityName];
+    // PRIORITY 1: Check in context.model.environmentConfig (EnvironmentConfiguration entities)
+    // This is where entities are actually stored as properties
+    if (context.model?.environmentConfig?.[entityName]) {
+      return context.model.environmentConfig[entityName];
     }
     
-    // Check in context directly (alternative structure)
+    // PRIORITY 2: Check in context.entities (array or object)
+    if (context.entities) {
+      // If entities is an object/map
+      if (context.entities[entityName]) {
+        return context.entities[entityName];
+      }
+      // If entities is an array
+      if (Array.isArray(context.entities)) {
+        const found = context.entities.find(e => e && (e.name === entityName || e.id === entityName));
+        if (found) {
+          return found;
+        }
+      }
+    }
+    
+    // PRIORITY 3: Check in context directly (alternative structure)
     if (context[entityName]) {
       return context[entityName];
     }
     
-    // Check in scene's own entities
+    // PRIORITY 4: Check in scene's own entities
     if (this.entities) {
       const sceneEntity = this.entities.find(e => e.name === entityName);
       if (sceneEntity) {
@@ -3571,7 +3544,7 @@ class Scene extends Element {
       }
     }
     
-    console.warn(`[Scene.getEntity] Entity '${entityName}' not found in context or scene`);
+    console.warn(`[Scene.getEntity] Entity '${entityName}' not found in context.model.environmentConfig, context.entities, context or scene`);
     return null;
   }
 
@@ -3690,6 +3663,28 @@ class Scene extends Element {
     try {
       // Validate pre-conditions using JavaScript functions
       const preConditionsPassed = this.validatePreConditions(context);
+      
+      // Log pre-condition validation result
+      if (this.model && this.model.logger) {
+        this.model.logger.logExecution({
+          type: preConditionsPassed ? 'scene.precondition.validated' : 'scene.precondition.validation.failed',
+          name: this.name,
+          summary: preConditionsPassed 
+            ? `Pre-conditions validated for ${this.name}`
+            : `Pre-conditions validation failed for ${this.name}`,
+          context: {
+            sceneName: this.name,
+            scenario: context.scenarioName || context.scenario,
+            passed: preConditionsPassed
+          },
+          trace: {
+            scenario: context.scenarioName || context.scenario,
+            sceneName: this.name,
+            validationType: 'pre-condition'
+          }
+        });
+      }
+      
       if (!preConditionsPassed) {
         return {
           success: false,
@@ -3703,6 +3698,28 @@ class Scene extends Element {
 
       // Validate post-conditions using JavaScript functions
       const postConditionsPassed = this.validatePostConditions(context);
+      
+      // Log post-condition validation result
+      if (this.model && this.model.logger) {
+        this.model.logger.logExecution({
+          type: postConditionsPassed ? 'scene.postcondition.validated' : 'scene.postcondition.validation.failed',
+          name: this.name,
+          summary: postConditionsPassed
+            ? `Post-conditions validated for ${this.name}`
+            : `Post-conditions validation failed for ${this.name}`,
+          context: {
+            sceneName: this.name,
+            scenario: context.scenarioName || context.scenario,
+            passed: postConditionsPassed
+          },
+          trace: {
+            scenario: context.scenarioName || context.scenario,
+            sceneName: this.name,
+            validationType: 'post-condition'
+          }
+        });
+      }
+      
       if (!postConditionsPassed) {
         return {
           success: false,
@@ -3789,8 +3806,27 @@ class Scenario extends Element {
 
   // Start scenario execution
   start(context) {
-    if (!this.checkPreConditions(context)) {
+    const preConditionsOk = this.checkPreConditions(context);
+    
+    if (!preConditionsOk) {
       this.status = 'failed';
+      
+      // Log pre-condition failure
+      if (this.model && this.model.logger) {
+        this.model.logger.logExecution({
+          type: 'scenario.start.failed',
+          name: this.name,
+          context: {
+            reason: 'Pre-conditions not met',
+            preConditionsCount: this.preConditions.length
+          },
+          validation: {
+            result: 'failed',
+            checks: ['pre-conditions']
+          }
+        });
+      }
+      
       return false;
     }
 
@@ -3800,11 +3836,20 @@ class Scenario extends Element {
       this.currentScene.initialize();
     }
 
-    if (this.model && this.model.logEvent) {
-      this.model.logEvent({
-        elementType: 'scenario_start',
-        scenario: this.name,
-        when: Date.now()
+    // Log scenario start in narrative format
+    if (this.model && this.model.logger) {
+      this.model.logger.logExecution({
+        type: 'scenario.started',
+        name: this.name,
+        context: {
+          scenesCount: this.scenes.length,
+          eventsCount: this.events.length,
+          firstScene: this.currentScene?.name
+        },
+        trace: {
+          preConditions: 'passed',
+          initialScene: this.currentScene?.name
+        }
       });
     }
 
@@ -3813,18 +3858,27 @@ class Scenario extends Element {
 
   // Complete scenario and check post-conditions
   complete(context) {
-    if (this.checkPostConditions(context)) {
+    const postConditionsOk = this.checkPostConditions(context);
+    
+    if (postConditionsOk) {
       this.status = 'completed';
     } else {
       this.status = 'failed';
     }
 
-    if (this.model && this.model.logEvent) {
-      this.model.logEvent({
-        elementType: 'scenario_complete',
-        scenario: this.name,
-        status: this.status,
-        when: Date.now()
+    // Log scenario completion in narrative format
+    if (this.model && this.model.logger) {
+      this.model.logger.logExecution({
+        type: this.status === 'completed' ? 'scenario.completed' : 'scenario.failed',
+        name: this.name,
+        context: {
+          status: this.status,
+          finalScene: this.currentScene?.name
+        },
+        validation: {
+          result: postConditionsOk ? 'passed' : 'failed',
+          checks: ['post-conditions']
+        }
       });
     }
 
@@ -3834,11 +3888,11 @@ class Scenario extends Element {
   /**
    * Execute a scene or nested scenario within this scenario context
    * Generic method that works with both scene and scenario execution
-   * @param {Object} context - Execution context with scenes and scenarios registry
    * @param {string} name - Name of scene or scenario to execute
+   * @param {Object} context - Execution context with scenes and scenarios registry
    * @returns {Promise<Object>} - Execution result
    */
-  async executeScene(context, name) {
+  async executeScene(name, context) {
     if (!context) {
       throw new Error('Context is required for scene execution');
     }
@@ -3846,6 +3900,7 @@ class Scenario extends Element {
     // Try to find and execute as scene first
     if (context.scenes && context.scenes[name]) {
       const sceneInstance = new context.scenes[name]();
+      sceneInstance.model = this.model; // Set model reference so scene can access logger
       if (sceneInstance.execute) {
         return await sceneInstance.execute(context);
       }
@@ -3853,7 +3908,7 @@ class Scenario extends Element {
     
     // Try to find and execute as scenario
     if (context.scenarios && context.scenarios[name]) {
-      return await this.executeScenario(context, name);
+      return await this.executeScenario(name, context);
     }
     
     throw new Error(`Scene or scenario '${name}' not found in context`);
@@ -3861,11 +3916,11 @@ class Scenario extends Element {
   
   /**
    * Execute a nested scenario within this scenario context
-   * @param {Object} context - Execution context with scenarios registry
    * @param {string} scenarioName - Name of scenario to execute
+   * @param {Object} context - Execution context with scenarios registry
    * @returns {Promise<Object>} - Execution result
    */
-  async executeScenario(context, scenarioName) {
+  async executeScenario(scenarioName, context) {
     if (!context || !context.scenarios) {
       throw new Error('Context with scenarios registry is required');
     }
@@ -3876,6 +3931,8 @@ class Scenario extends Element {
     }
     
     const scenarioInstance = new ScenarioClass();
+    scenarioInstance.model = this.model; // Set model reference
+    
     if (scenarioInstance.execute) {
       return await scenarioInstance.execute(context);
     }
@@ -4558,8 +4615,89 @@ class ScenarioExecution extends Element {
       entities: this.environment ? this.environment.entities : [],
       events: this.environment ? this.environment.events : [],
       model: this.model,
-      execution: this
+      execution: this,
+      scenarios: this.model?.scenarios || {},
+      scenes: this.model?.scenes || {},
+      eventScheduler: this.model?.eventScheduler || {}
     };
+  }
+
+  // Helper method to execute a scenario by name (used by generated code)
+  async executeScenario(scenarioName, context) {
+    const scenarioClass = this.model?.scenarios?.[scenarioName];
+    
+    if (!scenarioClass) {
+      throw new Error(`Scenario '${scenarioName}' not found in model.scenarios`);
+    }
+
+    // Log scenario execution start
+    if (this.model?.logger) {
+      this.model.logger.logExecution({
+        type: 'scenario.started',
+        name: scenarioName,
+        context: { 
+          executionName: this.name,
+          parentExecution: this.name 
+        }
+      });
+    }
+    const scenarioStartTime = Date.now();
+
+    // If it's a class, instantiate it
+    let scenario;
+    if (typeof scenarioClass === 'function' && scenarioClass.prototype) {
+      scenario = new scenarioClass(scenarioName);
+      scenario.model = this.model;
+    } else {
+      throw new Error(`Scenario '${scenarioName}' is not a valid class`);
+    }
+
+    // Execute the scenario
+    let result;
+    try {
+      if (scenario.execute && typeof scenario.execute === 'function') {
+        result = await scenario.execute(context);
+      } else if (scenario.start && typeof scenario.start === 'function') {
+        // Fallback to start method if execute doesn't exist
+        result = scenario.start(context);
+      } else {
+        throw new Error(`Scenario '${scenarioName}' has no execute() or start() method`);
+      }
+
+      // Log scenario execution completion
+      if (this.model?.logger) {
+        this.model.logger.logExecution({
+          type: 'scenario.completed',
+          name: scenarioName,
+          context: { 
+            executionName: this.name,
+            result: result?.message || 'completed'
+          },
+          metrics: { duration: Date.now() - scenarioStartTime }
+        });
+      }
+
+      // Notificar EventScheduler sobre conclusão do cenário
+      if (this.model?.eventScheduler) {
+        this.model.eventScheduler.notifyScenarioCompleted(scenarioName);
+      }
+
+      return result;
+    } catch (error) {
+      // Log scenario execution error
+      if (this.model?.logger) {
+        this.model.logger.logExecution({
+          type: 'scenario.failed',
+          name: scenarioName,
+          context: { 
+            executionName: this.name,
+            error: error.message
+          },
+          metrics: { duration: Date.now() - scenarioStartTime }
+        });
+      }
+      throw error;
+    }
   }
 
   // Complete execution
@@ -4828,8 +4966,7 @@ class ScenarioDefinitions extends Element {
   }
 }
 
-// Export everything
-
+// Note: Exports are handled by UMD wrapper at the end of file
 
 /**
  * Expression Evaluator for SysADL Conditions
@@ -5087,44 +5224,17 @@ class SysADLRuntimeHelpers {
   }
 }
 
-// Export ExpressionEvaluator (Node.js only)
-// (garantido apenas dentro do bloco Node.js)
-// (removido do escopo global para evitar erro no browser)
-
-// Export all components
-const sysadlExports = {
-  // Core classes
-  Model, Component, Port, SimplePort, CompositePort, Connector, Activity, Action, 
-  Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit, Constraint, Executable,
-  
-  // Elements
-  Element, 
-  
-  // Environment & Scenario classes
-  EnvironmentDefinition, EnvironmentConfiguration, Entity, Event, Scene, Scenario, 
-  ScenarioExecution, EventsDefinitions, SceneDefinitions, ScenarioDefinitions, Connection,
-  
-  // Runtime helpers
-  SysADLRuntimeHelpers,
-  
-  // Phase 4 Components
-  ExecutionLogger, EventInjector, SceneExecutor,
-  
-  // Phase 5 & 6 Components
-  ScenarioExecutor, ExecutionController, ReactiveStateManager, ReactiveConditionWatcher,
-  
-  // Event system
-  EventSystemManager: EventSystemManager
+// UMD Return - Export all classes
+return {
+  Model, Component, Port, SimplePort, CompositePort, Connector,
+  Activity, Action, Constraint, Executable, Enum, Int, Boolean, String, Real, Void,
+  valueType, dataType, dimension, unit,
+  Element, SysADLBase, EventEmitter,
+  EventSystemManager,
+  Entity, Connection, Scene, Scenario, EnvironmentDefinition, EnvironmentConfiguration,
+  ScenarioExecution, EventsDefinitions, SceneDefinitions, ScenarioDefinitions,
+  ExpressionEvaluator, SysADLRuntimeHelpers,
+  ExecutionLogger, EventInjector, SceneExecutor
 };
 
-// Node.js environment
-if (typeof module === 'object' && typeof module.exports === 'object') {
-  Object.assign(module.exports, sysadlExports);
-}
-
-// Browser environment
-if (typeof window !== 'undefined') {
-  window.SysADLBase = sysadlExports;
-}
-
-})(); // End IIFE
+}));

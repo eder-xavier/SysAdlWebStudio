@@ -999,7 +999,7 @@ class EX_ComponentsAGV_SendStartMotorEX extends Executable {
     super(name, {
       ...opts,
       inParameters: [],
-      body: "executable def SendStartMotorEX ( in move : VehicleData) : out CommandToMotor {\r\n\t\treturn CommandToMotor::start;\r\n\t}",
+      body: "executable def SendStartMotorEX ( in move : VehicleData) : out CommandToMotor {\n\t\treturn CommandToMotor::start;\n\t}",
       executableFunction: function(params) {
           // Type validation
           // Type validation for move: (auto-detected from usage)
@@ -1016,7 +1016,7 @@ class EX_ComponentsAGV_SendCommandEX extends Executable {
     super(name, {
       ...opts,
       inParameters: [],
-      body: "executable def SendCommandEX ( in move : VehicleData) : out CommandToArm {\r\n\t\treturn move->command;\r\n\t}",
+      body: "executable def SendCommandEX ( in move : VehicleData) : out CommandToArm {\n\t\treturn move->command;\n\t}",
       executableFunction: function(params) {
           // Type validation
           // Type validation for move: (auto-detected from usage)
@@ -1033,7 +1033,7 @@ class EX_ComponentsAGV_SendDestinationEX extends Executable {
     super(name, {
       ...opts,
       inParameters: [],
-      body: "executable def SendDestinationEX ( in move : VehicleData) : out Location {\r\n\t\treturn move->destination;\r\n\t}",
+      body: "executable def SendDestinationEX ( in move : VehicleData) : out Location {\n\t\treturn move->destination;\n\t}",
       executableFunction: function(params) {
           // Type validation
           // Type validation for move: (auto-detected from usage)
@@ -1050,7 +1050,7 @@ class EX_ComponentsAGV_NotifyAGVFromMotorEX extends Executable {
     super(name, {
       ...opts,
       inParameters: [],
-      body: "executable def NotifyAGVFromMotorEX ( in statusMotor : NotificationFromMotor) : \r\n\tout NotificationFromMotor{\r\n\t\treturn statusMotor;\r\n\t}",
+      body: "executable def NotifyAGVFromMotorEX ( in statusMotor : NotificationFromMotor) : \n\tout NotificationFromMotor{\n\t\treturn statusMotor;\n\t}",
       executableFunction: function(params) {
           // Type validation
           // Type validation for statusMotor: (auto-detected from usage)
@@ -1067,7 +1067,7 @@ class EX_ComponentsAGV_NotifySupervisoryFromMotorEX extends Executable {
     super(name, {
       ...opts,
       inParameters: [],
-      body: "executable def NotifySupervisoryFromMotorEX ( in statusMotor : NotificationFromMotor) : \r\n\t\tout\tNotificationToSupervisory {\r\n\t\tif (statusMotor == NotificationFromMotor::started) \r\n\t\t\treturn NotificationToSupervisory::departed;\r\n\t\telse\r\n\t\t\treturn NotificationToSupervisory::traveling;\r\n\t}",
+      body: "executable def NotifySupervisoryFromMotorEX ( in statusMotor : NotificationFromMotor) : \n\t\tout\tNotificationToSupervisory {\n\t\tif (statusMotor == NotificationFromMotor::started) \n\t\t\treturn NotificationToSupervisory::departed;\n\t\telse\n\t\t\treturn NotificationToSupervisory::traveling;\n\t}",
       executableFunction: function(params) {
           // Type validation
           // Type validation for statusMotor: (auto-detected from usage)
@@ -1088,7 +1088,7 @@ class EX_ComponentsAGV_CompareStationsEX extends Executable {
     super(name, {
       ...opts,
       inParameters: [],
-      body: "executable def CompareStationsEX ( in destination : Location, in location : Location, \r\n\t\tin statusMotor : NotificationFromMotor) : \tout Boolean {\r\n\t\tif(statusMotor == NotificationFromMotor::started && destination == location)\r\n\t\t\treturn true;\r\n\t\telse\r\n\t\t\treturn false;\r\n\t}",
+      body: "executable def CompareStationsEX ( in destination : Location, in location : Location, \n\t\tin statusMotor : NotificationFromMotor) : \tout Boolean {\n\t\tif(statusMotor == NotificationFromMotor::started && destination == location)\n\t\t\treturn true;\n\t\telse\n\t\t\treturn false;\n\t}",
       executableFunction: function(params) {
           // Type validation
           // Type validation for destination: (auto-detected from usage)
@@ -1111,7 +1111,7 @@ class EX_ComponentsAGV_StopMotorEX extends Executable {
     super(name, {
       ...opts,
       inParameters: [],
-      body: "executable def StopMotorEX ( in comparisonResult : Boolean) :\r\n\tout CommandToMotor {\r\n\t\tif(comparisonResult == true)\r\n\t\t\treturn CommandToMotor::stop;\r\n\t\telse\r\n\t\t\treturn null;\r\n\t}",
+      body: "executable def StopMotorEX ( in comparisonResult : Boolean) :\n\tout CommandToMotor {\n\t\tif(comparisonResult == true)\n\t\t\treturn CommandToMotor::stop;\n\t\telse\n\t\t\treturn null;\n\t}",
       executableFunction: function(params) {
           // Type validation
           // Type validation for comparisonResult: (auto-detected from usage)
@@ -1132,7 +1132,7 @@ class EX_ComponentsAGV_PassedMotorEX extends Executable {
     super(name, {
       ...opts,
       inParameters: [],
-      body: "executable def PassedMotorEX ( in comparisonResult : Boolean) :\r\n\tout NotificationToSupervisory {\r\n\t\tif(comparisonResult == false)\r\n\t\t\treturn NotificationToSupervisory::passed;\r\n\t\telse\r\n\t\t\treturn null;\r\n\t}",
+      body: "executable def PassedMotorEX ( in comparisonResult : Boolean) :\n\tout NotificationToSupervisory {\n\t\tif(comparisonResult == false)\n\t\t\treturn NotificationToSupervisory::passed;\n\t\telse\n\t\t\treturn null;\n\t}",
       executableFunction: function(params) {
           // Type validation
           // Type validation for comparisonResult: (auto-detected from usage)
@@ -1153,7 +1153,7 @@ class EX_ComponentsAGV_SendCurrentLocationEX extends Executable {
     super(name, {
       ...opts,
       inParameters: [],
-      body: "executable def SendCurrentLocationEX ( in location : Location)\r\n\t: out Location {\r\n\t\treturn location;\r\n\t}",
+      body: "executable def SendCurrentLocationEX ( in location : Location)\n\t: out Location {\n\t\treturn location;\n\t}",
       executableFunction: function(params) {
           // Type validation
           // Type validation for location: (auto-detected from usage)
@@ -1170,7 +1170,7 @@ class EX_ComponentsAGV_ControlArmEX extends Executable {
     super(name, {
       ...opts,
       inParameters: [],
-      body: "executable def ControlArmEX ( in statusMotor : NotificationFromMotor, in cmd : CommandToArm) : out CommandToArm {\r\n\t\tif(statusMotor == NotificationFromMotor::stopped)\r\n\t\t\treturn cmd;\r\n\t\telse\r\n\t\t\treturn CommandToArm::idle;\r\n\t}",
+      body: "executable def ControlArmEX ( in statusMotor : NotificationFromMotor, in cmd : CommandToArm) : out CommandToArm {\n\t\tif(statusMotor == NotificationFromMotor::stopped)\n\t\t\treturn cmd;\n\t\telse\n\t\t\treturn CommandToArm::idle;\n\t}",
       executableFunction: function(params) {
           // Type validation
           // Type validation for statusMotor: (auto-detected from usage)
@@ -1192,7 +1192,7 @@ class EX_ComponentsAGV_NotifierArmEX extends Executable {
     super(name, {
       ...opts,
       inParameters: [],
-      body: "executable def NotifierArmEX ( in statusArm : NotificationFromArm) : \r\n\tout\tNotificationToSupervisory {\r\n\t\treturn NotificationToSupervisory::arrived;\r\n\t}",
+      body: "executable def NotifierArmEX ( in statusArm : NotificationFromArm) : \n\tout\tNotificationToSupervisory {\n\t\treturn NotificationToSupervisory::arrived;\n\t}",
       executableFunction: function(params) {
           // Type validation
           // Type validation for statusArm: (auto-detected from usage)
@@ -1209,7 +1209,7 @@ class EX_ComponentsAGV_VehicleTimerEX extends Executable {
     super(name, {
       ...opts,
       inParameters: [],
-      body: "executable def VehicleTimerEX ( in location : Location, in cmd : CommandToArm, \r\n\t\tin destination : Location) : out Status {\r\n\t\t\r\n\t\tlet s : Status;\r\n\t\ts->destination = destination;\r\n\t\ts->location = location;\r\n\t\ts->command = cmd;\r\n\t\t\r\n\t\treturn s;\r\n\t}",
+      body: "executable def VehicleTimerEX ( in location : Location, in cmd : CommandToArm, \n\t\tin destination : Location) : out Status {\n\t\t\n\t\tlet s : Status;\n\t\ts->destination = destination;\n\t\ts->location = location;\n\t\ts->command = cmd;\n\t\t\n\t\treturn s;\n\t}",
       executableFunction: function(params) {
           // Type validation
           // Type validation for location: (auto-detected from usage)

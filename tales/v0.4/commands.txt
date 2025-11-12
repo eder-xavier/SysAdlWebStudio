@@ -1,3 +1,8 @@
 node transformer.js AGV-completo.sysadl
 
 node environment-simulator.js generated/AGV-completo-env-scen.js --scenario=MyScenariosExecution
+
+
+----- Éder
+ cd ../../eder/v1/v1.1
+node server-node.js  

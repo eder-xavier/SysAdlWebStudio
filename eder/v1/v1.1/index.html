@@ -124,6 +124,19 @@
   </script>
 
   <script src="./sysadl-framework/SysADLBase.js"></script>
+  <script>
+    // Debug: Verify SysADLBase loaded
+    console.log('🔍 After SysADLBase load:');
+    console.log('  - typeof window.SysADLBase:', typeof window.SysADLBase);
+    console.log('  - Available:', !!window.SysADLBase);
+    if (window.SysADLBase) {
+      console.log('  - Exports:', Object.keys(window.SysADLBase).length);
+      console.log('  - Has Model:', !!window.SysADLBase.Model);
+      console.log('  - Has Component:', !!window.SysADLBase.Component);
+    } else {
+      console.error('❌ window.SysADLBase NOT LOADED!');
+    }
+  </script>
   <script src="./simulator.js"></script>
   <script type="module" src="./visualizer.js"></script>
   <script type="module" src="./app.js"></script>

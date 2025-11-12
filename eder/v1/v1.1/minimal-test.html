@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head><title>Minimal Test</title></head>
+<body>
+  <h1>Minimal SysADLBase Test</h1>
+  <pre id="result"></pre>
+  
+  <script>
+    console.log('Step 1: Before load');
+    console.log('window:', typeof window);
+  </script>
+  
+  <script src="./sysadl-framework/SysADLBase.js"></script>
+  
+  <script>
+    console.log('Step 2: After load');
+    console.log('window.SysADLBase:', window.SysADLBase);
+    
+    const result = document.getElementById('result');
+    if (window.SysADLBase) {
+      result.textContent = '✅ SUCCESS!\n\nwindow.SysADLBase exists\n\nExports: ' + 
+        Object.keys(window.SysADLBase).join(', ');
+      result.style.color = 'green';
+    } else {
+      result.textContent = '❌ FAILED!\n\nwindow.SysADLBase is undefined';
+      result.style.color = 'red';
+    }
+  </script>
+</body>
+</html>
