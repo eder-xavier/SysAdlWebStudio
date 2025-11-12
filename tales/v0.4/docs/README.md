@@ -1,140 +1,151 @@
-# Documentação do SysADL Framework v0.4
+# SysADL Framework v0.4 - Estrutura do Projeto
 
-Esta pasta contém toda a documentação técnica, relatórios e arquivos informativos do SysADL Framework.
+Este é o diretório principal do SysADL Framework v0.4, contendo todos os componentes organizados.
 
-## 📁 Estrutura da Documentação
+## 📁 Estrutura de Diretórios
 
-### 📋 Relatórios de Desenvolvimento
-
-#### **Phase 3 - Sistema Reativo**
-- **`PHASE3_COMPLETE.md`** - Relatório completo da implementação da Phase 3
-- **`REACTIVE_INTEGRATION.md`** - Documentação da integração do sistema reativo
-- **`SISTEMA_REATIVO_EXPLICACAO.md`** - Explicação detalhada do sistema reativo
-
-#### **Phase 4 - Scene Execution Engine** 
-- **`VALIDATION_REPORT.md`** - Relatório de validação da Phase 4
-- **`GENERIC_ARCHITECTURE_FINAL_REPORT.md`** - Relatório final da arquitetura genérica
-
-#### **Testes e Validação**
-- **`RELATORIO-TESTE-cmdSupervisor.md`** - Relatório de testes do supervisor de comandos
-
-### 🏗️ Arquitetura e Planejamento
-
-#### **Execução de Cenários**
-- **`SCENARIO_EXECUTION_PLAN.md`** - Plano de execução de cenários
-- **`ENVIRONMENT_SCENARIO.md`** - Documentação de cenários de ambiente
-
-#### **Simulação**
-- **`SIMULATOR.md`** - Documentação do simulador
-
-### 📝 Arquivos de Configuração e Informações
-
-#### **Comandos e Configurações**
-- **`commands.txt`** - Lista de comandos disponíveis
-- **`informações.txt`** - Informações gerais do projeto
-
-## 🎯 Histórico de Desenvolvimento
-
-### ✅ Phase 1 - Parser Básico
-Implementação inicial do parser SysADL com suporte básico para elementos.
-
-### ✅ Phase 2 - Elementos Estruturais  
-Expansão com suporte completo para componentes, conectores e arquiteturas.
-
-### ✅ Phase 3 - Sistema Reativo
-- **ReactiveConditionWatcher** - Monitoramento de condições reativas
-- **ReactiveStateManager** - Gerenciamento de estados reativos
-- **DependencyTracker** - Rastreamento de dependências
-- Integração completa com SysADLBase
-
-### ✅ Phase 4 - Scene Execution Engine
-- **SceneExecutor** - Motor de execução de cenas
-- **ExecutionLogger** - Sistema de logging automático
-- **EventInjector** - Injeção genérica de eventos
-- Integração completa com sistema de eventos
-
-### 🚧 Phase 5 - Scenario Execution Engine (Planejado)
-Próxima fase focada na execução de cenários complexos.
-
-## 📊 Métricas de Qualidade
-
-### **Cobertura de Testes**
-- Phase 3: ✅ 100% validada
-- Phase 4: ✅ 100% validada  
-- Testes de integração: ✅ Funcionando
-- Performance: ✅ Otimizada
-
-### **Documentação**
-- Arquitetura: ✅ Documentada
-- APIs: ✅ Documentadas
-- Exemplos: ✅ Disponíveis
-- Tutoriais: ✅ Disponíveis
-
-## 🔍 Como Navegar na Documentação
-
-### **Para Desenvolvedores**
-1. Comece com `GENERIC_ARCHITECTURE_FINAL_REPORT.md`
-2. Leia `PHASE3_COMPLETE.md` para entender o sistema reativo
-3. Consulte `VALIDATION_REPORT.md` para a Phase 4
-4. Use `SIMULATOR.md` para simulação
-
-### **Para Usuários**
-1. Leia `SCENARIO_EXECUTION_PLAN.md` para execução
-2. Consulte `ENVIRONMENT_SCENARIO.md` para cenários
-3. Use `commands.txt` para comandos disponíveis
-
-### **Para Testes**
-1. Veja `RELATORIO-TESTE-cmdSupervisor.md`
-2. Consulte `../test/README.md` para testes específicos
-
-## 🛠️ Convenções de Documentação
-
-### **Novos Arquivos de Documentação**
-Sempre criar na pasta `/docs/` seguindo estas convenções:
-
-1. **Relatórios**: `[COMPONENTE]_REPORT.md`
-2. **Planejamento**: `[FASE]_PLAN.md`  
-3. **Explicações**: `[TEMA]_EXPLICACAO.md`
-4. **Configurações**: `[TIPO].txt`
-
-### **Estrutura de Arquivos .md**
-```markdown
-# Título Principal
-
-## 📋 Resumo Executivo
-Breve descrição do conteúdo
-
-## 🎯 Objetivos
-Lista de objetivos
-
-## 🏗️ Implementação
-Detalhes técnicos
-
-## ✅ Resultados
-Métricas e validações
-
-## 🚀 Próximos Passos
-Planejamento futuro
+```
+v0.4/
+├── 📄 *.sysadl                    # Modelos SysADL (AGV, RTC, Simple, etc.)
+├── 📄 *.js                        # Scripts de transformação e simulação
+├── 📄 *.peg                       # Gramática PEG.js do parser
+├── 📂 sysadl-framework/           # 🏗️ Framework principal
+│   ├── SysADLBase.js             # Classe base do framework
+│   ├── SceneExecutor.js          # Phase 4: Executor de cenas
+│   ├── EventInjector.js          # Phase 4: Injetor de eventos
+│   ├── EventScheduler.js         # Phase 5.2: Agendador de eventos ⭐ NEW!
+│   ├── ExecutionLogger.js        # Phase 5: Sistema de logging narrativo ✅
+│   ├── LoggingConstants.js       # Phase 5: Prefixos e constantes ✅
+│   ├── ReactiveConditionWatcher.js # Phase 3: Monitor reativo
+│   └── ...                       # Outros componentes
+├── 📂 test/                       # 🧪 Todos os testes
+│   ├── README.md                 # Documentação dos testes
+│   ├── test-phase4-integration.js
+│   └── ...                       # Demais testes
+├── 📂 docs/                       # 📚 Toda a documentação
+│   ├── README.md                 # Índice da documentação
+│   ├── PHASE3_COMPLETE.md
+│   ├── VALIDATION_REPORT.md
+│   └── ...                       # Demais documentos
+├── 📂 generated/                  # 🔄 Modelos JavaScript gerados
+├── 📂 logs/                       # 📊 Logs e relatórios de execução
+└── 🔧 Scripts de transformação
 ```
 
-### **Estrutura de Arquivos .txt**
+## 🎯 Componentes Principais
+
+### **Parser e Transformação**
+- `sysadl-parser.js` - Parser principal
+- `sysadl.peg` - Gramática PEG.js
+- `transformer.js` - Transformador principal
+- `transform_all.sh` - Script para transformar todos os modelos
+
+### **Simulação e Ambiente**
+- `environment-simulator.js` - Simulador de ambiente
+- `simulator.js` - Simulador principal
+- `env-scenario-generic-demo.js` - Demo de cenários
+
+### **Modelos SysADL**
+- `AGV-completo.sysadl` - Modelo completo do AGV
+- `RTC.sysadl` - Modelo Runtime Contract
+- `Simple.sysadl` - Modelo simples para testes
+- `TestModel.sysadl` - Modelo para testes
+
+## 🚀 Como Usar
+
+### **Desenvolvimento**
+```bash
+# Executar testes principais
+cd test/
+node test-phase4-integration.js
+
+# Transformar modelos
+./transform_all.sh
+
+# Executar simulação
+node environment-simulator.js
 ```
-# Comentários com #
-comando1 - Descrição do comando
-comando2 - Descrição do comando
+
+### **Consultar Documentação**
+```bash
+# Ver documentação completa
+cd docs/
+cat README.md
+
+# Ver testes disponíveis
+cd test/
+cat README.md
 ```
 
-## 📞 Referências Rápidas
+## 📋 Status do Desenvolvimento
 
-- **Framework Principal**: `../sysadl-framework/`
-- **Testes**: `../test/`
-- **Modelos Gerados**: `../generated/`
-- **Logs**: `../logs/`
+- ✅ **Phase 1**: Parser básico
+- ✅ **Phase 2**: Elementos estruturais  
+- ✅ **Phase 3**: Sistema reativo completo
+- ✅ **Phase 4**: Scene Execution Engine completo
+- ✅ **Phase 5**: Narrative Logging System completo
+- ✅ **Phase 5.1**: ScenarioExecution Integration completo
+- ✅ **Phase 5.2**: EventScheduler Implementation completo
+- ✅ **Phase 5.3**: Entity Binding em Cenas completo ⭐ **NEW!**
+- 🚧 **Phase 5.4**: Testes Avançados (próximo)
 
-## 🔄 Versionamento
+### **🎉 Narrative Logging System**
+O framework inclui um sistema de logging narrativo que transforma logs técnicos em narrativas legíveis:
 
-Esta documentação corresponde ao **SysADL Framework v0.4** com:
-- Phase 3: Sistema Reativo completo
-- Phase 4: Scene Execution Engine completo  
-- Arquitetura genérica validada
-- Testes de integração funcionando
+- **Prefixos text-only**: `[START]`, `[EVENT]`, `[SCENE]`, `[SCENARIO]`, etc.
+- **Timestamps relativos**: Formato `mm:ss.SSS`
+- **Sumários narrativos**: Descrições em linguagem natural
+- **Formato híbrido**: Texto + JSON estruturado
+- **Output JSONL**: Logs estruturados para análise
+
+📖 Ver: `NARRATIVE-LOGGING-STATUS.md` para detalhes completos
+
+### **🚀 ScenarioExecution Integration**
+A integração completa de execução de cenários está funcional:
+
+- **Execução Assíncrona**: Cenários executam em background
+- **Método executeScenario()**: Executa cenários individuais por nome
+- **Context Enriquecido**: Acesso a scenarios, scenes e eventScheduler
+- **Logging Completo**: Rastreamento de início, fim e falhas
+- **Geração Automática**: Classes de cenário geradas com método execute()
+
+📖 Ver: `SCENARIO-EXECUTION-STATUS.md` para detalhes técnicos
+
+### **✨ EventScheduler - NEW! (Phase 5.2)**
+Sistema completo de agendamento de eventos para execução de cenários:
+
+- **3 Estratégias de Agendamento**:
+  - `scheduleAfterScenario()`: Eventos após conclusão de cena/cenário
+  - `scheduleOnCondition()`: Eventos baseados em condições booleanas
+  - `scheduleAfterDelay()`: Eventos com delay temporal
+- **Monitoramento Condicional**: Sistema reativo com verificação a cada 100ms
+- **Integração Completa**: Notificações automáticas após cenas/cenários
+- **Transformação de Expressões**: Acesso automático a `environmentConfig`
+- **Logging Narrativo**: Rastreamento completo de eventos agendados e disparados
+
+**Sintaxe SysADL:**
+```sysadl
+ScenarioExecution to MyScenarios {
+  inject Event1 after Scenario1;           // Após cenário
+  inject Event2 when temperature > 80;     // Condicional
+  
+  Scenario1;
+  Scenario2;
+}
+```
+
+📖 Ver:
+- `EVENT-SCHEDULER-DOCUMENTATION.md` - Documentação completa
+- `EVENT-SCHEDULER-QUICK-REFERENCE.md` - Guia rápido
+- `EVENT-SCHEDULER-TEST-EXAMPLES.md` - Exemplos de teste
+- `PHASE-5.2-COMPLETE.md` - Relatório de conclusão
+
+## 🔗 Referências Rápidas
+
+- **Documentação**: [`docs/README.md`](docs/README.md)
+- **Testes**: [`test/README.md`](test/README.md)
+- **Framework**: [`sysadl-framework/`](sysadl-framework/)
+- **Modelos**: [`generated/`](generated/)
+
+---
+*SysADL Framework v0.4 - Sistema de Arquitetura e Design Language*

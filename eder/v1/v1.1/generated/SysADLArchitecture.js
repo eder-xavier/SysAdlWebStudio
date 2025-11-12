@@ -1263,7 +1263,7 @@ class SysADLArchitecture extends Model {
 
     this.FactoryAutomationSystem.agvs.addConnector(new CN_ConnectorsAGV_locationVehicle("arrived"));
     const arrived = this.FactoryAutomationSystem.agvs.connectors["arrived"];
-    arrived.bind(this.FactoryAutomationSystem.getPort("arrivalDetected_out"), this.FactoryAutomationSystem.getPort("arrivalDetected_in"));
+    arrived.bind(this.FactoryAutomationSystem.agvs.as.getPort("arrivalDetected"), this.FactoryAutomationSystem.agvs.vc.getPort("arrivalDetected_in"));
     this.FactoryAutomationSystem.agvs.addConnector(new CN_ConnectorsAGV_notificationArm("ackArm"));
     const ackArm = this.FactoryAutomationSystem.agvs.connectors["ackArm"];
     ackArm.bind(this.FactoryAutomationSystem.agvs.ra.getPort("started"), this.FactoryAutomationSystem.agvs.vc.getPort("startedArm"));
@@ -1272,37 +1272,37 @@ class SysADLArchitecture extends Model {
     cmdArm.bind(this.FactoryAutomationSystem.agvs.vc.getPort("startArm"), this.FactoryAutomationSystem.agvs.ra.getPort("start"));
     this.FactoryAutomationSystem.agvs.addConnector(new CN_ConnectorsAGV_notificationMotor("ackMotor"));
     const ackMotor = this.FactoryAutomationSystem.agvs.connectors["ackMotor"];
-    ackMotor.bind(this.FactoryAutomationSystem.getPort("started_stopped_out"), this.FactoryAutomationSystem.getPort("started_stopped_in"));
+    ackMotor.bind(this.FactoryAutomationSystem.agvs.m.getPort("started_stopped_out"), this.FactoryAutomationSystem.agvs.vc.getPort("started_stopped_in"));
     this.FactoryAutomationSystem.agvs.addConnector(new CN_ConnectorsAGV_commandMotor("cmdMotor"));
     const cmdMotor = this.FactoryAutomationSystem.agvs.connectors["cmdMotor"];
-    cmdMotor.bind(this.FactoryAutomationSystem.getPort("start_stop_out"), this.FactoryAutomationSystem.getPort("start_stop_in"));
+    cmdMotor.bind(this.FactoryAutomationSystem.agvs.vc.getPort("start_stop_out"), this.FactoryAutomationSystem.agvs.m.getPort("start_stop_in"));
     this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_locationVehicle("destinationStation2"));
     const destinationStation2 = this.FactoryAutomationSystem.agvs.vc.connectors["destinationStation2"];
-    destinationStation2.bind(this.FactoryAutomationSystem.agvs.vc.cs.getPort("destination"), this.FactoryAutomationSystem.agvs.getPort("destination_vt"));
+    destinationStation2.bind(this.FactoryAutomationSystem.agvs.vc.sm.getPort("destination"), this.FactoryAutomationSystem.agvs.vc.vt.getPort("destination_vt"));
     this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_locationVehicle("destinationStation"));
     const destinationStation = this.FactoryAutomationSystem.agvs.vc.connectors["destinationStation"];
-    destinationStation.bind(this.FactoryAutomationSystem.agvs.vc.cs.getPort("destination"), this.FactoryAutomationSystem.agvs.getPort("destination_cs"));
+    destinationStation.bind(this.FactoryAutomationSystem.agvs.vc.sm.getPort("destination"), this.FactoryAutomationSystem.agvs.vc.cs.getPort("destination_cs"));
     this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_commandArm("command"));
     const command = this.FactoryAutomationSystem.agvs.vc.connectors["command"];
-    command.bind(this.FactoryAutomationSystem.agvs.getPort("cmd_sm"), this.FactoryAutomationSystem.agvs.vc.ca.getPort("cmd"));
+    command.bind(this.FactoryAutomationSystem.agvs.vc.sm.getPort("cmd_sm"), this.FactoryAutomationSystem.agvs.vc.vt.getPort("cmd"));
     this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_commandArm("command2"));
     const command2 = this.FactoryAutomationSystem.agvs.vc.connectors["command2"];
-    command2.bind(this.FactoryAutomationSystem.agvs.getPort("cmd_sm"), this.FactoryAutomationSystem.agvs.getPort("cmd_ca"));
+    command2.bind(this.FactoryAutomationSystem.agvs.vc.sm.getPort("cmd_sm"), this.FactoryAutomationSystem.agvs.vc.ca.getPort("cmd_ca"));
     this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_locationVehicle("currentLocation"));
     const currentLocation = this.FactoryAutomationSystem.agvs.vc.connectors["currentLocation"];
-    currentLocation.bind(this.FactoryAutomationSystem.agvs.getPort("location_cs"), this.FactoryAutomationSystem.agvs.getPort("location_vt"));
+    currentLocation.bind(this.FactoryAutomationSystem.agvs.vc.cs.getPort("location_cs"), this.FactoryAutomationSystem.agvs.vc.vt.getPort("location_vt"));
     this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_notificationMotor("sendNotificationMotor"));
     const sendNotificationMotor = this.FactoryAutomationSystem.agvs.vc.connectors["sendNotificationMotor"];
-    sendNotificationMotor.bind(this.FactoryAutomationSystem.agvs.vc.nm.getPort("outAck"), this.FactoryAutomationSystem.agvs.getPort("ack_ca"));
+    sendNotificationMotor.bind(this.FactoryAutomationSystem.agvs.vc.nm.getPort("outAck"), this.FactoryAutomationSystem.agvs.vc.ca.getPort("ack_ca"));
     this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_notificationMotor("sendNotificationMotor2"));
     const sendNotificationMotor2 = this.FactoryAutomationSystem.agvs.vc.connectors["sendNotificationMotor2"];
-    sendNotificationMotor2.bind(this.FactoryAutomationSystem.agvs.vc.nm.getPort("outAck"), this.FactoryAutomationSystem.agvs.getPort("ack_cs"));
+    sendNotificationMotor2.bind(this.FactoryAutomationSystem.agvs.vc.nm.getPort("outAck"), this.FactoryAutomationSystem.agvs.vc.cs.getPort("ack_cs"));
     this.FactoryAutomationSystem.addConnector(new CN_ConnectorsAGV_interactionAGVAndSupervisory("dataExchange"));
     const dataExchange = this.FactoryAutomationSystem.connectors["dataExchange"];
     dataExchange.bind(this.getPort("in_outDataS"), this.getPort("in_outDataAgv"));
     this.FactoryAutomationSystem.addConnector(new CN_ComponentsAGV_status("updateStatus"));
     const updateStatus = this.FactoryAutomationSystem.connectors["updateStatus"];
-    updateStatus.bind(this.FactoryAutomationSystem.agvs.getPort("sendStatus"), this.FactoryAutomationSystem.ds.getPort("receiveStatus"));
+    updateStatus.bind(this.FactoryAutomationSystem.agvs.vc.getPort("sendStatus"), this.FactoryAutomationSystem.ds.getPort("receiveStatus"));
 
     const ac_StartMoving = new AC_ComponentsAGV_StartMovingAC(
       "StartMovingAC",
