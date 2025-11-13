@@ -371,116 +371,167 @@ class CP_ComponentsAGV_SupervisorySystem extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_PortsAGV_ISupervisorySystem("in_outDataSup", { owner: name }));
+      const portAliases = opts.portAliases || {};
+      const portName_in_outDataSup = portAliases["in_outDataSup"] || "in_outDataSup";
+      this.addPort(new PT_PortsAGV_ISupervisorySystem(portName_in_outDataSup, { owner: name, originalName: "in_outDataSup" }));
     }
 }
 class CP_ComponentsAGV_AGVSystem extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_PortsAGV_outStatus("sendStatus", { owner: name }));
-      this.addPort(new PT_PortsAGV_IAGVSystem("in_outDataAGV", { owner: name }));
+      const portAliases = opts.portAliases || {};
+      const portName_sendStatus = portAliases["sendStatus"] || "sendStatus";
+      this.addPort(new PT_PortsAGV_outStatus(portName_sendStatus, { owner: name, originalName: "sendStatus" }));
+      const portName_in_outDataAGV = portAliases["in_outDataAGV"] || "in_outDataAGV";
+      this.addPort(new PT_PortsAGV_IAGVSystem(portName_in_outDataAGV, { owner: name, originalName: "in_outDataAGV" }));
     }
 }
 class CP_ComponentsAGV_DisplaySystem extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_PortsAGV_inStatus("receiveStatus", { owner: name }));
+      const portAliases = opts.portAliases || {};
+      const portName_receiveStatus = portAliases["receiveStatus"] || "receiveStatus";
+      this.addPort(new PT_PortsAGV_inStatus(portName_receiveStatus, { owner: name, originalName: "receiveStatus" }));
     }
 }
 class CP_ComponentsAGV_Motor extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_PortsAGV_inCommandToMotor("start_stop", { owner: name }));
-      this.addPort(new PT_PortsAGV_outNotificationFromMotor("started_stopped", { owner: name }));
+      const portAliases = opts.portAliases || {};
+      const portName_start_stop = portAliases["start_stop"] || "start_stop";
+      this.addPort(new PT_PortsAGV_inCommandToMotor(portName_start_stop, { owner: name, originalName: "start_stop" }));
+      const portName_started_stopped = portAliases["started_stopped"] || "started_stopped";
+      this.addPort(new PT_PortsAGV_outNotificationFromMotor(portName_started_stopped, { owner: name, originalName: "started_stopped" }));
     }
 }
 class CP_ComponentsAGV_ArrivalSensor extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_ComponentsAGV_outLocation("arrivalDetected", { owner: name }));
+      const portAliases = opts.portAliases || {};
+      const portName_arrivalDetected = portAliases["arrivalDetected"] || "arrivalDetected";
+      this.addPort(new PT_ComponentsAGV_outLocation(portName_arrivalDetected, { owner: name, originalName: "arrivalDetected" }));
     }
 }
 class CP_ComponentsAGV_RobotArm extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_PortsAGV_inCommandToArm("start", { owner: name }));
-      this.addPort(new PT_PortsAGV_outNotificationFromArm("started", { owner: name }));
+      const portAliases = opts.portAliases || {};
+      const portName_start = portAliases["start"] || "start";
+      this.addPort(new PT_PortsAGV_inCommandToArm(portName_start, { owner: name, originalName: "start" }));
+      const portName_started = portAliases["started"] || "started";
+      this.addPort(new PT_PortsAGV_outNotificationFromArm(portName_started, { owner: name, originalName: "started" }));
     }
 }
 class CP_ComponentsAGV_VehicleControl extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_PortsAGV_outStatus("sendStatus", { owner: name }));
-      this.addPort(new PT_ComponentsAGV_inLocation("arrivalDetected", { owner: name }));
-      this.addPort(new PT_PortsAGV_outCommandToArm("startArm", { owner: name }));
-      this.addPort(new PT_PortsAGV_inNotificationFromArm("startedArm", { owner: name }));
-      this.addPort(new PT_PortsAGV_inNotificationFromMotor("started_stopped", { owner: name }));
-      this.addPort(new PT_PortsAGV_outCommandToMotor("start_stop", { owner: name }));
-      this.addPort(new PT_PortsAGV_IAGVSystem("in_outDataAGV", { owner: name }));
+      const portAliases = opts.portAliases || {};
+      const portName_sendStatus = portAliases["sendStatus"] || "sendStatus";
+      this.addPort(new PT_PortsAGV_outStatus(portName_sendStatus, { owner: name, originalName: "sendStatus" }));
+      const portName_arrivalDetected = portAliases["arrivalDetected"] || "arrivalDetected";
+      this.addPort(new PT_ComponentsAGV_inLocation(portName_arrivalDetected, { owner: name, originalName: "arrivalDetected" }));
+      const portName_startArm = portAliases["startArm"] || "startArm";
+      this.addPort(new PT_PortsAGV_outCommandToArm(portName_startArm, { owner: name, originalName: "startArm" }));
+      const portName_startedArm = portAliases["startedArm"] || "startedArm";
+      this.addPort(new PT_PortsAGV_inNotificationFromArm(portName_startedArm, { owner: name, originalName: "startedArm" }));
+      const portName_started_stopped = portAliases["started_stopped"] || "started_stopped";
+      this.addPort(new PT_PortsAGV_inNotificationFromMotor(portName_started_stopped, { owner: name, originalName: "started_stopped" }));
+      const portName_start_stop = portAliases["start_stop"] || "start_stop";
+      this.addPort(new PT_PortsAGV_outCommandToMotor(portName_start_stop, { owner: name, originalName: "start_stop" }));
+      const portName_in_outDataAGV = portAliases["in_outDataAGV"] || "in_outDataAGV";
+      this.addPort(new PT_PortsAGV_IAGVSystem(portName_in_outDataAGV, { owner: name, originalName: "in_outDataAGV" }));
     }
 }
 class CP_ComponentsAGV_CheckStation extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, activityName: "CheckStationAC" });
       // Add ports from component definition
-      this.addPort(new PT_PortsAGV_inNotificationFromMotor("ack", { owner: name }));
-      this.addPort(new PT_ComponentsAGV_outLocation("location", { owner: name }));
-      this.addPort(new PT_ComponentsAGV_inLocation("destination", { owner: name }));
-      this.addPort(new PT_PortsAGV_outCommandToMotor("stop", { owner: name }));
-      this.addPort(new PT_ComponentsAGV_inLocation("arrivalDetected", { owner: name }));
-      this.addPort(new PT_PortsAGV_outNotificationToSupervisory("passed", { owner: name }));
+      const portAliases = opts.portAliases || {};
+      const portName_ack = portAliases["ack"] || "ack";
+      this.addPort(new PT_PortsAGV_inNotificationFromMotor(portName_ack, { owner: name, originalName: "ack" }));
+      const portName_location = portAliases["location"] || "location";
+      this.addPort(new PT_ComponentsAGV_outLocation(portName_location, { owner: name, originalName: "location" }));
+      const portName_destination = portAliases["destination"] || "destination";
+      this.addPort(new PT_ComponentsAGV_inLocation(portName_destination, { owner: name, originalName: "destination" }));
+      const portName_stop = portAliases["stop"] || "stop";
+      this.addPort(new PT_PortsAGV_outCommandToMotor(portName_stop, { owner: name, originalName: "stop" }));
+      const portName_arrivalDetected = portAliases["arrivalDetected"] || "arrivalDetected";
+      this.addPort(new PT_ComponentsAGV_inLocation(portName_arrivalDetected, { owner: name, originalName: "arrivalDetected" }));
+      const portName_passed = portAliases["passed"] || "passed";
+      this.addPort(new PT_PortsAGV_outNotificationToSupervisory(portName_passed, { owner: name, originalName: "passed" }));
     }
 }
 class CP_ComponentsAGV_ControlArm extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, activityName: "ControlArmAC" });
       // Add ports from component definition
-      this.addPort(new PT_PortsAGV_inCommandToArm("cmd", { owner: name }));
-      this.addPort(new PT_PortsAGV_inNotificationFromMotor("ack", { owner: name }));
-      this.addPort(new PT_PortsAGV_outCommandToArm("startArm", { owner: name }));
+      const portAliases = opts.portAliases || {};
+      const portName_cmd = portAliases["cmd"] || "cmd";
+      this.addPort(new PT_PortsAGV_inCommandToArm(portName_cmd, { owner: name, originalName: "cmd" }));
+      const portName_ack = portAliases["ack"] || "ack";
+      this.addPort(new PT_PortsAGV_inNotificationFromMotor(portName_ack, { owner: name, originalName: "ack" }));
+      const portName_startArm = portAliases["startArm"] || "startArm";
+      this.addPort(new PT_PortsAGV_outCommandToArm(portName_startArm, { owner: name, originalName: "startArm" }));
     }
 }
 class CP_ComponentsAGV_NotifierMotor extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, activityName: "NotifierMotorAC" });
       // Add ports from component definition
-      this.addPort(new PT_PortsAGV_inNotificationFromMotor("inAck", { owner: name }));
-      this.addPort(new PT_PortsAGV_outNotificationToSupervisory("ack", { owner: name }));
-      this.addPort(new PT_PortsAGV_outNotificationFromMotor("outAck", { owner: name }));
+      const portAliases = opts.portAliases || {};
+      const portName_inAck = portAliases["inAck"] || "inAck";
+      this.addPort(new PT_PortsAGV_inNotificationFromMotor(portName_inAck, { owner: name, originalName: "inAck" }));
+      const portName_ack = portAliases["ack"] || "ack";
+      this.addPort(new PT_PortsAGV_outNotificationToSupervisory(portName_ack, { owner: name, originalName: "ack" }));
+      const portName_outAck = portAliases["outAck"] || "outAck";
+      this.addPort(new PT_PortsAGV_outNotificationFromMotor(portName_outAck, { owner: name, originalName: "outAck" }));
     }
 }
 class CP_ComponentsAGV_StartMoving extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, activityName: "StartMovingAC" });
       // Add ports from component definition
-      this.addPort(new PT_PortsAGV_inVehicleData("move", { owner: name }));
-      this.addPort(new PT_PortsAGV_outCommandToArm("cmd", { owner: name }));
-      this.addPort(new PT_ComponentsAGV_outLocation("destination", { owner: name }));
-      this.addPort(new PT_PortsAGV_outCommandToMotor("start", { owner: name }));
+      const portAliases = opts.portAliases || {};
+      const portName_move = portAliases["move"] || "move";
+      this.addPort(new PT_PortsAGV_inVehicleData(portName_move, { owner: name, originalName: "move" }));
+      const portName_cmd = portAliases["cmd"] || "cmd";
+      this.addPort(new PT_PortsAGV_outCommandToArm(portName_cmd, { owner: name, originalName: "cmd" }));
+      const portName_destination = portAliases["destination"] || "destination";
+      this.addPort(new PT_ComponentsAGV_outLocation(portName_destination, { owner: name, originalName: "destination" }));
+      const portName_start = portAliases["start"] || "start";
+      this.addPort(new PT_PortsAGV_outCommandToMotor(portName_start, { owner: name, originalName: "start" }));
     }
 }
 class CP_ComponentsAGV_NotifierArm extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, activityName: "NotifierArmAC" });
       // Add ports from component definition
-      this.addPort(new PT_PortsAGV_outNotificationToSupervisory("arrivedStatus", { owner: name }));
-      this.addPort(new PT_PortsAGV_inNotificationFromArm("loaded_unloaded", { owner: name }));
+      const portAliases = opts.portAliases || {};
+      const portName_arrivedStatus = portAliases["arrivedStatus"] || "arrivedStatus";
+      this.addPort(new PT_PortsAGV_outNotificationToSupervisory(portName_arrivedStatus, { owner: name, originalName: "arrivedStatus" }));
+      const portName_loaded_unloaded = portAliases["loaded_unloaded"] || "loaded_unloaded";
+      this.addPort(new PT_PortsAGV_inNotificationFromArm(portName_loaded_unloaded, { owner: name, originalName: "loaded_unloaded" }));
     }
 }
 class CP_ComponentsAGV_VehicleTimer extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, activityName: "VehicleTimerAC" });
       // Add ports from component definition
-      this.addPort(new PT_PortsAGV_outStatus("AGVStatus", { owner: name }));
-      this.addPort(new PT_ComponentsAGV_inLocation("location", { owner: name }));
-      this.addPort(new PT_ComponentsAGV_inLocation("destination", { owner: name }));
-      this.addPort(new PT_PortsAGV_inCommandToArm("cmd", { owner: name }));
+      const portAliases = opts.portAliases || {};
+      const portName_AGVStatus = portAliases["AGVStatus"] || "AGVStatus";
+      this.addPort(new PT_PortsAGV_outStatus(portName_AGVStatus, { owner: name, originalName: "AGVStatus" }));
+      const portName_location = portAliases["location"] || "location";
+      this.addPort(new PT_ComponentsAGV_inLocation(portName_location, { owner: name, originalName: "location" }));
+      const portName_destination = portAliases["destination"] || "destination";
+      this.addPort(new PT_ComponentsAGV_inLocation(portName_destination, { owner: name, originalName: "destination" }));
+      const portName_cmd = portAliases["cmd"] || "cmd";
+      this.addPort(new PT_PortsAGV_inCommandToArm(portName_cmd, { owner: name, originalName: "cmd" }));
     }
 }
 class CP_ComponentsAGV_FactoryAutomationSystem extends Component { }
@@ -1234,36 +1285,36 @@ class SysADLArchitecture extends Model {
     super("SysADLArchitecture");
     this.FactoryAutomationSystem = new CP_ComponentsAGV_FactoryAutomationSystem("FactoryAutomationSystem", { sysadlDefinition: "FactoryAutomationSystem" });
     this.addComponent(this.FactoryAutomationSystem);
-    this.FactoryAutomationSystem.agvs = new CP_ComponentsAGV_AGVSystem("agvs", { sysadlDefinition: "AGVSystem" });
+    this.FactoryAutomationSystem.agvs = new CP_ComponentsAGV_AGVSystem("agvs", { sysadlDefinition: "AGVSystem", portAliases: {} });
     this.FactoryAutomationSystem.addComponent(this.FactoryAutomationSystem.agvs);
-    this.FactoryAutomationSystem.ds = new CP_ComponentsAGV_DisplaySystem("ds", { isBoundary: true, sysadlDefinition: "DisplaySystem" });
+    this.FactoryAutomationSystem.ds = new CP_ComponentsAGV_DisplaySystem("ds", { isBoundary: true, sysadlDefinition: "DisplaySystem", portAliases: {"receiveStatus":"receiveStatus"} });
     this.FactoryAutomationSystem.addComponent(this.FactoryAutomationSystem.ds);
-    this.FactoryAutomationSystem.ss = new CP_ComponentsAGV_SupervisorySystem("ss", { isBoundary: true, sysadlDefinition: "SupervisorySystem" });
+    this.FactoryAutomationSystem.ss = new CP_ComponentsAGV_SupervisorySystem("ss", { isBoundary: true, sysadlDefinition: "SupervisorySystem", portAliases: {} });
     this.FactoryAutomationSystem.addComponent(this.FactoryAutomationSystem.ss);
-    this.FactoryAutomationSystem.agvs.as = new CP_ComponentsAGV_ArrivalSensor("as", { isBoundary: true, sysadlDefinition: "ArrivalSensor" });
+    this.FactoryAutomationSystem.agvs.as = new CP_ComponentsAGV_ArrivalSensor("as", { isBoundary: true, sysadlDefinition: "ArrivalSensor", portAliases: {"arrivalDetected":"arrivalDetected_out"} });
     this.FactoryAutomationSystem.agvs.addComponent(this.FactoryAutomationSystem.agvs.as);
-    this.FactoryAutomationSystem.agvs.m = new CP_ComponentsAGV_Motor("m", { isBoundary: true, sysadlDefinition: "Motor" });
+    this.FactoryAutomationSystem.agvs.m = new CP_ComponentsAGV_Motor("m", { isBoundary: true, sysadlDefinition: "Motor", portAliases: {"start_stop":"start_stop_in","started_stopped":"started_stopped_out"} });
     this.FactoryAutomationSystem.agvs.addComponent(this.FactoryAutomationSystem.agvs.m);
-    this.FactoryAutomationSystem.agvs.ra = new CP_ComponentsAGV_RobotArm("ra", { isBoundary: true, sysadlDefinition: "RobotArm" });
+    this.FactoryAutomationSystem.agvs.ra = new CP_ComponentsAGV_RobotArm("ra", { isBoundary: true, sysadlDefinition: "RobotArm", portAliases: {"start":"start","started":"started"} });
     this.FactoryAutomationSystem.agvs.addComponent(this.FactoryAutomationSystem.agvs.ra);
-    this.FactoryAutomationSystem.agvs.vc = new CP_ComponentsAGV_VehicleControl("vc", { sysadlDefinition: "VehicleControl" });
+    this.FactoryAutomationSystem.agvs.vc = new CP_ComponentsAGV_VehicleControl("vc", { sysadlDefinition: "VehicleControl", portAliases: {"sendStatus":"sendStatus","arrivalDetected":"arrivalDetected_in","startArm":"startArm","startedArm":"startedArm","started_stopped":"started_stopped_in","start_stop":"start_stop_out","in_outData":"in_outData"} });
     this.FactoryAutomationSystem.agvs.addComponent(this.FactoryAutomationSystem.agvs.vc);
-    this.FactoryAutomationSystem.agvs.vc.ca = new CP_ComponentsAGV_ControlArm("ca", { sysadlDefinition: "ControlArm" });
+    this.FactoryAutomationSystem.agvs.vc.ca = new CP_ComponentsAGV_ControlArm("ca", { sysadlDefinition: "ControlArm", portAliases: {"cmd":"cmd_ca","ack":"ack_ca","startArm":"startArm"} });
     this.FactoryAutomationSystem.agvs.vc.addComponent(this.FactoryAutomationSystem.agvs.vc.ca);
-    this.FactoryAutomationSystem.agvs.vc.cs = new CP_ComponentsAGV_CheckStation("cs", { sysadlDefinition: "CheckStation" });
+    this.FactoryAutomationSystem.agvs.vc.cs = new CP_ComponentsAGV_CheckStation("cs", { sysadlDefinition: "CheckStation", portAliases: {"ack":"ack_cs","location":"location_cs","stop":"stop","passed":"passed"} });
     this.FactoryAutomationSystem.agvs.vc.addComponent(this.FactoryAutomationSystem.agvs.vc.cs);
-    this.FactoryAutomationSystem.agvs.vc.na = new CP_ComponentsAGV_NotifierArm("na", { sysadlDefinition: "NotifierArm" });
+    this.FactoryAutomationSystem.agvs.vc.na = new CP_ComponentsAGV_NotifierArm("na", { sysadlDefinition: "NotifierArm", portAliases: {"arrivedStatus":"arrivedStatus","loaded_unloaded":"loaded_unloaded"} });
     this.FactoryAutomationSystem.agvs.vc.addComponent(this.FactoryAutomationSystem.agvs.vc.na);
-    this.FactoryAutomationSystem.agvs.vc.nm = new CP_ComponentsAGV_NotifierMotor("nm", { sysadlDefinition: "NotifierMotor" });
+    this.FactoryAutomationSystem.agvs.vc.nm = new CP_ComponentsAGV_NotifierMotor("nm", { sysadlDefinition: "NotifierMotor", portAliases: {"inAck":"inAck","ack":"ack","outAck":"outAck"} });
     this.FactoryAutomationSystem.agvs.vc.addComponent(this.FactoryAutomationSystem.agvs.vc.nm);
-    this.FactoryAutomationSystem.agvs.vc.sm = new CP_ComponentsAGV_StartMoving("sm", { sysadlDefinition: "StartMoving" });
+    this.FactoryAutomationSystem.agvs.vc.sm = new CP_ComponentsAGV_StartMoving("sm", { sysadlDefinition: "StartMoving", portAliases: {"move":"move","cmd":"cmd_sm","destination":"destination","start":"start"} });
     this.FactoryAutomationSystem.agvs.vc.addComponent(this.FactoryAutomationSystem.agvs.vc.sm);
-    this.FactoryAutomationSystem.agvs.vc.vt = new CP_ComponentsAGV_VehicleTimer("vt", { sysadlDefinition: "VehicleTimer" });
+    this.FactoryAutomationSystem.agvs.vc.vt = new CP_ComponentsAGV_VehicleTimer("vt", { sysadlDefinition: "VehicleTimer", portAliases: {"AGVStatus":"AGVStatus","cmd":"cmd"} });
     this.FactoryAutomationSystem.agvs.vc.addComponent(this.FactoryAutomationSystem.agvs.vc.vt);
 
     this.FactoryAutomationSystem.agvs.addConnector(new CN_ConnectorsAGV_locationVehicle("arrived"));
     const arrived = this.FactoryAutomationSystem.agvs.connectors["arrived"];
-    arrived.bind(this.FactoryAutomationSystem.agvs.as.getPort("arrivalDetected"), this.FactoryAutomationSystem.agvs.vc.getPort("arrivalDetected_in"));
+    arrived.bind(this.FactoryAutomationSystem.agvs.as.getPort("arrivalDetected_out"), this.FactoryAutomationSystem.agvs.vc.getPort("arrivalDetected_in"));
     this.FactoryAutomationSystem.agvs.addConnector(new CN_ConnectorsAGV_notificationArm("ackArm"));
     const ackArm = this.FactoryAutomationSystem.agvs.connectors["ackArm"];
     ackArm.bind(this.FactoryAutomationSystem.agvs.ra.getPort("started"), this.FactoryAutomationSystem.agvs.vc.getPort("startedArm"));
@@ -1278,10 +1329,10 @@ class SysADLArchitecture extends Model {
     cmdMotor.bind(this.FactoryAutomationSystem.agvs.vc.getPort("start_stop_out"), this.FactoryAutomationSystem.agvs.m.getPort("start_stop_in"));
     this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_locationVehicle("destinationStation2"));
     const destinationStation2 = this.FactoryAutomationSystem.agvs.vc.connectors["destinationStation2"];
-    destinationStation2.bind(this.FactoryAutomationSystem.agvs.vc.sm.getPort("destination"), this.FactoryAutomationSystem.agvs.vc.vt.getPort("destination_vt"));
+    destinationStation2.bind(this.FactoryAutomationSystem.agvs.vc.sm.getPort("destination"), this.FactoryAutomationSystem.agvs.getPort("destination_vt"));
     this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_locationVehicle("destinationStation"));
     const destinationStation = this.FactoryAutomationSystem.agvs.vc.connectors["destinationStation"];
-    destinationStation.bind(this.FactoryAutomationSystem.agvs.vc.sm.getPort("destination"), this.FactoryAutomationSystem.agvs.vc.cs.getPort("destination_cs"));
+    destinationStation.bind(this.FactoryAutomationSystem.agvs.vc.sm.getPort("destination"), this.FactoryAutomationSystem.agvs.getPort("destination_cs"));
     this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_commandArm("command"));
     const command = this.FactoryAutomationSystem.agvs.vc.connectors["command"];
     command.bind(this.FactoryAutomationSystem.agvs.vc.sm.getPort("cmd_sm"), this.FactoryAutomationSystem.agvs.vc.vt.getPort("cmd"));
@@ -1290,7 +1341,7 @@ class SysADLArchitecture extends Model {
     command2.bind(this.FactoryAutomationSystem.agvs.vc.sm.getPort("cmd_sm"), this.FactoryAutomationSystem.agvs.vc.ca.getPort("cmd_ca"));
     this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_locationVehicle("currentLocation"));
     const currentLocation = this.FactoryAutomationSystem.agvs.vc.connectors["currentLocation"];
-    currentLocation.bind(this.FactoryAutomationSystem.agvs.vc.cs.getPort("location_cs"), this.FactoryAutomationSystem.agvs.vc.vt.getPort("location_vt"));
+    currentLocation.bind(this.FactoryAutomationSystem.agvs.vc.cs.getPort("location_cs"), this.FactoryAutomationSystem.agvs.getPort("location_vt"));
     this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_notificationMotor("sendNotificationMotor"));
     const sendNotificationMotor = this.FactoryAutomationSystem.agvs.vc.connectors["sendNotificationMotor"];
     sendNotificationMotor.bind(this.FactoryAutomationSystem.agvs.vc.nm.getPort("outAck"), this.FactoryAutomationSystem.agvs.vc.ca.getPort("ack_ca"));

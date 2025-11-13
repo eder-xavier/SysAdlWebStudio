@@ -1079,6 +1079,189 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     lines.push("// Components");
   }
   
+  // Build usingAliasMap from AST to resolve port aliases
+  // This map stores: componentUseName -> { aliasPortName -> realPortName }
+  const usingAliasMap = {};
+  
+  // Helper function to build the alias map by parsing component uses from source code
+  function buildUsingAliasMap() {
+    if (!sourceCode || !ast) return {};
+    
+    const src = sourceCode;
+    const componentPortAliases = {}; // NEW: Map instance -> {originalPort -> alias}
+    
+    // Use existing component definition map (compDefMapArg) instead of building a new one
+    // This is important because boundary components may be defined elsewhere
+    const compDefMap = compDefMapArg || {};
+    
+    // Process each component use
+    for (const cu of compUses) {
+      const cuName = cu && (cu.name || cu.id || (cu.id && cu.id.name));
+      if (!cuName) continue;
+      
+      usingAliasMap[cuName] = usingAliasMap[cuName] || {};
+      componentPortAliases[cuName] = componentPortAliases[cuName] || {}; // NEW
+      
+      // Extract component block from source using brace counting
+      const startRe = new RegExp(cuName + '\\s*:\\s*\\w+\\s*\\{', 'm');
+      const startMatch = startRe.exec(src);
+      if (!startMatch) continue;
+      
+      const startPos = startMatch.index + startMatch[0].length;
+      let braceCount = 1;
+      let endPos = startPos;
+      
+      while (endPos < src.length && braceCount > 0) {
+        if (src[endPos] === '{') braceCount++;
+        if (src[endPos] === '}') braceCount--;
+        endPos++;
+      }
+      
+      const componentBlock = src.substring(startPos, endPos - 1);
+      
+      // NEW: Extract port aliases from "using ports" block using brace counting
+      // This improved version captures ALL ports even in multi-port blocks
+      const parts = [];
+      
+      const usingPortsStart = /using\s+ports\s*:/i;
+      const usingMatch = usingPortsStart.exec(componentBlock);
+      
+      if (usingMatch) {
+        let scanPos = usingMatch.index + usingMatch[0].length;
+        let portBraceDepth = 0;
+        let portBlockEnd = scanPos;
+        let lastPortEnd = scanPos;
+        
+        // Scan until we hit connectors/delegations at depth 0
+        while (portBlockEnd < componentBlock.length) {
+          const char = componentBlock[portBlockEnd];
+          
+          if (char === '{') {
+            portBraceDepth++;
+          } else if (char === '}') {
+            portBraceDepth--;
+          }
+          
+          // At depth 0, check if next non-whitespace is a keyword or another port
+          if (portBraceDepth === 0) {
+            const remaining = componentBlock.substring(portBlockEnd + 1);
+            const trimmed = remaining.trimStart();
+            
+            // Check for structural keywords
+            if (/^(connectors|delegations)\s*:/i.test(trimmed)) {
+              portBlockEnd++;
+              break;
+            }
+            
+            // Check if we've hit the end of the component block (closing brace with nothing after)
+            if (trimmed.length === 0 || trimmed[0] === '}') {
+              portBlockEnd++;
+              break;
+            }
+            
+            // Otherwise, there might be another port, continue
+            lastPortEnd = portBlockEnd + 1;
+          }
+          
+          portBlockEnd++;
+        }
+        
+        const portsList = componentBlock.substring(scanPos, portBlockEnd);
+        
+        // Extract each "alias : Type" pattern, ignoring everything else
+        // This regex now only captures the port name and type, not the braces
+        const portAliasRe = /([A-Za-z0-9_]+)\s*:\s*([A-Za-z0-9_\.]+)/g;
+        let portMatch;
+        
+        while ((portMatch = portAliasRe.exec(portsList)) !== null) {
+          const portName = portMatch[1];
+          const portType = portMatch[2];
+          
+          // Check if this is actually a port (not connectors: or delegations:)
+          if (!/(connectors|delegations)/i.test(portName)) {
+            parts.push(`${portName} : ${portType}`);
+          }
+        }
+      }
+      
+      
+      // Map each alias to actual port name from component definition
+      const defName = cu.definition || cu.def || null;
+      const defNode = defName ? (compDefMap[defName] || compDefMap[String(defName)]) : null;
+      
+      if (!defNode) {
+        continue;
+      }
+      
+
+      
+      for (const p of parts) {
+        const mm = p.match(/([A-Za-z0-9_\.]+)\s*:\s*([A-Za-z0-9_\.]+)/);
+        if (!mm) continue;
+        
+        const alias = mm[1];
+        const typeName = mm[2];
+        
+        let mappedPort = null;
+        
+        // Collect candidate ports from defNode
+        const defPorts = [];
+        if (Array.isArray(defNode.ports)) defPorts.push(...defNode.ports);
+        if (Array.isArray(defNode.members)) defPorts.push(...defNode.members);
+        
+        const candidates = [];
+        for (const dp of defPorts) {
+          const dpName = dp && (dp.name || (dp.id && dp.id.name) || dp.id);
+          if (!dpName) continue;
+          
+          // Try to get the port type - for PortUse, check dp.definition first
+          const dpType = dp && (
+            dp.definition ||  // For PortUse, this is the type name string
+            dp.portType || 
+            (dp.definition && dp.definition.name) || 
+            dp.type || 
+            dp.value || 
+            dp.valueType || 
+            dp.typeName
+          );
+          if (dpType) {
+            const tstr = String(dpType).split('.').pop();
+            const q = String(typeName).split('.').pop();
+            if (String(dpType) === String(typeName) || tstr === q || q === tstr) {
+              candidates.push(dpName);
+            }
+          }
+        }
+        
+        if (candidates.length === 1) {
+          mappedPort = candidates[0];
+        } else if (!candidates.length && defPorts.length === 1) {
+          const only = defPorts[0];
+          const onlyName = only && (only.name || (only.id && only.id.name) || only.id);
+          if (onlyName) mappedPort = onlyName;
+        }
+        
+        if (cuName === 'as') {
+        }
+        
+        usingAliasMap[cuName][alias] = mappedPort || null;
+        
+        // NEW: Store reverse mapping (originalPort -> alias) for port renaming
+        if (mappedPort) {
+          componentPortAliases[cuName][mappedPort] = alias;
+        }
+        
+        if (cuName === 'as') {
+        }
+      }
+    }
+    
+    return componentPortAliases; // NEW: Return the mapping
+  }
+  
+  // NEW: Build port aliases map before generating component classes
+  const componentPortAliases = buildUsingAliasMap();
+  
   // Helper function to extract ports from ComponentDef
   function extractComponentDefPorts(compDefNode) {
     const ports = [];
@@ -1183,10 +1366,12 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
       
       if (compPorts.length > 0) {
         ctorLines.push('    // Add ports from component definition');
+        ctorLines.push('    const portAliases = opts.portAliases || {};'); // NEW: Get aliases from options
         for (const port of compPorts) {
           const portTypeClass = getPackagePrefix(port.type, 'PT') + port.type;
-          // Port classes already define direction, so don't pass it as parameter
-          ctorLines.push(`    this.addPort(new ${portTypeClass}("${port.name}", { owner: name }));`);
+          // NEW: Use alias name if provided, otherwise use original name
+          ctorLines.push(`    const portName_${port.name} = portAliases["${port.name}"] || "${port.name}";`);
+          ctorLines.push(`    this.addPort(new ${portTypeClass}(portName_${port.name}, { owner: name, originalName: "${port.name}" }));`);
         }
       }
       
@@ -1266,14 +1451,24 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
       // attach under parentPath, e.g. this.ParentComponent.childInstance
   const instDef = (compInstanceDef && compInstanceDef[iname]) ? compInstanceDef[iname] : null;
   const instIsBoundary = (instDef && compDefMapArg && compDefMapArg[String(instDef)] && !!compDefMapArg[String(instDef)].isBoundary);
-  const instOpts = instIsBoundary ? `{ isBoundary: true, sysadlDefinition: ${JSON.stringify(String(instDef))} }` : `{ sysadlDefinition: ${instDef ? JSON.stringify(String(instDef)) : 'null'} }`;
+  // NEW: Add portAliases to options if this instance has any
+  const portAliasesForInst = componentPortAliases[iname] || null;
+  const portAliasesOpt = portAliasesForInst ? `, portAliases: ${JSON.stringify(portAliasesForInst)}` : '';
+  const instOpts = instIsBoundary 
+    ? `{ isBoundary: true, sysadlDefinition: ${JSON.stringify(String(instDef))}${portAliasesOpt} }` 
+    : `{ sysadlDefinition: ${instDef ? JSON.stringify(String(instDef)) : 'null'}${portAliasesOpt} }`;
   lines.push(`    ${parentPath}.${iname} = new ${getPackagePrefix(typeCls, 'CP') + typeCls}(${JSON.stringify(String(iname))}, ${instOpts});`);
   lines.push(`    ${parentPath}.addComponent(${parentPath}.${iname});`);
     } else {
       // fallback to previous behavior: top-level instance
   const instDef = (compInstanceDef && compInstanceDef[iname]) ? compInstanceDef[iname] : null;
   const instIsBoundary = (instDef && compDefMapArg && compDefMapArg[String(instDef)] && !!compDefMapArg[String(instDef)].isBoundary);
-  const instOpts = instIsBoundary ? `{ isBoundary: true, sysadlDefinition: ${JSON.stringify(String(instDef))} }` : `{ sysadlDefinition: ${instDef ? JSON.stringify(String(instDef)) : 'null'} }`;
+  // NEW: Add portAliases to options if this instance has any
+  const portAliasesForInst = componentPortAliases[iname] || null;
+  const portAliasesOpt = portAliasesForInst ? `, portAliases: ${JSON.stringify(portAliasesForInst)}` : '';
+  const instOpts = instIsBoundary 
+    ? `{ isBoundary: true, sysadlDefinition: ${JSON.stringify(String(instDef))}${portAliasesOpt} }` 
+    : `{ sysadlDefinition: ${instDef ? JSON.stringify(String(instDef)) : 'null'}${portAliasesOpt} }`;
   lines.push(`    this.${iname} = new ${getPackagePrefix(typeCls, 'CP') + typeCls}(${JSON.stringify(String(iname))}, ${instOpts});`);
   lines.push(`    this.addComponent(this.${iname});`);
     }
@@ -1293,113 +1488,6 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     if (parentMap && parentMap[iname]) instancePathMap[iname] = parentMap[iname] + `.${iname}`;
     else instancePathMap[iname] = `this.${iname}`;
   }
-
-  // Build usingAliasMap from AST to resolve port aliases
-  // This map stores: componentUseName -> { aliasPortName -> realPortName }
-  const usingAliasMap = {};
-  
-  // Helper function to build the alias map by parsing component uses from source code
-  function buildUsingAliasMap() {
-    if (!sourceCode || !ast) return;
-    
-    const src = sourceCode;
-    
-    // Use existing component definition map (compDefMapArg) instead of building a new one
-    // This is important because boundary components may be defined elsewhere
-    const compDefMap = compDefMapArg || {};
-    
-    // Process each component use
-    for (const cu of compUses) {
-      const cuName = cu && (cu.name || cu.id || (cu.id && cu.id.name));
-      if (!cuName) continue;
-      
-      usingAliasMap[cuName] = usingAliasMap[cuName] || {};
-      
-      // Extract component block from source using brace counting
-      const startRe = new RegExp(cuName + '\\s*:\\s*\\w+\\s*\\{', 'm');
-      const startMatch = startRe.exec(src);
-      if (!startMatch) continue;
-      
-      const startPos = startMatch.index + startMatch[0].length;
-      let braceCount = 1;
-      let endPos = startPos;
-      
-      while (endPos < src.length && braceCount > 0) {
-        if (src[endPos] === '{') braceCount++;
-        if (src[endPos] === '}') braceCount--;
-        endPos++;
-      }
-      
-      const componentBlock = src.substring(startPos, endPos - 1);
-      const aliasRe = /([A-Za-z0-9_]+)\s*:\s*([A-Za-z0-9_\.]+)\s*\{/g;
-      const parts = [];
-      let match;
-      
-      while ((match = aliasRe.exec(componentBlock)) !== null) {
-        parts.push(`${match[1]} : ${match[2]}`);
-      }
-      
-      
-      // Map each alias to actual port name from component definition
-      const defName = cu.definition || cu.def || null;
-      const defNode = defName ? (compDefMap[defName] || compDefMap[String(defName)]) : null;
-      
-      if (!defNode) {
-        continue;
-      }
-      
-
-      
-      for (const p of parts) {
-        const mm = p.match(/([A-Za-z0-9_\.]+)\s*:\s*([A-Za-z0-9_\.]+)/);
-        if (!mm) continue;
-        
-        const alias = mm[1];
-        const typeName = mm[2];
-        
-        let mappedPort = null;
-        
-        // Collect candidate ports from defNode
-        const defPorts = [];
-        if (Array.isArray(defNode.ports)) defPorts.push(...defNode.ports);
-        if (Array.isArray(defNode.members)) defPorts.push(...defNode.members);
-        
-        const candidates = [];
-        for (const dp of defPorts) {
-          const dpName = dp && (dp.name || (dp.id && dp.id.name) || dp.id);
-          if (!dpName) continue;
-          
-          const dpType = dp && (dp.type || dp.portType || (dp.definition && dp.definition.name) || dp.value || dp.valueType || dp.typeName);
-          if (dpType) {
-            const tstr = String(dpType).split('.').pop();
-            const q = String(typeName).split('.').pop();
-            if (String(dpType) === String(typeName) || tstr === q || q === tstr) {
-              candidates.push(dpName);
-            }
-          }
-        }
-        
-        if (candidates.length === 1) {
-          mappedPort = candidates[0];
-        } else if (!candidates.length && defPorts.length === 1) {
-          const only = defPorts[0];
-          const onlyName = only && (only.name || (only.id && only.id.name) || only.id);
-          if (onlyName) mappedPort = onlyName;
-        }
-        
-        if (cuName === 'as') {
-        }
-        
-        usingAliasMap[cuName][alias] = mappedPort || null;
-        
-        if (cuName === 'as') {
-        }
-      }
-    }
-    
-  }
-  
-  buildUsingAliasMap();
 
   // emit connectors early (right after components are added)
   if (Array.isArray(connectorDescriptors) && connectorDescriptors.length) {
@@ -1692,104 +1780,31 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
                 let fromAccess, toAccess;
                 
                 // Generic mapping function that uses available context information
+                // IMPROVED 3-STEP ALGORITHM:
+                // Step 1: Check if portName is an ALIAS in componentPortAliases
+                // Step 2: Check if portName is an ORIGINAL NAME in component definitions
+                // Step 3: Fallback to current level
                 const findComponentForPort = (portName, isSource = true) => {
                   
-                  // Method 0: Use usingAliasMap for alias resolution (HIGHEST PRIORITY)
-                  if (portName && portName.includes('arrival')) {
-                    for (const [compName, aliasMap] of Object.entries(usingAliasMap || {})) {
-                      if (aliasMap && aliasMap.hasOwnProperty(portName)) {
-                      }
-                    }
-                  }
-                  
-                  if (usingAliasMap && Object.keys(usingAliasMap).length > 0) {
-                    // Search for component that has this port alias
-                    for (const [compName, aliasMap] of Object.entries(usingAliasMap)) {
-                      if (aliasMap && aliasMap.hasOwnProperty(portName)) {
-                        const realPortName = aliasMap[portName] || portName;
-                        const instancePath = instancePathMap[compName];
-                        
-                        if (portName && portName.includes('arrival')) {
-                        }
-                        
-                        if (instancePath) {
-                          return `${instancePath}.getPort("${realPortName}")`;
-                        }
-                      }
-                    }
-                  }
-                  
-                  // Method 1: Check if it's a direct component.port reference
-                  if (portName.includes('.')) {
-                    const [compName, portName2] = portName.split('.');
-                    if (instancePathMap && instancePathMap[compName]) {
-                      return `${instancePathMap[compName]}.getPort("${portName2}")`;
-                    }
-                  }
-                  
-                  // Method 1.5: Search for port aliases in compUses
-                  // This handles renamed ports like: "as : ArrivalSensor { using ports: arrivalDetected_out : outLocation {} }"
-                  if (instancePathMap && compUses) {
-                    
-                    for (const compUse of compUses) {
-                      const instanceName = compUse.name || compUse.id || (compUse.id && compUse.id.name);
-                      if (!instanceName) continue;
-                      
-                      const instancePath = instancePathMap[instanceName];
-                      if (!instancePath) continue;
-                      
-                      if (instanceName === 'as' && portName === 'arrivalDetected_out') {
-                      }
-                      
-                      // Check if this component has port uses with our target port name
-                      if (compUse.ports && Array.isArray(compUse.ports)) {
-                        if (instanceName === 'as' && portName === 'arrivalDetected_out') {
-                          compUse.ports.forEach((p, i) => {
-                            const pname = p.name || p.id || (p.id && p.id.name);
-                          });
-                        }
-                        
-                        for (const portUse of compUse.ports) {
-                          const portUseName = portUse.name || portUse.id || (portUse.id && portUse.id.name);
-                          
-                          // Check if this port use matches our portName
-                          if (portUseName === portName) {
-                            // Found a match! The portName is an alias, portUseName is the real port
-                            // But we need to find the REAL port name from the component definition
-                            const compDefName = compUse.definition || compUse.type;
-                            if (compDefName && compDefMapArg && compDefMapArg[compDefName]) {
-                              const compDef = compDefMapArg[compDefName];
-                              // The real port name is in the component definition
-                              if (compDef.ports && Array.isArray(compDef.ports)) {
-                                // Try to find a port whose type matches
-                                const portType = portUse.type || (portUse.id && portUse.id.type);
-                                for (const defPort of compDef.ports) {
-                                  const defPortName = defPort.name || defPort.id || (defPort.id && defPort.id.name);
-                                  const defPortType = defPort.type || defPort.portType || (defPort.definition && defPort.definition.name) || defPort.value || defPort.valueType || defPort.typeName;
-                                  
-                                  // Match by type
-                                  if (defPortType && portType) {
-                                    const typeStr1 = String(defPortType).split('.').pop();
-                                    const typeStr2 = String(portType).split('.').pop();
-                                    if (typeStr1 === typeStr2) {
-                                      return `${instancePath}.getPort("${defPortName}")`;
-                                    }
-                                  }
-                                }
-                                // If only one port in definition, use it
-                                if (compDef.ports.length === 1) {
-                                  const defPortName = compDef.ports[0].name || compDef.ports[0].id || (compDef.ports[0].id && compDef.ports[0].id.name);
-                                  return `${instancePath}.getPort("${defPortName}")`;
-                                }
-                              }
-                            }
+                  // STEP 1: Search componentPortAliases for instances that have this ALIAS
+                  if (componentPortAliases && Object.keys(componentPortAliases).length > 0) {
+                    for (const [instanceName, aliasMap] of Object.entries(componentPortAliases)) {
+                      // aliasMap is { originalPort -> alias }
+                      // We need to check if any alias matches our portName
+                      for (const [originalPort, alias] of Object.entries(aliasMap)) {
+                        if (alias === portName) {
+                          // Found! portName is an alias for originalPort in instanceName
+                          const instancePath = instancePathMap[instanceName];
+                          if (instancePath) {
+                            // Port was created with alias name (Solution 2), so use alias
+                            return `${instancePath}.getPort("${alias}")`;
                           }
                         }
                       }
                     }
                   }
                   
-                  // Method 2: Search through component uses to find matching port definitions
+                  // STEP 2: Search component definitions for instances that have this ORIGINAL PORT NAME
                   if (instancePathMap && compUses) {
                     for (const compUse of compUses) {
                       const instanceName = compUse.name || compUse.id || (compUse.id && compUse.id.name);
@@ -1798,32 +1813,25 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
                       const instancePath = instancePathMap[instanceName];
                       if (!instancePath) continue;
                       
-                      // Check component's port uses (renamed ports)
-                      if (compUse.ports) {
-                        for (const portUse of compUse.ports) {
-                          const useName = portUse.name || portUse.id || (portUse.id && portUse.id.name);
-                          const useAlias = portUse.alias;
-                          
-                          // Check if this port use matches our target
-                          if (useName === portName || useAlias === portName) {
-                            // Use the original port name if it was aliased
-                            const actualPortName = useAlias === portName ? useName : portName;
-                            return `${instancePath}.getPort("${actualPortName}")`;
-                          }
-                        }
-                      }
-                      
-                      // Check component definition ports if no port uses match
+                      // Get component definition
                       const compDefName = compUse.definition || compUse.type;
-                      if (compDefName && compDefMapArg && compDefMapArg[compDefName]) {
-                        const compDef = compDefMapArg[compDefName];
-                        if (compDef.ports) {
-                          const hasMatchingPort = compDef.ports.some(port => {
-                            const pname = port.name || port.id || (port.id && port.id.name);
-                            return pname === portName;
-                          });
-                          
-                          if (hasMatchingPort) {
+                      if (!compDefName || !compDefMapArg || !compDefMapArg[compDefName]) continue;
+                      
+                      const compDef = compDefMapArg[compDefName];
+                      if (!compDef.ports) continue;
+                      
+                      // Check if this component definition has a port with original name = portName
+                      for (const defPort of compDef.ports) {
+                        const defPortName = defPort.name || defPort.id || (defPort.id && defPort.id.name);
+                        if (defPortName === portName) {
+                          // Found! portName is an original port name in this component
+                          // Check if this instance has an alias for this port
+                          if (componentPortAliases[instanceName] && componentPortAliases[instanceName][portName]) {
+                            // Instance has alias, use it (ports created with alias names)
+                            const alias = componentPortAliases[instanceName][portName];
+                            return `${instancePath}.getPort("${alias}")`;
+                          } else {
+                            // Instance has no alias, use original name
                             return `${instancePath}.getPort("${portName}")`;
                           }
                         }
@@ -1831,29 +1839,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
                     }
                   }
                   
-                  // Method 3: Search through port uses at the current level
-                  if (portUses) {
-                    for (const portUse of portUses) {
-                      const useName = portUse.name || portUse.id || (portUse.id && portUse.id.name);
-                      const useAlias = portUse.alias;
-                      const useOwner = portUse.owner;
-                      
-                      if (useName === portName || useAlias === portName) {
-                        if (useOwner && instancePathMap && instancePathMap[useOwner]) {
-                          // Port belongs to a specific component instance
-                          const actualPortName = useAlias === portName ? useName : portName;
-                          return `${instancePathMap[useOwner]}.getPort("${actualPortName}")`;
-                        } else {
-                          // Port belongs to the current level
-                          const actualPortName = useAlias === portName ? useName : portName;
-                          const ownerBase = connectorOwner.split('.').slice(0, -1).join('.') || 'this';
-                          return `${ownerBase}.getPort("${actualPortName}")`;
-                        }
-                      }
-                    }
-                  }
-                  
-                  // Method 4: Fallback - assume it's a port at the connector owner level
+                  // STEP 3: Fallback - assume it's a port at the connector owner level
                   const ownerBase = connectorOwner.split('.').slice(0, -1).join('.') || 'this';
                   return `${ownerBase}.getPort("${portName}")`;
                 };

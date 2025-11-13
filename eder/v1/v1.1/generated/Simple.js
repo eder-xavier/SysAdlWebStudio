@@ -85,23 +85,31 @@ class CP_Elements_SensorCP extends Component {
   constructor(name, opts={}) {
       super(name, opts);
       // Add ports from component definition
-      this.addPort(new PT_Elements_FTempOPT("current", { owner: name }));
+      const portAliases = opts.portAliases || {};
+      const portName_current = portAliases["current"] || "current";
+      this.addPort(new PT_Elements_FTempOPT(portName_current, { owner: name, originalName: "current" }));
     }
 }
 class CP_Elements_TempMonitorCP extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true, activityName: "TempMonitorAC" });
       // Add ports from component definition
-      this.addPort(new PT_Elements_CTempIPT("s1", { owner: name }));
-      this.addPort(new PT_Elements_CTempIPT("s2", { owner: name }));
-      this.addPort(new PT_Elements_CTempOPT("average", { owner: name }));
+      const portAliases = opts.portAliases || {};
+      const portName_s1 = portAliases["s1"] || "s1";
+      this.addPort(new PT_Elements_CTempIPT(portName_s1, { owner: name, originalName: "s1" }));
+      const portName_s2 = portAliases["s2"] || "s2";
+      this.addPort(new PT_Elements_CTempIPT(portName_s2, { owner: name, originalName: "s2" }));
+      const portName_average = portAliases["average"] || "average";
+      this.addPort(new PT_Elements_CTempOPT(portName_average, { owner: name, originalName: "average" }));
     }
 }
 class CP_Elements_StdOutCP extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_Elements_CTempIPT("c3", { owner: name }));
+      const portAliases = opts.portAliases || {};
+      const portName_c3 = portAliases["c3"] || "c3";
+      this.addPort(new PT_Elements_CTempIPT(portName_c3, { owner: name, originalName: "c3" }));
     }
 }
 class CP_Elements_SystemCP extends Component { }
@@ -238,24 +246,24 @@ class SysADLModel extends Model {
     super("SysADLModel");
     this.SystemCP = new CP_Elements_SystemCP("SystemCP", { sysadlDefinition: "SystemCP" });
     this.addComponent(this.SystemCP);
-    this.SystemCP.s1 = new CP_Elements_SensorCP("s1", { sysadlDefinition: "SensorCP" });
+    this.SystemCP.s1 = new CP_Elements_SensorCP("s1", { sysadlDefinition: "SensorCP", portAliases: {"current":"temp1"} });
     this.SystemCP.addComponent(this.SystemCP.s1);
-    this.SystemCP.s2 = new CP_Elements_SensorCP("s2", { sysadlDefinition: "SensorCP" });
+    this.SystemCP.s2 = new CP_Elements_SensorCP("s2", { sysadlDefinition: "SensorCP", portAliases: {"current":"temp2"} });
     this.SystemCP.addComponent(this.SystemCP.s2);
-    this.SystemCP.stdOut = new CP_Elements_StdOutCP("stdOut", { isBoundary: true, sysadlDefinition: "StdOutCP" });
+    this.SystemCP.stdOut = new CP_Elements_StdOutCP("stdOut", { isBoundary: true, sysadlDefinition: "StdOutCP", portAliases: {"c3":"avg"} });
     this.SystemCP.addComponent(this.SystemCP.stdOut);
-    this.SystemCP.tempMon = new CP_Elements_TempMonitorCP("tempMon", { isBoundary: true, sysadlDefinition: "TempMonitorCP" });
+    this.SystemCP.tempMon = new CP_Elements_TempMonitorCP("tempMon", { isBoundary: true, sysadlDefinition: "TempMonitorCP", portAliases: {} });
     this.SystemCP.addComponent(this.SystemCP.tempMon);
 
     this.SystemCP.addConnector(new CN_Elements_FarToCelCN("c1"));
     const c1 = this.SystemCP.connectors["c1"];
-    c1.bind(this.getPort("temp1"), this.SystemCP.tempMon.getPort("s1"));
+    c1.bind(this.SystemCP.s1.getPort("temp1"), this.SystemCP.tempMon.getPort("s1"));
     this.SystemCP.addConnector(new CN_Elements_FarToCelCN("c2"));
     const c2 = this.SystemCP.connectors["c2"];
-    c2.bind(this.getPort("temp2"), this.SystemCP.tempMon.getPort("s2"));
+    c2.bind(this.SystemCP.s2.getPort("temp2"), this.SystemCP.tempMon.getPort("s2"));
     this.SystemCP.addConnector(new CN_Elements_CelToCelCN("c3"));
     const c3 = this.SystemCP.connectors["c3"];
-    c3.bind(this.SystemCP.tempMon.getPort("average"), this.getPort("avg"));
+    c3.bind(this.SystemCP.tempMon.getPort("average"), this.SystemCP.stdOut.getPort("avg"));
 
     const ac_FarToCelCN = new AC_Elements_FarToCelAC(
       "FarToCelAC",

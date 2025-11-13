@@ -3,162 +3,77 @@
 
 const { Model, Component, Port, SimplePort, CompositePort, Connector, Activity, Action, Enum, Int, Boolean, String, Real, Void, valueType, dataType, dimension, unit, Constraint, Executable } = require('../sysadl-framework/SysADLBase');
 
-// Types
-const DM_types_Temperature = dimension('Temperature');
-const UN_types_Celsius = unit('Celsius');
-const UN_types_Fahrenheit = unit('Fahrenheit');
-const VT_types_temperature = valueType('temperature', { extends: Real, dimension: DM_types_Temperature });
-const VT_types_FahrenheitTemperature = valueType('FahrenheitTemperature', { extends: VT_types_temperature, unit: UN_types_Fahrenheit, dimension: DM_types_Temperature });
-const VT_types_CelsiusTemperature = valueType('CelsiusTemperature', { extends: VT_types_temperature, unit: UN_types_Celsius, dimension: DM_types_Temperature });
-const EN_types_Command = new Enum("On", "Off");
-const DT_types_Commands = dataType('Commands', { heater: EN_types_Command, cooler: EN_types_Command });
 
 // Ports
-class PT_Ports_FTemperatureOPT extends SimplePort {
+class PT_Elements_CTempIPT extends SimplePort {
   constructor(name, opts = {}) {
-    super(name, "out", { ...{ expectedType: "FahrenheitTemperature" }, ...opts });
+    super(name, "in", { ...{ expectedType: "Real" }, ...opts });
   }
 }
-class PT_Ports_PresenceIPT extends SimplePort {
+class PT_Elements_CTempOPT extends SimplePort {
   constructor(name, opts = {}) {
-    super(name, "in", { ...{ expectedType: "Boolean" }, ...opts });
+    super(name, "out", { ...{ expectedType: "Real" }, ...opts });
   }
 }
-class PT_Ports_PresenceOPT extends SimplePort {
+class PT_Elements_FTempOPT extends SimplePort {
   constructor(name, opts = {}) {
-    super(name, "out", { ...{ expectedType: "Boolean" }, ...opts });
-  }
-}
-class PT_Ports_CTemperatureIPT extends SimplePort {
-  constructor(name, opts = {}) {
-    super(name, "in", { ...{ expectedType: "CelsiusTemperature" }, ...opts });
-  }
-}
-class PT_Ports_CommandIPT extends SimplePort {
-  constructor(name, opts = {}) {
-    super(name, "in", { ...{ expectedType: "Command" }, ...opts });
-  }
-}
-class PT_Ports_CommandOPT extends SimplePort {
-  constructor(name, opts = {}) {
-    super(name, "out", { ...{ expectedType: "Command" }, ...opts });
-  }
-}
-class PT_Ports_CTemperatureOPT extends SimplePort {
-  constructor(name, opts = {}) {
-    super(name, "out", { ...{ expectedType: "CelsiusTemperature" }, ...opts });
+    super(name, "out", { ...{ expectedType: "Real" }, ...opts });
   }
 }
 
 // Connectors
-class CN_Connectors_FahrenheitToCelsiusCN extends Connector {
+class CN_Elements_FarToCelCN extends Connector {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      activityName: "FahrenheitToCelsiusAC",
+      activityName: "FarToCelAC",
       participantSchema: {
-        Ft: {
-          portClass: 'PT_Ports_FTemperatureOPT',
+        f: {
+          portClass: 'PT_Elements_FTempOPT',
           direction: 'out',
-          dataType: 'FahrenheitTemperature',
+          dataType: 'Real',
           role: 'source'
         },
-        Ct: {
-          portClass: 'PT_Ports_CTemperatureIPT',
+        c: {
+          portClass: 'PT_Elements_CTempIPT',
           direction: 'out',
-          dataType: 'FahrenheitTemperature',
+          dataType: 'Real',
           role: 'target'
         }
       },
       flowSchema: [
         {
-          from: 'Ft',
-          to: 'Ct',
-          dataType: 'FahrenheitTemperature'
+          from: 'f',
+          to: 'c',
+          dataType: 'Real'
         }
       ]
     });
   }
 }
-class CN_Connectors_PresenceCN extends Connector {
+class CN_Elements_CelToCelCN extends Connector {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
       participantSchema: {
-        pOut: {
-          portClass: 'PT_Ports_PresenceOPT',
+        c1: {
+          portClass: 'PT_Elements_CTempOPT',
           direction: 'out',
-          dataType: 'Boolean',
+          dataType: 'Real',
           role: 'source'
         },
-        pIn: {
-          portClass: 'PT_Ports_PresenceIPT',
+        c2: {
+          portClass: 'PT_Elements_CTempIPT',
           direction: 'out',
-          dataType: 'Boolean',
+          dataType: 'Real',
           role: 'target'
         }
       },
       flowSchema: [
         {
-          from: 'pOut',
-          to: 'pIn',
-          dataType: 'Boolean'
-        }
-      ]
-    });
-  }
-}
-class CN_Connectors_CommandCN extends Connector {
-  constructor(name, opts = {}) {
-    super(name, {
-      ...opts,
-      participantSchema: {
-        commandOut: {
-          portClass: 'PT_Ports_CommandOPT',
-          direction: 'out',
-          dataType: 'Command',
-          role: 'source'
-        },
-        commandIn: {
-          portClass: 'PT_Ports_CommandIPT',
-          direction: 'out',
-          dataType: 'Command',
-          role: 'target'
-        }
-      },
-      flowSchema: [
-        {
-          from: 'commandOut',
-          to: 'commandIn',
-          dataType: 'Command'
-        }
-      ]
-    });
-  }
-}
-class CN_Connectors_CTemperatureCN extends Connector {
-  constructor(name, opts = {}) {
-    super(name, {
-      ...opts,
-      participantSchema: {
-        CtOut: {
-          portClass: 'PT_Ports_CTemperatureOPT',
-          direction: 'out',
-          dataType: 'CelsiusTemperature',
-          role: 'source'
-        },
-        ctIn: {
-          portClass: 'PT_Ports_CTemperatureIPT',
-          direction: 'out',
-          dataType: 'CelsiusTemperature',
-          role: 'target'
-        }
-      },
-      flowSchema: [
-        {
-          from: 'CtOut',
-          to: 'ctIn',
-          dataType: 'CelsiusTemperature'
+          from: 'c1',
+          to: 'c2',
+          dataType: 'Real'
         }
       ]
     });
@@ -166,86 +81,53 @@ class CN_Connectors_CTemperatureCN extends Connector {
 }
 
 // Components
-class CP_Components_TemperatureSensorCP extends Component {
+class CP_Elements_SensorCP extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_Ports_FTemperatureOPT("current", { owner: name }));
+      const portAliases = opts.portAliases || {};
+      const portName_current = portAliases["current"] || "current";
+      this.addPort(new PT_Elements_FTempOPT(portName_current, { owner: name, originalName: "current" }));
     }
 }
-class CP_Components_PresenceSensorCP extends Component {
+class CP_Elements_TempMonitorCP extends Component {
+  constructor(name, opts={}) {
+      super(name, { ...opts, activityName: "TempMonitorAC" });
+      // Add ports from component definition
+      const portAliases = opts.portAliases || {};
+      const portName_s1 = portAliases["s1"] || "s1";
+      this.addPort(new PT_Elements_CTempIPT(portName_s1, { owner: name, originalName: "s1" }));
+      const portName_s2 = portAliases["s2"] || "s2";
+      this.addPort(new PT_Elements_CTempIPT(portName_s2, { owner: name, originalName: "s2" }));
+      const portName_average = portAliases["average"] || "average";
+      this.addPort(new PT_Elements_CTempOPT(portName_average, { owner: name, originalName: "average" }));
+    }
+}
+class CP_Elements_StdOutCP extends Component {
   constructor(name, opts={}) {
       super(name, { ...opts, isBoundary: true });
       // Add ports from component definition
-      this.addPort(new PT_Ports_PresenceOPT("detected", { owner: name }));
+      const portAliases = opts.portAliases || {};
+      const portName_c3 = portAliases["c3"] || "c3";
+      this.addPort(new PT_Elements_CTempIPT(portName_c3, { owner: name, originalName: "c3" }));
     }
 }
-class CP_Components_UserInterfaceCP extends Component {
-  constructor(name, opts={}) {
-      super(name, { ...opts, isBoundary: true });
-      // Add ports from component definition
-      this.addPort(new PT_Ports_CTemperatureOPT("desired", { owner: name }));
-    }
-}
-class CP_Components_CoolerCP extends Component {
-  constructor(name, opts={}) {
-      super(name, { ...opts, isBoundary: true });
-      // Add ports from component definition
-      this.addPort(new PT_Ports_CommandIPT("controllerC", { owner: name }));
-    }
-}
-class CP_Components_HeaterCP extends Component {
-  constructor(name, opts={}) {
-      super(name, { ...opts, isBoundary: true });
-      // Add ports from component definition
-      this.addPort(new PT_Ports_CommandIPT("controllerH", { owner: name }));
-    }
-}
-class CP_Components_RoomTemperatureControllerCP extends Component {
-  constructor(name, opts={}) {
-      super(name, opts);
-      // Add ports from component definition
-      this.addPort(new PT_Ports_PresenceIPT("detectedRTC", { owner: name }));
-      this.addPort(new PT_Ports_CTemperatureIPT("localtemp1", { owner: name }));
-      this.addPort(new PT_Ports_CTemperatureIPT("localTemp2", { owner: name }));
-      this.addPort(new PT_Ports_CTemperatureIPT("userTempRTC", { owner: name }));
-      this.addPort(new PT_Ports_CommandOPT("heatingRTC", { owner: name }));
-      this.addPort(new PT_Ports_CommandOPT("coolingRTC", { owner: name }));
-    }
-}
-class CP_Components_SensorsMonitorCP extends Component {
-  constructor(name, opts={}) {
-      super(name, { ...opts, activityName: "CalculateAverageTemperatureAC" });
-      // Add ports from component definition
-      this.addPort(new PT_Ports_CTemperatureIPT("s1", { owner: name }));
-      this.addPort(new PT_Ports_CTemperatureIPT("s2", { owner: name }));
-      this.addPort(new PT_Ports_CTemperatureOPT("average", { owner: name }));
-    }
-}
-class CP_Components_CommanderCP extends Component {
-  constructor(name, opts={}) {
-      super(name, { ...opts, activityName: "DecideCommandAC" });
-      // Add ports from component definition
-      this.addPort(new PT_Ports_CTemperatureIPT("target2", { owner: name }));
-      this.addPort(new PT_Ports_CTemperatureIPT("average2", { owner: name }));
-      this.addPort(new PT_Ports_CommandOPT("heating", { owner: name }));
-      this.addPort(new PT_Ports_CommandOPT("cooling", { owner: name }));
-    }
-}
-class CP_Components_PresenceCheckerCP extends Component {
-  constructor(name, opts={}) {
-      super(name, { ...opts, activityName: "CheckPresenceToSetTemperatureAC" });
-      // Add ports from component definition
-      this.addPort(new PT_Ports_PresenceIPT("detected", { owner: name }));
-      this.addPort(new PT_Ports_CTemperatureIPT("userTemp", { owner: name }));
-      this.addPort(new PT_Ports_CTemperatureOPT("target", { owner: name }));
-    }
-}
-class CP_Components_RTCSystemCFD extends Component { }
+class CP_Elements_SystemCP extends Component { }
 
 // ===== Behavioral Element Classes =====
-// Activity class: CalculateAverageTemperatureAC
-class AC_Components_CalculateAverageTemperatureAC extends Activity {
+// Activity class: FarToCelAC
+class AC_Elements_FarToCelAC extends Activity {
+  constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
+    super(name, component, inputPorts, delegates, {
+      ...opts,
+      inParameters: [{"name":"far","type":"Pin","direction":"in"},{"name":"cel","type":"Pin","direction":"in"}],
+      outParameters: []
+    });
+  }
+}
+
+// Activity class: TempMonitorAC
+class AC_Elements_TempMonitorAC extends Activity {
   constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
     super(name, component, inputPorts, delegates, {
       ...opts,
@@ -255,119 +137,55 @@ class AC_Components_CalculateAverageTemperatureAC extends Activity {
   }
 }
 
-// Activity class: CheckPresenceToSetTemperatureAC
-class AC_Components_CheckPresenceToSetTemperatureAC extends Activity {
-  constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
-    super(name, component, inputPorts, delegates, {
+// Action class: FarToCelAN
+class AN_Elements_FarToCelAN extends Action {
+  constructor(name, opts = {}) {
+    super(name, {
       ...opts,
-      inParameters: [{"name":"detected","type":"Pin","direction":"in"},{"name":"userTemp","type":"Pin","direction":"in"},{"name":"target","type":"Pin","direction":"in"}],
-      outParameters: []
+      inParameters: [{"name":"far","type":"Pin","direction":"in"}],
+      outParameters: [],
+      delegates: [{"from":"far","to":"f"},{"from":"FarToCelAN","to":"c"}],
+      constraints: ["FarToCelEQ"],
+      executableName: "FarToCelEX",
     });
   }
 }
 
-// Activity class: DecideCommandAC
-class AC_Components_DecideCommandAC extends Activity {
-  constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
-    super(name, component, inputPorts, delegates, {
-      ...opts,
-      inParameters: [{"name":"average2","type":"Pin","direction":"in"},{"name":"target2","type":"Pin","direction":"in"},{"name":"cooling","type":"Pin","direction":"in"},{"name":"heating","type":"Pin","direction":"in"}],
-      outParameters: []
-    });
-  }
-}
-
-// Activity class: FahrenheitToCelsiusAC
-class AC_Components_FahrenheitToCelsiusAC extends Activity {
-  constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
-    super(name, component, inputPorts, delegates, {
-      ...opts,
-      inParameters: [{"name":"current1","type":"Pin","direction":"in"},{"name":"loalTemp1","type":"Pin","direction":"in"}],
-      outParameters: []
-    });
-  }
-}
-
-// Action class: CalculateAverageTemperatureAN
-class AN_Components_CalculateAverageTemperatureAN extends Action {
+// Action class: TempMonitorAN
+class AN_Elements_TempMonitorAN extends Action {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
       inParameters: [{"name":"t1","type":"Pin","direction":"in"},{"name":"t2","type":"Pin","direction":"in"}],
       outParameters: [],
-      constraints: ["CalculateAverageTemperatureEQ"],
-      executableName: "CalculateAverageTemperatureEx",
+      delegates: [{"from":"t1","to":"t1"},{"from":"t2","to":"t2"},{"from":"TempMonitorAN","to":"av"}],
+      constraints: ["CalcAverageEQ"],
+      executableName: "CalcAverageEX",
     });
   }
 }
 
-// Action class: CompareTemperatureAN
-class AN_Components_CompareTemperatureAN extends Action {
+// Constraint class: FarToCelEQ
+class CT_Elements_FarToCelEQ extends Constraint {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [{"name":"average2","type":"Pin","direction":"in"},{"name":"target2","type":"Pin","direction":"in"}],
+      inParameters: [],
       outParameters: [],
-      constraints: ["CompareTemperatureEQ"],
-      executableName: "CompareTemperatureEx",
+      equation: "(c == ((5 * (f - 32)) / 9))",
+      constraintFunction: function(params) {// Constraint equation: (c == ((5 * (f - 32)) / 9))
+          const { f } = params;
+          
+          // Type validation
+          if (typeof f !== 'number') throw new Error('Parameter f must be a Real (number)');
+          return c == ((5 * (f - 32)) / 9);
+        }
     });
   }
 }
 
-// Action class: CommandHeaterAN
-class AN_Components_CommandHeaterAN extends Action {
-  constructor(name, opts = {}) {
-    super(name, {
-      ...opts,
-      inParameters: [{"name":"cmds","type":"Pin","direction":"in"}],
-      outParameters: [],
-      constraints: ["CommandHeaterEQ"],
-      executableName: "CommandHeaterEx",
-    });
-  }
-}
-
-// Action class: CommandCoolerAN
-class AN_Components_CommandCoolerAN extends Action {
-  constructor(name, opts = {}) {
-    super(name, {
-      ...opts,
-      inParameters: [{"name":"cmds","type":"Pin","direction":"in"}],
-      outParameters: [],
-      constraints: ["CommandCoolerEQ"],
-      executableName: "CommandCoolerEx",
-    });
-  }
-}
-
-// Action class: FahrenheitToCelsiusAN
-class AN_Components_FahrenheitToCelsiusAN extends Action {
-  constructor(name, opts = {}) {
-    super(name, {
-      ...opts,
-      inParameters: [{"name":"current1","type":"Pin","direction":"in"}],
-      outParameters: [],
-      constraints: ["FahrenheitToCelsiusEQ"],
-      executableName: "FahrenheitToCelsiusEx",
-    });
-  }
-}
-
-// Action class: CheckPeresenceToSetTemperatureAN
-class AN_Components_CheckPeresenceToSetTemperatureAN extends Action {
-  constructor(name, opts = {}) {
-    super(name, {
-      ...opts,
-      inParameters: [{"name":"detected","type":"Pin","direction":"in"},{"name":"userTemp","type":"Pin","direction":"in"}],
-      outParameters: [],
-      constraints: ["CheckPresenceToSetTemperatureEQ"],
-      executableName: "CheckPresenceToSetTemperature",
-    });
-  }
-}
-
-// Constraint class: CalculateAverageTemperatureEQ
-class CT_Components_CalculateAverageTemperatureEQ extends Constraint {
+// Constraint class: CalcAverageEQ
+class CT_Elements_CalcAverageEQ extends Constraint {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
@@ -386,150 +204,13 @@ class CT_Components_CalculateAverageTemperatureEQ extends Constraint {
   }
 }
 
-// Constraint class: CompareTemperatureEQ
-class CT_Components_CompareTemperatureEQ extends Constraint {
+// Executable class: FarToCelEX
+class EX_Elements_FarToCelEX extends Executable {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
       inParameters: [],
-      outParameters: [],
-      equation: "((average > target) ? ((cmds == types.Commands.heater.Off) && types.Commands.cooler.On) : (types.Commands.heater.On && (cmds == types.Commands.cooler.Off)))",
-      constraintFunction: function(params) {// Conditional constraint: ((average > target) ? ((cmds == types.Commands.heater.Off) && types.Commands.cooler.On) : (types.Commands.heater.On && (cmds == types.Commands.cooler.Off)))
-          const { average, target, cmds, heater, cooler } = params;
-          
-          // Type validation
-          if (typeof average !== 'number') throw new Error('Parameter average must be a Real (number)');
-          if (typeof target !== 'number') throw new Error('Parameter target must be a Real (number)');
-          if (typeof cmds !== 'number') throw new Error('Parameter cmds must be a Real (number)');
-          if (typeof heater !== 'number') throw new Error('Parameter heater must be a Real (number)');
-          if (typeof cooler !== 'number') throw new Error('Parameter cooler must be a Real (number)');
-          return (average > target) ? ((cmds == types.Commands.heater.Off) && types.Commands.cooler.On) : (types.Commands.heater.On && (cmds == types.Commands.cooler.Off));
-        }
-    });
-  }
-}
-
-// Constraint class: FahrenheitToCelsiusEQ
-class CT_Components_FahrenheitToCelsiusEQ extends Constraint {
-  constructor(name, opts = {}) {
-    super(name, {
-      ...opts,
-      inParameters: [],
-      outParameters: [],
-      equation: "(c == ((5 * (f - 32)) / 9))",
-      constraintFunction: function(params) {// Constraint equation: (c == ((5 * (f - 32)) / 9))
-          const { f } = params;
-          
-          // Type validation
-          if (typeof f !== 'number') throw new Error('Parameter f must be a Real (number)');
-          return c == ((5 * (f - 32)) / 9);
-        }
-    });
-  }
-}
-
-// Constraint class: CommandHeaterEQ
-class CT_Components_CommandHeaterEQ extends Constraint {
-  constructor(name, opts = {}) {
-    super(name, {
-      ...opts,
-      inParameters: [],
-      outParameters: [],
-      equation: "(c == cmds.heater)",
-      constraintFunction: function(params) {// Constraint equation: (c == cmds.heater)
-          const { cmds, heater } = params;
-          
-          // Type validation
-          if (typeof cmds !== 'number') throw new Error('Parameter cmds must be a Real (number)');
-          if (typeof heater !== 'number') throw new Error('Parameter heater must be a Real (number)');
-          return c == cmds.heater;
-        }
-    });
-  }
-}
-
-// Constraint class: CommandCoolerEQ
-class CT_Components_CommandCoolerEQ extends Constraint {
-  constructor(name, opts = {}) {
-    super(name, {
-      ...opts,
-      inParameters: [],
-      outParameters: [],
-      equation: "(c == cmds.cooler)",
-      constraintFunction: function(params) {// Constraint equation: (c == cmds.cooler)
-          const { cmds, cooler } = params;
-          
-          // Type validation
-          if (typeof cmds !== 'number') throw new Error('Parameter cmds must be a Real (number)');
-          if (typeof cooler !== 'number') throw new Error('Parameter cooler must be a Real (number)');
-          return c == cmds.cooler;
-        }
-    });
-  }
-}
-
-// Constraint class: CheckPresenceToSetTemperatureEQ
-class CT_Components_CheckPresenceToSetTemperatureEQ extends Constraint {
-  constructor(name, opts = {}) {
-    super(name, {
-      ...opts,
-      inParameters: [],
-      outParameters: [],
-      equation: "((detected == true) ? (target == userTemp) : (target == 2))",
-      constraintFunction: function(params) {// Conditional constraint: ((detected == true) ? (target == userTemp) : (target == 2))
-          const { detected, target, userTemp } = params;
-          
-          // Type validation
-          if (typeof detected !== 'number') throw new Error('Parameter detected must be a Real (number)');
-          if (typeof target !== 'number') throw new Error('Parameter target must be a Real (number)');
-          if (typeof userTemp !== 'number') throw new Error('Parameter userTemp must be a Real (number)');
-          return (detected == true) ? (target == userTemp) : (target == 2);
-        }
-    });
-  }
-}
-
-// Executable class: CommandCoolerEx
-class EX_Components_CommandCoolerEx extends Executable {
-  constructor(name, opts = {}) {
-    super(name, {
-      ...opts,
-      inParameters: [],
-      body: "executable def CommandCoolerEx(in cmds:Commands): out Command{return cmds->cooler ; }",
-      executableFunction: function(params) {
-          // Type validation
-          // Type validation for cmds: (auto-detected from usage)
-          const { cmds } = params;
-          return cmds.cooler;
-        }
-    });
-  }
-}
-
-// Executable class: CommandHeaterEx
-class EX_Components_CommandHeaterEx extends Executable {
-  constructor(name, opts = {}) {
-    super(name, {
-      ...opts,
-      inParameters: [],
-      body: "executable def CommandHeaterEx(in cmds:Commands): out Command{return cmds->heater ; }",
-      executableFunction: function(params) {
-          // Type validation
-          // Type validation for cmds: (auto-detected from usage)
-          const { cmds } = params;
-          return cmds.heater;
-        }
-    });
-  }
-}
-
-// Executable class: FahrenheitToCelsiusEx
-class EX_Components_FahrenheitToCelsiusEx extends Executable {
-  constructor(name, opts = {}) {
-    super(name, {
-      ...opts,
-      inParameters: [],
-      body: "executable def FahrenheitToCelsiusEx(in f:FahrenheitTemperature): out CelsiusTemperature{return 5*(f - 32)/9 ; }",
+      body: "executable def FarToCelEX (in f:Real): out Real {\n\t\treturn 5*(f - 32)/9 ;\n\t}",
       executableFunction: function(params) {
           // Type validation
           // Type validation for f: (auto-detected from usage)
@@ -540,13 +221,13 @@ class EX_Components_FahrenheitToCelsiusEx extends Executable {
   }
 }
 
-// Executable class: CalculateAverageTemperatureEx
-class EX_Components_CalculateAverageTemperatureEx extends Executable {
+// Executable class: CalcAverageEX
+class EX_Elements_CalcAverageEX extends Executable {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
       inParameters: [],
-      body: "executable def CalculateAverageTemperatureEx(in temp1:CelsiusTemperature,in temp2:CelsiusTemperature):out CelsiusTemperature{return (temp1 + temp2)/2 ; }",
+      body: "executable def CalcAverageEX(in temp1:Real,in temp2:Real):out Real{\n\t\treturn (temp1 + temp2)/2 ;\n\t}",
       executableFunction: function(params) {
           // Type validation
           // Type validation for temp1: (auto-detected from usage)
@@ -558,135 +239,50 @@ class EX_Components_CalculateAverageTemperatureEx extends Executable {
   }
 }
 
-// Executable class: CheckPresenceToSetTemperature
-class EX_Components_CheckPresenceToSetTemperature extends Executable {
-  constructor(name, opts = {}) {
-    super(name, {
-      ...opts,
-      inParameters: [],
-      body: "executable def CheckPresenceToSetTemperature(in presence:Boolean, in userTemp:CelsiusTemperature):out CelsiusTemperature{if(presence == true) return userTemp; else return 2; }",
-      executableFunction: function(params) {
-          // Type validation
-          // Type validation for presence: (auto-detected from usage)
-          // Type validation for userTemp: (auto-detected from usage)
-          const { presence, userTemp } = params;
-          if(presence == true) return userTemp; else return 2;
-        }
-    });
-  }
-}
-
-// Executable class: CompareTemperatureEx
-class EX_Components_CompareTemperatureEx extends Executable {
-  constructor(name, opts = {}) {
-    super(name, {
-      ...opts,
-      inParameters: [],
-      body: "executable def CompareTemperatureEx(in target:CelsiusTemperature, in average:CelsiusTemperature):out Commands{let heater:Command = types.Command::Off; let cooler:Command = types.Command::Off; if(average > target) {heater = types.Command::Off; cooler = types.Command::On ; } else {heater = types.Command::On; cooler = types.Command::Off ;} }",
-      executableFunction: function(params) {
-          // Type validation
-          // Type validation for target: (auto-detected from usage)
-          // Type validation for average: (auto-detected from usage)
-          const { target, average } = params;
-          let heater = types.Command.Off; let cooler = types.Command.Off; if(average > target) {heater = types.Command.Off; cooler = types.Command.On ; } else {heater = types.Command.On; cooler = types.Command.Off ;}
-        }
-    });
-  }
-}
-
 // ===== End Behavioral Element Classes =====
 
 class SysADLModel extends Model {
   constructor(){
     super("SysADLModel");
-    this.RTCSystemCFD = new CP_Components_RTCSystemCFD("RTCSystemCFD", { sysadlDefinition: "RTCSystemCFD" });
-    this.addComponent(this.RTCSystemCFD);
-    this.RTCSystemCFD.a1 = new CP_Components_HeaterCP("a1", { isBoundary: true, sysadlDefinition: "HeaterCP" });
-    this.RTCSystemCFD.addComponent(this.RTCSystemCFD.a1);
-    this.RTCSystemCFD.a2 = new CP_Components_CoolerCP("a2", { isBoundary: true, sysadlDefinition: "CoolerCP" });
-    this.RTCSystemCFD.addComponent(this.RTCSystemCFD.a2);
-    this.RTCSystemCFD.rtc = new CP_Components_RoomTemperatureControllerCP("rtc", { sysadlDefinition: "RoomTemperatureControllerCP" });
-    this.RTCSystemCFD.addComponent(this.RTCSystemCFD.rtc);
-    this.RTCSystemCFD.s1 = new CP_Components_TemperatureSensorCP("s1", { isBoundary: true, sysadlDefinition: "TemperatureSensorCP" });
-    this.RTCSystemCFD.addComponent(this.RTCSystemCFD.s1);
-    this.RTCSystemCFD.s2 = new CP_Components_TemperatureSensorCP("s2", { isBoundary: true, sysadlDefinition: "TemperatureSensorCP" });
-    this.RTCSystemCFD.addComponent(this.RTCSystemCFD.s2);
-    this.RTCSystemCFD.s3 = new CP_Components_PresenceSensorCP("s3", { isBoundary: true, sysadlDefinition: "PresenceSensorCP" });
-    this.RTCSystemCFD.addComponent(this.RTCSystemCFD.s3);
-    this.RTCSystemCFD.ui = new CP_Components_UserInterfaceCP("ui", { isBoundary: true, sysadlDefinition: "UserInterfaceCP" });
-    this.RTCSystemCFD.addComponent(this.RTCSystemCFD.ui);
-    this.RTCSystemCFD.rtc.cm = new CP_Components_CommanderCP("cm", { sysadlDefinition: "CommanderCP" });
-    this.RTCSystemCFD.rtc.addComponent(this.RTCSystemCFD.rtc.cm);
-    this.RTCSystemCFD.rtc.pc = new CP_Components_PresenceCheckerCP("pc", { sysadlDefinition: "PresenceCheckerCP" });
-    this.RTCSystemCFD.rtc.addComponent(this.RTCSystemCFD.rtc.pc);
-    this.RTCSystemCFD.rtc.sm = new CP_Components_SensorsMonitorCP("sm", { sysadlDefinition: "SensorsMonitorCP" });
-    this.RTCSystemCFD.rtc.addComponent(this.RTCSystemCFD.rtc.sm);
+    this.SystemCP = new CP_Elements_SystemCP("SystemCP", { sysadlDefinition: "SystemCP" });
+    this.addComponent(this.SystemCP);
+    this.SystemCP.s1 = new CP_Elements_SensorCP("s1", { isBoundary: true, sysadlDefinition: "SensorCP", portAliases: {"current":"temp1"} });
+    this.SystemCP.addComponent(this.SystemCP.s1);
+    this.SystemCP.s2 = new CP_Elements_SensorCP("s2", { isBoundary: true, sysadlDefinition: "SensorCP", portAliases: {"current":"temp2"} });
+    this.SystemCP.addComponent(this.SystemCP.s2);
+    this.SystemCP.stdOut = new CP_Elements_StdOutCP("stdOut", { isBoundary: true, sysadlDefinition: "StdOutCP", portAliases: {"c3":"avg"} });
+    this.SystemCP.addComponent(this.SystemCP.stdOut);
+    this.SystemCP.tempMon = new CP_Elements_TempMonitorCP("tempMon", { sysadlDefinition: "TempMonitorCP", portAliases: {"average":"average"} });
+    this.SystemCP.addComponent(this.SystemCP.tempMon);
 
-    this.RTCSystemCFD.rtc.addConnector(new CN_Connectors_CTemperatureCN("target"));
-    const target = this.RTCSystemCFD.rtc.connectors["target"];
-    target.bind(this.RTCSystemCFD.rtc.pc.getPort("target"), this.RTCSystemCFD.rtc.cm.getPort("target2"));
-    this.RTCSystemCFD.rtc.addConnector(new CN_Connectors_CTemperatureCN("average"));
-    const average = this.RTCSystemCFD.rtc.connectors["average"];
-    average.bind(this.RTCSystemCFD.rtc.sm.getPort("average"), this.RTCSystemCFD.rtc.cm.getPort("average2"));
-    this.RTCSystemCFD.addConnector(new CN_Connectors_FahrenheitToCelsiusCN("c1"));
-    const c1 = this.RTCSystemCFD.connectors["c1"];
-    c1.bind(this.getPort("current1"), this.RTCSystemCFD.rtc.getPort("localtemp1"));
-    this.RTCSystemCFD.addConnector(new CN_Connectors_CTemperatureCN("uc"));
-    const uc = this.RTCSystemCFD.connectors["uc"];
-    uc.bind(this.RTCSystemCFD.ui.getPort("desired"), this.RTCSystemCFD.rtc.pc.getPort("userTemp"));
-    this.RTCSystemCFD.addConnector(new CN_Connectors_CommandCN("cc2"));
-    const cc2 = this.RTCSystemCFD.connectors["cc2"];
-    cc2.bind(this.RTCSystemCFD.rtc.cm.getPort("cooling"), this.RTCSystemCFD.a2.getPort("controllerC"));
-    this.RTCSystemCFD.addConnector(new CN_Connectors_PresenceCN("pc"));
-    const pc = this.RTCSystemCFD.connectors["pc"];
-    pc.bind(this.getPort("detectedS"), this.RTCSystemCFD.s3.getPort("detected"));
-    this.RTCSystemCFD.addConnector(new CN_Connectors_FahrenheitToCelsiusCN("c2"));
-    const c2 = this.RTCSystemCFD.connectors["c2"];
-    c2.bind(this.getPort("current2"), this.RTCSystemCFD.rtc.getPort("localTemp2"));
-    this.RTCSystemCFD.addConnector(new CN_Connectors_CommandCN("cc1"));
-    const cc1 = this.RTCSystemCFD.connectors["cc1"];
-    cc1.bind(this.RTCSystemCFD.rtc.cm.getPort("heating"), this.RTCSystemCFD.a1.getPort("controllerH"));
+    this.SystemCP.addConnector(new CN_Elements_FarToCelCN("c1"));
+    const c1 = this.SystemCP.connectors["c1"];
+    c1.bind(this.SystemCP.s1.getPort("temp1"), this.SystemCP.tempMon.getPort("s1"));
+    this.SystemCP.addConnector(new CN_Elements_FarToCelCN("c2"));
+    const c2 = this.SystemCP.connectors["c2"];
+    c2.bind(this.SystemCP.s2.getPort("temp2"), this.SystemCP.tempMon.getPort("s2"));
+    this.SystemCP.addConnector(new CN_Elements_CelToCelCN("c3"));
+    const c3 = this.SystemCP.connectors["c3"];
+    c3.bind(this.SystemCP.tempMon.getPort("average"), this.SystemCP.stdOut.getPort("avg"));
 
-    const ac_SensorsMonitorCP = new AC_Components_CalculateAverageTemperatureAC(
-      "CalculateAverageTemperatureAC",
-      "SensorsMonitorCP",
+    const ac_FarToCelCN = new AC_Elements_FarToCelAC(
+      "FarToCelAC",
+      "FarToCelCN",
       [],
-      [{"from":"s1","to":"s1"},{"from":"s2","to":"s2"},{"from":"average","to":"CalcAvTemp"}]
+      [{"from":"far","to":"far"},{"from":"cel","to":"ftoc"}]
     );
-    const CalcAvTemp = new AN_Components_CalculateAverageTemperatureAN("CalcAvTemp");
-    ac_SensorsMonitorCP.registerAction(CalcAvTemp);
-    this.registerActivity("CalculateAverageTemperatureAC", ac_SensorsMonitorCP);
-    const ac_PresenceCheckerCP = new AC_Components_CheckPresenceToSetTemperatureAC(
-      "CheckPresenceToSetTemperatureAC",
-      "PresenceCheckerCP",
+    const ftoc = new AN_Elements_FarToCelAN("ftoc");
+    ac_FarToCelCN.registerAction(ftoc);
+    this.registerActivity("FarToCelAC", ac_FarToCelCN);
+    const ac_TempMonitorCP = new AC_Elements_TempMonitorAC(
+      "TempMonitorAC",
+      "TempMonitorCP",
       [],
-      [{"from":"detected","to":"detected"},{"from":"userTemp","to":"userTemp"},{"from":"target","to":"CheckPeresenceToSetTemperatureAN"}]
+      [{"from":"s1","to":"t1"},{"from":"s2","to":"t2"},{"from":"average","to":"TempMonitorAN"}]
     );
-    const CheckPeresenceToSetTemperatureAN_inst = new AN_Components_CheckPeresenceToSetTemperatureAN("CheckPeresenceToSetTemperatureAN");
-    ac_PresenceCheckerCP.registerAction(CheckPeresenceToSetTemperatureAN_inst);
-    this.registerActivity("CheckPresenceToSetTemperatureAC", ac_PresenceCheckerCP);
-    const ac_CommanderCP = new AC_Components_DecideCommandAC(
-      "DecideCommandAC",
-      "CommanderCP",
-      [],
-      [{"from":"average2","to":"average2"},{"from":"target2","to":"target2"},{"from":"heating","to":"cmdH"},{"from":"cooling","to":"cmdC"}]
-    );
-    const cmdC = new AN_Components_CommandCoolerAN("cmdC");
-    ac_CommanderCP.registerAction(cmdC);
-    const cmdH = new AN_Components_CommandHeaterAN("cmdH");
-    ac_CommanderCP.registerAction(cmdH);
-    const ct = new AN_Components_CompareTemperatureAN("ct");
-    ac_CommanderCP.registerAction(ct);
-    this.registerActivity("DecideCommandAC", ac_CommanderCP);
-    const ac_FahrenheitToCelsiusCN = new AC_Components_FahrenheitToCelsiusAC(
-      "FahrenheitToCelsiusAC",
-      "FahrenheitToCelsiusCN",
-      [],
-      [{"from":"loalTemp1","to":"FtC"},{"from":"current1","to":"current1"}]
-    );
-    const FtC = new AN_Components_FahrenheitToCelsiusAN("FtC");
-    ac_FahrenheitToCelsiusCN.registerAction(FtC);
-    this.registerActivity("FahrenheitToCelsiusAC", ac_FahrenheitToCelsiusCN);
+    const TempMonitorAN_inst = new AN_Elements_TempMonitorAN("TempMonitorAN");
+    ac_TempMonitorCP.registerAction(TempMonitorAN_inst);
+    this.registerActivity("TempMonitorAC", ac_TempMonitorCP);
   }
 
 }
@@ -695,28 +291,18 @@ function createModel(){
   const model = new SysADLModel();
   
   model.typeRegistry = {
-    'temperature': 'VT_types_temperature',
-    'FahrenheitTemperature': 'VT_types_FahrenheitTemperature',
-    'CelsiusTemperature': 'VT_types_CelsiusTemperature',
-    'Command': 'EN_types_Command',
   };
   
   // Module context for class resolution
   model._moduleContext = {
-    PT_Ports_FTemperatureOPT,
-    PT_Ports_PresenceIPT,
-    PT_Ports_PresenceOPT,
-    PT_Ports_CTemperatureIPT,
-    PT_Ports_CommandIPT,
-    PT_Ports_CommandOPT,
-    PT_Ports_CTemperatureOPT,
-    CN_Connectors_FahrenheitToCelsiusCN,
-    CN_Connectors_PresenceCN,
-    CN_Connectors_CommandCN,
-    CN_Connectors_CTemperatureCN,
+    PT_Elements_CTempIPT,
+    PT_Elements_CTempOPT,
+    PT_Elements_FTempOPT,
+    CN_Elements_FarToCelCN,
+    CN_Elements_CelToCelCN,
   };
   
   return model;
 }
 
-module.exports = { createModel, SysADLModel, VT_types_temperature, VT_types_FahrenheitTemperature, VT_types_CelsiusTemperature, EN_types_Command, DT_types_Commands, DM_types_Temperature, UN_types_Celsius, UN_types_Fahrenheit, PT_Ports_FTemperatureOPT, PT_Ports_PresenceIPT, PT_Ports_PresenceOPT, PT_Ports_CTemperatureIPT, PT_Ports_CommandIPT, PT_Ports_CommandOPT, PT_Ports_CTemperatureOPT };
+module.exports = { createModel, SysADLModel, PT_Elements_CTempIPT, PT_Elements_CTempOPT, PT_Elements_FTempOPT };
