@@ -55,7 +55,8 @@ All UX is orchestrated by `app.js` and `index.html`, with presentation controlle
 * **Component layout:** Deterministic, left‑to‑right. Each nesting level increases the x coordinate; siblings are vertically spaced for readability.
 * **Port docking:** Input ports appear on the **left edge**, output ports on the **right edge**, and any port without direction (rare) sits below the component. Docking recomputes after stabilisation, zoom, drag, or resize.
 * **Edges:** Straight segments with arrowheads, centred labels, and consistent colours. Connectors now reliably map to their bound ports (no more null endpoints).
-* **Legend:** Updated to reflect the new palette (root vs nested component, input vs output ports, connector legend).
+* **Legend & palette:** Pastel fills differentiate top-level vs nested components, and the legend now focuses on the two component classes plus input/output ports and connectors.
+* **Interactive editing:** Components can be dragged after the layout stabilises; ports remain glued to the component borders thanks to the docking hooks.
 * **Theme:** The entire UI, including Monaco editors, adopts the SysADL Studio inspired light look; the architecture canvas has no internal padding so the network can use the full area.
 
 ---
@@ -114,7 +115,6 @@ All UX is orchestrated by `app.js` and `index.html`, with presentation controlle
 
 | Date | Summary |
 | --- | --- |
+| 2025‑10‑29 | Introduced UML-style palette, improved legend, and enabled freeform dragging of components. |
 | 2025‑10‑28 | Layout overhauled, ports docked to component edges, connector direction enforced. |
 | 2025‑10‑27 | Legendary redesign, English UI strings, initial connector binding fixes. |
-
-

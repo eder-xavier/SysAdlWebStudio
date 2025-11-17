@@ -6,23 +6,23 @@
 import { Network } from 'https://cdn.jsdelivr.net/npm/vis-network@9.1.9/+esm';
 
 const palette = {
-  canvas: '#f4f7fb',
-  canvasAccent: 'linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(14, 165, 233, 0.04) 42%, rgba(255, 255, 255, 0.9) 100%)',
-  componentBg: '#1d3557',
-  componentBorder: '#0b2545',
-  componentHighlight: '#2563eb',
-  subcomponentBg: '#264772',
-  subcomponentBorder: '#1c2f4d',
-  subcomponentHighlight: '#4f83d1',
-  portOut: '#0ea5e9',
-  portIn: '#f97316',
+  canvas: '#eef2ff',
+  canvasAccent: 'radial-gradient(circle at 10% 20%, rgba(79, 70, 229, 0.18), transparent 70%)',
+  componentBg: '#dbeafe',
+  componentBorder: '#312e81',
+  componentHighlight: '#4338ca',
+  subcomponentBg: '#f1f5f9',
+  subcomponentBorder: '#475569',
+  subcomponentHighlight: '#2563eb',
+  portOut: '#22d3ee',
+  portIn: '#fb7185',
   portUnknown: '#94a3b8',
-  portBorder: '#d5dee9',
   portShadow: 'rgba(15, 23, 42, 0.18)',
-  connectorEdge: '#1d4ed8',
-  connectorHighlight: '#38bdf8',
-  connectorLabelBg: 'rgba(255, 255, 255, 0.92)',
-  portLink: '#cbd5e1'
+  connectorEdge: '#334155',
+  connectorHighlight: '#0ea5e9',
+  connectorLabelBg: 'rgba(255, 255, 255, 0.94)',
+  swimlaneStroke: 'rgba(148, 163, 184, 0.35)',
+  portLink: '#b4c2d9'
 };
 
 // Function to create a model from generated JS code
@@ -98,6 +98,7 @@ function extractArchitectureData(model, logElement) {
   const portIndex = new Map();
   const rootModel = model;
   const componentPortMap = new Map();
+  const componentNodeIds = new Set();
 
   const warn = (message) => {
     console.warn(message);
@@ -124,6 +125,7 @@ function extractArchitectureData(model, logElement) {
       return;
     }
     const componentId = normalizeComponentId(comp.name, parentId ? `${parentId}-child` : 'component');
+    componentNodeIds.add(componentId);
 
     if (!componentPortMap.has(componentId)) {
       componentPortMap.set(componentId, { in: [], out: [], other: [] });
@@ -154,7 +156,7 @@ function extractArchitectureData(model, logElement) {
           },
       borderWidth: 0,
       font: {
-        color: '#f8fbff',
+        color: '#0f172a',
         face: 'Inter, "Segoe UI", sans-serif',
         size: parentId ? 14 : 16,
         vadjust: 6
@@ -528,7 +530,8 @@ function extractArchitectureData(model, logElement) {
     nodes: nodesArray,
     edges,
     ports: Array.from(ports.entries()),
-    componentPortMap: Object.fromEntries(componentPortMap)
+    componentPortMap: Object.fromEntries(componentPortMap),
+    componentNodeIds: Array.from(componentNodeIds)
   };
 }
 
@@ -548,7 +551,7 @@ function renderVisualization(containerId, generatedCode, logElement) {
       if (logElement) logElement.textContent += '[ERROR] No valid model available to visualize\n';
       return;
     }
-    const { nodes, edges, componentPortMap } = extractArchitectureData(model, logElement);
+    const { nodes, edges, componentPortMap, componentNodeIds } = extractArchitectureData(model, logElement);
     if (nodes.length === 0 && edges.length === 0) {
       console.warn('No architecture data available to visualize');
       if (logElement) logElement.textContent += '[ERROR] No architecture data available to visualize\n';
@@ -556,8 +559,8 @@ function renderVisualization(containerId, generatedCode, logElement) {
     }
     const data = { nodes, edges };
     container.style.background = palette.canvas;
-    container.style.backgroundImage = palette.canvasAccent;
-    container.style.border = '1px solid #dbe4f3';
+    container.style.backgroundImage = `${palette.canvasAccent}, repeating-linear-gradient(90deg, transparent, transparent 360px, ${palette.swimlaneStroke} 360px, ${palette.swimlaneStroke} 364px)`;
+    container.style.border = '1px solid rgba(99, 102, 241, 0.35)';
     container.style.borderRadius = '20px';
     container.style.boxShadow = '0 26px 52px rgba(15, 23, 42, 0.14)';
     container.style.padding = '0';
@@ -572,8 +575,8 @@ function renderVisualization(containerId, generatedCode, logElement) {
         improvedLayout: false
       },
       nodes: {
-        shapeProperties: { borderRadius: 14 },
-        margin: 18,
+        shapeProperties: { borderRadius: 10 },
+        margin: 24,
         font: {
           size: 16,
           face: 'Inter, "Segoe UI", sans-serif',
@@ -591,7 +594,7 @@ function renderVisualization(containerId, generatedCode, logElement) {
             highlight: { background: palette.componentHighlight, border: palette.componentHighlight },
             hover: { background: palette.componentHighlight, border: palette.componentHighlight }
           },
-          font: { color: '#f8fbff' }
+          font: { color: '#0f172a', bold: { color: '#0f172a', size: 17 } }
         },
         subcomponent: {
           color: {
@@ -600,7 +603,7 @@ function renderVisualization(containerId, generatedCode, logElement) {
             highlight: { background: palette.subcomponentHighlight, border: palette.subcomponentHighlight },
             hover: { background: palette.subcomponentHighlight, border: palette.subcomponentHighlight }
           },
-          font: { color: '#f8fbff' }
+          font: { color: '#0f172a', bold: { color: '#0f172a', size: 15 } }
         },
         port_out: {
           shape: 'dot',
@@ -655,12 +658,15 @@ function renderVisualization(containerId, generatedCode, logElement) {
         enabled: false
       },
       interaction: {
-        zoomView: true,
+        dragNodes: true,
         dragView: true,
+        zoomView: true,
         hover: true,
         tooltipDelay: 120,
         hoverConnectedEdges: true,
         multiselect: true,
+        selectable: true,
+        navigationButtons: true,
         keyboard: { enabled: true, bindToWindow: false }
       },
       manipulation: {
@@ -728,11 +734,28 @@ function renderVisualization(containerId, generatedCode, logElement) {
 
     const schedulePin = () => requestAnimationFrame(() => pinPortsToComponents());
 
+    const releaseComponentsForDrag = () => {
+      const updates = [];
+      const nodesDataset = network.body.data.nodes;
+      componentNodeIds.forEach(id => {
+        const node = nodesDataset.get(id);
+        if (!node) return;
+        updates.push({ id, fixed: false });
+      });
+      if (updates.length) {
+        nodesDataset.update(updates);
+      }
+    };
+
     network.once('afterDrawing', schedulePin);
+    network.on('dragStart', schedulePin);
+    network.on('dragging', schedulePin);
     network.on('dragEnd', schedulePin);
     network.on('zoom', schedulePin);
     network.on('resize', schedulePin);
+
     schedulePin();
+    requestAnimationFrame(releaseComponentsForDrag);
 
     console.log('✅ Visualization rendered with', nodes.length, 'nodes and', edges.length, 'edges');
     if (logElement) logElement.textContent += `[INFO] Visualization rendered with ${nodes.length} nodes and ${edges.length} edges\n`;

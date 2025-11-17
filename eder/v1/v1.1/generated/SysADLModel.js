@@ -210,7 +210,7 @@ class EX_Elements_FarToCelEX extends Executable {
     super(name, {
       ...opts,
       inParameters: [],
-      body: "executable def FarToCelEX (in f:Real): out Real {\n\t\treturn 5*(f - 32)/9 ;\n\t}",
+      body: "executable def FarToCelEX (in f:Real): out Real {\r\n\t\treturn 5*(f - 32)/9 ;\r\n\t}",
       executableFunction: function(params) {
           // Type validation
           // Type validation for f: (auto-detected from usage)
@@ -227,7 +227,7 @@ class EX_Elements_CalcAverageEX extends Executable {
     super(name, {
       ...opts,
       inParameters: [],
-      body: "executable def CalcAverageEX(in temp1:Real,in temp2:Real):out Real{\n\t\treturn (temp1 + temp2)/2 ;\n\t}",
+      body: "executable def CalcAverageEX(in temp1:Real,in temp2:Real):out Real{\r\n\t\treturn (temp1 + temp2)/2 ;\r\n\t}",
       executableFunction: function(params) {
           // Type validation
           // Type validation for temp1: (auto-detected from usage)
