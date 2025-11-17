@@ -50,22 +50,49 @@ function loadModelFromModulePath(modelPath){
   return { mod, model: mod.createModel() };
 }
 
-function findInputPorts(model){
+// Enhanced findInputPorts that also extracts alias information from component instances
+function findInputPorts(model, aliasMap){
   const inputPorts = [];
 
   // Função auxiliar para buscar portas recursivamente
   const findPortsRecursive = (root, path = '') => {
     if (!root || typeof root !== 'object') return;
 
+    console.log(`[FIND PORTS] Checking: ${path || 'root'}`);
+    console.log(`[FIND PORTS]   - has ports:`, !!root.ports, root.ports ? Object.keys(root.ports) : 'none');
+    console.log(`[FIND PORTS]   - has components:`, !!root.components, root.components ? Object.keys(root.components) : 'none');
+
     // Se tem portas, processa elas
     if (root.ports) {
       for (const [pname, port] of Object.entries(root.ports)) {
-        if (!port.direction || port.direction === 'in') {
+        console.log(`[FIND PORTS]   - Port ${pname}: direction=${port.direction}, type=${port.constructor?.name}, isBoundary=${root.props?.isBoundary}`);
+        
+        // Aceita portas de entrada OU portas de saída de componentes boundary (sensores)
+        const isInputPort = !port.direction || port.direction === 'in';
+        const isBoundaryOutputPort = port.direction === 'out' && root.props?.isBoundary === true;
+        
+        if (isInputPort || isBoundaryOutputPort) {
+          const componentPath = path || (root.name || 'root');
+          
+          // Get alias for this port if exists
+          let aliasName = null;
+          if (aliasMap && aliasMap[componentPath]) {
+            // Check if this real port name has an alias
+            for (const [realName, alias] of Object.entries(aliasMap[componentPath])) {
+              if (realName === pname) {
+                aliasName = alias;
+                break;
+              }
+            }
+          }
+          
           inputPorts.push({
-            component: path || (root.name || 'root'),
+            component: componentPath,
             port: pname,
+            alias: aliasName,
             portObj: port,
-            fullPath: path ? `${path}.${pname}` : pname
+            fullPath: path ? `${path}.${pname}` : pname,
+            fullPathWithAlias: aliasName && path ? `${path}.${aliasName}` : null
           });
         }
       }
@@ -106,6 +133,76 @@ function findPortRecursive(root, name){
     }catch(e){ }
   }
   return null;
+}
+
+// Build a global map of port aliases from model instances
+// Returns: { "componentPath": { "realPortName": "aliasName" } }
+function buildPortAliasesMap(model, path = '') {
+  const aliasMap = {};
+  
+  console.log('[ALIAS EXTRACTION] Starting with model:', model.name);
+  console.log('[ALIAS EXTRACTION] Model components:', Object.keys(model.components || {}));
+  
+  const traverseComponent = (comp, currentPath) => {
+    if (!comp || typeof comp !== 'object') return;
+    
+    console.log(`[ALIAS EXTRACTION] Traversing: ${currentPath}`);
+    console.log(`[ALIAS EXTRACTION]   - props:`, comp.props);
+    console.log(`[ALIAS EXTRACTION]   - has components:`, !!comp.components);
+    
+    // Check if component has portAliases in props
+    if (comp.props && comp.props.portAliases) {
+      const aliases = comp.props.portAliases;
+      if (Object.keys(aliases).length > 0) {
+        aliasMap[currentPath] = aliases;
+        console.log(`[ALIAS MAP] ${currentPath}:`, aliases);
+      }
+    }
+    
+    // Traverse subcomponents recursively
+    if (comp.components) {
+      for (const [name, subcomp] of Object.entries(comp.components)) {
+        const subpath = currentPath ? `${currentPath}.${name}` : name;
+        traverseComponent(subcomp, subpath);
+      }
+    }
+  };
+  
+  // Start traversal from root model
+  const root = model.components || model;
+  if (typeof root === 'object') {
+    for (const [name, comp] of Object.entries(root)) {
+      traverseComponent(comp, name);
+    }
+  }
+  
+  console.log('[ALIAS MAP] Complete map:', aliasMap);
+  return aliasMap;
+}
+
+// Resolve port name using alias map (bidirectional: alias->real or real->alias)
+// Returns the real port name if found, otherwise returns the input name
+function resolvePortAlias(componentPath, portName, aliasMap) {
+  if (!aliasMap || !componentPath || !portName) return portName;
+  
+  const aliases = aliasMap[componentPath];
+  if (!aliases) return portName;
+  
+  // Check if portName is an alias (search in values)
+  for (const [realName, aliasName] of Object.entries(aliases)) {
+    if (aliasName === portName) {
+      console.log(`[RESOLVE] ${componentPath}.${portName} -> ${realName} (alias->real)`);
+      return realName;
+    }
+  }
+  
+  // Check if portName is a real name (search in keys)
+  if (aliases[portName]) {
+    console.log(`[RESOLVE] ${componentPath}.${portName} -> ${aliases[portName]} (real->alias)`);
+    return portName; // Return real name as-is
+  }
+  
+  return portName;
 }
 
 // Resolve alias like 's1.temp1' to actual component+port in the model.
@@ -282,15 +379,56 @@ function setupReactiveMonitoring(model, options) {
 // Browser-compatible run function
 function runBrowser(generatedCode, options = {}) {
   try {
-    // Evaluate the CommonJS generated code
-    const moduleResult = eval(generatedCode);
+    // Replace CommonJS require with browser globals
+    // The generated code has: const {...} = require('../sysadl-framework/SysADLBase')
+    // We need to replace it with: const {...} = window.SysADLBase
+    let browserCode = generatedCode.replace(
+      /require\s*\(\s*['"]\.\.\/sysadl-framework\/SysADLBase['"]\s*\)/g,
+      'window.SysADLBase'
+    ).replace(
+      /require\s*\(\s*['"]\.\.\/SysADLBase['"]\s*\)/g,
+      'window.SysADLBase'
+    );
+    
+    // Wrap the code in a function that provides module/exports context
+    // This ensures the code can use module.exports = {...}
+    const wrappedCode = `
+      (function() {
+        var module = { exports: {} };
+        var exports = module.exports;
+        
+        ${browserCode}
+        
+        return module.exports;
+      })();
+    `;
+    
+    // Evaluate the wrapped code
+    const moduleResult = eval(wrappedCode);
     
     let output = '';
     
-    // Check if it's a function that creates a model
-    if (typeof moduleResult === 'function') {
-      const model = moduleResult();
-      output += `Model created: ${model.name || 'unnamed'}\n`;
+    console.log('🔍 Object exported from generated code:', moduleResult);
+    console.log('🔍 Keys:', Object.keys(moduleResult));
+    
+    // The generated code exports { createModel, SysADLModel, ... }
+    // Extract createModel function
+    const createModel = moduleResult.createModel;
+    
+    if (typeof createModel !== 'function') {
+      console.error('❌ moduleResult:', moduleResult);
+      console.error('❌ typeof createModel:', typeof createModel);
+      throw new Error('Generated code does not export a createModel function');
+    }
+    
+    // Create the model instance
+    const model = createModel();
+    output += `Model created: ${model.name || 'unnamed'}\n`;
+      
+      // **BUILD ALIAS MAP FROM MODEL INSTANCES**
+      console.log('\n[ALIAS EXTRACTION] Building port aliases map...');
+      const aliasMap = buildPortAliasesMap(model);
+      console.log('[ALIAS EXTRACTION] Complete\n');
       
       // Setup basic monitoring (browser-safe)
       setupReactiveMonitoring(model, options);
@@ -306,29 +444,51 @@ function runBrowser(generatedCode, options = {}) {
         output += `Ports found: ${portCount}\n`;
       }
       
-      // Find input ports if possible
+      // Find input ports with alias information
       let inputPorts = [];
       try {
-        inputPorts = findInputPorts(model);
+        inputPorts = findInputPorts(model, aliasMap);
         output += `Input ports: ${inputPorts.length}\n`;
+        console.log('[INPUT PORTS] Found ports:', inputPorts.map(p => `${p.component}.${p.port}${p.alias ? ` (alias: ${p.alias})` : ''}`));
         inputPorts.forEach(p => {
-          output += `  - ${p.component}.${p.port}\n`;
+          if (p.alias) {
+            output += `  - ${p.component}.${p.port} (alias: ${p.alias})\n`;
+          } else {
+            output += `  - ${p.component}.${p.port}\n`;
+          }
         });
       } catch (e) {
         output += `Input port analysis failed: ${e.message}\n`;
       }
       
-      // **NOVA FUNCIONALIDADE: Enviar valores dos parâmetros para as portas**
+      // **NOVA FUNCIONALIDADE: Enviar valores dos parâmetros para as portas COM SUPORTE A ALIASES**
       if (options.params && Object.keys(options.params).length > 0) {
         output += `\n🎯 Aplicando parâmetros (${Object.keys(options.params).length}):\n`;
         
         for (const [portKey, value] of Object.entries(options.params)) {
           try {
-            // Tentar diferentes estratégias para encontrar a porta
+            console.log(`\n[PARAM] Tentando aplicar: ${portKey} = ${value}`);
             let success = false;
             
-            // Estratégia 1: Buscar porta diretamente por nome component.port
+            // Estratégia 1: Buscar porta usando alias (component.alias)
             if (portKey.includes('.')) {
+              const [compName, portName] = portKey.split('.');
+              
+              // Buscar por alias primeiro
+              const targetPortByAlias = inputPorts.find(p => 
+                p.component === compName && p.alias === portName
+              );
+              
+              if (targetPortByAlias && targetPortByAlias.portObj && typeof targetPortByAlias.portObj.send === 'function') {
+                targetPortByAlias.portObj.send(value, model);
+                output += `  ✅ ${portKey} → ${targetPortByAlias.component}.${targetPortByAlias.port} = ${value} (via alias)\n`;
+                console.log(`[PARAM] ✅ Sucesso via alias: ${portKey} → ${targetPortByAlias.port}`);
+                success = true;
+              }
+            }
+            
+            // Estratégia 2: Buscar porta por nome real (component.realPort)
+            if (!success && portKey.includes('.')) {
               const [compName, portName] = portKey.split('.');
               const targetPort = inputPorts.find(p => 
                 (p.component === compName && p.port === portName) ||
@@ -337,38 +497,44 @@ function runBrowser(generatedCode, options = {}) {
               
               if (targetPort && targetPort.portObj && typeof targetPort.portObj.send === 'function') {
                 targetPort.portObj.send(value, model);
-                output += `  ✅ ${portKey} = ${value}\n`;
+                output += `  ✅ ${portKey} = ${value} (nome real)\n`;
+                console.log(`[PARAM] ✅ Sucesso via nome real: ${portKey}`);
                 success = true;
               }
             }
             
-            // Estratégia 2: Buscar apenas por nome da porta
+            // Estratégia 3: Buscar apenas por nome da porta ou alias
             if (!success) {
-              const targetPort = inputPorts.find(p => p.port === portKey);
+              const targetPort = inputPorts.find(p => p.port === portKey || p.alias === portKey);
               if (targetPort && targetPort.portObj && typeof targetPort.portObj.send === 'function') {
                 targetPort.portObj.send(value, model);
-                output += `  ✅ ${portKey} (${targetPort.component}.${targetPort.port}) = ${value}\n`;
+                output += `  ✅ ${portKey} (${targetPort.component}.${targetPort.port}) = ${value} (busca simples)\n`;
+                console.log(`[PARAM] ✅ Sucesso via busca simples: ${portKey} → ${targetPort.component}.${targetPort.port}`);
                 success = true;
               }
             }
             
-            // Estratégia 3: Usar função auxiliar de busca recursiva
+            // Estratégia 4: Usar função auxiliar de busca recursiva
             if (!success) {
               try {
                 sendPayloadToPortByName(model, portKey, value);
-                output += `  ✅ ${portKey} = ${value} (encontrado recursivamente)\n`;
+                output += `  ✅ ${portKey} = ${value} (recursivo)\n`;
+                console.log(`[PARAM] ✅ Sucesso via busca recursiva: ${portKey}`);
                 success = true;
               } catch (e) {
                 // Falha silenciosa, tentará próxima estratégia
+                console.log(`[PARAM] ❌ Falha na busca recursiva: ${e.message}`);
               }
             }
             
             if (!success) {
               output += `  ❌ ${portKey} = ${value} (porta não encontrada)\n`;
+              console.log(`[PARAM] ❌ Porta não encontrada após todas as estratégias: ${portKey}`);
             }
             
           } catch (error) {
             output += `  ❌ ${portKey} = ${value} (erro: ${error.message})\n`;
+            console.log(`[PARAM] ❌ Erro ao aplicar ${portKey}: ${error.message}`);
           }
         }
         output += '\n';
@@ -393,18 +559,10 @@ function runBrowser(generatedCode, options = {}) {
       }
       
       output += '\nSimulation completed successfully.\n';
-      
-    } else if (typeof moduleResult === 'object' && moduleResult !== null) {
-      output += 'Object exported from generated code:\n';
-      output += JSON.stringify(moduleResult, null, 2).substring(0, 500) + '...\n';
-    } else {
-      output += `Generated code returned: ${typeof moduleResult}\n`;
-    }
-    
-    return output;
+      return output;
     
   } catch (error) {
-    return `Simulation error: ${error.message}\n`;
+    return `Simulation error: ${error.message}\n${error.stack}\n`;
   }
 }
 
@@ -661,4 +819,3 @@ if (typeof window !== 'undefined') {
 }
 
 })(); // End IIFE
-
