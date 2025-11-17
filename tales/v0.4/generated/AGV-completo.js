@@ -1355,6 +1355,55 @@ class SysADLArchitecture extends Model {
     const updateStatus = this.FactoryAutomationSystem.connectors["updateStatus"];
     updateStatus.bind(this.FactoryAutomationSystem.agvs.vc.getPort("sendStatus"), this.FactoryAutomationSystem.ds.getPort("receiveStatus"));
 
+    // Delegation: sendStatus to sendStatus in agvs
+    this.FactoryAutomationSystem.agvs.addConnector(new Connector("delegation_sendStatus_to_sendStatus"));
+    const delegation_sendStatus_to_sendStatus = this.FactoryAutomationSystem.agvs.connectors["delegation_sendStatus_to_sendStatus"];
+    delegation_sendStatus_to_sendStatus.bind(this.FactoryAutomationSystem.agvs.vc.getPort("sendStatus"), this.FactoryAutomationSystem.agvs.getPort("sendStatus"));
+    // Delegation: in_outData to in_outData in agvs
+    this.FactoryAutomationSystem.agvs.addConnector(new Connector("delegation_in_outData_to_in_outData"));
+    const delegation_in_outData_to_in_outData = this.FactoryAutomationSystem.agvs.connectors["delegation_in_outData_to_in_outData"];
+    delegation_in_outData_to_in_outData.bind(this.FactoryAutomationSystem.agvs.vc.getPort("in_outData"), this.FactoryAutomationSystem.agvs.getPort("in_outData"));
+    // Delegation: ack to outNotifications in vc
+    this.FactoryAutomationSystem.agvs.vc.addConnector(new Connector("delegation_ack_to_outNotifications"));
+    const delegation_ack_to_outNotifications = this.FactoryAutomationSystem.agvs.vc.connectors["delegation_ack_to_outNotifications"];
+    delegation_ack_to_outNotifications.bind(this.FactoryAutomationSystem.agvs.vc.nm.getPort("ack"), this.FactoryAutomationSystem.agvs.vc.getPort("outNotifications"));
+    // Delegation: arrivedStatus to outNotifications in vc
+    this.FactoryAutomationSystem.agvs.vc.addConnector(new Connector("delegation_arrivedStatus_to_outNotifications"));
+    const delegation_arrivedStatus_to_outNotifications = this.FactoryAutomationSystem.agvs.vc.connectors["delegation_arrivedStatus_to_outNotifications"];
+    delegation_arrivedStatus_to_outNotifications.bind(this.FactoryAutomationSystem.agvs.vc.na.getPort("arrivedStatus"), this.FactoryAutomationSystem.agvs.vc.getPort("outNotifications"));
+    // Delegation: move to inMoveToStation in vc
+    this.FactoryAutomationSystem.agvs.vc.addConnector(new Connector("delegation_move_to_inMoveToStation"));
+    const delegation_move_to_inMoveToStation = this.FactoryAutomationSystem.agvs.vc.connectors["delegation_move_to_inMoveToStation"];
+    delegation_move_to_inMoveToStation.bind(this.FactoryAutomationSystem.agvs.vc.sm.getPort("move"), this.FactoryAutomationSystem.agvs.vc.getPort("inMoveToStation"));
+    // Delegation: passed to outNotifications in vc
+    this.FactoryAutomationSystem.agvs.vc.addConnector(new Connector("delegation_passed_to_outNotifications"));
+    const delegation_passed_to_outNotifications = this.FactoryAutomationSystem.agvs.vc.connectors["delegation_passed_to_outNotifications"];
+    delegation_passed_to_outNotifications.bind(this.FactoryAutomationSystem.agvs.vc.cs.getPort("passed"), this.FactoryAutomationSystem.agvs.vc.getPort("outNotifications"));
+    // Delegation: loaded_unloaded to startedArm in vc
+    this.FactoryAutomationSystem.agvs.vc.addConnector(new Connector("delegation_loaded_unloaded_to_startedArm"));
+    const delegation_loaded_unloaded_to_startedArm = this.FactoryAutomationSystem.agvs.vc.connectors["delegation_loaded_unloaded_to_startedArm"];
+    delegation_loaded_unloaded_to_startedArm.bind(this.FactoryAutomationSystem.agvs.vc.na.getPort("loaded_unloaded"), this.FactoryAutomationSystem.agvs.vc.getPort("startedArm"));
+    // Delegation: inAck to started_stopped in vc
+    this.FactoryAutomationSystem.agvs.vc.addConnector(new Connector("delegation_inAck_to_started_stopped"));
+    const delegation_inAck_to_started_stopped = this.FactoryAutomationSystem.agvs.vc.connectors["delegation_inAck_to_started_stopped"];
+    delegation_inAck_to_started_stopped.bind(this.FactoryAutomationSystem.agvs.vc.nm.getPort("inAck"), this.FactoryAutomationSystem.agvs.vc.getPort("started_stopped"));
+    // Delegation: startArm to startArm in vc
+    this.FactoryAutomationSystem.agvs.vc.addConnector(new Connector("delegation_startArm_to_startArm"));
+    const delegation_startArm_to_startArm = this.FactoryAutomationSystem.agvs.vc.connectors["delegation_startArm_to_startArm"];
+    delegation_startArm_to_startArm.bind(this.FactoryAutomationSystem.agvs.vc.ca.getPort("startArm"), this.FactoryAutomationSystem.agvs.vc.getPort("startArm"));
+    // Delegation: AGVStatus to sendStatus in vc
+    this.FactoryAutomationSystem.agvs.vc.addConnector(new Connector("delegation_AGVStatus_to_sendStatus"));
+    const delegation_AGVStatus_to_sendStatus = this.FactoryAutomationSystem.agvs.vc.connectors["delegation_AGVStatus_to_sendStatus"];
+    delegation_AGVStatus_to_sendStatus.bind(this.FactoryAutomationSystem.agvs.vc.vt.getPort("AGVStatus"), this.FactoryAutomationSystem.agvs.vc.getPort("sendStatus"));
+    // Delegation: start to start_stop in vc
+    this.FactoryAutomationSystem.agvs.vc.addConnector(new Connector("delegation_start_to_start_stop"));
+    const delegation_start_to_start_stop = this.FactoryAutomationSystem.agvs.vc.connectors["delegation_start_to_start_stop"];
+    delegation_start_to_start_stop.bind(this.FactoryAutomationSystem.agvs.vc.sm.getPort("start"), this.FactoryAutomationSystem.agvs.vc.getPort("start_stop"));
+    // Delegation: stop to start_stop in vc
+    this.FactoryAutomationSystem.agvs.vc.addConnector(new Connector("delegation_stop_to_start_stop"));
+    const delegation_stop_to_start_stop = this.FactoryAutomationSystem.agvs.vc.connectors["delegation_stop_to_start_stop"];
+    delegation_stop_to_start_stop.bind(this.FactoryAutomationSystem.agvs.vc.cs.getPort("stop"), this.FactoryAutomationSystem.agvs.vc.getPort("start_stop"));
+
     const ac_StartMoving = new AC_ComponentsAGV_StartMovingAC(
       "StartMovingAC",
       "StartMoving",
