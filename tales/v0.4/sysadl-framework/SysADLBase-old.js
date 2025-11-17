@@ -1,24 +1,103 @@
-// v0.3 runtime (renamed and adapted from v0.2)
-// Generic SysADL runtime without domain-specific configurations
+// v0.3 runtime - Universal Module Definition (UMD)
+// Compatible with Node.js and Browser environments
 
-// Exports: Model, Element, Component, Connector, Port, Activity, Action, Executable helper
+(function (root, factory) {
+  if (typeof module === 'object' && typeof module.exports === 'object') {
+    // Node.js / CommonJS
+    module.exports = factory(
+      require('events'),
+      require('./GenericDomainInterface'),
+      require('./ExecutionLogger'),
+      require('./EventInjector'),
+      require('./SceneExecutor'),
+      require('./ScenarioExecutor'),
+      require('./ExecutionController'),
+      require('./ReactiveStateManager'),
+      require('./ReactiveConditionWatcher')
+    );
+  } else {
+    // Browser - assign directly to window
+    const sysadlBase = factory();
+    if (typeof window !== 'undefined') {
+      window.SysADLBase = sysadlBase;
+    }
+    root.SysADLBase = sysadlBase;
+  }
+}(typeof self !== 'undefined' ? self : this, function (
+  eventsModule,
+  GenericDomainInterfaceModule,
+  ExecutionLoggerModule,
+  EventInjectorModule,
+  SceneExecutorModule,
+  ScenarioExecutorModule,
+  ExecutionControllerModule,
+  ReactiveStateManagerModule,
+  ReactiveConditionWatcherModule
+) {
+  'use strict';
 
-// Event system support
-const EventEmitter = require('events');
+  // EventEmitter for Node.js or Browser
+  let EventEmitter;
+  if (eventsModule) {
+    EventEmitter = eventsModule.EventEmitter || eventsModule;
+  } else {
+    // Browser EventEmitter shim
+    EventEmitter = class EventEmitter {
+      constructor() {
+        this._events = {};
+        this._maxListeners = 10;
+      }
+      setMaxListeners(n) {
+        this._maxListeners = n;
+        return this;
+      }
+      listenerCount(event) {
+        return (this._events[event] || []).length;
+      }
+      on(event, listener) {
+        if (!this._events[event]) this._events[event] = [];
+        this._events[event].push(listener);
+        return this;
+      }
+      off(event, listener) {
+        if (!this._events[event]) return this;
+        this._events[event] = this._events[event].filter(l => l !== listener);
+        return this;
+      }
+      once(event, listener) {
+        const onceWrapper = (...args) => {
+          this.off(event, onceWrapper);
+          listener.apply(this, args);
+        };
+        this.on(event, onceWrapper);
+        return this;
+      }
+      emit(event, ...args) {
+        if (!this._events[event]) return false;
+        const listeners = [...this._events[event]];
+        listeners.forEach(listener => listener.apply(this, args));
+        return listeners.length > 0;
+      }
+      removeAllListeners(event) {
+        if (event) {
+          delete this._events[event];
+        } else {
+          this._events = {};
+        }
+        return this;
+      }
+    };
+  }
 
-// Import generic domain interface
-const { GenericDomainInterface } = require('./GenericDomainInterface');
-
-// Import Phase 4 components
-const { ExecutionLogger } = require('./ExecutionLogger');
-const EventInjector = require('./EventInjector');
-const { SceneExecutor } = require('./SceneExecutor');
-
-// Import Phase 5 & 6 components
-const { ScenarioExecutor } = require('./ScenarioExecutor');
-const { ExecutionController } = require('./ExecutionController');
-const { ReactiveStateManager } = require('./ReactiveStateManager');
-const { ReactiveConditionWatcher } = require('./ReactiveConditionWatcher');
+  // Extract imported modules or use stubs
+  const GenericDomainInterface = GenericDomainInterfaceModule?.GenericDomainInterface || class {};
+  const ExecutionLogger = ExecutionLoggerModule?.ExecutionLogger || class {};
+  const EventInjector = EventInjectorModule || class {};
+  const SceneExecutor = SceneExecutorModule?.SceneExecutor || class {};
+  const ScenarioExecutor = ScenarioExecutorModule?.ScenarioExecutor || class {};
+  const ExecutionController = ExecutionControllerModule?.ExecutionController || class {};
+  const ReactiveStateManager = ReactiveStateManagerModule?.ReactiveStateManager || class {};
+  const ReactiveConditionWatcher = ReactiveConditionWatcherModule?.ReactiveConditionWatcher || class {};
 
 // Global Event System Manager
 class EventSystemManager {
@@ -4887,55 +4966,7 @@ class ScenarioDefinitions extends Element {
   }
 }
 
-// Export everything
-module.exports = {
-  Model,
-  Element,
-  Component,
-  Connector,
-  Connection,
-  Port,
-  SimplePort,
-  CompositePort,
-  Activity,
-  Action,
-  BehavioralElement,
-  Constraint,
-  Executable,
-  Enum,
-  // Environment and Scenario classes
-  Entity,
-  Event,
-  events,
-  eventClasses,
-  Scene,
-  Scenario,
-  EnvironmentDefinition,
-  EnvironmentConfiguration,
-  ScenarioExecution,
-  EventsDefinitions,
-  SceneDefinitions,
-  ScenarioDefinitions,
-  // Event system
-  EventSystemManager,
-  eventSystemManager,
-  // Built-in primitive types
-  Int,
-  Boolean: SysADLBoolean,
-  String: SysADLString,
-  Void,
-  Real,
-  // Type system
-  ValueType,
-  DataType,
-  Dimension,
-  Unit,
-  // Factory functions
-  valueType,
-  dataType,
-  dimension,
-  unit
-};
+// Note: Exports are handled by UMD wrapper at the end of file
 
 /**
  * Expression Evaluator for SysADL Conditions
@@ -5193,13 +5224,17 @@ class SysADLRuntimeHelpers {
   }
 }
 
-// Export ExpressionEvaluator
-module.exports.ExpressionEvaluator = ExpressionEvaluator;
+// UMD Return - Export all classes
+return {
+  Model, Component, Port, SimplePort, CompositePort, Connector,
+  Activity, Action, Constraint, Executable, Enum, Int, Boolean, String, Real, Void,
+  valueType, dataType, dimension, unit,
+  Element, SysADLBase, EventEmitter,
+  EventSystemManager,
+  Entity, Connection, Scene, Scenario, EnvironmentDefinition, EnvironmentConfiguration,
+  ScenarioExecution, EventsDefinitions, SceneDefinitions, ScenarioDefinitions,
+  ExpressionEvaluator, SysADLRuntimeHelpers,
+  ExecutionLogger, EventInjector, SceneExecutor
+};
 
-// Export SysADL Runtime Helpers
-module.exports.SysADLRuntimeHelpers = SysADLRuntimeHelpers;
-
-// Export Phase 4 Components
-module.exports.ExecutionLogger = ExecutionLogger;
-module.exports.EventInjector = EventInjector;
-module.exports.SceneExecutor = SceneExecutor;
+}));
