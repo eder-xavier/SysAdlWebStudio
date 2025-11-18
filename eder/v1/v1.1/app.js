@@ -58,9 +58,8 @@ const els = {
   traceToggle: document.getElementById('traceToggle'),
   loopCount: document.getElementById('loopCount'),
   simulationParams: document.getElementById('simulationParams'),
-  availablePorts: document.getElementById('availablePorts'),
+  availablePortsList: document.getElementById('availablePortsList'),
   copyParams: document.getElementById('copyParams'),
-  copyAvailablePorts: document.getElementById('copyAvailablePorts'),
   parseErr: document.getElementById('parseErr'),
   architectureViz: document.getElementById('architectureViz'),
 };
@@ -474,13 +473,15 @@ function extractAvailablePorts(generatedCode) {
   }
 }
 
-// 6.2) Format available ports for display
-function formatAvailablePorts(ports) {
+// 6.2) Create interactive ports list and update JSON automatically
+function createInteractivePortsList(ports) {
   if (!ports || ports.length === 0) {
-    return 'No boundary component ports found.\nBoundary components are external interfaces that can receive simulation parameters.';
+    els.availablePortsList.innerHTML = '<p style="color: #666; font-style: italic; margin: 0;">No boundary component ports found.</p>';
+    return;
   }
   
-  let output = `Found ${ports.length} available port${ports.length > 1 ? 's' : ''} from boundary components:\n\n`;
+  // Clear the list
+  els.availablePortsList.innerHTML = '';
   
   // Group by component
   const byComponent = {};
@@ -491,50 +492,133 @@ function formatAvailablePorts(ports) {
     byComponent[port.component].push(port);
   }
   
-  // Format output
+  // Create interactive list
   for (const [component, componentPorts] of Object.entries(byComponent)) {
-    output += `${component} (boundary):\n`;
     for (const port of componentPorts) {
-      const arrow = port.direction === 'output' ? '→' : port.direction === 'input' ? '←' : '⇄';
-      
       if (port.subPorts && port.subPorts.length > 0) {
-        // CompositePort - show description and sub-ports
-        output += `  ${arrow} ${port.path}  [CompositePort with ${port.subPorts.length} sub-ports]\n`;
+        // CompositePort - show header without checkbox
+        const compositeHeader = document.createElement('div');
+        compositeHeader.style.cssText = 'margin-top: 6px; margin-bottom: 4px; color: #666; font-style: italic;';
+        compositeHeader.innerHTML = `⇄ ${port.path} <span style="color: #999;">[CompositePort]</span>`;
+        els.availablePortsList.appendChild(compositeHeader);
+        
+        // Show sub-ports with checkboxes
         for (const subPort of port.subPorts) {
-          const subArrow = subPort.direction === 'output' ? '→' : '←';
-          output += `      ${subArrow} ${port.path}.${subPort.name}  [${subPort.type}]\n`;
+          const subPortPath = `${port.path}.${subPort.name}`;
+          createPortCheckbox(subPortPath, subPort.direction, subPort.type, 12); // 12px indent for sub-ports
         }
       } else {
-        // SimplePort - show normally
-        output += `  ${arrow} ${port.path}  [${port.type}]\n`;
+        // SimplePort - show with checkbox
+        createPortCheckbox(port.path, port.direction, port.type, 0); // No indent
       }
     }
-    output += '\n';
   }
   
-  output += '\nExample usage in Simulation Parameters:\n';
-  output += '{\n';
+  // Initialize JSON as empty
+  updateSimulationParamsJSON();
+}
+
+// Helper function to create a port checkbox with input
+function createPortCheckbox(portPath, direction, type, indentPx) {
+  const portDiv = document.createElement('div');
+  portDiv.style.cssText = `margin-left: ${indentPx}px; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;`;
   
-  // Show examples - prefer simple ports over composite ports
-  const simplePorts = ports.filter(p => !p.subPorts || p.subPorts.length === 0);
-  const examplePorts = simplePorts.length > 0 ? simplePorts.slice(0, 3) : ports.slice(0, 3);
+  // Checkbox
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.id = `port_${portPath.replace(/\./g, '_')}`;
+  checkbox.dataset.portPath = portPath;
+  checkbox.style.cursor = 'pointer';
   
-  const examples = examplePorts.map(p => {
-    if (p.subPorts && p.subPorts.length > 0) {
-      // For composite ports, show example with first sub-port
-      const subPort = p.subPorts[0];
-      const exampleValue = subPort.type === 'Boolean' ? 'true' : '25';
-      return `  "${p.path}.${subPort.name}": ${exampleValue}  // Sub-port of CompositePort`;
-    } else {
-      const exampleValue = p.type === 'Boolean' ? 'true' : '25';
-      return `  "${p.path}": ${exampleValue}`;
+  // Port label
+  const arrow = direction === 'output' ? '→' : direction === 'input' ? '←' : '⇄';
+  const label = document.createElement('label');
+  label.htmlFor = checkbox.id;
+  label.style.cssText = 'flex: 1; cursor: pointer; font-family: "Fira Mono", "Consolas", monospace; font-size: 13px;';
+  label.innerHTML = `${arrow} ${portPath} <span style="color: #999;">[${type}]</span>`;
+  
+  // Value input
+  const valueInput = document.createElement('input');
+  valueInput.type = 'text';
+  valueInput.placeholder = getDefaultValue(type);
+  valueInput.dataset.portPath = portPath;
+  valueInput.style.cssText = 'width: 100px; padding: 4px 8px; font-family: "Fira Mono", "Consolas", monospace; font-size: 13px; border: 1px solid #ccc; border-radius: 4px;';
+  valueInput.disabled = true; // Disabled until checkbox is checked
+  
+  // Event listeners
+  checkbox.addEventListener('change', () => {
+    valueInput.disabled = !checkbox.checked;
+    if (checkbox.checked && !valueInput.value) {
+      valueInput.value = getDefaultValue(type);
+    }
+    updateSimulationParamsJSON();
+  });
+  
+  valueInput.addEventListener('input', () => {
+    if (checkbox.checked) {
+      updateSimulationParamsJSON();
     }
   });
   
-  output += examples.join(',\n');
-  output += '\n}';
+  portDiv.appendChild(checkbox);
+  portDiv.appendChild(label);
+  portDiv.appendChild(valueInput);
   
-  return output;
+  els.availablePortsList.appendChild(portDiv);
+}
+
+// Get default value based on type
+function getDefaultValue(type) {
+  if (type === 'Boolean' || type === 'boolean') return 'true';
+  if (type === 'String' || type === 'string') return '""';
+  if (type.includes('Int') || type.includes('Real')) return '0';
+  return '0';
+}
+
+// Update the JSON textarea based on selected checkboxes
+function updateSimulationParamsJSON() {
+  const params = {};
+  
+  // Find all checked checkboxes
+  const checkboxes = els.availablePortsList.querySelectorAll('input[type="checkbox"]:checked');
+  
+  checkboxes.forEach(checkbox => {
+    const portPath = checkbox.dataset.portPath;
+    const valueInput = els.availablePortsList.querySelector(`input[type="text"][data-port-path="${portPath}"]`);
+    
+    if (valueInput && valueInput.value) {
+      let value = valueInput.value.trim();
+      
+      // Try to parse as JSON value (number, boolean, string, etc.)
+      try {
+        // If it's a number
+        if (!isNaN(value) && value !== '') {
+          params[portPath] = Number(value);
+        }
+        // If it's a boolean
+        else if (value === 'true' || value === 'false') {
+          params[portPath] = value === 'true';
+        }
+        // If it's a string (with quotes)
+        else if (value.startsWith('"') && value.endsWith('"')) {
+          params[portPath] = value.substring(1, value.length - 1);
+        }
+        // Otherwise, treat as string
+        else {
+          params[portPath] = value;
+        }
+      } catch (e) {
+        params[portPath] = value;
+      }
+    }
+  });
+  
+  // Update the JSON textarea
+  if (Object.keys(params).length > 0) {
+    els.simulationParams.value = JSON.stringify(params, null, 2);
+  } else {
+    els.simulationParams.value = '';
+  }
 }
 
 // 7) Event Handlers
@@ -548,17 +632,16 @@ els.btnTransform.addEventListener('click', async () => {
     codeEditor.setValue(js);
     console.log('✅ Transformation completed successfully');
     
-    // Extract and display available ports
+    // Extract and display available ports as interactive list
     const ports = extractAvailablePorts(js);
-    const formattedPorts = formatAvailablePorts(ports);
-    els.availablePorts.value = formattedPorts;
+    createInteractivePortsList(ports);
     console.log(`📋 Found ${ports.length} available ports`);
     
   } catch (err) {
     if (!codeEditor.getValue() || codeEditor.getValue().trim() === '// Generated JavaScript will appear here after the transformation') {
       codeEditor.setValue('// Transformation failed (see details above).');
     }
-    els.availablePorts.value = 'Transformation failed. Please fix errors and try again.';
+    els.availablePortsList.innerHTML = '<p style="color: #dc2626; font-style: italic; margin: 0;">Transformation failed. Please fix errors and try again.</p>';
     console.error('❌ Transformation error:', err);
   }
 });
@@ -613,10 +696,6 @@ els.copyArch.addEventListener('click', async () => {
 
 els.copyParams.addEventListener('click', async () => {
   await navigator.clipboard.writeText(els.simulationParams.value);
-});
-
-els.copyAvailablePorts.addEventListener('click', async () => {
-  await navigator.clipboard.writeText(els.availablePorts.value);
 });
 
 els.saveArch.addEventListener('click', () => 

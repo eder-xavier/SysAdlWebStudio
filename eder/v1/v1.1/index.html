@@ -37,11 +37,22 @@
         </label>
         <button id="btnRun" class="success">Simulate</button>
       </div>
-      <div class="toolbar" style="margin-top: 10px; border-top: 1px solid #ddd; padding-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+      <div class="toolbar" style="margin-top: 10px; border-top: 1px solid #ddd; padding-top: 10px; display: block;">
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; margin-bottom: 8px;">
+            <strong>Available Ports:</strong>
+            <small style="color: #666;">Select ports and set values to include in simulation parameters</small>
+          </label>
+          <div id="availablePortsList" 
+               style="max-height: 300px; overflow-y: auto; border: 2px solid #1976d2; border-radius: 6px; padding: 12px; background: #f7f7f7;">
+            <p style="color: #666; font-style: italic; margin: 0;">Press 'Transform ▶' to see available ports...</p>
+          </div>
+        </div>
+        
         <div>
           <label style="display: block; margin-bottom: 5px;">
             <strong>Simulation Parameters (JSON):</strong>
-            <small style="color: #666;">e.g. {"SystemCP.s1.temp1": 60, "SystemCP.s2.temp2": 70}</small>
+            <small style="color: #666;">Auto-generated from selected ports above</small>
           </label>
           <textarea id="simulationParams" placeholder='{"component.port": value}' 
                     style="width: 100%; min-height: 120px; font-family: 'Fira Mono', 'Consolas', monospace; font-size: 15px; border: 2px solid #1976d2; border-radius: 6px; padding: 12px; background: #f7f7f7; color: #222; resize: vertical; box-shadow: 0 2px 8px #0001;"
@@ -51,17 +62,6 @@
                     autocapitalize="off"
                     ></textarea>
           <button id="copyParams" style="margin-top:6px;float:right;">Copy parameters</button>
-        </div>
-        <div>
-          <label style="display: block; margin-bottom: 5px;">
-            <strong>Available Ports:</strong>
-            <small style="color: #666;">Boundary component ports that can be used as parameters</small>
-          </label>
-          <textarea id="availablePorts" readonly
-                    style="width: 100%; min-height: 120px; font-family: 'Fira Mono', 'Consolas', monospace; font-size: 13px; border: 2px solid #059669; border-radius: 6px; padding: 12px; background: #f0fdf4; color: #222; resize: vertical; box-shadow: 0 2px 8px #0001;"
-                    placeholder="Press 'Transform ▶' to see available ports..."
-                    ></textarea>
-          <button id="copyAvailablePorts" style="margin-top:6px;float:right;">Copy ports list</button>
         </div>
       </div>
       <div id="parseErr" class="err" role="status" aria-live="polite"></div>
