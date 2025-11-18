@@ -58,6 +58,9 @@ const els = {
   traceToggle: document.getElementById('traceToggle'),
   loopCount: document.getElementById('loopCount'),
   simulationParams: document.getElementById('simulationParams'),
+  availablePorts: document.getElementById('availablePorts'),
+  copyParams: document.getElementById('copyParams'),
+  copyAvailablePorts: document.getElementById('copyAvailablePorts'),
   parseErr: document.getElementById('parseErr'),
   architectureViz: document.getElementById('architectureViz'),
 };
@@ -260,6 +263,280 @@ function runSimulation(generatedCode, { trace=false, loops=1, params={} }={}) {
   }
 }
 
+// 6.1) Extract available ports from generated code
+function extractAvailablePorts(generatedCode) {
+  try {
+    const availablePorts = [];
+    
+    // Parse the code statically to find boundary components and their ports
+    // Pattern: new CP_*_ComponentName("instanceName", { isBoundary: true, ... })
+    
+    // First, find all component instantiations with isBoundary: true
+    const boundaryComponentPattern = /new\s+(\w+)\("(\w+)",\s*\{\s*isBoundary:\s*true[^}]*portAliases:\s*\{([^}]*)\}/g;
+    
+    let match;
+    const boundaryComponents = [];
+    
+    while ((match = boundaryComponentPattern.exec(generatedCode)) !== null) {
+      const [, className, instanceName, portAliasesStr] = match;
+      
+      // Parse port aliases: {"portName":"aliasName", ...}
+      const portAliases = {};
+      const aliasPattern = /"(\w+)"\s*:\s*"(\w+)"/g;
+      let aliasMatch;
+      while ((aliasMatch = aliasPattern.exec(portAliasesStr)) !== null) {
+        portAliases[aliasMatch[1]] = aliasMatch[2];
+      }
+      
+      boundaryComponents.push({
+        className,
+        instanceName,
+        portAliases
+      });
+    }
+    
+    console.log('Found boundary components:', boundaryComponents);
+    
+    // Now find the component class definitions to get port information
+    for (const comp of boundaryComponents) {
+      // Find the component class definition - need to match multiline constructor
+      // Pattern: class CP_*_ComponentName extends Component {
+      //   constructor(name, opts={}) {
+      //     ...
+      //     this.addPort(new PT_*_PortType(...));
+      
+      const classStartPattern = new RegExp(`class\\s+${comp.className}\\s+extends\\s+Component\\s*\\{`, 'g');
+      const classStartMatch = classStartPattern.exec(generatedCode);
+      
+      if (!classStartMatch) {
+        console.warn(`Could not find class definition for ${comp.className}`);
+        continue;
+      }
+      
+      // Find the constructor block - start from class definition
+      const classStartIndex = classStartMatch.index;
+      const constructorPattern = /constructor\s*\([^)]*\)\s*\{/g;
+      constructorPattern.lastIndex = classStartIndex;
+      const constructorMatch = constructorPattern.exec(generatedCode);
+      
+      if (!constructorMatch) {
+        console.warn(`Could not find constructor for ${comp.className}`);
+        continue;
+      }
+      
+      // Find the matching closing brace for constructor
+      let braceCount = 1;
+      let constructorEndIndex = constructorMatch.index + constructorMatch[0].length;
+      
+      while (braceCount > 0 && constructorEndIndex < generatedCode.length) {
+        const char = generatedCode[constructorEndIndex];
+        if (char === '{') braceCount++;
+        else if (char === '}') braceCount--;
+        constructorEndIndex++;
+      }
+      
+      const constructorBody = generatedCode.substring(constructorMatch.index + constructorMatch[0].length, constructorEndIndex - 1);
+      
+      // Extract port definitions from constructor
+      // Pattern: this.addPort(new PT_*_PortType(portName_*, { owner: name, originalName: "portName" }));
+      const portPattern = /this\.addPort\(new\s+(PT_\w+_(\w+))\(portName_\w+,\s*\{\s*owner:\s*name,\s*originalName:\s*"(\w+)"/g;
+      let portMatch;
+      
+      while ((portMatch = portPattern.exec(constructorBody)) !== null) {
+        const [, portFullClassName, portClassName, originalPortName] = portMatch;
+        
+        console.log(`Looking for port class: ${portFullClassName}`);
+        
+        // First, check if it's a CompositePort
+        const compositePortPattern = new RegExp(`class\\s+${portFullClassName}\\s+extends\\s+CompositePort`);
+        const isCompositePort = compositePortPattern.test(generatedCode);
+        
+        let direction = 'unknown';
+        let dataType = 'unknown';
+        let subPorts = null;
+        
+        if (isCompositePort) {
+          direction = 'composite';
+          dataType = 'CompositePort';
+          
+          // Extract sub-ports from CompositePort constructor
+          // Find the class and its constructor
+          const compositeClassStartPattern = new RegExp(`class\\s+${portFullClassName}\\s+extends\\s+CompositePort\\s*\\{`);
+          const compositeClassStartMatch = compositeClassStartPattern.exec(generatedCode);
+          
+          if (compositeClassStartMatch) {
+            const classStartIndex = compositeClassStartMatch.index;
+            
+            // Find constructor start
+            const constructorStartPattern = /constructor\s*\([^)]*\)\s*\{/g;
+            constructorStartPattern.lastIndex = classStartIndex;
+            const constructorStartMatch = constructorStartPattern.exec(generatedCode);
+            
+            if (constructorStartMatch) {
+              // Find matching closing brace
+              let braceCount = 1;
+              let constructorEndIndex = constructorStartMatch.index + constructorStartMatch[0].length;
+              
+              while (braceCount > 0 && constructorEndIndex < generatedCode.length) {
+                const char = generatedCode[constructorEndIndex];
+                if (char === '{') braceCount++;
+                else if (char === '}') braceCount--;
+                constructorEndIndex++;
+              }
+              
+              const compositeConstructorBody = generatedCode.substring(
+                constructorStartMatch.index + constructorStartMatch[0].length,
+                constructorEndIndex - 1
+              );
+              
+              // Pattern: this.addSubPort("portName", new SimplePort("portName", "in/out", { ...{ expectedType: "Type" }, ...}));
+              const subPortPattern = /this\.addSubPort\s*\(\s*"(\w+)"\s*,\s*new\s+SimplePort\s*\([^,]+,\s*"(in|out)"\s*,[^{]*\{\s*\.\.\.\s*\{\s*expectedType:\s*"([^"]+)"/g;
+              let subPortMatch;
+              subPorts = [];
+              
+              while ((subPortMatch = subPortPattern.exec(compositeConstructorBody)) !== null) {
+                const [, subPortName, subDirection, subType] = subPortMatch;
+                subPorts.push({
+                  name: subPortName,
+                  direction: subDirection === 'out' ? 'output' : 'input',
+                  type: subType
+                });
+              }
+              
+              console.log(`✓ Found composite port class ${portFullClassName} with ${subPorts.length} sub-ports:`, subPorts);
+            } else {
+              console.warn(`Could not find constructor for composite port ${portFullClassName}`);
+            }
+          } else {
+            console.log(`✓ Found composite port class ${portFullClassName} (could not extract details)`);
+          }
+        } else {
+          // Find the SimplePort class definition to get direction and type
+          // Pattern: class PT_*_PortType extends SimplePort {
+          //   constructor(name, opts = {}) {
+          //     super(name, "in", { ...{ expectedType: "Real" }, ...opts });
+          // Need to match across newlines and handle nested braces
+          const portClassPattern = new RegExp(`class\\s+${portFullClassName}\\s+extends\\s+SimplePort\\s*\\{[\\s\\S]*?constructor[\\s\\S]*?\\{[\\s\\S]*?super\\s*\\([^,]+,\\s*"(in|out)"[\\s\\S]*?expectedType:\\s*"([^"]+)"`, 'm');
+          const portClassMatch = portClassPattern.exec(generatedCode);
+          
+          if (portClassMatch) {
+            direction = portClassMatch[1] === 'out' ? 'output' : 'input';
+            dataType = portClassMatch[2];
+            console.log(`✓ Found port class ${portFullClassName}: direction=${direction}, type=${dataType}`);
+          } else {
+            // If not found, log the pattern we're looking for to debug
+            console.warn(`Could not find port class definition for ${portFullClassName}`);
+            
+            // Try to find the class at least to see what it looks like
+            const simpleClassPattern = new RegExp(`class\\s+${portFullClassName}\\s+extends\\s+SimplePort[\\s\\S]{0,300}`);
+            const simpleMatch = simpleClassPattern.exec(generatedCode);
+            if (simpleMatch) {
+              console.log('Found class snippet:', simpleMatch[0]);
+            }
+          }
+        }
+        
+        // Use alias if available, otherwise use original port name
+        const displayPortName = comp.portAliases[originalPortName] || originalPortName;
+        
+        // Build the full path - need to find where this component is instantiated
+        // Pattern: this.ComponentPath.instanceName = new CP_...
+        const instantiationPattern = new RegExp(`(this(?:\\.\\w+)*)\\.${comp.instanceName}\\s*=\\s*new\\s+${comp.className}`);
+        const instMatch = instantiationPattern.exec(generatedCode);
+        
+        let fullPath = comp.instanceName + '.' + displayPortName;
+        
+        if (instMatch) {
+          // Extract the path from "this.ComponentPath"
+          const pathMatch = instMatch[1].replace(/^this\./, '');
+          if (pathMatch) {
+            fullPath = pathMatch + '.' + comp.instanceName + '.' + displayPortName;
+          }
+        }
+        
+        availablePorts.push({
+          path: fullPath,
+          direction: direction,
+          type: dataType,
+          component: comp.instanceName,
+          isBoundary: true,
+          subPorts: subPorts
+        });
+      }
+    }
+    
+    console.log('Extracted ports:', availablePorts);
+    return availablePorts;
+    
+  } catch (error) {
+    console.error('Error extracting available ports:', error);
+    return [];
+  }
+}
+
+// 6.2) Format available ports for display
+function formatAvailablePorts(ports) {
+  if (!ports || ports.length === 0) {
+    return 'No boundary component ports found.\nBoundary components are external interfaces that can receive simulation parameters.';
+  }
+  
+  let output = `Found ${ports.length} available port${ports.length > 1 ? 's' : ''} from boundary components:\n\n`;
+  
+  // Group by component
+  const byComponent = {};
+  for (const port of ports) {
+    if (!byComponent[port.component]) {
+      byComponent[port.component] = [];
+    }
+    byComponent[port.component].push(port);
+  }
+  
+  // Format output
+  for (const [component, componentPorts] of Object.entries(byComponent)) {
+    output += `${component} (boundary):\n`;
+    for (const port of componentPorts) {
+      const arrow = port.direction === 'output' ? '→' : port.direction === 'input' ? '←' : '⇄';
+      
+      if (port.subPorts && port.subPorts.length > 0) {
+        // CompositePort - show description and sub-ports
+        output += `  ${arrow} ${port.path}  [CompositePort with ${port.subPorts.length} sub-ports]\n`;
+        for (const subPort of port.subPorts) {
+          const subArrow = subPort.direction === 'output' ? '→' : '←';
+          output += `      ${subArrow} ${port.path}.${subPort.name}  [${subPort.type}]\n`;
+        }
+      } else {
+        // SimplePort - show normally
+        output += `  ${arrow} ${port.path}  [${port.type}]\n`;
+      }
+    }
+    output += '\n';
+  }
+  
+  output += '\nExample usage in Simulation Parameters:\n';
+  output += '{\n';
+  
+  // Show examples - prefer simple ports over composite ports
+  const simplePorts = ports.filter(p => !p.subPorts || p.subPorts.length === 0);
+  const examplePorts = simplePorts.length > 0 ? simplePorts.slice(0, 3) : ports.slice(0, 3);
+  
+  const examples = examplePorts.map(p => {
+    if (p.subPorts && p.subPorts.length > 0) {
+      // For composite ports, show example with first sub-port
+      const subPort = p.subPorts[0];
+      const exampleValue = subPort.type === 'Boolean' ? 'true' : '25';
+      return `  "${p.path}.${subPort.name}": ${exampleValue}  // Sub-port of CompositePort`;
+    } else {
+      const exampleValue = p.type === 'Boolean' ? 'true' : '25';
+      return `  "${p.path}": ${exampleValue}`;
+    }
+  });
+  
+  output += examples.join(',\n');
+  output += '\n}';
+  
+  return output;
+}
+
 // 7) Event Handlers
 els.btnTransform.addEventListener('click', async () => {
   console.log('🔄 Transform button clicked');
@@ -270,10 +547,18 @@ els.btnTransform.addEventListener('click', async () => {
     const js = await transformSysADLToJS(src);
     codeEditor.setValue(js);
     console.log('✅ Transformation completed successfully');
+    
+    // Extract and display available ports
+    const ports = extractAvailablePorts(js);
+    const formattedPorts = formatAvailablePorts(ports);
+    els.availablePorts.value = formattedPorts;
+    console.log(`📋 Found ${ports.length} available ports`);
+    
   } catch (err) {
     if (!codeEditor.getValue() || codeEditor.getValue().trim() === '// Generated JavaScript will appear here after the transformation') {
       codeEditor.setValue('// Transformation failed (see details above).');
     }
+    els.availablePorts.value = 'Transformation failed. Please fix errors and try again.';
     console.error('❌ Transformation error:', err);
   }
 });
@@ -324,6 +609,14 @@ els.btnRun.addEventListener('click', async () => {
 
 els.copyArch.addEventListener('click', async () => {
   await navigator.clipboard.writeText(codeEditor.getValue());
+});
+
+els.copyParams.addEventListener('click', async () => {
+  await navigator.clipboard.writeText(els.simulationParams.value);
+});
+
+els.copyAvailablePorts.addEventListener('click', async () => {
+  await navigator.clipboard.writeText(els.availablePorts.value);
 });
 
 els.saveArch.addEventListener('click', () => 
