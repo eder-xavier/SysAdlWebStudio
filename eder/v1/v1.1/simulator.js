@@ -319,7 +319,7 @@ function sendPayloadToPortByName(model, portName, payload){
 function setupReactiveMonitoring(model, options) {
   if (typeof ReactiveConditionWatcher === 'undefined') {
     // Browser environment - skip reactive monitoring
-    console.log('ℹ️  Basic simulation mode (reactive monitoring not available in browser)');
+    // console.log('Basic simulation mode (reactive monitoring not available in browser)');
     return;
   }
   
@@ -378,7 +378,31 @@ function setupReactiveMonitoring(model, options) {
 
 // Browser-compatible run function
 function runBrowser(generatedCode, options = {}) {
+  // console.log('runBrowser() called with options:', options);
+  // console.log('generatedCode length:', generatedCode?.length || 0);
+  
   try {
+    // Initialize SimulationLogger if available
+    let simulationLogger = null;
+    // console.log('Checking SimulationLogger availability...');
+    // console.log('  - typeof window.SimulationLogger:', typeof window.SimulationLogger);
+    
+    if (typeof window.SimulationLogger === 'function') {
+      // console.log('  SimulationLogger found! Creating instance...');
+      simulationLogger = new window.SimulationLogger();
+      simulationLogger.enable();
+      window._simulationLogger = simulationLogger;
+      
+      console.log('\n' + '='.repeat(80));
+      console.log('SIMULATION START');
+      console.log('='.repeat(80) + '\n');
+      console.log('[PHASE 1: INSTANTIATION]');
+      console.log('-'.repeat(80));
+    } else {
+      console.warn('  SimulationLogger NOT available!');
+      console.log('  - window object keys:', Object.keys(window).filter(k => k.includes('Simulation') || k.includes('Logger')));
+    }
+    
     // Replace CommonJS require with browser globals
     // The generated code has: const {...} = require('../sysadl-framework/SysADLBase')
     // We need to replace it with: const {...} = window.SysADLBase
@@ -408,22 +432,31 @@ function runBrowser(generatedCode, options = {}) {
     
     let output = '';
     
-    console.log('🔍 Object exported from generated code:', moduleResult);
-    console.log('🔍 Keys:', Object.keys(moduleResult));
+    // console.log('Object exported from generated code:', moduleResult);
+    // console.log('Keys:', Object.keys(moduleResult));
     
     // The generated code exports { createModel, SysADLModel, ... }
     // Extract createModel function
     const createModel = moduleResult.createModel;
     
     if (typeof createModel !== 'function') {
-      console.error('❌ moduleResult:', moduleResult);
-      console.error('❌ typeof createModel:', typeof createModel);
+      console.error('moduleResult:', moduleResult);
+      console.error('typeof createModel:', typeof createModel);
       throw new Error('Generated code does not export a createModel function');
     }
     
     // Create the model instance
     const model = createModel();
-    output += `Model created: ${model.name || 'unnamed'}\n`;
+    // output += `Model created: ${model.name || 'unnamed'}\n`;
+    
+    // Attach SimulationLogger to model
+    if (simulationLogger && typeof model.attachSimulationLogger === 'function') {
+      model.attachSimulationLogger(simulationLogger);
+      
+      console.log('\n[PHASE 2: CONNECTIONS]');
+      console.log('-'.repeat(80));
+      // Connections are logged during model creation via bind()
+    }
       
       // **BUILD ALIAS MAP FROM MODEL INSTANCES**
       console.log('\n[ALIAS EXTRACTION] Building port aliases map...');
@@ -434,41 +467,54 @@ function runBrowser(generatedCode, options = {}) {
       setupReactiveMonitoring(model, options);
       
       // Basic simulation steps
-      if (model.components) {
-        const compCount = Object.keys(model.components).length;
-        output += `Components found: ${compCount}\n`;
-      }
+      // if (model.components) {
+      //   const compCount = Object.keys(model.components).length;
+      //   output += `Components found: ${compCount}\n`;
+      // }
       
-      if (model.ports) {
-        const portCount = Object.keys(model.ports).length;
-        output += `Ports found: ${portCount}\n`;
-      }
+      // if (model.ports) {
+      //   const portCount = Object.keys(model.ports).length;
+      //   output += `Ports found: ${portCount}\n`;
+      // }
       
       // Find input ports with alias information
       let inputPorts = [];
       try {
         inputPorts = findInputPorts(model, aliasMap);
-        output += `Input ports: ${inputPorts.length}\n`;
+        // output += `Input ports: ${inputPorts.length}\n`;
         console.log('[INPUT PORTS] Found ports:', inputPorts.map(p => `${p.component}.${p.port}${p.alias ? ` (alias: ${p.alias})` : ''}`));
-        inputPorts.forEach(p => {
-          if (p.alias) {
-            output += `  - ${p.component}.${p.port} (alias: ${p.alias})\n`;
-          } else {
-            output += `  - ${p.component}.${p.port}\n`;
-          }
-        });
+        // inputPorts.forEach(p => {
+        //   if (p.alias) {
+        //     output += `  - ${p.component}.${p.port} (alias: ${p.alias})\n`;
+        //   } else {
+        //     output += `  - ${p.component}.${p.port}\n`;
+        //   }
+        // });
       } catch (e) {
         output += `Input port analysis failed: ${e.message}\n`;
       }
       
       // **NOVA FUNCIONALIDADE: Enviar valores dos parâmetros para as portas COM SUPORTE A ALIASES**
       if (options.params && Object.keys(options.params).length > 0) {
-        output += `\n🎯 Aplicando parâmetros (${Object.keys(options.params).length}):\n`;
+        if (simulationLogger) {
+          console.log('\n[PHASE 3: PARAMETER INITIALIZATION]');
+          console.log('-'.repeat(80));
+        }
+        
+        // output += `\nAplicando parâmetros (${Object.keys(options.params).length}):\n`;
         
         for (const [portKey, value] of Object.entries(options.params)) {
           try {
             console.log(`\n[PARAM] Tentando aplicar: ${portKey} = ${value}`);
             let success = false;
+            let flowId = null;
+            
+            // Create flow for this parameter
+            if (simulationLogger) {
+              flowId = simulationLogger.createFlow(portKey);
+              const [compName, portName] = portKey.includes('.') ? portKey.split('.') : ['', portKey];
+              simulationLogger.logParamSet(compName || portKey, portName || '', value, flowId);
+            }
             
             // Estratégia 1: Buscar porta usando alias (component.alias)
             if (portKey.includes('.')) {
@@ -480,9 +526,13 @@ function runBrowser(generatedCode, options = {}) {
               );
               
               if (targetPortByAlias && targetPortByAlias.portObj && typeof targetPortByAlias.portObj.send === 'function') {
+                // Attach flow ID to port
+                if (flowId) {
+                  targetPortByAlias.portObj._currentFlowId = flowId;
+                }
                 targetPortByAlias.portObj.send(value, model);
-                output += `  ✅ ${portKey} → ${targetPortByAlias.component}.${targetPortByAlias.port} = ${value} (via alias)\n`;
-                console.log(`[PARAM] ✅ Sucesso via alias: ${portKey} → ${targetPortByAlias.port}`);
+                // output += `  ${portKey} → ${targetPortByAlias.component}.${targetPortByAlias.port} = ${value} (via alias)\n`;
+                console.log(`[PARAM] Sucesso via alias: ${portKey} → ${targetPortByAlias.port}`);
                 success = true;
               }
             }
@@ -496,9 +546,13 @@ function runBrowser(generatedCode, options = {}) {
               );
               
               if (targetPort && targetPort.portObj && typeof targetPort.portObj.send === 'function') {
+                // Attach flow ID to port
+                if (flowId) {
+                  targetPort.portObj._currentFlowId = flowId;
+                }
                 targetPort.portObj.send(value, model);
-                output += `  ✅ ${portKey} = ${value} (nome real)\n`;
-                console.log(`[PARAM] ✅ Sucesso via nome real: ${portKey}`);
+                // output += `  ${portKey} = ${value} (nome real)\n`;
+                console.log(`[PARAM] Sucesso via nome real: ${portKey}`);
                 success = true;
               }
             }
@@ -507,9 +561,13 @@ function runBrowser(generatedCode, options = {}) {
             if (!success) {
               const targetPort = inputPorts.find(p => p.port === portKey || p.alias === portKey);
               if (targetPort && targetPort.portObj && typeof targetPort.portObj.send === 'function') {
+                // Attach flow ID to port
+                if (flowId) {
+                  targetPort.portObj._currentFlowId = flowId;
+                }
                 targetPort.portObj.send(value, model);
-                output += `  ✅ ${portKey} (${targetPort.component}.${targetPort.port}) = ${value} (busca simples)\n`;
-                console.log(`[PARAM] ✅ Sucesso via busca simples: ${portKey} → ${targetPort.component}.${targetPort.port}`);
+                // output += `  ${portKey} (${targetPort.component}.${targetPort.port}) = ${value} (busca simples)\n`;
+                console.log(`[PARAM] Sucesso via busca simples: ${portKey} → ${targetPort.component}.${targetPort.port}`);
                 success = true;
               }
             }
@@ -518,12 +576,12 @@ function runBrowser(generatedCode, options = {}) {
             if (!success) {
               try {
                 sendPayloadToPortByName(model, portKey, value);
-                output += `  ✅ ${portKey} = ${value} (recursivo)\n`;
-                console.log(`[PARAM] ✅ Sucesso via busca recursiva: ${portKey}`);
+                // output += `  ${portKey} = ${value} (recursivo)\n`;
+                console.log(`[PARAM] Sucesso via busca recursiva: ${portKey}`);
                 success = true;
               } catch (e) {
                 // Falha silenciosa, tentará próxima estratégia
-                console.log(`[PARAM] ❌ Falha na busca recursiva: ${e.message}`);
+                console.log(`[PARAM] Falha na busca recursiva: ${e.message}`);
               }
             }
             
@@ -537,7 +595,20 @@ function runBrowser(generatedCode, options = {}) {
             console.log(`[PARAM] ❌ Erro ao aplicar ${portKey}: ${error.message}`);
           }
         }
+        
+        // Mark start of execution phase
+        if (simulationLogger) {
+          console.log('\n[PHASE 4: EXECUTION]');
+          console.log('-'.repeat(80) + '\n');
+        }
+        
         output += '\n';
+      }
+      
+      // Mark start of execution phase
+      if (simulationLogger) {
+        console.log('\n[PHASE 4: EXECUTION]');
+        console.log('-'.repeat(80) + '\n');
       }
       
       // Execute if has executables
@@ -559,6 +630,25 @@ function runBrowser(generatedCode, options = {}) {
       }
       
       output += '\nSimulation completed successfully.\n';
+      
+      // Add SimulationLogger trace to output
+      if (simulationLogger) {
+        console.log('\n' + '='.repeat(80));
+        console.log('SIMULATION END');
+        console.log('='.repeat(80) + '\n');
+        
+        // Get formatted trace as string
+        const trace = simulationLogger.getFormattedTrace();
+        output += '\n' + '='.repeat(80) + '\n';
+        output += 'EXECUTION TRACE\n';
+        output += '='.repeat(80) + '\n';
+        output += trace;
+        
+        // Also print to console
+        simulationLogger.print();
+        simulationLogger.printSummary();
+      }
+      
       return output;
     
   } catch (error) {

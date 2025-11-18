@@ -40,7 +40,7 @@
       <div class="toolbar" style="margin-top: 10px; border-top: 1px solid #ddd; padding-top: 10px;">
         <label style="display: block; margin-bottom: 5px;">
           <strong>Simulation Parameters (JSON):</strong>
-          <small style="color: #666;">e.g. {"s1.temp": 25, "s1.pressure": 100}</small>
+          <small style="color: #666;">e.g. {"SystemCP.s1.temp1": 60, "SystemCP.s2.temp2": 70}</small>
         </label>
         <textarea id="simulationParams" placeholder='{"component.port": value}' 
                   style="width: 100%; min-height: 120px; font-family: 'Fira Mono', 'Consolas', monospace; font-size: 15px; border: 2px solid #1976d2; border-radius: 6px; padding: 12px; background: #f7f7f7; color: #222; resize: vertical; box-shadow: 0 2px 8px #0001;"
@@ -124,6 +124,7 @@
   </script>
 
   <script src="./sysadl-framework/SysADLBase.js"></script>
+  <script src="./sysadl-framework/SimulationLogger.js"></script>
   <script>
     // Debug: Verify SysADLBase loaded
     console.log('🔍 After SysADLBase load:');
@@ -136,6 +137,11 @@
     } else {
       console.error('❌ window.SysADLBase NOT LOADED!');
     }
+    
+    // Debug: Verify SimulationLogger loaded
+    console.log('🔍 After SimulationLogger load:');
+    console.log('  - typeof window.SimulationLogger:', typeof window.SimulationLogger);
+    console.log('  - Available:', !!window.SimulationLogger);
   </script>
   <script src="./simulator.js"></script>
   <script type="module" src="./visualizer.js"></script>

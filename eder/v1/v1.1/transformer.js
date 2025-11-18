@@ -10,6 +10,41 @@ function sanitizeId(s) {
   return String(s).replace(/[^A-Za-z0-9_]/g, '_');
 }
 
+// Helper function to extract parameters from executable definition
+function extractExecutableParams(body) {
+  if (!body || typeof body !== 'string') return [];
+  
+  // Match executable definition pattern: executable def name (in param1:Type, in param2:Type): out Type
+  const match = body.match(/executable\s+def\s+\w+\s*\(([^)]*)\)/i);
+  if (!match) return [];
+  
+  const paramStr = match[1].trim();
+  if (!paramStr) return [];
+  
+  // Split parameters and extract names, types, and directions
+  return paramStr.split(',')
+    .map(p => p.trim())
+    .filter(p => p)
+    .map(p => {
+      // Parse: "in paramName:Type" or "out paramName:Type"
+      const parts = p.split(':');
+      if (parts.length < 2) return null;
+      
+      const nameWithDirection = parts[0].trim();
+      const type = parts[1].trim();
+      
+      // Extract direction (in/out) and name
+      const dirMatch = nameWithDirection.match(/^(in|out)\s+(.+)$/i);
+      if (!dirMatch) return null;
+      
+      const direction = dirMatch[1].toLowerCase();
+      const name = dirMatch[2].trim();
+      
+      return { name, type, direction };
+    })
+    .filter(param => param !== null);
+}
+
 // Convert SysADL statements to pure JavaScript
 function generatePureJavaScriptFromSysADL(sysadlLine) {
   let line = sysadlLine.trim();
@@ -1390,7 +1425,8 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
 
   // Generate behavioral classes after components
   lines.push('// ===== Behavioral Element Classes =====');
-  lines.push(...generateBehavioralClasses());
+  const behavioralResult = generateBehavioralClasses();
+  lines.push(...behavioralResult.lines);
   lines.push('// ===== End Behavioral Element Classes =====');
   lines.push('');
 
@@ -2584,21 +2620,37 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
         const inPins = [];
         const outPins = [];
         
-        // Extract pins from the activity
-        traverse(n, child => {
-          if (child && child.type === 'Pin') {
-            const pinName = child.name || child.id || null;
-            const pinType = child.type || child.typeName || 'String';
-            const direction = child.direction || 'in';
-            
-            const pinData = { name: pinName, type: pinType, direction };
-            if (direction === 'out') {
-              outPins.push(pinData);
-            } else {
-              inPins.push(pinData);
+        // Extract input parameters (flatten nested arrays from parser)
+        if (n.inParameters && Array.isArray(n.inParameters)) {
+          const flatInParams = n.inParameters.flat(Infinity);
+          flatInParams.forEach(p => {
+            if (p && (typeof p === 'object')) {
+              const pinName = p.name || p.id || null;
+              if (pinName) {
+                // definition can be a string (type name) or an object with name property
+                const pinType = (typeof p.definition === 'string') ? p.definition : 
+                                (p.definition?.name || p.typeName || 'String');
+                inPins.push({ name: pinName, type: pinType, direction: 'in' });
+              }
             }
-          }
-        });
+          });
+        }
+        
+        // Extract output parameters (flatten nested arrays from parser)
+        if (n.outParameters && Array.isArray(n.outParameters)) {
+          const flatOutParams = n.outParameters.flat(Infinity);
+          flatOutParams.forEach(p => {
+            if (p && (typeof p === 'object')) {
+              const pinName = p.name || p.id || null;
+              if (pinName) {
+                // definition can be a string (type name) or an object with name property
+                const pinType = (typeof p.definition === 'string') ? p.definition : 
+                                (p.definition?.name || p.typeName || 'String');
+                outPins.push({ name: pinName, type: pinType, direction: 'out' });
+              }
+            }
+          });
+        }
         
         activityDefs.push({ name, inPins, outPins, node: n });
       }
@@ -2615,21 +2667,46 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
         const outPins = [];
         let body = null;
         
-        // Extract pins and body
-        traverse(n, child => {
-          if (child && child.type === 'Pin') {
-            const pinName = child.name || child.id || null;
-            const pinType = child.type || child.typeName || 'String';
-            const direction = child.direction || 'in';
-            
-            const pinData = { name: pinName, type: pinType, direction };
-            if (direction === 'out') {
-              outPins.push(pinData);
-            } else {
-              inPins.push(pinData);
+        // Extract input parameters (flatten nested arrays from parser)
+        if (n.inParameters && Array.isArray(n.inParameters)) {
+          const flatInParams = n.inParameters.flat(Infinity);
+          flatInParams.forEach(p => {
+            if (p && (typeof p === 'object')) {
+              const pinName = p.name || p.id || null;
+              if (pinName) {
+                // definition can be a string (type name) or an object with name property
+                const pinType = (typeof p.definition === 'string') ? p.definition : 
+                                (p.definition?.name || p.typeName || 'String');
+                inPins.push({ name: pinName, type: pinType, direction: 'in' });
+              }
             }
-          }
-        });
+          });
+        }
+        
+        // Extract output parameters (flatten nested arrays from parser)
+        if (n.outParameters && Array.isArray(n.outParameters)) {
+          const flatOutParams = n.outParameters.flat(Infinity);
+          flatOutParams.forEach(p => {
+            if (p && (typeof p === 'object')) {
+              const pinName = p.name || p.id || null;
+              if (pinName) {
+                // definition can be a string (type name) or an object with name property
+                const pinType = (typeof p.definition === 'string') ? p.definition : 
+                                (p.definition?.name || p.typeName || 'String');
+                outPins.push({ name: pinName, type: pinType, direction: 'out' });
+              }
+            }
+          });
+        }
+        
+        // If no explicit outParameters, check for returnType (single return value)
+        // Syntax: action def Name ( params ) : ReturnType { ... }
+        if (outPins.length === 0 && n.returnType) {
+          const returnTypeName = (typeof n.returnType === 'string') ? n.returnType : 
+                                  (n.returnType?.name || n.returnType?.id || 'Real');
+          // Use action name as the output parameter name (will be mapped via delegates)
+          outPins.push({ name: name, type: returnTypeName, direction: 'out' });
+        }
         
         // Extract body from location if available
         if (n.location && n.location.start && typeof n.location.start.offset === 'number') {
@@ -2657,26 +2734,36 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
         const outPins = [];
         let equation = null;
         
-        // Extract input parameters from constraint definition
-        if (n.parameters && Array.isArray(n.parameters)) {
-          for (const param of n.parameters) {
-            const paramName = param.name || param.id || null;
-            const paramType = param.type || param.typeName || 'Real';
-            if (paramName) {
-              inPins.push({ name: paramName, type: paramType, direction: 'in' });
+        // Extract input parameters (flatten nested arrays from parser)
+        if (n.inParameters && Array.isArray(n.inParameters)) {
+          const flatInParams = n.inParameters.flat(Infinity);
+          flatInParams.forEach(p => {
+            if (p && (typeof p === 'object')) {
+              const pinName = p.name || p.id || null;
+              if (pinName) {
+                // definition can be a string (type name) or an object with name property
+                const pinType = (typeof p.definition === 'string') ? p.definition : 
+                                (p.definition?.name || p.typeName || 'Real');
+                inPins.push({ name: pinName, type: pinType, direction: 'in' });
+              }
             }
-          }
+          });
         }
         
-        // Extract output parameters from constraint definition  
-        if (n.returnParameters && Array.isArray(n.returnParameters)) {
-          for (const param of n.returnParameters) {
-            const paramName = param.name || param.id || null;
-            const paramType = param.type || param.typeName || 'Real';
-            if (paramName) {
-              outPins.push({ name: paramName, type: paramType, direction: 'out' });
+        // Extract output parameters (flatten nested arrays from parser)
+        if (n.outParameters && Array.isArray(n.outParameters)) {
+          const flatOutParams = n.outParameters.flat(Infinity);
+          flatOutParams.forEach(p => {
+            if (p && (typeof p === 'object')) {
+              const pinName = p.name || p.id || null;
+              if (pinName) {
+                // definition can be a string (type name) or an object with name property
+                const pinType = (typeof p.definition === 'string') ? p.definition : 
+                                (p.definition?.name || p.typeName || 'Real');
+                outPins.push({ name: pinName, type: pinType, direction: 'out' });
+              }
             }
-          }
+          });
         }
         
         // Extract equation directly from AST structure
@@ -2731,7 +2818,8 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
         behavioralLines.push(`      constraints: ${JSON.stringify(actionConstraints)},`);
       }
       if (actionExecutable) {
-        behavioralLines.push(`      executableName: ${JSON.stringify(actionExecutable)},`);
+        // Use 'executables' array instead of legacy 'executableName'
+        behavioralLines.push(`      executables: ${JSON.stringify([actionExecutable])},`);
       }
       if (actDef.body) {
         behavioralLines.push(`      rawBody: ${JSON.stringify(actDef.body)}`);
@@ -2768,11 +2856,30 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     }
     
     // Generate Executable classes for each executable
+    const executableDefs = [];  // Track executable definitions
     for (const ex of executables) {
       if (!ex.name) continue;
+      executableDefs.push(ex);  // Add to tracked definitions
       const className = getPackagePrefix(ex.name, 'EX') + ex.name;
       const params = Array.isArray(ex.params) ? ex.params : (ex.params || []);
-      const inPins = params.map(p => ({ name: p, type: 'String', direction: 'in' }));
+      
+      // params can be either strings or objects with {name, type, direction}
+      const inPins = params
+        .filter(p => {
+          // If it's an object, only include 'in' parameters
+          if (typeof p === 'object' && p !== null) {
+            return p.direction === 'in';
+          }
+          return true; // Include strings (legacy format)
+        })
+        .map(p => {
+          if (typeof p === 'object' && p !== null) {
+            // Already has the right structure
+            return { name: p.name, type: p.type, direction: p.direction };
+          }
+          // Legacy string format
+          return { name: p, type: 'String', direction: 'in' };
+        });
       
       behavioralLines.push(`// Executable class: ${ex.name}`);
       behavioralLines.push(`class ${className} extends Executable {`);
@@ -2795,7 +2902,11 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
       behavioralLines.push('');
     }
     
-    return behavioralLines;
+    return { 
+      lines: behavioralLines, 
+      constraintDefs, 
+      executableDefs 
+    };
   }
   
   // Build constraint to action mapping from AST
@@ -2849,6 +2960,38 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     const activityDelegations = {};
     const actionDelegations = {};
     
+    // First, build activity-to-connector allocation map
+    const activityToConnector = {};
+    if (ast && ast.allocation) {
+      if (Array.isArray(ast.allocation.allocations)) {
+        for (const alloc of ast.allocation.allocations) {
+          // AST uses 'source' and 'target', not 'activity' and 'target'
+          if (alloc.type === 'ActivityAllocation' && alloc.source && alloc.target) {
+            activityToConnector[alloc.source] = alloc.target;
+          }
+        }
+      }
+    }
+    
+    // Build connector port maps
+    const connectorPorts = {};
+    traverse(ast, n => {
+      if (n && (n.type === 'ConnectorDef' || /ConnectorDef/i.test(n.type))) {
+        const connName = n.name || n.id || null;
+        if (!connName) return;
+        
+        const ports = [];
+        // ConnectorDef uses 'ports' array, not 'participants'
+        if (n.ports && Array.isArray(n.ports)) {
+          for (const p of n.ports) {
+            const portName = p.name || p.id || null;
+            if (portName) ports.push(portName);
+          }
+        }
+        connectorPorts[connName] = ports;
+      }
+    });
+    
     traverse(ast, n => {
       // Extract delegations from ActivityDef (check both delegations and relations)
       if (n && (n.type === 'ActivityDef' || /ActivityDef/i.test(n.type))) {
@@ -2857,26 +3000,82 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
         
         const delegations = [];
         
-        // Check delegations array
-        if (n.delegations && Array.isArray(n.delegations)) {
-          delegations.push(...n.delegations.map(d => ({
-            from: d.source,
-            to: d.target
-          })));
-        }
-        
-        // Check relations array (often used in activity body)
-        if (n.body && n.body.relations && Array.isArray(n.body.relations)) {
-          delegations.push(...n.body.relations
-            .filter(r => r.type === 'ActivityDelegation')
-            .map(d => ({
+        // NEW: If this activity is allocated to a connector, create port-to-parameter mappings
+        const connectorName = activityToConnector[activityName];
+        if (connectorName && connectorPorts[connectorName]) {
+          const ports = connectorPorts[connectorName];
+          const inParams = [];
+          const outParams = [];
+          
+          // Extract activity parameters  
+          if (n.inParameters && Array.isArray(n.inParameters)) {
+            // inParameters can be array of arrays - flatten it first
+            const flatInParams = n.inParameters.flat(Infinity);
+            inParams.push(...flatInParams.map(p => {
+              // Handle both simple strings and parameter objects
+              if (typeof p === 'string') return p;
+              if (typeof p === 'object' && p !== null) {
+                return p.name || p.id || String(p);
+              }
+              return String(p);
+            }));
+          }
+          if (n.outParameters && Array.isArray(n.outParameters)) {
+            // outParameters might also be nested
+            const flatOutParams = n.outParameters.flat(Infinity);
+            outParams.push(...flatOutParams.map(p => {
+              // Handle both simple strings and parameter objects
+              if (typeof p === 'string') return p;
+              if (typeof p === 'object' && p !== null) {
+                return p.name || p.id || String(p);
+              }
+              return String(p);
+            }));
+          }
+          
+          // Map connector ports to activity parameters by position
+          // Assume: first ports are inputs, last ports are outputs
+          let portIdx = 0;
+          for (let i = 0; i < inParams.length && portIdx < ports.length; i++, portIdx++) {
+            delegations.push({
+              from: inParams[i],  // activity parameter
+              to: ports[portIdx]  // connector port
+            });
+          }
+          for (let i = 0; i < outParams.length && portIdx < ports.length; i++, portIdx++) {
+            delegations.push({
+              from: outParams[i],  // activity parameter
+              to: ports[portIdx]   // connector port
+            });
+          }
+          
+          // Store ONLY external delegates for activities with allocations
+          if (delegations.length > 0) {
+            activityDelegations[activityName] = delegations;
+          }
+        } else {
+          // For activities WITHOUT allocations, keep internal delegates from body
+          // Check delegations array
+          if (n.delegations && Array.isArray(n.delegations)) {
+            delegations.push(...n.delegations.map(d => ({
               from: d.source,
               to: d.target
             })));
-        }
-        
-        if (delegations.length > 0) {
-          activityDelegations[activityName] = delegations;
+          }
+          
+          // Check relations array (often used in activity body)
+          if (n.body && n.body.relations && Array.isArray(n.body.relations)) {
+            delegations.push(...n.body.relations
+              .filter(r => r.type === 'ActivityDelegation')
+              .map(d => ({
+                from: d.source,
+                to: d.target
+              })));
+          }
+          
+          if (delegations.length > 0) {
+            activityDelegations[activityName] = delegations;
+          }
         }
       }
       
@@ -2907,31 +3106,6 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   const constraintToActionMap = buildConstraintToActionMapping();
   const { activityDelegations, actionDelegations } = buildDelegationMappings();
   
-// Helper function to extract parameters from executable definition
-function extractExecutableParams(body) {
-  if (!body || typeof body !== 'string') return [];
-  
-  // Match executable definition pattern: executable def name (in param1:Type, in param2:Type): out Type
-  const match = body.match(/executable\s+def\s+\w+\s*\(([^)]*)\)/i);
-  if (!match) return [];
-  
-  const paramStr = match[1].trim();
-  if (!paramStr) return [];
-  
-  // Split parameters and extract names (remove 'in'/'out' and type annotations)
-  return paramStr.split(',')
-    .map(p => p.trim())
-    .filter(p => p)
-    .map(p => {
-      // Remove 'in'/'out' prefix and type annotation
-      const parts = p.split(':');
-      const nameWithDirection = parts[0].trim();
-      // Remove 'in' or 'out' prefix
-      return nameWithDirection.replace(/^(in|out)\s+/, '').trim();
-    })
-    .filter(name => name);
-}
-
   // Executable registration is handled through class instantiation and action.registerExecutable()
   // No need for addExecutableSafe since executable classes already contain the compiled functions
 
@@ -3142,7 +3316,40 @@ function extractExecutableParams(body) {
     });
   }
   
+  // Add constraint classes to module context
+  if (behavioralResult.constraintDefs && behavioralResult.constraintDefs.length > 0) {
+    behavioralResult.constraintDefs.forEach(conDef => {
+      const prefixedName = getPackagePrefix(conDef.name, 'CT') + conDef.name;
+      lines.push(`    ${prefixedName},`);
+    });
+  }
+  
+  // Add executable classes to module context
+  if (behavioralResult.executableDefs && behavioralResult.executableDefs.length > 0) {
+    behavioralResult.executableDefs.forEach(exeDef => {
+      const prefixedName = getPackagePrefix(exeDef.name, 'EX') + exeDef.name;
+      lines.push(`    ${prefixedName},`);
+    });
+  }
+  
   lines.push(`  };`);
+  lines.push(`  `);
+  lines.push(`  // Initialize all connectors now that _moduleContext is available`);
+  lines.push(`  model.initializeAllConnectors();`);
+  lines.push(`  `);
+  lines.push(`  // Resolve constraints and executables for all registered activities`);
+  lines.push(`  Object.values(model._activities || {}).forEach(activity => {`);
+  lines.push(`    if (activity && activity.actions) {`);
+  lines.push(`      activity.actions.forEach(action => {`);
+  lines.push(`        if (action.constraintNames && action.constraintNames.length > 0) {`);
+  lines.push(`          action.resolveConstraints(model._moduleContext);`);
+  lines.push(`        }`);
+  lines.push(`        if (action.executableNames && action.executableNames.length > 0) {`);
+  lines.push(`          action.resolveExecutables(model._moduleContext);`);
+  lines.push(`        }`);
+  lines.push(`      });`);
+  lines.push(`    }`);
+  lines.push(`  });`);
   lines.push(`  `);
   lines.push(`  return model;`);
   lines.push(`}`);
@@ -6715,9 +6922,21 @@ async function main() {
   const executables = [];
   traverse(ast, n => { 
     if (n && (n.type === 'Executable' || /Executable/i.test(n.type))) { 
-      const name = n.name || (n.id && n.id.name) || n.id || null; 
-      let params = []; 
-      if (Array.isArray(n.parameters)) params = n.parameters.map(p => p.name || p.id || String(p)); 
+      const name = n.name || (n.id && n.id.name) || n.id || null;
+      
+      console.log('[TRANSFORMER] Found executable AST node:', {
+        name,
+        type: n.type,
+        hasParameters: !!n.parameters,
+        parametersType: Array.isArray(n.parameters) ? 'array' : typeof n.parameters,
+        parametersLength: Array.isArray(n.parameters) ? n.parameters.length : 'N/A',
+        hasInParameters: !!n.inParameters,
+        inParametersType: Array.isArray(n.inParameters) ? 'array' : typeof n.inParameters,
+        inParametersLength: Array.isArray(n.inParameters) ? n.inParameters.length : 'N/A',
+        keys: Object.keys(n)
+      });
+      
+      // Extract body first
       let body = ''; 
       if (n.location && n.location.start && typeof n.location.start.offset === 'number') { 
         try { 
@@ -6725,7 +6944,32 @@ async function main() {
           const e = n.location.end.offset; 
           body = src.slice(s,e); 
         } catch(e){} 
-      } 
+      }
+      
+      // Now extract params
+      let params = []; 
+      if (Array.isArray(n.parameters)) {
+        params = n.parameters.map(p => {
+          const name = p.name || p.id || String(p);
+          const type = p.type || 'String';
+          const direction = p.direction || 'in';
+          return { name, type, direction };
+        });
+      } else if (Array.isArray(n.inParameters)) {
+        // Try inParameters if parameters doesn't exist
+        params = n.inParameters.map(p => {
+          const name = p.name || p.id || String(p);
+          const type = p.type || 'String';
+          return { name, type, direction: 'in' };
+        });
+      }
+      
+      // If we still don't have params, try to extract from body
+      if (params.length === 0 && body) {
+        params = extractExecutableParams(body);
+      }
+      
+      console.log('[TRANSFORMER] Final extracted params:', params); 
       
       // Only add executables that have actual function bodies (definitions)
       // Skip executable allocations (executable X to Y) which are just mappings

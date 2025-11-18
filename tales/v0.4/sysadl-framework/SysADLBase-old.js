@@ -2936,6 +2936,10 @@ const Real = class extends ValueType {
   }
 };
 
+// Export aliases to avoid conflicts with JavaScript native types
+const Boolean = SysADLBoolean;
+const String = SysADLString;
+
 // Simple Enum class for generated code
 class Enum {
   constructor(...values) {

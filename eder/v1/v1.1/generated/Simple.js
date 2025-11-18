@@ -120,8 +120,8 @@ class AC_Elements_FarToCelAC extends Activity {
   constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
     super(name, component, inputPorts, delegates, {
       ...opts,
-      inParameters: [{"name":"far","type":"Pin","direction":"in"},{"name":"cel","type":"Pin","direction":"in"}],
-      outParameters: []
+      inParameters: [{"name":"far","type":"Real","direction":"in"}],
+      outParameters: [{"name":"cel","type":"Real","direction":"out"}]
     });
   }
 }
@@ -131,8 +131,8 @@ class AC_Elements_TempMonitorAC extends Activity {
   constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
     super(name, component, inputPorts, delegates, {
       ...opts,
-      inParameters: [{"name":"s1","type":"Pin","direction":"in"},{"name":"s2","type":"Pin","direction":"in"},{"name":"average","type":"Pin","direction":"in"}],
-      outParameters: []
+      inParameters: [{"name":"s1","type":"Real","direction":"in"},{"name":"s2","type":"Real","direction":"in"}],
+      outParameters: [{"name":"average","type":"Real","direction":"out"}]
     });
   }
 }
@@ -142,11 +142,11 @@ class AN_Elements_FarToCelAN extends Action {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [{"name":"far","type":"Pin","direction":"in"}],
+      inParameters: [{"name":"far","type":"Real","direction":"in"}],
       outParameters: [],
       delegates: [{"from":"far","to":"f"},{"from":"FarToCelAN","to":"c"}],
       constraints: ["FarToCelEQ"],
-      executableName: "FarToCelEX",
+      executables: ["FarToCelEX"],
     });
   }
 }
@@ -156,11 +156,11 @@ class AN_Elements_TempMonitorAN extends Action {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [{"name":"t1","type":"Pin","direction":"in"},{"name":"t2","type":"Pin","direction":"in"}],
+      inParameters: [{"name":"t1","type":"Real","direction":"in"},{"name":"t2","type":"Real","direction":"in"}],
       outParameters: [],
       delegates: [{"from":"t1","to":"t1"},{"from":"t2","to":"t2"},{"from":"TempMonitorAN","to":"av"}],
       constraints: ["CalcAverageEQ"],
-      executableName: "CalcAverageEX",
+      executables: ["CalcAverageEX"],
     });
   }
 }
@@ -170,8 +170,8 @@ class CT_Elements_FarToCelEQ extends Constraint {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [],
-      outParameters: [],
+      inParameters: [{"name":"f","type":"Real","direction":"in"}],
+      outParameters: [{"name":"c","type":"Real","direction":"out"}],
       equation: "(c == ((5 * (f - 32)) / 9))",
       constraintFunction: function(params) {// Constraint equation: (c == ((5 * (f - 32)) / 9))
           const { f } = params;
@@ -189,8 +189,8 @@ class CT_Elements_CalcAverageEQ extends Constraint {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [],
-      outParameters: [],
+      inParameters: [{"name":"t1","type":"Real","direction":"in"},{"name":"t2","type":"Real","direction":"in"}],
+      outParameters: [{"name":"av","type":"Real","direction":"out"}],
       equation: "(av == ((t1 + t2) / 2))",
       constraintFunction: function(params) {// Constraint equation: (av == ((t1 + t2) / 2))
           const { t1, t2 } = params;
@@ -209,7 +209,7 @@ class EX_Elements_FarToCelEX extends Executable {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [],
+      inParameters: [{"name":"f","type":"Real","direction":"in"}],
       body: "executable def FarToCelEX (in f:Real): out Real {\n\t\treturn 5*(f - 32)/9 ;\n\t}",
       executableFunction: function(params) {
           // Type validation
@@ -226,7 +226,7 @@ class EX_Elements_CalcAverageEX extends Executable {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [],
+      inParameters: [{"name":"temp1","type":"Real","direction":"in"},{"name":"temp2","type":"Real","direction":"in"}],
       body: "executable def CalcAverageEX(in temp1:Real,in temp2:Real):out Real{\n\t\treturn (temp1 + temp2)/2 ;\n\t}",
       executableFunction: function(params) {
           // Type validation
@@ -252,7 +252,7 @@ class SysADLModel extends Model {
     this.SystemCP.addComponent(this.SystemCP.s2);
     this.SystemCP.stdOut = new CP_Elements_StdOutCP("stdOut", { isBoundary: true, sysadlDefinition: "StdOutCP", portAliases: {"c3":"avg"} });
     this.SystemCP.addComponent(this.SystemCP.stdOut);
-    this.SystemCP.tempMon = new CP_Elements_TempMonitorCP("tempMon", { isBoundary: true, sysadlDefinition: "TempMonitorCP", portAliases: {} });
+    this.SystemCP.tempMon = new CP_Elements_TempMonitorCP("tempMon", { isBoundary: true, sysadlDefinition: "TempMonitorCP", portAliases: {"average":"average"} });
     this.SystemCP.addComponent(this.SystemCP.tempMon);
 
     this.SystemCP.addConnector(new CN_Elements_FarToCelCN("c1"));
@@ -269,7 +269,7 @@ class SysADLModel extends Model {
       "FarToCelAC",
       "FarToCelCN",
       [],
-      [{"from":"far","to":"far"},{"from":"cel","to":"ftoc"}]
+      [{"from":"far","to":"f"},{"from":"cel","to":"c"}]
     );
     const ftoc = new AN_Elements_FarToCelAN("ftoc");
     ac_FarToCelCN.registerAction(ftoc);
@@ -300,7 +300,28 @@ function createModel(){
     PT_Elements_FTempOPT,
     CN_Elements_FarToCelCN,
     CN_Elements_CelToCelCN,
+    CT_Elements_FarToCelEQ,
+    CT_Elements_CalcAverageEQ,
+    EX_Elements_FarToCelEX,
+    EX_Elements_CalcAverageEX,
   };
+  
+  // Initialize all connectors now that _moduleContext is available
+  model.initializeAllConnectors();
+  
+  // Resolve constraints and executables for all registered activities
+  Object.values(model._activities || {}).forEach(activity => {
+    if (activity && activity.actions) {
+      activity.actions.forEach(action => {
+        if (action.constraintNames && action.constraintNames.length > 0) {
+          action.resolveConstraints(model._moduleContext);
+        }
+        if (action.executableNames && action.executableNames.length > 0) {
+          action.resolveExecutables(model._moduleContext);
+        }
+      });
+    }
+  });
   
   return model;
 }

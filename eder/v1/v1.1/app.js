@@ -312,7 +312,7 @@ els.btnRun.addEventListener('click', async () => {
   if (paramsText) {
     try {
       params = JSON.parse(paramsText);
-      els.log.textContent += `[INFO] Parameters loaded: ${Object.keys(params).length} entries\n`;
+      // els.log.textContent += `[INFO] Parameters loaded: ${Object.keys(params).length} entries\n`;
     } catch (error) {
       els.log.textContent += `[ERROR] Invalid JSON parameters: ${error.message}\n`;
       return;
@@ -351,36 +351,39 @@ els.fileInput.addEventListener('change', async (ev) => {
   }
 });
 
-els.btnExample.addEventListener('click', async () => {
-  try {
-    const response = await fetch('./AGV-completo.sysadl');
-    if (response.ok) {
-      const exampleCode = await response.text();
-      if (editor && typeof editor.setValue === 'function') {
-        editor.setValue(exampleCode);
+// Only add event listener if button exists
+if (els.btnExample) {
+  els.btnExample.addEventListener('click', async () => {
+    try {
+      const response = await fetch('./AGV-completo.sysadl');
+      if (response.ok) {
+        const exampleCode = await response.text();
+        if (editor && typeof editor.setValue === 'function') {
+          editor.setValue(exampleCode);
+        } else {
+          const textarea = document.querySelector('#fallback-editor');
+          if (textarea) textarea.value = exampleCode;
+        }
       } else {
-        const textarea = document.querySelector('#fallback-editor');
-        if (textarea) textarea.value = exampleCode;
+        throw new Error('File not found');
       }
-    } else {
-      throw new Error('File not found');
-    }
-  } catch (error) {
-    console.error('Failed to load example:', error);
-    const fallback = `model Demo
+    } catch (error) {
+      console.error('Failed to load example:', error);
+      const fallback = `model Demo
 configuration {
   component Producer p1;
   component Consumer c1;
   connector Pipe link1 (p1.out -> c1.in);
 }`;
-    
-    if (editor && typeof editor.setValue === 'function') {
-      editor.setValue(fallback);
-    } else {
-      const textarea = document.querySelector('#fallback-editor');
-      if (textarea) textarea.value = fallback;
+      
+      if (editor && typeof editor.setValue === 'function') {
+        editor.setValue(fallback);
+      } else {
+        const textarea = document.querySelector('#fallback-editor');
+        if (textarea) textarea.value = fallback;
+      }
     }
-  }
-});
+  });
+}
 
 console.log('✅ App ready - using Node.js server for transformations');
