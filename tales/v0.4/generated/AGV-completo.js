@@ -542,8 +542,8 @@ class AC_ComponentsAGV_StartMovingAC extends Activity {
   constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
     super(name, component, inputPorts, delegates, {
       ...opts,
-      inParameters: [{"name":"move","type":"Pin","direction":"in"},{"name":"cmd","type":"Pin","direction":"in"},{"name":"destination","type":"Pin","direction":"in"},{"name":"start","type":"Pin","direction":"in"}],
-      outParameters: []
+      inParameters: [{"name":"move","type":"VehicleData","direction":"in"}],
+      outParameters: [{"name":"cmd","type":"CommandToArm","direction":"out"},{"name":"destination","type":"Location","direction":"out"},{"name":"start","type":"CommandToMotor","direction":"out"}]
     });
   }
 }
@@ -553,8 +553,8 @@ class AC_ComponentsAGV_NotifierMotorAC extends Activity {
   constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
     super(name, component, inputPorts, delegates, {
       ...opts,
-      inParameters: [{"name":"inStatusMotor","type":"Pin","direction":"in"},{"name":"outStatusMotor","type":"Pin","direction":"in"},{"name":"ack","type":"Pin","direction":"in"}],
-      outParameters: []
+      inParameters: [{"name":"inStatusMotor","type":"NotificationFromMotor","direction":"in"}],
+      outParameters: [{"name":"outStatusMotor","type":"NotificationFromMotor","direction":"out"},{"name":"ack","type":"NotificationToSupervisory","direction":"out"}]
     });
   }
 }
@@ -564,8 +564,8 @@ class AC_ComponentsAGV_CheckStationAC extends Activity {
   constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
     super(name, component, inputPorts, delegates, {
       ...opts,
-      inParameters: [{"name":"statusMotor","type":"Pin","direction":"in"},{"name":"destination","type":"Pin","direction":"in"},{"name":"inLocation","type":"Pin","direction":"in"},{"name":"stopMotor","type":"Pin","direction":"in"},{"name":"outLocation","type":"Pin","direction":"in"},{"name":"passed","type":"Pin","direction":"in"}],
-      outParameters: []
+      inParameters: [{"name":"statusMotor","type":"NotificationFromMotor","direction":"in"},{"name":"destination","type":"Location","direction":"in"},{"name":"inLocation","type":"Location","direction":"in"}],
+      outParameters: [{"name":"stopMotor","type":"CommandToMotor","direction":"out"},{"name":"outLocation","type":"Location","direction":"out"},{"name":"passed","type":"NotificationToSupervisory","direction":"out"}]
     });
   }
 }
@@ -575,8 +575,8 @@ class AC_ComponentsAGV_ControlArmAC extends Activity {
   constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
     super(name, component, inputPorts, delegates, {
       ...opts,
-      inParameters: [{"name":"cmd","type":"Pin","direction":"in"},{"name":"statusMotor","type":"Pin","direction":"in"},{"name":"startArm","type":"Pin","direction":"in"}],
-      outParameters: []
+      inParameters: [{"name":"cmd","type":"CommandToArm","direction":"in"},{"name":"statusMotor","type":"NotificationFromMotor","direction":"in"}],
+      outParameters: [{"name":"startArm","type":"CommandToArm","direction":"out"}]
     });
   }
 }
@@ -586,8 +586,8 @@ class AC_ComponentsAGV_NotifierArmAC extends Activity {
   constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
     super(name, component, inputPorts, delegates, {
       ...opts,
-      inParameters: [{"name":"statusArm","type":"Pin","direction":"in"},{"name":"ack","type":"Pin","direction":"in"}],
-      outParameters: []
+      inParameters: [{"name":"statusArm","type":"NotificationFromArm","direction":"in"}],
+      outParameters: [{"name":"ack","type":"NotificationToSupervisory","direction":"out"}]
     });
   }
 }
@@ -597,8 +597,8 @@ class AC_ComponentsAGV_VehicleTimerAC extends Activity {
   constructor(name, component = null, inputPorts = [], delegates = [], opts = {}) {
     super(name, component, inputPorts, delegates, {
       ...opts,
-      inParameters: [{"name":"destination","type":"Pin","direction":"in"},{"name":"location","type":"Pin","direction":"in"},{"name":"cmd","type":"Pin","direction":"in"},{"name":"status","type":"Pin","direction":"in"}],
-      outParameters: []
+      inParameters: [{"name":"destination","type":"Location","direction":"in"},{"name":"location","type":"Location","direction":"in"},{"name":"cmd","type":"CommandToArm","direction":"in"}],
+      outParameters: [{"name":"status","type":"Status","direction":"out"}]
     });
   }
 }
@@ -608,11 +608,11 @@ class AN_ComponentsAGV_SendStartMotorAN extends Action {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [{"name":"move","type":"Pin","direction":"in"}],
-      outParameters: [],
+      inParameters: [{"name":"move","type":"VehicleData","direction":"in"}],
+      outParameters: [{"name":"SendStartMotorAN","type":"CommandToMotor","direction":"out"}],
       delegates: [{"from":"SendStartMotorAN","to":"cmd"}],
       constraints: ["SendStartMotorEQ"],
-      executableName: "SendStartMotorEX",
+      executables: ["SendStartMotorEX"],
     });
   }
 }
@@ -622,11 +622,11 @@ class AN_ComponentsAGV_SendCommandAN extends Action {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [{"name":"move","type":"Pin","direction":"in"}],
-      outParameters: [],
+      inParameters: [{"name":"move","type":"VehicleData","direction":"in"}],
+      outParameters: [{"name":"SendCommandAN","type":"CommandToArm","direction":"out"}],
       delegates: [{"from":"SendCommandAN","to":"cmd"},{"from":"move","to":"move"}],
       constraints: ["SendCommandEQ"],
-      executableName: "SendCommandEX",
+      executables: ["SendCommandEX"],
     });
   }
 }
@@ -636,11 +636,11 @@ class AN_ComponentsAGV_SendDestinationAN extends Action {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [{"name":"move","type":"Pin","direction":"in"}],
-      outParameters: [],
+      inParameters: [{"name":"move","type":"VehicleData","direction":"in"}],
+      outParameters: [{"name":"SendDestinationAN","type":"Location","direction":"out"}],
       delegates: [{"from":"SendDestinationAN","to":"destination"},{"from":"move","to":"move"}],
       constraints: ["SendDestinationEQ"],
-      executableName: "SendDestinationEX",
+      executables: ["SendDestinationEX"],
     });
   }
 }
@@ -650,11 +650,11 @@ class AN_ComponentsAGV_NotifyAGVFromMotorAN extends Action {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [{"name":"statusMotor","type":"Pin","direction":"in"}],
-      outParameters: [],
+      inParameters: [{"name":"statusMotor","type":"NotificationFromMotor","direction":"in"}],
+      outParameters: [{"name":"NotifyAGVFromMotorAN","type":"NotificationFromMotor","direction":"out"}],
       delegates: [{"from":"NotifyAGVFromMotorAN","to":"outStatusMotor"},{"from":"statusMotor","to":"inStatusMotor"}],
       constraints: ["NotifyAGVFromMotorEQ"],
-      executableName: "NotifyAGVFromMotorEX",
+      executables: ["NotifyAGVFromMotorEX"],
     });
   }
 }
@@ -664,11 +664,11 @@ class AN_ComponentsAGV_NotifySupervisoryFromMotorAN extends Action {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [{"name":"statusMotor","type":"Pin","direction":"in"}],
-      outParameters: [],
+      inParameters: [{"name":"statusMotor","type":"NotificationFromMotor","direction":"in"}],
+      outParameters: [{"name":"NotifySupervisoryFromMotorAN","type":"NotificationToSupervisory","direction":"out"}],
       delegates: [{"from":"NotifySupervisoryFromMotorAN","to":"ack"},{"from":"statusMotor","to":"statusMotor"}],
       constraints: ["NotifySupervisoryFromMotorEQ"],
-      executableName: "NotifySupervisoryFromMotorEX",
+      executables: ["NotifySupervisoryFromMotorEX"],
     });
   }
 }
@@ -678,11 +678,11 @@ class AN_ComponentsAGV_CompareStationsAN extends Action {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [{"name":"statusMotor","type":"Pin","direction":"in"},{"name":"destination","type":"Pin","direction":"in"},{"name":"location","type":"Pin","direction":"in"}],
-      outParameters: [],
+      inParameters: [{"name":"statusMotor","type":"NotificationFromMotor","direction":"in"},{"name":"destination","type":"Location","direction":"in"},{"name":"location","type":"Location","direction":"in"}],
+      outParameters: [{"name":"CompareStationsAN","type":"Boolean","direction":"out"}],
       delegates: [{"from":"CompareStationsAN","to":"result"},{"from":"location","to":"loc"},{"from":"destination","to":"dest"},{"from":"statusMotor","to":"statusMotor"}],
       constraints: ["CompareStationsEQ","NotificationMotorIsStartedEQ"],
-      executableName: "CompareStationsEX",
+      executables: ["CompareStationsEX"],
     });
   }
 }
@@ -692,11 +692,11 @@ class AN_ComponentsAGV_StopMotorAN extends Action {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [{"name":"comparisonResult","type":"Pin","direction":"in"}],
-      outParameters: [],
+      inParameters: [{"name":"comparisonResult","type":"Boolean","direction":"in"}],
+      outParameters: [{"name":"StopMotorAN","type":"CommandToMotor","direction":"out"}],
       delegates: [{"from":"comparisonResult","to":"result"},{"from":"StopMotorAN","to":"cmd"}],
       constraints: ["StopMotorEQ"],
-      executableName: "StopMotorEX",
+      executables: ["StopMotorEX"],
     });
   }
 }
@@ -706,11 +706,11 @@ class AN_ComponentsAGV_PassedMotorAN extends Action {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [{"name":"comparisonResult","type":"Pin","direction":"in"}],
-      outParameters: [],
+      inParameters: [{"name":"comparisonResult","type":"Boolean","direction":"in"}],
+      outParameters: [{"name":"PassedMotorAN","type":"NotificationToSupervisory","direction":"out"}],
       delegates: [{"from":"PassedMotorAN","to":"ack"},{"from":"comparisonResult","to":"result"}],
       constraints: ["PassedMotorEQ"],
-      executableName: "PassedMotorEX",
+      executables: ["PassedMotorEX"],
     });
   }
 }
@@ -720,11 +720,11 @@ class AN_ComponentsAGV_SendCurrentLocationAN extends Action {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [{"name":"location","type":"Pin","direction":"in"}],
-      outParameters: [],
+      inParameters: [{"name":"location","type":"Location","direction":"in"}],
+      outParameters: [{"name":"SendCurrentLocationAN","type":"Location","direction":"out"}],
       delegates: [{"from":"location","to":"inLocation"},{"from":"SendCurrentLocationAN","to":"outLocation"}],
       constraints: ["SendCurrentLocationEQ"],
-      executableName: "SendCurrentLocationEX",
+      executables: ["SendCurrentLocationEX"],
     });
   }
 }
@@ -734,11 +734,11 @@ class AN_ComponentsAGV_ControlArmAN extends Action {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [{"name":"cmd","type":"Pin","direction":"in"},{"name":"statusMotor","type":"Pin","direction":"in"}],
-      outParameters: [],
+      inParameters: [{"name":"cmd","type":"CommandToArm","direction":"in"},{"name":"statusMotor","type":"NotificationFromMotor","direction":"in"}],
+      outParameters: [{"name":"ControlArmAN","type":"CommandToArm","direction":"out"}],
       delegates: [{"from":"ControlArmAN","to":"startArm"},{"from":"statusMotor","to":"statusMotor"},{"from":"cmd","to":"cmd"}],
       constraints: ["ControlArmEQ"],
-      executableName: "ControlArmEX",
+      executables: ["ControlArmEX"],
     });
   }
 }
@@ -748,11 +748,11 @@ class AN_ComponentsAGV_NotifierArmAN extends Action {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [{"name":"statusArm","type":"Pin","direction":"in"}],
-      outParameters: [],
+      inParameters: [{"name":"statusArm","type":"NotificationFromArm","direction":"in"}],
+      outParameters: [{"name":"NotifierArmAN","type":"NotificationToSupervisory","direction":"out"}],
       delegates: [{"from":"NotifierArmAN","to":"ack"}],
       constraints: ["NotifierArmEQ"],
-      executableName: "NotifierArmEX",
+      executables: ["NotifierArmEX"],
     });
   }
 }
@@ -762,11 +762,11 @@ class AN_ComponentsAGV_VehicleTimerAN extends Action {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [{"name":"destination","type":"Pin","direction":"in"},{"name":"location","type":"Pin","direction":"in"},{"name":"cmd","type":"Pin","direction":"in"}],
-      outParameters: [],
+      inParameters: [{"name":"destination","type":"Location","direction":"in"},{"name":"location","type":"Location","direction":"in"},{"name":"cmd","type":"CommandToArm","direction":"in"}],
+      outParameters: [{"name":"VehicleTimerAN","type":"Status","direction":"out"}],
       delegates: [{"from":"VehicleTimerAN","to":"s"},{"from":"location","to":"loc"},{"from":"destination","to":"dest"},{"from":"cmd","to":"cmd"}],
       constraints: ["VehicleTimerEQ"],
-      executableName: "VehicleTimerEX",
+      executables: ["VehicleTimerEX"],
     });
   }
 }
@@ -777,7 +777,7 @@ class CT_ComponentsAGV_SendStartMotorEQ extends Constraint {
     super(name, {
       ...opts,
       inParameters: [],
-      outParameters: [],
+      outParameters: [{"name":"cmd","type":"CommandToMotor","direction":"out"}],
       equation: "(cmd == CommandToMotor.start)",
       constraintFunction: function(params) {// Constraint equation: (cmd == CommandToMotor.start)
           const { CommandToMotor, start } = params;
@@ -796,14 +796,14 @@ class CT_ComponentsAGV_SendDestinationEQ extends Constraint {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [],
-      outParameters: [],
+      inParameters: [{"name":"move","type":"VehicleData","direction":"in"}],
+      outParameters: [{"name":"destination","type":"Location","direction":"out"}],
       equation: "(destination == move.destination)",
       constraintFunction: function(params) {// Constraint equation: (destination == move.destination)
           const { move } = params;
           
           // Type validation
-          if (typeof move !== 'number') throw new Error('Parameter move must be a Real (number)');
+          // Type validation for move: VehicleData (no validation implemented)
           return destination == move.destination;
         }
     });
@@ -815,14 +815,14 @@ class CT_ComponentsAGV_NotifyAGVFromMotorEQ extends Constraint {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [],
-      outParameters: [],
+      inParameters: [{"name":"inStatusMotor","type":"NotificationFromMotor","direction":"in"}],
+      outParameters: [{"name":"outStatusMotor","type":"NotificationFromMotor","direction":"out"}],
       equation: "(outStatusMotor == inStatusMotor)",
       constraintFunction: function(params) {// Constraint equation: (outStatusMotor == inStatusMotor)
           const { inStatusMotor } = params;
           
           // Type validation
-          if (typeof inStatusMotor !== 'number') throw new Error('Parameter inStatusMotor must be a Real (number)');
+          // Type validation for inStatusMotor: NotificationFromMotor (no validation implemented)
           return outStatusMotor == inStatusMotor;
         }
     });
@@ -834,14 +834,14 @@ class CT_ComponentsAGV_SendCommandEQ extends Constraint {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [],
-      outParameters: [],
+      inParameters: [{"name":"move","type":"VehicleData","direction":"in"}],
+      outParameters: [{"name":"cmd","type":"CommandToArm","direction":"out"}],
       equation: "(cmd == move.command)",
       constraintFunction: function(params) {// Constraint equation: (cmd == move.command)
           const { move, command } = params;
           
           // Type validation
-          if (typeof move !== 'number') throw new Error('Parameter move must be a Real (number)');
+          // Type validation for move: VehicleData (no validation implemented)
           if (typeof command !== 'number') throw new Error('Parameter command must be a Real (number)');
           return cmd == move.command;
         }
@@ -854,8 +854,8 @@ class CT_ComponentsAGV_NotifySupervisoryFromMotorEQ extends Constraint {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [],
-      outParameters: [],
+      inParameters: [{"name":"statusMotor","type":"NotificationFromMotor","direction":"in"}],
+      outParameters: [{"name":"ack","type":"NotificationToSupervisory","direction":"out"}],
       equation: "((statusMotor == NotificationFromMotor.started) ? (ack == NotificationToSupervisory.departed) : (ack == NotificationToSupervisory.traveling))",
       constraintFunction: function(params) {// Conditional constraint: ((statusMotor == NotificationFromMotor.started) ? (ack == NotificationToSupervisory.departed) : (ack == NotificationToSupervisory.traveling))
           const { statusMotor, NotificationFromMotor, started, ack, NotificationToSupervisory, departed, traveling } = params;
@@ -879,14 +879,14 @@ class CT_ComponentsAGV_NotificationMotorIsStartedEQ extends Constraint {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [],
+      inParameters: [{"name":"statusMotor","type":"NotificationFromMotor","direction":"in"}],
       outParameters: [],
       equation: "(statusMotor == NotificationFromMotor.started)",
       constraintFunction: function(params) {// Constraint equation: (statusMotor == NotificationFromMotor.started)
           const { NotificationFromMotor, started } = params;
           
           // Type validation
-          if (typeof NotificationFromMotor !== 'number') throw new Error('Parameter NotificationFromMotor must be a Real (number)');
+          // Type validation for NotificationFromMotor: NotificationFromMotor (no validation implemented)
           if (typeof started !== 'number') throw new Error('Parameter started must be a Real (number)');
           return statusMotor == NotificationFromMotor.started;
         }
@@ -899,8 +899,8 @@ class CT_ComponentsAGV_CompareStationsEQ extends Constraint {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [],
-      outParameters: [],
+      inParameters: [{"name":"dest","type":"Location","direction":"in"},{"name":"loc","type":"Location","direction":"in"}],
+      outParameters: [{"name":"result","type":"Boolean","direction":"out"}],
       equation: "((dest == loc) ? (result == true) : (result == false))",
       constraintFunction: function(params) {// Conditional constraint: ((dest == loc) ? (result == true) : (result == false))
           const { dest, loc, result } = params;
@@ -920,8 +920,8 @@ class CT_ComponentsAGV_StopMotorEQ extends Constraint {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [],
-      outParameters: [],
+      inParameters: [{"name":"result","type":"Boolean","direction":"in"}],
+      outParameters: [{"name":"cmd","type":"CommandToMotor","direction":"out"}],
       equation: "((result == true) ? (cmd == CommandToMotor.stop) : (cmd == SysADL.types.Void))",
       constraintFunction: function(params) {// Conditional constraint: ((result == true) ? (cmd == CommandToMotor.stop) : (cmd == SysADL.types.Void))
           const { result, cmd, CommandToMotor, stop, SysADL, Void } = params;
@@ -944,8 +944,8 @@ class CT_ComponentsAGV_PassedMotorEQ extends Constraint {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [],
-      outParameters: [],
+      inParameters: [{"name":"result","type":"Boolean","direction":"in"}],
+      outParameters: [{"name":"ack","type":"NotificationToSupervisory","direction":"out"}],
       equation: "((result == false) ? (ack == NotificationToSupervisory.passed) : (ack == SysADL.types.Void))",
       constraintFunction: function(params) {// Conditional constraint: ((result == false) ? (ack == NotificationToSupervisory.passed) : (ack == SysADL.types.Void))
           const { result, ack, NotificationToSupervisory, passed, SysADL, Void } = params;
@@ -968,14 +968,14 @@ class CT_ComponentsAGV_SendCurrentLocationEQ extends Constraint {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [],
-      outParameters: [],
+      inParameters: [{"name":"inLocation","type":"Location","direction":"in"}],
+      outParameters: [{"name":"outLocation","type":"Location","direction":"out"}],
       equation: "(outLocation == inLocation)",
       constraintFunction: function(params) {// Constraint equation: (outLocation == inLocation)
           const { inLocation } = params;
           
           // Type validation
-          if (typeof inLocation !== 'number') throw new Error('Parameter inLocation must be a Real (number)');
+          // Type validation for inLocation: Location (no validation implemented)
           return outLocation == inLocation;
         }
     });
@@ -987,8 +987,8 @@ class CT_ComponentsAGV_ControlArmEQ extends Constraint {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [],
-      outParameters: [],
+      inParameters: [{"name":"cmd","type":"CommandToArm","direction":"in"},{"name":"statusMotor","type":"NotificationFromMotor","direction":"in"}],
+      outParameters: [{"name":"startArm","type":"CommandToArm","direction":"out"}],
       equation: "((statusMotor == NotificationFromMotor.stopped) ? (startArm == cmd) : (startArm == CommandToArm.idle))",
       constraintFunction: function(params) {// Conditional constraint: ((statusMotor == NotificationFromMotor.stopped) ? (startArm == cmd) : (startArm == CommandToArm.idle))
           const { statusMotor, NotificationFromMotor, stopped, startArm, cmd, CommandToArm, idle } = params;
@@ -1013,7 +1013,7 @@ class CT_ComponentsAGV_NotifierArmEQ extends Constraint {
     super(name, {
       ...opts,
       inParameters: [],
-      outParameters: [],
+      outParameters: [{"name":"ack","type":"NotificationToSupervisory","direction":"out"}],
       equation: "(ack == NotificationToSupervisory.arrived)",
       constraintFunction: function(params) {// Constraint equation: (ack == NotificationToSupervisory.arrived)
           const { NotificationToSupervisory, arrived } = params;
@@ -1032,12 +1032,16 @@ class CT_ComponentsAGV_VehicleTimerEQ extends Constraint {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [],
-      outParameters: [],
+      inParameters: [{"name":"dest","type":"Location","direction":"in"},{"name":"loc","type":"Location","direction":"in"},{"name":"cmd","type":"CommandToArm","direction":"in"}],
+      outParameters: [{"name":"s","type":"Status","direction":"out"}],
       equation: "(((s.destination == dest) && (s.location == loc)) && (s.command == cmd))",
       constraintFunction: function(params) {// Executable expression: (((s.destination == dest) && (s.location == loc)) && (s.command == cmd))
-          const {  } = params;
+          const { dest, loc, cmd } = params;
           
+          // Type validation
+          // Type validation for dest: Location (no validation implemented)
+          // Type validation for loc: Location (no validation implemented)
+          // Type validation for cmd: CommandToArm (no validation implemented)
           return (((s.destination == dest) && (s.location == loc)) && (s.command == cmd));
         }
     });
@@ -1049,7 +1053,7 @@ class EX_ComponentsAGV_SendStartMotorEX extends Executable {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [],
+      inParameters: [{"name":"move","type":"VehicleData","direction":"in"}],
       body: "executable def SendStartMotorEX ( in move : VehicleData) : out CommandToMotor {\n\t\treturn CommandToMotor::start;\n\t}",
       executableFunction: function(params) {
           // Type validation
@@ -1066,7 +1070,7 @@ class EX_ComponentsAGV_SendCommandEX extends Executable {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [],
+      inParameters: [{"name":"move","type":"VehicleData","direction":"in"}],
       body: "executable def SendCommandEX ( in move : VehicleData) : out CommandToArm {\n\t\treturn move->command;\n\t}",
       executableFunction: function(params) {
           // Type validation
@@ -1083,7 +1087,7 @@ class EX_ComponentsAGV_SendDestinationEX extends Executable {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [],
+      inParameters: [{"name":"move","type":"VehicleData","direction":"in"}],
       body: "executable def SendDestinationEX ( in move : VehicleData) : out Location {\n\t\treturn move->destination;\n\t}",
       executableFunction: function(params) {
           // Type validation
@@ -1100,7 +1104,7 @@ class EX_ComponentsAGV_NotifyAGVFromMotorEX extends Executable {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [],
+      inParameters: [{"name":"statusMotor","type":"NotificationFromMotor","direction":"in"}],
       body: "executable def NotifyAGVFromMotorEX ( in statusMotor : NotificationFromMotor) : \n\tout NotificationFromMotor{\n\t\treturn statusMotor;\n\t}",
       executableFunction: function(params) {
           // Type validation
@@ -1117,7 +1121,7 @@ class EX_ComponentsAGV_NotifySupervisoryFromMotorEX extends Executable {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [],
+      inParameters: [{"name":"statusMotor","type":"NotificationFromMotor","direction":"in"}],
       body: "executable def NotifySupervisoryFromMotorEX ( in statusMotor : NotificationFromMotor) : \n\t\tout\tNotificationToSupervisory {\n\t\tif (statusMotor == NotificationFromMotor::started) \n\t\t\treturn NotificationToSupervisory::departed;\n\t\telse\n\t\t\treturn NotificationToSupervisory::traveling;\n\t}",
       executableFunction: function(params) {
           // Type validation
@@ -1138,7 +1142,7 @@ class EX_ComponentsAGV_CompareStationsEX extends Executable {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [],
+      inParameters: [{"name":"destination","type":"Location","direction":"in"},{"name":"location","type":"Location","direction":"in"},{"name":"statusMotor","type":"NotificationFromMotor","direction":"in"}],
       body: "executable def CompareStationsEX ( in destination : Location, in location : Location, \n\t\tin statusMotor : NotificationFromMotor) : \tout Boolean {\n\t\tif(statusMotor == NotificationFromMotor::started && destination == location)\n\t\t\treturn true;\n\t\telse\n\t\t\treturn false;\n\t}",
       executableFunction: function(params) {
           // Type validation
@@ -1161,7 +1165,7 @@ class EX_ComponentsAGV_StopMotorEX extends Executable {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [],
+      inParameters: [{"name":"comparisonResult","type":"Boolean","direction":"in"}],
       body: "executable def StopMotorEX ( in comparisonResult : Boolean) :\n\tout CommandToMotor {\n\t\tif(comparisonResult == true)\n\t\t\treturn CommandToMotor::stop;\n\t\telse\n\t\t\treturn null;\n\t}",
       executableFunction: function(params) {
           // Type validation
@@ -1182,7 +1186,7 @@ class EX_ComponentsAGV_PassedMotorEX extends Executable {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [],
+      inParameters: [{"name":"comparisonResult","type":"Boolean","direction":"in"}],
       body: "executable def PassedMotorEX ( in comparisonResult : Boolean) :\n\tout NotificationToSupervisory {\n\t\tif(comparisonResult == false)\n\t\t\treturn NotificationToSupervisory::passed;\n\t\telse\n\t\t\treturn null;\n\t}",
       executableFunction: function(params) {
           // Type validation
@@ -1203,7 +1207,7 @@ class EX_ComponentsAGV_SendCurrentLocationEX extends Executable {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [],
+      inParameters: [{"name":"location","type":"Location","direction":"in"}],
       body: "executable def SendCurrentLocationEX ( in location : Location)\n\t: out Location {\n\t\treturn location;\n\t}",
       executableFunction: function(params) {
           // Type validation
@@ -1220,7 +1224,7 @@ class EX_ComponentsAGV_ControlArmEX extends Executable {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [],
+      inParameters: [{"name":"statusMotor","type":"NotificationFromMotor","direction":"in"},{"name":"cmd","type":"CommandToArm","direction":"in"}],
       body: "executable def ControlArmEX ( in statusMotor : NotificationFromMotor, in cmd : CommandToArm) : out CommandToArm {\n\t\tif(statusMotor == NotificationFromMotor::stopped)\n\t\t\treturn cmd;\n\t\telse\n\t\t\treturn CommandToArm::idle;\n\t}",
       executableFunction: function(params) {
           // Type validation
@@ -1242,7 +1246,7 @@ class EX_ComponentsAGV_NotifierArmEX extends Executable {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [],
+      inParameters: [{"name":"statusArm","type":"NotificationFromArm","direction":"in"}],
       body: "executable def NotifierArmEX ( in statusArm : NotificationFromArm) : \n\tout\tNotificationToSupervisory {\n\t\treturn NotificationToSupervisory::arrived;\n\t}",
       executableFunction: function(params) {
           // Type validation
@@ -1259,7 +1263,7 @@ class EX_ComponentsAGV_VehicleTimerEX extends Executable {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [],
+      inParameters: [{"name":"location","type":"Location","direction":"in"},{"name":"cmd","type":"CommandToArm","direction":"in"},{"name":"destination","type":"Location","direction":"in"}],
       body: "executable def VehicleTimerEX ( in location : Location, in cmd : CommandToArm, \n\t\tin destination : Location) : out Status {\n\t\t\n\t\tlet s : Status;\n\t\ts->destination = destination;\n\t\ts->location = location;\n\t\ts->command = cmd;\n\t\t\n\t\treturn s;\n\t}",
       executableFunction: function(params) {
           // Type validation
@@ -1354,55 +1358,6 @@ class SysADLArchitecture extends Model {
     this.FactoryAutomationSystem.addConnector(new CN_ComponentsAGV_status("updateStatus"));
     const updateStatus = this.FactoryAutomationSystem.connectors["updateStatus"];
     updateStatus.bind(this.FactoryAutomationSystem.agvs.vc.getPort("sendStatus"), this.FactoryAutomationSystem.ds.getPort("receiveStatus"));
-
-    // Delegation: sendStatus to sendStatus in agvs
-    this.FactoryAutomationSystem.agvs.addConnector(new Connector("delegation_sendStatus_to_sendStatus"));
-    const delegation_sendStatus_to_sendStatus = this.FactoryAutomationSystem.agvs.connectors["delegation_sendStatus_to_sendStatus"];
-    delegation_sendStatus_to_sendStatus.bind(this.FactoryAutomationSystem.agvs.vc.getPort("sendStatus"), this.FactoryAutomationSystem.agvs.getPort("sendStatus"));
-    // Delegation: in_outData to in_outData in agvs
-    this.FactoryAutomationSystem.agvs.addConnector(new Connector("delegation_in_outData_to_in_outData"));
-    const delegation_in_outData_to_in_outData = this.FactoryAutomationSystem.agvs.connectors["delegation_in_outData_to_in_outData"];
-    delegation_in_outData_to_in_outData.bind(this.FactoryAutomationSystem.agvs.vc.getPort("in_outData"), this.FactoryAutomationSystem.agvs.getPort("in_outData"));
-    // Delegation: ack to outNotifications in vc
-    this.FactoryAutomationSystem.agvs.vc.addConnector(new Connector("delegation_ack_to_outNotifications"));
-    const delegation_ack_to_outNotifications = this.FactoryAutomationSystem.agvs.vc.connectors["delegation_ack_to_outNotifications"];
-    delegation_ack_to_outNotifications.bind(this.FactoryAutomationSystem.agvs.vc.nm.getPort("ack"), this.FactoryAutomationSystem.agvs.vc.getPort("outNotifications"));
-    // Delegation: arrivedStatus to outNotifications in vc
-    this.FactoryAutomationSystem.agvs.vc.addConnector(new Connector("delegation_arrivedStatus_to_outNotifications"));
-    const delegation_arrivedStatus_to_outNotifications = this.FactoryAutomationSystem.agvs.vc.connectors["delegation_arrivedStatus_to_outNotifications"];
-    delegation_arrivedStatus_to_outNotifications.bind(this.FactoryAutomationSystem.agvs.vc.na.getPort("arrivedStatus"), this.FactoryAutomationSystem.agvs.vc.getPort("outNotifications"));
-    // Delegation: move to inMoveToStation in vc
-    this.FactoryAutomationSystem.agvs.vc.addConnector(new Connector("delegation_move_to_inMoveToStation"));
-    const delegation_move_to_inMoveToStation = this.FactoryAutomationSystem.agvs.vc.connectors["delegation_move_to_inMoveToStation"];
-    delegation_move_to_inMoveToStation.bind(this.FactoryAutomationSystem.agvs.vc.sm.getPort("move"), this.FactoryAutomationSystem.agvs.vc.getPort("inMoveToStation"));
-    // Delegation: passed to outNotifications in vc
-    this.FactoryAutomationSystem.agvs.vc.addConnector(new Connector("delegation_passed_to_outNotifications"));
-    const delegation_passed_to_outNotifications = this.FactoryAutomationSystem.agvs.vc.connectors["delegation_passed_to_outNotifications"];
-    delegation_passed_to_outNotifications.bind(this.FactoryAutomationSystem.agvs.vc.cs.getPort("passed"), this.FactoryAutomationSystem.agvs.vc.getPort("outNotifications"));
-    // Delegation: loaded_unloaded to startedArm in vc
-    this.FactoryAutomationSystem.agvs.vc.addConnector(new Connector("delegation_loaded_unloaded_to_startedArm"));
-    const delegation_loaded_unloaded_to_startedArm = this.FactoryAutomationSystem.agvs.vc.connectors["delegation_loaded_unloaded_to_startedArm"];
-    delegation_loaded_unloaded_to_startedArm.bind(this.FactoryAutomationSystem.agvs.vc.na.getPort("loaded_unloaded"), this.FactoryAutomationSystem.agvs.vc.getPort("startedArm"));
-    // Delegation: inAck to started_stopped in vc
-    this.FactoryAutomationSystem.agvs.vc.addConnector(new Connector("delegation_inAck_to_started_stopped"));
-    const delegation_inAck_to_started_stopped = this.FactoryAutomationSystem.agvs.vc.connectors["delegation_inAck_to_started_stopped"];
-    delegation_inAck_to_started_stopped.bind(this.FactoryAutomationSystem.agvs.vc.nm.getPort("inAck"), this.FactoryAutomationSystem.agvs.vc.getPort("started_stopped"));
-    // Delegation: startArm to startArm in vc
-    this.FactoryAutomationSystem.agvs.vc.addConnector(new Connector("delegation_startArm_to_startArm"));
-    const delegation_startArm_to_startArm = this.FactoryAutomationSystem.agvs.vc.connectors["delegation_startArm_to_startArm"];
-    delegation_startArm_to_startArm.bind(this.FactoryAutomationSystem.agvs.vc.ca.getPort("startArm"), this.FactoryAutomationSystem.agvs.vc.getPort("startArm"));
-    // Delegation: AGVStatus to sendStatus in vc
-    this.FactoryAutomationSystem.agvs.vc.addConnector(new Connector("delegation_AGVStatus_to_sendStatus"));
-    const delegation_AGVStatus_to_sendStatus = this.FactoryAutomationSystem.agvs.vc.connectors["delegation_AGVStatus_to_sendStatus"];
-    delegation_AGVStatus_to_sendStatus.bind(this.FactoryAutomationSystem.agvs.vc.vt.getPort("AGVStatus"), this.FactoryAutomationSystem.agvs.vc.getPort("sendStatus"));
-    // Delegation: start to start_stop in vc
-    this.FactoryAutomationSystem.agvs.vc.addConnector(new Connector("delegation_start_to_start_stop"));
-    const delegation_start_to_start_stop = this.FactoryAutomationSystem.agvs.vc.connectors["delegation_start_to_start_stop"];
-    delegation_start_to_start_stop.bind(this.FactoryAutomationSystem.agvs.vc.sm.getPort("start"), this.FactoryAutomationSystem.agvs.vc.getPort("start_stop"));
-    // Delegation: stop to start_stop in vc
-    this.FactoryAutomationSystem.agvs.vc.addConnector(new Connector("delegation_stop_to_start_stop"));
-    const delegation_stop_to_start_stop = this.FactoryAutomationSystem.agvs.vc.connectors["delegation_stop_to_start_stop"];
-    delegation_stop_to_start_stop.bind(this.FactoryAutomationSystem.agvs.vc.cs.getPort("stop"), this.FactoryAutomationSystem.agvs.vc.getPort("start_stop"));
 
     const ac_StartMoving = new AC_ComponentsAGV_StartMovingAC(
       "StartMovingAC",
@@ -1514,7 +1469,49 @@ function createModel(){
     CN_ConnectorsAGV_interactionAGVAndSupervisory,
     CN_ConnectorsAGV_locationVehicle,
     CN_ComponentsAGV_status,
+    CT_ComponentsAGV_SendStartMotorEQ,
+    CT_ComponentsAGV_SendDestinationEQ,
+    CT_ComponentsAGV_NotifyAGVFromMotorEQ,
+    CT_ComponentsAGV_SendCommandEQ,
+    CT_ComponentsAGV_NotifySupervisoryFromMotorEQ,
+    CT_ComponentsAGV_NotificationMotorIsStartedEQ,
+    CT_ComponentsAGV_CompareStationsEQ,
+    CT_ComponentsAGV_StopMotorEQ,
+    CT_ComponentsAGV_PassedMotorEQ,
+    CT_ComponentsAGV_SendCurrentLocationEQ,
+    CT_ComponentsAGV_ControlArmEQ,
+    CT_ComponentsAGV_NotifierArmEQ,
+    CT_ComponentsAGV_VehicleTimerEQ,
+    EX_ComponentsAGV_SendStartMotorEX,
+    EX_ComponentsAGV_SendCommandEX,
+    EX_ComponentsAGV_SendDestinationEX,
+    EX_ComponentsAGV_NotifyAGVFromMotorEX,
+    EX_ComponentsAGV_NotifySupervisoryFromMotorEX,
+    EX_ComponentsAGV_CompareStationsEX,
+    EX_ComponentsAGV_StopMotorEX,
+    EX_ComponentsAGV_PassedMotorEX,
+    EX_ComponentsAGV_SendCurrentLocationEX,
+    EX_ComponentsAGV_ControlArmEX,
+    EX_ComponentsAGV_NotifierArmEX,
+    EX_ComponentsAGV_VehicleTimerEX,
   };
+  
+  // Initialize all connectors now that _moduleContext is available
+  model.initializeAllConnectors();
+  
+  // Resolve constraints and executables for all registered activities
+  Object.values(model._activities || {}).forEach(activity => {
+    if (activity && activity.actions) {
+      activity.actions.forEach(action => {
+        if (action.constraintNames && action.constraintNames.length > 0) {
+          action.resolveConstraints(model._moduleContext);
+        }
+        if (action.executableNames && action.executableNames.length > 0) {
+          action.resolveExecutables(model._moduleContext);
+        }
+      });
+    }
+  });
   
   return model;
 }

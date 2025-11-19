@@ -262,6 +262,91 @@ function runSimulation(generatedCode, { trace=false, loops=1, params={} }={}) {
   }
 }
 
+// 6.0) Extract type definitions and generate examples
+function extractTypeExamples(generatedCode) {
+  const typeExamples = {};
+  const enumMap = {}; // Map from full enum name (EN_*) to values
+  
+  try {
+    // Extract Enums: const EN_[package_]TypeName = new Enum("value1", "value2", ...);
+    // Pattern: EN_package_Type -> where 'Type' is the actual SysADL type name
+    // Examples: EN_types_Command, EN_NotificationToSupervisory
+    const enumPattern = /const\s+(EN_\w+)\s*=\s*new\s+Enum\(((?:"[^"]*"(?:\s*,\s*)?)+)\)/g;
+    let match;
+    
+    while ((match = enumPattern.exec(generatedCode)) !== null) {
+      const [, enumName, valuesStr] = match;
+      const values = valuesStr.match(/"([^"]+)"/g).map(v => v.replace(/"/g, ''));
+      const exampleText = values.join(' | ');
+      
+      // Store with full name for reference in DataTypes (EN_types_Command)
+      enumMap[enumName] = exampleText;
+      
+      // Extract actual type name (last part after last underscore)
+      // EN_types_Command -> Command
+      // EN_NotificationToSupervisory -> NotificationToSupervisory
+      const parts = enumName.split('_');
+      const actualTypeName = parts[parts.length - 1]; // Last part is always the SysADL type name
+      typeExamples[actualTypeName] = exampleText;
+      
+      console.log(`📌 Enum: ${enumName} -> type "${actualTypeName}" = ${exampleText}`);
+    }
+    
+    // Extract DataTypes: const DT_[package_]TypeName = dataType('TypeName', { field1: Type1, ... });
+    // Pattern: DT_package_Type -> where 'TypeName' in dataType() call is the actual SysADL type name
+    // Examples: DT_types_Commands, DT_Location, DT_SmartPlaceComponents_AirConditioner
+    const dataTypePattern = /const\s+(DT_\w+)\s*=\s*dataType\('(\w+)',\s*\{([^}]+)\}\)/g;
+    
+    while ((match = dataTypePattern.exec(generatedCode)) !== null) {
+      const [, dtName, typeName, fieldsStr] = match;
+      
+      // The 'typeName' from dataType('TypeName', ...) is the actual SysADL type name
+      // We don't need to parse it from dtName, it's already correct in the call
+      
+      // Parse fields: field1: Type1, field2: Type2
+      const fields = {};
+      const fieldPattern = /(\w+):\s*(\w+)/g;
+      let fieldMatch;
+      
+      while ((fieldMatch = fieldPattern.exec(fieldsStr)) !== null) {
+        const [, fieldName, fieldType] = fieldMatch;
+        
+        // Check if fieldType is a known type
+        if (fieldType === 'String') {
+          fields[fieldName] = '""';
+        } else if (fieldType === 'Int' || fieldType === 'Real') {
+          fields[fieldName] = '0';
+        } else if (fieldType === 'Boolean') {
+          fields[fieldName] = 'true';
+        } else if (fieldType.startsWith('EN_')) {
+          // It's an enum reference - use the mapped value from enumMap
+          const enumExample = enumMap[fieldType];
+          if (enumExample) {
+            fields[fieldName] = `"${enumExample.split(' | ')[0]}"`;
+          } else {
+            fields[fieldName] = '"..."';
+          }
+        } else if (fieldType.startsWith('DT_')) {
+          // It's a nested dataType
+          fields[fieldName] = '{...}';
+        } else {
+          fields[fieldName] = '...';
+        }
+      }
+      
+      typeExamples[typeName] = JSON.stringify(fields, null, 0);
+      console.log(`📌 DataType: ${dtName} -> type "${typeName}" = ${typeExamples[typeName]}`);
+    }
+    
+    console.log('📝 Extracted type examples:', typeExamples);
+    
+  } catch (error) {
+    console.error('Error extracting type examples:', error);
+  }
+  
+  return typeExamples;
+}
+
 // 6.1) Extract available ports from generated code
 function extractAvailablePorts(generatedCode) {
   try {
@@ -474,7 +559,7 @@ function extractAvailablePorts(generatedCode) {
 }
 
 // 6.2) Create interactive ports list and update JSON automatically
-function createInteractivePortsList(ports) {
+function createInteractivePortsList(ports, typeExamples = {}) {
   if (!ports || ports.length === 0) {
     els.availablePortsList.innerHTML = '<p style="color: #666; font-style: italic; margin: 0;">No boundary component ports found.</p>';
     return;
@@ -505,11 +590,11 @@ function createInteractivePortsList(ports) {
         // Show sub-ports with checkboxes
         for (const subPort of port.subPorts) {
           const subPortPath = `${port.path}.${subPort.name}`;
-          createPortCheckbox(subPortPath, subPort.direction, subPort.type, 12); // 12px indent for sub-ports
+          createPortCheckbox(subPortPath, subPort.direction, subPort.type, 12, typeExamples); // 12px indent for sub-ports
         }
       } else {
         // SimplePort - show with checkbox
-        createPortCheckbox(port.path, port.direction, port.type, 0); // No indent
+        createPortCheckbox(port.path, port.direction, port.type, 0, typeExamples); // No indent
       }
     }
   }
@@ -519,7 +604,7 @@ function createInteractivePortsList(ports) {
 }
 
 // Helper function to create a port checkbox with input
-function createPortCheckbox(portPath, direction, type, indentPx) {
+function createPortCheckbox(portPath, direction, type, indentPx, typeExamples = {}) {
   const portDiv = document.createElement('div');
   portDiv.style.cssText = `margin-left: ${indentPx}px; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;`;
   
@@ -537,19 +622,33 @@ function createPortCheckbox(portPath, direction, type, indentPx) {
   label.style.cssText = 'flex: 1; cursor: pointer; font-family: "Fira Mono", "Consolas", monospace; font-size: 13px;';
   label.innerHTML = `${arrow} ${portPath} <span style="color: #999;">[${type}]</span>`;
   
-  // Value input
+  // Get example for this type
+  const typeExample = typeExamples[type] || getDefaultValue(type);
+  
+  // Value input - increased size to 350px
   const valueInput = document.createElement('input');
   valueInput.type = 'text';
-  valueInput.placeholder = getDefaultValue(type);
+  valueInput.placeholder = typeExample;
   valueInput.dataset.portPath = portPath;
-  valueInput.style.cssText = 'width: 100px; padding: 4px 8px; font-family: "Fira Mono", "Consolas", monospace; font-size: 13px; border: 1px solid #ccc; border-radius: 4px;';
+  valueInput.dataset.typeExample = typeExample;
+  valueInput.style.cssText = 'width: 350px; padding: 6px 10px; font-family: "Fira Mono", "Consolas", monospace; font-size: 13px; border: 1px solid #ccc; border-radius: 4px;';
   valueInput.disabled = true; // Disabled until checkbox is checked
+  
+  // "Use example" button
+  const exampleButton = document.createElement('button');
+  exampleButton.textContent = '📋';
+  exampleButton.title = 'Use example value';
+  exampleButton.style.cssText = 'padding: 4px 8px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; background: #f9f9f9; cursor: pointer; display: none;';
+  exampleButton.disabled = true;
   
   // Event listeners
   checkbox.addEventListener('change', () => {
     valueInput.disabled = !checkbox.checked;
+    exampleButton.disabled = !checkbox.checked;
+    exampleButton.style.display = checkbox.checked ? 'inline-block' : 'none';
+    
     if (checkbox.checked && !valueInput.value) {
-      valueInput.value = getDefaultValue(type);
+      valueInput.value = typeExample;
     }
     updateSimulationParamsJSON();
   });
@@ -560,9 +659,18 @@ function createPortCheckbox(portPath, direction, type, indentPx) {
     }
   });
   
+  exampleButton.addEventListener('click', (e) => {
+    e.preventDefault();
+    valueInput.value = typeExample;
+    if (checkbox.checked) {
+      updateSimulationParamsJSON();
+    }
+  });
+  
   portDiv.appendChild(checkbox);
   portDiv.appendChild(label);
   portDiv.appendChild(valueInput);
+  portDiv.appendChild(exampleButton);
   
   els.availablePortsList.appendChild(portDiv);
 }
@@ -632,9 +740,10 @@ els.btnTransform.addEventListener('click', async () => {
     codeEditor.setValue(js);
     console.log('✅ Transformation completed successfully');
     
-    // Extract and display available ports as interactive list
+    // Extract type examples and available ports
+    const typeExamples = extractTypeExamples(js);
     const ports = extractAvailablePorts(js);
-    createInteractivePortsList(ports);
+    createInteractivePortsList(ports, typeExamples);
     console.log(`📋 Found ${ports.length} available ports`);
     
   } catch (err) {
