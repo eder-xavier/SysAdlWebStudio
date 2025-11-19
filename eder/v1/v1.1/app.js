@@ -257,8 +257,29 @@ function runSimulation(generatedCode, { trace=false, loops=1, params={} }={}) {
     els.log.textContent += output + '\n';
     els.log.scrollTop = els.log.scrollHeight;
   } catch(err) {
-    els.log.textContent += `\n[ERROR] ${err.message}\n`;
-    console.error(err);
+    // Format error message based on type
+    let errorMessage = '';
+    
+    if (err.message.includes('MODELING ERROR:')) {
+      // Already formatted by simulator - use as is
+      errorMessage = `\n${err.message}\n`;
+    } else if (err.message.includes('Expected PT_') || err.message.includes('port type')) {
+      // Port binding error that wasn't caught - format it
+      errorMessage = `\nMODELING ERROR: ${err.message}\n`;
+    } else {
+      // Generic error
+      errorMessage = `\n[ERROR] ${err.message}\n`;
+    }
+    
+    els.log.textContent += errorMessage;
+    els.log.scrollTop = els.log.scrollHeight;
+    
+    // Log to console without stack trace for modeling errors
+    if (err.name === 'ModelingError' || err.message.includes('MODELING ERROR:')) {
+      // Don't log modeling errors to console to avoid stack trace
+    } else {
+      console.error('Simulation error:', err.message);
+    }
   }
 }
 

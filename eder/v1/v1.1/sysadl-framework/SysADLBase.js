@@ -99,6 +99,20 @@
   const ReactiveStateManager = ReactiveStateManagerModule?.ReactiveStateManager || class {};
   const ReactiveConditionWatcher = ReactiveConditionWatcherModule?.ReactiveConditionWatcher || class {};
 
+// Custom Error Classes
+class PortBindingError extends Error {
+  constructor(connectorName, participantName, expectedType, actualType, sourceInfo = {}) {
+    super(`Port type mismatch in connector ${connectorName}`);
+    this.name = 'PortBindingError';
+    this.connectorName = connectorName;
+    this.participantName = participantName;
+    this.expectedType = expectedType;
+    this.actualType = actualType;
+    this.sourceComponent = sourceInfo.component;
+    this.sourcePort = sourceInfo.port;
+  }
+}
+
 // Global Event System Manager
 class EventSystemManager {
   constructor() {
@@ -2017,29 +2031,22 @@ class Connector extends SysADLBase {
       throw new Error(`Unknown participant: ${participantName} in connector ${this.name}`);
     }
     
-    const validations = [
-      {
-        condition: () => externalPort.constructor.name === schema.portClass,
-        message: `Expected ${schema.portClass}, got ${externalPort.constructor.name}`
-      },
-      // TEMPORARILY DISABLED: Direction validation needs fixing in code generator
-      // {
-      //   condition: () => externalPort.direction === schema.direction,
-      //   message: `Expected direction '${schema.direction}', got '${externalPort.direction}'`
-      // },
-      // DISABLED: Data type validation is too restrictive for conversion connectors
-      // Connectors may intentionally connect different data types (e.g., FahrenheitToCelsius)
-      // {
-      //   condition: () => this.validateDataType(externalPort.expectedType, schema.dataType),
-      //   message: `Expected data type '${schema.dataType}', got '${externalPort.expectedType}'`
-      // }
-    ];
+    // Check port type compatibility
+    if (externalPort.constructor.name !== schema.portClass) {
+      throw new PortBindingError(
+        this.name,
+        participantName,
+        schema.portClass,
+        externalPort.constructor.name,
+        {
+          component: externalPort.owner,
+          port: externalPort.name
+        }
+      );
+    }
     
-    validations.forEach(validation => {
-      if (!validation.condition()) {
-        throw new TypeError(`${this.name}.${participantName}: ${validation.message}`);
-      }
-    });
+    // TEMPORARILY DISABLED: Direction validation needs fixing in code generator
+    // DISABLED: Data type validation is too restrictive for conversion connectors
   }
   
   // GENERIC: Validate composite port binding
@@ -2746,7 +2753,14 @@ class Action extends BehavioralElement {
         console.log(`[CONSTRAINT EVAL] model._simulationLogger exists:`, !!(model && model._simulationLogger));
         console.log(`[CONSTRAINT EVAL] this._simulationLogger exists:`, !!this._simulationLogger);
         
-        // Log constraint evaluation to SimulationLogger
+        // Evaluate constraint first
+        const constraintResult = constraint.evaluate(constraintInputs, model);
+        console.log(`[CONSTRAINT RESULT] ${constraint.name}:`, constraintResult);
+        if (!constraintResult) {
+          throw new Error(`Constraint ${constraint.name} failed in action ${this.name}`);
+        }
+        
+        // Log constraint evaluation to SimulationLogger AFTER evaluation
         // Try this._simulationLogger first (from activity), then fall back to model._simulationLogger
         const logger = this._simulationLogger || (model && model._simulationLogger);
         if (logger) {
@@ -2764,15 +2778,9 @@ class Action extends BehavioralElement {
             constraint.constructor.name,
             constraint.equation,
             inputVars,
-            null, // Will be set after evaluation
+            constraintResult, // Now contains the actual result
             '--'
           );
-        }
-        
-        const constraintResult = constraint.evaluate(constraintInputs, model);
-        console.log(`[CONSTRAINT RESULT] ${constraint.name}:`, constraintResult);
-        if (!constraintResult) {
-          throw new Error(`Constraint ${constraint.name} failed in action ${this.name}`);
         }
         
         // Trace constraint evaluation
@@ -2995,8 +3003,7 @@ class Activity extends BehavioralElement {
           if (pin.direction === 'in') {
             pinData.push({
               name: name,
-              value: pin.value,
-              source: pin.source || 'unknown'
+              value: pin.value
             });
           }
         });

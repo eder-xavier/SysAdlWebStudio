@@ -376,6 +376,21 @@ function setupReactiveMonitoring(model, options) {
   }
 }
 
+// Format port binding error message
+function formatPortBindingErrorMessage(error) {
+  const lines = [
+    `MODELING ERROR: Incompatible port types in connector "${error.connectorName || 'unknown'}"`,
+    '',
+    'Details:',
+    `  Connector: ${error.connectorName || 'N/A'}`,
+    `  Participant: ${error.participantName || 'N/A'}`,
+    `  Expected: ${error.expectedType || 'N/A'}`,
+    `  Received: ${error.actualType || 'N/A'}`
+  ];
+  
+  return lines.join('\n');
+}
+
 // Browser-compatible run function
 function runBrowser(generatedCode, options = {}) {
   // console.log('runBrowser() called with options:', options);
@@ -445,8 +460,22 @@ function runBrowser(generatedCode, options = {}) {
       throw new Error('Generated code does not export a createModel function');
     }
     
-    // Create the model instance
-    const model = createModel();
+    // Create the model instance - catch port binding errors
+    let model;
+    try {
+      model = createModel();
+    } catch (error) {
+      // Check if it's a PortBindingError
+      if (error.name === 'PortBindingError') {
+        // Create error with formatted message but no stack trace
+        const formattedError = new Error(formatPortBindingErrorMessage(error));
+        formattedError.name = 'ModelingError';
+        formattedError.stack = ''; // Clear stack trace
+        throw formattedError;
+      }
+      // Re-throw other errors
+      throw error;
+    }
     // output += `Model created: ${model.name || 'unnamed'}\n`;
     
     // Attach SimulationLogger to model
