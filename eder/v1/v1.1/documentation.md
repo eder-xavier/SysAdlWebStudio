@@ -58,6 +58,8 @@ All UX is orchestrated by `app.js` and `index.html`, with presentation controlle
 * **Legend & palette:** Pastel fills differentiate top-level vs nested components, and the legend now focuses on the two component classes plus input/output ports and connectors.
 * **Interactive editing:** Components can be dragged after the layout stabilises; ports remain glued to the component borders thanks to the docking hooks.
 * **Theme:** The entire UI, including Monaco editors, adopts the SysADL Studio inspired light look; the architecture canvas has no internal padding so the network can use the full area.
+* **Mobile tweaks:** Header/toolbar/button styles adapt on small screens so controls remain reachable, while desktop keeps the single-column layout users expect.
+* **Log console:** The simulation log mimics a terminal (dark background, monospace font) and includes a “Download log” button that saves the current output as a timestamped `.txt`.
 
 ---
 
@@ -115,6 +117,6 @@ All UX is orchestrated by `app.js` and `index.html`, with presentation controlle
 
 | Date | Summary |
 | --- | --- |
-| 2025‑10‑29 | Introduced UML-style palette, improved legend, and enabled freeform dragging of components. |
+| 2025‑10‑29 | Introduced UML-style palette, improved legend, expanded log area, added mobile tweaks, throttled port docking for smoother zoom/scroll, and enabled freeform dragging of components. |
 | 2025‑10‑28 | Layout overhauled, ports docked to component edges, connector direction enforced. |
 | 2025‑10‑27 | Legendary redesign, English UI strings, initial connector binding fixes. |

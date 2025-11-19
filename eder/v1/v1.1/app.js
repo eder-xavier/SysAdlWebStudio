@@ -55,6 +55,7 @@ const els = {
   btnVisualize: document.getElementById('btnVisualize'),
   log: document.getElementById('log'),
   clearLog: document.getElementById('clearLog'),
+  downloadLog: document.getElementById('downloadLog'),
   traceToggle: document.getElementById('traceToggle'),
   loopCount: document.getElementById('loopCount'),
   simulationParams: document.getElementById('simulationParams'),
@@ -835,6 +836,18 @@ els.saveArch.addEventListener('click', () =>
 els.clearLog.addEventListener('click', () => { 
   els.log.textContent = ''; 
 });
+
+if (els.downloadLog) {
+  els.downloadLog.addEventListener('click', () => {
+    const content = els.log.textContent || '';
+    if (!content.trim()) {
+      els.log.textContent += '[INFO] Nothing to download. Log is empty.\n';
+      return;
+    }
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    saveAs(`simulation-log-${timestamp}.log`, content);
+  });
+}
 
 els.fileInput.addEventListener('change', async (ev) => {
   const f = ev.target.files && ev.target.files[0];

@@ -564,8 +564,8 @@ function renderVisualization(containerId, generatedCode, logElement) {
     container.style.borderRadius = '20px';
     container.style.boxShadow = '0 26px 52px rgba(15, 23, 42, 0.14)';
     container.style.padding = '0';
-    container.style.minHeight = '560px';
-    container.style.height = '560px';
+    container.style.minHeight = '450px';
+    container.style.height = '450px';
     container.style.width = '100%';
     container.style.position = 'relative';
     container.style.overflow = 'hidden';
@@ -732,7 +732,15 @@ function renderVisualization(containerId, generatedCode, logElement) {
       });
     });
 
-    const schedulePin = () => requestAnimationFrame(() => pinPortsToComponents());
+    let pinQueued = false;
+    const schedulePin = () => {
+      if (pinQueued) return;
+      pinQueued = true;
+      requestAnimationFrame(() => {
+        pinQueued = false;
+        pinPortsToComponents();
+      });
+    };
 
     const releaseComponentsForDrag = () => {
       const updates = [];

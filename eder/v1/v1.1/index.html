@@ -28,12 +28,12 @@
         <button id="btnTransform">Transform ▶</button>
         <div class="spacer"></div>
         <label class="switch">
-          <input id="traceToggle" type="checkbox" />
-        <span>Trace execution</span>
+          <input style="display: none;" id="traceToggle" type="checkbox" />
+        <span style="display: none;">Trace execution</span>
         </label>
         <label class="switch">
-          <span>Iterations</span>
-          <input id="loopCount" type="number" min="1" step="1" value="1" />
+          <span style="display: none;">Iterations</span>
+          <input style="display: none;" id="loopCount" type="number" min="1" step="1" value="1" />
         </label>
         <button id="btnRun" class="success">Simulate</button>
       </div>
@@ -101,6 +101,7 @@
       <h2>4) Simulation Log / Output</h2>
       <div class="actions">
         <button id="clearLog" class="secondary">Clear log</button>
+        <button id="downloadLog" class="secondary">Download log</button>
       </div>
       <pre id="log" class="log"></pre>
     </section>
