@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SysADL ▶ JS — Simulator</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://unpkg.com" crossorigin>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>SysADL ▶ JavaScript — Simulation</h1>
+    <div class="header-actions">
+      <label class="file-input">
+        <input id="fileInput" type="file" accept=".sysadl,.txt" />
+        <span>Load .sysadl</span>
+      </label>
+      <!-- <button id="btnExample" class="secondary">Carregar exemplo</button> -->
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="panel">
+      <h2>1) SysADL Source</h2>
+      <div id="editor" class="editor" aria-label="SysADL editor"></div>
+      <div class="toolbar">
+        <button id="btnTransform">Transform ▶</button>
+        <div class="spacer"></div>
+        <label class="switch">
+          <input style="display: none;" id="traceToggle" type="checkbox" />
+        <span style="display: none;">Trace execution</span>
+        </label>
+        <label class="switch">
+          <span style="display: none;">Iterations</span>
+          <input style="display: none;" id="loopCount" type="number" min="1" step="1" value="1" />
+        </label>
+        <button id="btnRun" class="success">Simulate</button>
+      </div>
+      <div class="toolbar" style="margin-top: 10px; border-top: 1px solid #ddd; padding-top: 10px; display: block;">
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; margin-bottom: 8px;">
+            <strong>Available Ports (from boundary components):</strong>
+            <small style="color: #666;">Select ports and set values to include in simulation parameters</small>
+          </label>
+          <div id="availablePortsList" 
+               style="max-height: 300px; overflow-y: auto; border: 2px solid #1976d2; border-radius: 6px; padding: 12px; background: #f7f7f7;">
+            <p style="color: #666; font-style: italic; margin: 0;">Press 'Transform ▶' to see available ports...</p>
+          </div>
+        </div>
+        
+        <div>
+          <label style="display: block; margin-bottom: 5px;">
+            <strong>Simulation Parameters (JSON):</strong>
+            <small style="color: #666;">Auto-generated from selected ports above</small>
+          </label>
+          <textarea id="simulationParams" placeholder='{"component.port": value}' 
+                    style="width: 100%; min-height: 120px; font-family: 'Fira Mono', 'Consolas', monospace; font-size: 15px; border: 2px solid #1976d2; border-radius: 6px; padding: 12px; background: #f7f7f7; color: #222; resize: vertical; box-shadow: 0 2px 8px #0001;"
+                    spellcheck="false"
+                    autocomplete="off"
+                    autocorrect="off"
+                    autocapitalize="off"
+                    ></textarea>
+          <button id="copyParams" style="margin-top:6px;float:right;">Copy parameters</button>
+        </div>
+      </div>
+      <div id="parseErr" class="err" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="panel">
+      <h2>2) Generated JavaScript</h2>
+      <details open class="codeblock">
+        <summary>Architecture code (generated from .sysadl)</summary>
+        <div class="actions">
+          <button id="copyArch">Copy</button>
+          <button id="saveArch">Download .js</button>
+          <button id="btnVisualize" class="secondary">Visualize Architecture</button>
+        </div>
+        <div id="archOutContainer" style="position:relative;">
+          <div id="codeEditor" class="editor" aria-label="Generated JavaScript code editor"></div>
+        </div>
+      </details>
+    </section>
+
+    <section class="panel">
+      <h2>3) Architecture Visualization</h2>
+      <div style="margin-bottom: 10px; padding: 12px; background: rgba(241,245,255,0.6); border-radius: 12px; border:1px solid rgba(214,222,235,0.6);">
+        <strong>Legend:</strong>
+        <ul style="list-style: none; padding: 0; margin: 5px 0;">
+          <li><span style="display:inline-block;width:14px;height:14px;border-radius:4px;background:#dbeafe;border:1px solid #312e81;margin-right:6px;"></span>Root Component</li>
+          <li><span style="display:inline-block;width:14px;height:14px;border-radius:4px;background:#f1f2f9;border:1px solid #475569;margin-right:6px;"></span>Component</li>
+          <li><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#22d3ee;margin-right:8px;border:2px solid #0f172a;"></span>Output port</li>
+          <li><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#fb7185;margin-right:8px;border:2px solid #0f172a;"></span>Input port</li>
+          <li><span style="display:inline-block;width:24px;height:2px;background:#334155;margin-right:8px;border-radius:1px;"></span>Connector / flow</li>
+        </ul>
+      </div>
+      <div class="viz-controls">
+        <button id="btnTracePlay" class="secondary" disabled>Animate trace</button>
+        <button id="btnTracePause" class="secondary" disabled>Pause</button>
+        <button id="btnTraceStep" class="secondary" disabled>Step</button>
+        <span id="traceStatus" class="trace-status">Run a simulation to enable trace animation.</span>
+      </div>
+      <div class="viz-layout">
+        <div id="architectureViz" aria-label="Architecture visualization canvas"></div>
+        <aside class="trace-panel" aria-live="polite">
+          <div class="trace-panel-header">
+            <div>
+              <div class="trace-panel-title">Eventos do trace</div>
+              <div id="traceEventCount" class="trace-panel-count">Nenhum evento</div>
+            </div>
+            <label class="trace-speed">
+              <span>Velocidade</span>
+              <select id="traceSpeed" aria-label="Velocidade da animação">
+                <option value="0.5">0.5×</option>
+                <option value="0.75">0.75×</option>
+                <option value="1" selected>1×</option>
+                <option value="1.5">1.5×</option>
+                <option value="2">2×</option>
+                <option value="3">3×</option>
+              </select>
+            </label>
+          </div>
+          <div class="trace-table-wrapper">
+            <table class="trace-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>t (ms)</th>
+                  <th>Fluxo</th>
+                  <th>Evento</th>
+                  <th>Valor</th>
+                </tr>
+              </thead>
+              <tbody id="traceTableBody">
+                <tr class="trace-empty">
+                  <td colspan="5">Execute a simulação para listar os eventos.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>4) Simulation Log / Output</h2>
+      <div class="actions">
+        <button id="clearLog" class="secondary">Clear log</button>
+        <button id="downloadLog" class="secondary">Download log</button>
+      </div>
+      <pre id="log" class="log"></pre>
+    </section>
+  </main>
+
+  <!-- Monaco (AMD loader) -->
+  <script>
+    window.amdRequire = window.require;
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+
+  <!-- Runtime base + simulador + transformador -->
+  <script>
+    try { window.module = undefined; window.exports = undefined; } catch (e) {}
+  </script>
+
+  <script>
+    var normalizeEntry = function(entry) {
+      try {
+        const seen = new WeakSet();
+        return JSON.parse(JSON.stringify(entry, (k, v) => {
+          if (typeof v === 'function') return `[Function ${v.name||'anonymous'}]`;
+          if (v instanceof Error) return { name: v.name, message: v.message };
+          if (typeof v === 'object' && v !== null) {
+            if (seen.has(v)) return '[Circular]';
+            seen.add(v);
+          }
+          return v;
+        }));
+      } catch (e) {
+        return { error: e && e.message ? e.message : String(e) };
+      }
+    };
+  </script>
+
+  <script src="./sysadl-framework/SysADLBase.js"></script>
+  <script src="./sysadl-framework/SimulationLogger.js"></script>
+  <script>
+    // Debug: Verify SysADLBase loaded
+    console.log('🔍 After SysADLBase load:');
+    console.log('  - typeof window.SysADLBase:', typeof window.SysADLBase);
+    console.log('  - Available:', !!window.SysADLBase);
+    if (window.SysADLBase) {
+      console.log('  - Exports:', Object.keys(window.SysADLBase).length);
+      console.log('  - Has Model:', !!window.SysADLBase.Model);
+      console.log('  - Has Component:', !!window.SysADLBase.Component);
+    } else {
+      console.error('❌ window.SysADLBase NOT LOADED!');
+    }
+    
+    // Debug: Verify SimulationLogger loaded
+    console.log('🔍 After SimulationLogger load:');
+    console.log('  - typeof window.SimulationLogger:', typeof window.SimulationLogger);
+    console.log('  - Available:', !!window.SimulationLogger);
+  </script>
+  <script src="./simulator.js"></script>
+  <script type="module" src="./visualizer.js"></script>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
