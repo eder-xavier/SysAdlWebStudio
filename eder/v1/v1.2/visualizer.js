@@ -822,36 +822,36 @@ function renderVisualization(containerId, generatedCode, logElement) {
           font: { color: '#0f172a', bold: { color: '#0f172a', size: 15 } }
         },
         port_out: {
-          shape: 'dot',
+          shape: 'square',
           color: {
             background: palette.portOut,
             border: '#0b5675',
             highlight: { background: '#38bdf8', border: '#0b5675' },
             hover: { background: '#38bdf8', border: '#0b5675' }
           },
-          size: 12,
+          size: 10,
           borderWidth: 1.5
         },
         port_in: {
-          shape: 'dot',
+          shape: 'square',
           color: {
             background: palette.portIn,
             border: '#c2410c',
             highlight: { background: '#fb923c', border: '#c2410c' },
             hover: { background: '#fb923c', border: '#c2410c' }
           },
-          size: 12,
+          size: 10,
           borderWidth: 1.5
         },
         port_unknown: {
-          shape: 'dot',
+          shape: 'square',
           color: {
             background: palette.portUnknown,
             border: '#64748b',
             highlight: { background: '#94a3b8', border: '#475569' },
             hover: { background: '#94a3b8', border: '#475569' }
           },
-          size: 12,
+          size: 10,
           borderWidth: 1.5
         }
       },
