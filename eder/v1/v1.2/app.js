@@ -749,16 +749,17 @@ function extractAvailablePorts(generatedCode) {
                 constructorEndIndex - 1
               );
               
-              // Pattern: this.addSubPort("portName", new SimplePort("portName", "in/out", { ...{ expectedType: "Type" }, ...}));
-              const subPortPattern = /this\.addSubPort\s*\(\s*"(\w+)"\s*,\s*new\s+SimplePort\s*\([^,]+,\s*"(in|out)"\s*,[^{]*\{\s*\.\.\.\s*\{\s*expectedType:\s*"([^"]+)"/g;
+              // Pattern: this.addSubPort("portName", new SimplePort("portName", "in/out/inout", { ...{ expectedType: "Type" }, ...}));
+              const subPortPattern = /this\.addSubPort\s*\(\s*"(\w+)"\s*,\s*new\s+SimplePort\s*\([^,]+,\s*"(in|out|inout)"\s*,[^{]*\{\s*\.\.\.\s*\{\s*expectedType:\s*"([^"]+)"/g;
               let subPortMatch;
               subPorts = [];
-              
+
               while ((subPortMatch = subPortPattern.exec(compositeConstructorBody)) !== null) {
                 const [, subPortName, subDirection, subType] = subPortMatch;
+                const mappedDir = subDirection === 'out' ? 'output' : (subDirection === 'inout' ? 'inout' : 'input');
                 subPorts.push({
                   name: subPortName,
-                  direction: subDirection === 'out' ? 'output' : 'input',
+                  direction: mappedDir,
                   type: subType
                 });
               }
@@ -776,11 +777,12 @@ function extractAvailablePorts(generatedCode) {
           //   constructor(name, opts = {}) {
           //     super(name, "in", { ...{ expectedType: "Real" }, ...opts });
           // Need to match across newlines and handle nested braces
-          const portClassPattern = new RegExp(`class\\s+${portFullClassName}\\s+extends\\s+SimplePort\\s*\\{[\\s\\S]*?constructor[\\s\\S]*?\\{[\\s\\S]*?super\\s*\\([^,]+,\\s*"(in|out)"[\\s\\S]*?expectedType:\\s*"([^"]+)"`, 'm');
+          const portClassPattern = new RegExp(`class\\s+${portFullClassName}\\s+extends\\s+SimplePort\\s*\\{[\\s\\S]*?constructor[\\s\\S]*?\\{[\\s\\S]*?super\\s*\\([^,]+,\\s*"(in|out|inout)"[\\s\\S]*?expectedType:\\s*"([^"]+)"`, 'm');
           const portClassMatch = portClassPattern.exec(generatedCode);
-          
+
           if (portClassMatch) {
-            direction = portClassMatch[1] === 'out' ? 'output' : 'input';
+            const rawDir = portClassMatch[1];
+            direction = rawDir === 'out' ? 'output' : (rawDir === 'inout' ? 'inout' : 'input');
             dataType = portClassMatch[2];
             console.log(`✓ Found port class ${portFullClassName}: direction=${direction}, type=${dataType}`);
           } else {
@@ -824,9 +826,25 @@ function extractAvailablePorts(generatedCode) {
         });
       }
     }
-    
-    console.log('Extracted ports:', availablePorts);
-    return availablePorts;
+
+    // Filter ports: keep only output or inout ports (for simple ports),
+    // and for composite ports keep only sub-ports that are output or inout.
+    const filteredPorts = [];
+    for (const p of availablePorts) {
+      if (p.subPorts && Array.isArray(p.subPorts)) {
+        const kept = p.subPorts.filter(sp => sp.direction === 'output' || sp.direction === 'inout');
+        if (kept.length > 0) {
+          const copy = Object.assign({}, p);
+          copy.subPorts = kept;
+          filteredPorts.push(copy);
+        }
+      } else {
+        if (p.direction === 'output' || p.direction === 'inout') filteredPorts.push(p);
+      }
+    }
+
+    console.log('Extracted ports (filtered):', filteredPorts);
+    return filteredPorts;
     
   } catch (error) {
     console.error('Error extracting available ports:', error);
