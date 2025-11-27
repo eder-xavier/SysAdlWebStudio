@@ -105,12 +105,12 @@
         <aside class="trace-panel" aria-live="polite">
           <div class="trace-panel-header">
             <div>
-              <div class="trace-panel-title">Eventos do trace</div>
-              <div id="traceEventCount" class="trace-panel-count">Nenhum evento</div>
+              <div class="trace-panel-title">Trace events</div>
+              <div id="traceEventCount" class="trace-panel-count">No events</div>
             </div>
             <label class="trace-speed">
-              <span>Velocidade</span>
-              <select id="traceSpeed" aria-label="Velocidade da animação">
+              <span>Speed</span>
+              <select id="traceSpeed" aria-label="Tracing Speed">
                 <option value="0.5">0.5×</option>
                 <option value="0.75">0.75×</option>
                 <option value="1" selected>1×</option>
@@ -126,14 +126,14 @@
                 <tr>
                   <th>#</th>
                   <th>t (ms)</th>
-                  <th>Fluxo</th>
-                  <th>Evento</th>
-                  <th>Valor</th>
+                  <th>Flow</th>
+                  <th>Event</th>
+                  <th>Value</th>
                 </tr>
               </thead>
               <tbody id="traceTableBody">
                 <tr class="trace-empty">
-                  <td colspan="5">Execute a simulação para listar os eventos.</td>
+                  <td colspan="5">Run Simulation to list Events</td>
                 </tr>
               </tbody>
             </table>

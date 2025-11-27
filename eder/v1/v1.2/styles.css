@@ -390,7 +390,8 @@ button.secondary:hover {
 }
 
 .trace-table thead {
-  background: rgba(59, 130, 246, 0.08);
+  /*background: rgba(59, 130, 246, 0.08); */
+  background: rgba(220, 220, 220, 0.695);
   position: sticky;
   top: 0;
   z-index: 1;
