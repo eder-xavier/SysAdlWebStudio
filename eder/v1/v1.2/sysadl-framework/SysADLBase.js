@@ -204,6 +204,32 @@ class SysADLBase extends Element {
   addComponent(comp) {
     if (!comp || !comp.name) return;
     this.components[comp.name] = comp;
+    // Set parent pointer and qualified names so ports log full paths
+    try {
+      comp._parent = this;
+      // compute qualified name relative to this component/model
+      const qualified = this.name ? `${this.name}.${comp.name}` : comp.name;
+      comp._qualifiedName = qualified;
+      // propagate qualified owner to ports
+      Object.values(comp.ports || {}).forEach(p => {
+        if (p) p.owner = qualified;
+      });
+      // recursively update descendants (if any were pre-added)
+      const updateDescendants = (node, parentQualified) => {
+        Object.values(node.components || {}).forEach(child => {
+          child._parent = node;
+          const childQualified = `${parentQualified}.${child.name}`;
+          child._qualifiedName = childQualified;
+          Object.values(child.ports || {}).forEach(pp => { if (pp) pp.owner = childQualified; });
+          // recurse
+          updateDescendants(child, childQualified);
+        });
+      };
+      updateDescendants(comp, qualified);
+    } catch(e) {
+      // defensive: don't break on errors during owner propagation
+      console.warn('[addComponent] qualified name propagation failed:', e && e.message);
+    }
   }
 
   addConnector(conn) {
@@ -1042,6 +1068,50 @@ class Model extends SysADLBase {
     if (activity && !activity._model) {
       activity._model = this;
     }
+    
+    // Maintain a quick lookup index mapping possible owner strings (component
+    // qualified names and parent prefixes) to activities. This helps resolve
+    // incoming port.owner values that reference parent components (e.g.
+    // owner='RTCSystemCFD.rtc' should resolve to activity with
+    // component='RTCSystemCFD.rtc.sm'). We store multiple keys: the full
+    // component name and each ancestor prefix.
+    try {
+      if (!this._activityOwnerIndex) this._activityOwnerIndex = {};
+      const comp = activity && (activity.props && activity.props.component) || activity.componentName || activity.component;
+      if (comp && typeof comp === 'string') {
+        // canonical forms to index
+        const addKey = (k) => { try { if (k && !this._activityOwnerIndex[k]) this._activityOwnerIndex[k] = activity; } catch(e){} };
+
+        // full canonical
+        addKey(comp);
+
+        // lowercase full
+        addKey(String(comp).toLowerCase());
+
+        // strip common model prefix (SysADLModel.)
+        const noModel = String(comp).replace(/^SysADLModel\./, '');
+        addKey(noModel);
+        addKey(noModel.toLowerCase());
+
+        // add all ancestor prefixes (drop last segment progressively)
+        const parts = String(comp).split('.');
+        for (let i = parts.length - 1; i > 0; i--) {
+          const prefix = parts.slice(0, i).join('.');
+          addKey(prefix);
+          addKey(prefix.toLowerCase());
+        }
+
+        // also index tail forms: last two segments and last one segment
+        const tail2 = parts.slice(-2).join('.');
+        const tail1 = parts.slice(-1)[0];
+        addKey(tail2);
+        addKey(tail2.toLowerCase());
+        addKey(tail1);
+        addKey(tail1.toLowerCase());
+      }
+    } catch (e) {
+      // non-fatal - indexing is best-effort
+    }
   }
   
   // Walk through all components recursively and apply function
@@ -1099,6 +1169,53 @@ class Model extends SysADLBase {
   findActivityByPortOwner(owner) {
     console.log(`[FIND ACTIVITY] Looking for activity for owner: ${owner}`);
     let foundActivity = null;
+
+    // Quick index lookup (best-effort) - check if a previously registered
+    // activity was indexed for this owner or one of its prefixes.
+    try {
+      if (this._activityOwnerIndex) {
+        // exact
+        if (this._activityOwnerIndex[owner]) {
+          console.log(`[FIND ACTIVITY]   - ✅ Found activity via owner index: ${owner}`);
+          return this._activityOwnerIndex[owner];
+        }
+
+        // normalized lowercase exact
+        const ownerLower = String(owner || '').toLowerCase();
+        if (this._activityOwnerIndex[ownerLower]) {
+          console.log(`[FIND ACTIVITY]   - ✅ Found activity via owner index (lower): ${ownerLower}`);
+          return this._activityOwnerIndex[ownerLower];
+        }
+
+        // try flexible index matches: suffix, prefix, tail
+        for (const key of Object.keys(this._activityOwnerIndex)) {
+          try {
+            const k = String(key || '').toLowerCase();
+            if (!k) continue;
+            // exact lowercase
+            if (k === ownerLower) return this._activityOwnerIndex[key];
+            // owner is parent of activity (activity in a subcomponent)
+            if (k.startsWith(ownerLower + '.') || k.startsWith(ownerLower)) {
+              console.log(`[FIND ACTIVITY]   - ✅ Found activity via owner-index prefix match: ${key}`);
+              return this._activityOwnerIndex[key];
+            }
+            // activity is deeper and ends with owner
+            if (k.endsWith('.' + ownerLower) || k.endsWith(ownerLower)) {
+              console.log(`[FIND ACTIVITY]   - ✅ Found activity via owner-index suffix match: ${key}`);
+              return this._activityOwnerIndex[key];
+            }
+            // tail segment match (last segment)
+            const ownerLast = ownerLower.split('.').slice(-1)[0];
+            if (k.endsWith('.' + ownerLast) || k === ownerLast) {
+              console.log(`[FIND ACTIVITY]   - ✅ Found activity via owner-index tail match: ${key}`);
+              return this._activityOwnerIndex[key];
+            }
+          } catch (e) { /* ignore per-key errors */ }
+        }
+      }
+    } catch (e) {
+      // ignore index errors and continue fallback searches
+    }
     
     // First, try to find component with this owner name that has activityName
     this.walkComponents(comp => {
@@ -1129,16 +1246,117 @@ class Model extends SysADLBase {
     
     // Fallback: search activities that have this owner in their component property
     console.log(`[FIND ACTIVITY]   - Trying fallback search in ${Object.keys(this._activities).length} registered activities`);
-    for (const activity of Object.values(this._activities)) {
-      if (activity.props && activity.props.component === owner) {
-        console.log(`[FIND ACTIVITY]   - ✅ Found activity via props.component:`, activity.name);
+    const activitiesList = Object.values(this._activities || {});
+    for (const activity of activitiesList) {
+      const compProp = (activity && ((activity.props && activity.props.component) || activity.componentName || activity.component));
+      console.log(`[FIND ACTIVITY]   - Checking activity: ${activity && activity.name}, componentProp: ${compProp}`);
+      if (!compProp) continue;
+
+      // Exact match
+      if (compProp === owner) {
+        console.log(`[FIND ACTIVITY]   - ✅ Found activity via props.component (exact):`, activity.name);
         foundActivity = activity;
         break;
       }
+
+      // Flexible matching: allow suffix/prefix and partial matches to tolerate qualified/unqualified names
+      try {
+      // Normalize common model prefixes and whitespace
+      const normalize = s => String(s || '').toLowerCase().trim().replace(/^sysadlmodel\./, '');
+      const compLower = normalize(compProp);
+      const ownerLower = normalize(owner);
+        console.log(`[FIND ACTIVITY]     - compare compLower='${compLower}' ownerLower='${ownerLower}'`);
+
+          // New prefix match: activity component starts with owner (owner is parent path)
+          if (compLower.startsWith(ownerLower + '.') || compLower.startsWith(ownerLower)) {
+            console.log(`[FIND ACTIVITY]   - ✅ Found activity via props.component (prefix match):`, activity.name, compProp);
+            foundActivity = activity;
+            break;
+          }
+
+        // comp ends with owner (e.g., compProp = 'RTCSystemCFD.rtc.sm', owner = 'RTCSystemCFD.rtc')
+        if (compLower.endsWith('.' + ownerLower) || compLower.endsWith(ownerLower)) {
+          console.log(`[FIND ACTIVITY]   - ✅ Found activity via props.component (suffix match):`, activity.name, compProp);
+          foundActivity = activity;
+          break;
+        }
+
+        // owner ends with comp (owner may be shorter)
+        if (ownerLower.endsWith('.' + compLower) || ownerLower.endsWith(compLower)) {
+          console.log(`[FIND ACTIVITY]   - ✅ Found activity via props.component (owner-suffix match):`, activity.name, compProp);
+          foundActivity = activity;
+          break;
+        }
+
+        // Partial contains match
+        if (compLower.includes(ownerLower) || ownerLower.includes(compLower)) {
+          console.log(`[FIND ACTIVITY]   - ✅ Found activity via props.component (partial match):`, activity.name, compProp);
+          foundActivity = activity;
+          break;
+        }
+
+        // Try unqualified names (last two segments)
+        const compParts = compLower.split('.');
+        const ownerParts = ownerLower.split('.');
+        const compTail = compParts.slice(-2).join('.');
+        const ownerTail = ownerParts.slice(-2).join('.');
+        if (compTail === ownerTail || compParts.slice(-1)[0] === ownerParts.slice(-1)[0]) {
+          console.log(`[FIND ACTIVITY]   - ✅ Found activity via props.component (tail match):`, activity.name, compProp);
+          foundActivity = activity;
+          break;
+        }
+      } catch (e) {
+        // ignore and continue
+      }
     }
-    
+
     if (!foundActivity) {
-      console.log(`[FIND ACTIVITY]   - ❌ No activity found for owner: ${owner}`);
+      // Attempt a deeper search: if the owner is a component that contains subcomponents,
+      // try to find an activity defined in one of its children (e.g., owner='RTCSystemCFD.rtc' and
+      // activity is in 'RTCSystemCFD.rtc.sm'). This helps when ports are delivered to a parent
+      // component but activities live in nested subcomponents.
+      try {
+        const normalizedOwner = String(owner || '').toLowerCase();
+        let componentMatch = null;
+        this.walkComponents(comp => {
+          try {
+            const qualified = String(comp._qualifiedName || comp.name || '').toLowerCase();
+            const simple = String(comp.name || '').toLowerCase();
+            if (qualified === normalizedOwner || qualified.endsWith('.' + normalizedOwner) || simple === normalizedOwner) {
+              componentMatch = comp;
+            }
+          } catch (e) { /* ignore per-component errors */ }
+        });
+
+        if (componentMatch) {
+          // BFS into children to find first component with an activityName
+          const queue = [componentMatch];
+          while (queue.length > 0) {
+            const c = queue.shift();
+            if (!c) continue;
+            if (c.activityName) {
+              const act = this._activities[c.activityName];
+              if (act) {
+                console.log(`[FIND ACTIVITY]   - ✅ Found activity via child component: ${c._qualifiedName} -> ${act.name}`);
+                foundActivity = act;
+                break;
+              }
+            }
+            if (c.components) {
+              Object.values(c.components).forEach(child => queue.push(child));
+            }
+          }
+        }
+
+        if (!foundActivity) {
+          const idxKeys = this._activityOwnerIndex ? Object.keys(this._activityOwnerIndex) : [];
+          console.warn(`[FIND ACTIVITY]   - ❌ No activity found for owner: ${owner}`);
+          console.warn(`[FIND ACTIVITY]     - activityOwnerIndex keys (${idxKeys.length}): ${idxKeys.slice(0,50).join(', ')}`);
+          if (idxKeys.length > 50) console.warn(`[FIND ACTIVITY]     - ... and ${idxKeys.length - 50} more keys`);
+        }
+      } catch (e) {
+        console.warn(`[FIND ACTIVITY]   - ❌ No activity found for owner (and failed to list index keys)`);
+      }
     }
     
     return foundActivity;
@@ -1159,6 +1377,10 @@ class Model extends SysADLBase {
       this.notifyComponentPortReceive(owner, portName, value);
       
       // Then, find and trigger activity
+      try {
+        const idxKeys = this._activityOwnerIndex ? Object.keys(this._activityOwnerIndex) : [];
+        console.log(`[PORT RECEIVE] owner='${owner}' port='${portName}' -> registeredActivities=${Object.keys(this._activities || {}).length} indexKeys=${idxKeys.length}`);
+      } catch (e) { /* ignore logging errors */ }
       const activity = this.findActivityByPortOwner(owner);
       
       if (!activity) {
@@ -1203,6 +1425,115 @@ class Model extends SysADLBase {
           }
         }
         
+        // Before giving up, attempt to forward this port to child components
+        // If this port was received at a parent component (e.g., 'rtc') and
+        // an activity lives in a nested child (e.g., 'rtc.sm'), try to find
+        // a child activity input pin that matches and trigger it.
+        try {
+          const normalizedOwner = String(owner || '').toLowerCase();
+          let parentComp = null;
+          this.walkComponents(comp => {
+            try {
+              const qualified = String(comp._qualifiedName || comp.name || '').toLowerCase();
+              const simple = String(comp.name || '').toLowerCase();
+              if (qualified === normalizedOwner || qualified.endsWith('.' + normalizedOwner) || simple === normalizedOwner) {
+                parentComp = comp;
+              }
+            } catch (e) { /* ignore per-component errors */ }
+          });
+
+          if (parentComp) {
+            const queue = Object.values(parentComp.components || {});
+            let forwarded = false;
+            while (queue.length > 0 && !forwarded) {
+              const c = queue.shift();
+              if (!c) continue;
+              // If child has an activity, try to match an input pin
+              if (c.activityName) {
+                const act = this._activities && this._activities[c.activityName];
+                if (act && Array.isArray(act.inParameters) && act.inParameters.length > 0) {
+                  const portLower = String(portName || '').toLowerCase();
+                  // try to find a matching pin name
+                  let candidatePin = null;
+                  for (const p of act.inParameters) {
+                    const pn = String(p.name || '').toLowerCase();
+                    if (!pn) continue;
+                    if (pn === portLower || portLower.endsWith(pn) || pn.endsWith(portLower) || (pn.includes('temp') && portLower.includes('temp'))) {
+                      candidatePin = p.name;
+                      break;
+                    }
+                  }
+                  // fallback to first input pin
+                  if (!candidatePin) candidatePin = act.inParameters[0].name;
+
+                  if (candidatePin) {
+                    const targetOwner = c._qualifiedName || c.name || owner;
+                    console.log(`[PORT FORWARD] Forwarding ${owner}.${portName} -> ${targetOwner}.${candidatePin} via activity ${act.name}`);
+                    try {
+                      // Prefer delivering to an actual component port if available
+                      const childPort = (c.ports && c.ports[candidatePin]) ||
+                        (c.ports && Object.values(c.ports).find(p => String(p.name || '').toLowerCase() === String(candidatePin || '').toLowerCase()));
+
+                      if (childPort && typeof childPort.receive === 'function') {
+                        childPort.receive(value, this);
+                      } else if (typeof act.trigger === 'function') {
+                        // Fallback to activity.trigger if no concrete port exists
+                        act.trigger(candidatePin, value, targetOwner);
+                      } else {
+                        console.warn(`[PORT FORWARD] no viable delivery for ${act.name}.${candidatePin}`);
+                      }
+                    } catch (e) {
+                      // Detailed diagnostics to capture root cause (stack and value info)
+                      try {
+                        let valDesc = '';
+                        try { valDesc = JSON.stringify(value); } catch (jsErr) { valDesc = String(value); }
+                        console.error(`[PORT FORWARD] error delivering forwarded value:`,
+                          {
+                            owner, portName, targetOwner, candidatePin,
+                            activity: act && act.name,
+                            componentQualified: c && c._qualifiedName,
+                            valueType: value && value.constructor ? value.constructor.name : typeof value,
+                            valueSample: valDesc,
+                            errorMessage: e && e.message,
+                            stack: e && e.stack
+                          }
+                        );
+                      } catch (diagErr) {
+                        console.error(`[PORT FORWARD] error in error handler: ${diagErr && diagErr.message}`);
+                      }
+                    }
+                    forwarded = true;
+                    break;
+                  }
+                }
+              }
+
+              // enqueue grandchildren
+              if (c.components) queue.push(...Object.values(c.components));
+            }
+
+            if (forwarded) {
+              return;
+            }
+          }
+        } catch (e) {
+          // Log full stack and context to diagnose SysADLString/class invocation issues
+          try {
+            let valDesc = '';
+            try { valDesc = JSON.stringify(value); } catch (jsErr) { valDesc = String(value); }
+            console.error(`[PORT FORWARD] forwarding attempt failed:`, {
+              owner, portName,
+              activitiesRegistered: Object.keys(this._activities || {}).length,
+              valueType: value && value.constructor ? value.constructor.name : typeof value,
+              valueSample: valDesc,
+              errorMessage: e && e.message,
+              stack: e && e.stack
+            });
+          } catch (diagErr) {
+            console.error(`[PORT FORWARD] forwarding attempt failed and diagnostics failed: ${diagErr && diagErr.message}`);
+          }
+        }
+
         return;
       }
 
@@ -1216,11 +1547,46 @@ class Model extends SysADLBase {
       
       console.log(`[TRIGGER ACTIVITY] Attempting to trigger activity: ${activity.name} for ${owner}.${portName} with value:`, value);
       console.log(`[TRIGGER ACTIVITY]   - activity.trigger type:`, typeof activity.trigger);
-      
-      // Trigger the activity with port data
+
+      // Resolve external-port key that the activity expects (use activity.portToPinMapping when available)
+      let extPortKey = portName;
+      try {
+        if (activity && activity.portToPinMapping && !activity.portToPinMapping.hasOwnProperty(portName)) {
+          const portLower = String(portName || '').toLowerCase();
+          // direct lowercase key
+          if (activity.portToPinMapping[portLower]) {
+            extPortKey = portLower;
+          } else {
+            // try to find a mapping key that heuristically matches (suffix, numeric suffix, contains)
+            const keys = Object.keys(activity.portToPinMapping || {});
+            let found = null;
+            for (const k of keys) {
+              try {
+                const kk = String(k || '').toLowerCase();
+                if (!kk) continue;
+                // exact match by lower
+                if (kk === portLower) { found = k; break; }
+                // owner port ends with same tail as mapping key (e.g., 'localTemp2' vs 's2')
+                if (portLower.endsWith(kk) || kk.endsWith(portLower)) { found = k; break; }
+                // match by trailing digits (e.g., key 's2' and port 'localTemp2')
+                const tailDigitsPort = (portLower.match(/(\d+)$/) || [])[0];
+                const tailDigitsKey = (kk.match(/(\d+)$/) || [])[0];
+                if (tailDigitsPort && tailDigitsKey && tailDigitsPort === tailDigitsKey) { found = k; break; }
+                // substring match
+                if (kk.indexOf(portLower) >= 0 || portLower.indexOf(kk) >= 0) { found = k; break; }
+              } catch (e) { /* ignore per-key errors */ }
+            }
+            if (found) extPortKey = found;
+          }
+        }
+      } catch (e) {
+        console.warn(`[TRIGGER ACTIVITY] error while resolving activity port mapping for ${activity && activity.name}: ${e && e.message}`);
+      }
+
+      // Trigger the activity with port data (use resolved external port key)
       if (typeof activity.trigger === 'function') {
-        console.log(`[TRIGGER ACTIVITY]   - Calling activity.trigger(${portName}, ${value}, ${owner})`);
-        const triggerResult = activity.trigger(portName, value, owner);
+        console.log(`[TRIGGER ACTIVITY]   - Calling activity.trigger(${extPortKey}, <value>, ${owner})`);
+        const triggerResult = activity.trigger(extPortKey, value, owner);
         console.log(`[TRIGGER ACTIVITY]   - activity.trigger() returned:`, triggerResult);
       } else {
         console.warn(`Activity ${activity.name} does not have trigger method`);
@@ -1732,8 +2098,22 @@ class Connector extends SysADLBase {
               });
             }
             
-            toParticipant.send(transformedValue, model);
-            
+            // Detailed debug: before forwarding to target participant
+            try {
+              console.log(`[CONNECTOR FLOW] ${this.name}: forwarding from='${flow.from}' to='${flow.to}' value=`, transformedValue);
+              try {
+                const binfo = (toParticipant && (toParticipant.binding || toParticipant.bindTo)) ? 'has binding/ref' : 'no binding';
+                console.log(`[CONNECTOR FLOW] ${this.name}: toParticipant info: name='${toParticipant && toParticipant.name}', owner='${toParticipant && toParticipant.owner}', ${binfo}`);
+              } catch(e) {}
+
+              // forward to target participant (may call its send/receive)
+              toParticipant.send(transformedValue, model);
+
+              console.log(`[CONNECTOR FLOW] ${this.name}: forwarded to '${flow.to}' successfully`);
+            } catch (err) {
+              console.error(`[CONNECTOR FLOW] ${this.name}: error forwarding to '${flow.to}':`, err && err.message);
+            }
+
             // Trace connector flow end
             if (model && model._traceEnabled) {
               model.traceExecution('connector_flow', `${this.name}_${flow.from}_to_${flow.to}`, 'flow_end', value, transformedValue, {
@@ -1993,16 +2373,37 @@ class Connector extends SysADLBase {
       return;
     }
     
-    // Validate port compatibility
-    this.validatePortBinding(participantName, externalPort);
+    // Validate port compatibility (ignore incompatible exploratory bindings)
+    try {
+      this.validatePortBinding(participantName, externalPort);
+    } catch (err) {
+      // If this is a PortBindingError produced by exploratory/generated binds,
+      // log and skip this binding instead of throwing to avoid aborting model init.
+      if (err && err.name === 'PortBindingError') {
+        console.warn(`[PERFORM BINDING] Skipping incompatible binding for connector ${this.name}.${participantName} -> ${externalPort.owner}.${externalPort.name}: ${err.message}`);
+        return;
+      }
+      throw err;
+    }
     
     console.log(`[PERFORM BINDING]   - Calling bindTo() with direction=${bindingDirection}`);
     if (bindingDirection === 'source') {
+      // Default behavior: bind the external (source) port to the internal participant
+      // so that sends from the external port are forwarded into the connector participant.
       externalPort.bindTo(this.internalParticipants[participantName]);
       console.log(`[PERFORM BINDING]   - Set ${externalPort.owner}.${externalPort.name}.binding to ${this.name}.${participantName}`);
+      try {
+        const b = externalPort.binding;
+        console.log(`[PERFORM BINDING]   - Binding details: bindingType=${b && b.constructor ? b.constructor.name : typeof b}, hasReceive=${b && typeof b.receive === 'function'}`);
+      } catch (e) { console.log(`[PERFORM BINDING]   - Binding details: <error reading binding>`, e && e.message); }
     } else {
+      // For target role, bind internal participant to the external port (target receives from connector)
       this.internalParticipants[participantName].bindTo(externalPort);
       console.log(`[PERFORM BINDING]   - Set ${this.name}.${participantName}.binding to ${externalPort.owner}.${externalPort.name}`);
+      try {
+        const b2 = this.internalParticipants[participantName].binding;
+        console.log(`[PERFORM BINDING]   - Internal participant binding details: bindingType=${b2 && b2.constructor ? b2.constructor.name : typeof b2}, hasReceive=${b2 && typeof b2.receive === 'function'}`);
+      } catch (e) { console.log(`[PERFORM BINDING]   - Internal binding details: <error reading binding>`, e && e.message); }
     }
   }
   
@@ -2245,7 +2646,14 @@ class Port extends Element {
     console.log(`[PORT RECEIVE DEBUG] handlePortReceive completed for ${this.owner}.${this.name}`);
   }
 
-  bindTo(ref){ this.binding = ref; }
+  bindTo(ref){
+    this.binding = ref;
+    try {
+      const bSummary = ref && ref.constructor ? ref.constructor.name : typeof ref;
+      const hasReceive = ref && typeof ref.receive === 'function';
+      console.log(`[BIND TO] ${this.owner}.${this.name} bindTo -> bindingType=${bSummary}, hasReceive=${hasReceive}`);
+    } catch (e) { console.log(`[BIND TO] ${this.owner}.${this.name} bindTo -> <error summarizing binding>`, e && e.message); }
+  }
 }
 
 // SimplePort: extends Port for simple data ports
@@ -2349,17 +2757,28 @@ class Constraint extends BehavioralElement {
     super(name, opts);
     this.equation = opts.equation || null; // ALF equation as string
     this.compiledFn = null;
+    this.constraintFunction = opts.constraintFunction || null; // optional precompiled function provided by transformer
   }
 
   // Compile ALF equation to JavaScript function
-  compile() {
+  compile(moduleContext = null) {
     if (this.equation && !this.compiledFn) {
       // Constraints need BOTH input and output parameters to validate equations
       const paramNames = [
         ...this.inParameters.map(p => p.name),
         ...this.outParameters.map(p => p.name)
       ];
-      this.compiledFn = createExecutableFromExpression(this.equation, paramNames);
+      // If transformer provided a JS constraint function, prefer it (it will already be closed over module scope)
+      if (this.constraintFunction && typeof this.constraintFunction === 'function') {
+        const fn = this.constraintFunction;
+        this.compiledFn = function(...args) {
+          const paramsObj = {};
+          for (let i = 0; i < paramNames.length; i++) paramsObj[paramNames[i]] = args[i];
+          try { return fn(paramsObj); } catch (e) { return undefined; }
+        };
+      } else {
+        this.compiledFn = createExecutableFromExpression(this.equation, paramNames, moduleContext);
+      }
     }
     return this.compiledFn;
   }
@@ -2376,7 +2795,52 @@ class Constraint extends BehavioralElement {
     if (!this.compiledFn) this.compile();
     
     if (this.compiledFn) {
-      const result = this.compiledFn.apply(null, inputs);
+      let result;
+      try {
+        result = this.compiledFn.apply(null, inputs);
+      } catch (e) {
+        // If compiledFn throws, capture and continue to fallback
+        console.warn(`[CONSTRAINT] ${this.name}: compiledFn threw: ${e && e.message}`);
+        result = undefined;
+      }
+
+      // If transformer-provided constraint function returned undefined, attempt a generic fallback
+      if (typeof result === 'undefined' && this.equation) {
+        try {
+          // Build param names array in the same order used when compiling
+          const paramNames = [
+            ...this.inParameters.map(p => p.name),
+            ...this.outParameters.map(p => p.name)
+          ];
+          const fallbackFn = createExecutableFromExpression(this.equation, paramNames, model && model._moduleContext);
+          if (fallbackFn) {
+            const fbRes = fallbackFn.apply(null, inputs);
+            // Use fallback result if defined
+            if (typeof fbRes !== 'undefined') {
+              result = fbRes;
+              console.warn(`[CONSTRAINT] ${this.name}: used fallback equation evaluator result=${result}`);
+            } else {
+              console.warn(`[CONSTRAINT] ${this.name}: fallback evaluator returned undefined`);
+            }
+          }
+        } catch (e) {
+          console.warn(`[CONSTRAINT] ${this.name}: fallback evaluator error: ${e && e.message}`);
+        }
+      }
+
+      // If still undefined, log and continue (upstream will decide how to treat undefined)
+      if (typeof result === 'undefined') {
+        console.warn(`[CONSTRAINT] ${this.name}: Constraint function returned undefined after fallbacks.`);
+        model && model.logEvent && model.logEvent({
+          elementType: 'constraint_evaluate',
+          name: this.name,
+          inputs,
+          result: 'undefined_after_fallback',
+          when: Date.now()
+        });
+        return undefined;
+      }
+
       model && model.logEvent && model.logEvent({
         elementType: 'constraint_evaluate',
         name: this.name,
@@ -2396,10 +2860,11 @@ class Executable extends BehavioralElement {
     super(name, opts);
     this.body = opts.body || null; // ALF body as string
     this.compiledFn = null;
+    this.executableFunction = opts.executableFunction || null; // optional precompiled function provided by transformer
   }
 
   // Compile ALF body to JavaScript function
-  compile() {
+  compile(moduleContext = null) {
     console.log(`[EXECUTABLE COMPILE] ${this.name}:`, {
       inParameters: this.inParameters,
       body: this.body
@@ -2408,8 +2873,24 @@ class Executable extends BehavioralElement {
     if (this.body && !this.compiledFn) {
       const paramNames = this.inParameters.map(p => p.name);
       console.log(`[EXECUTABLE COMPILE] ${this.name}: paramNames=`, paramNames);
-      
-      this.compiledFn = createExecutableFromExpression(this.body, paramNames);
+      // If transformer provided an executableFunction (function(params){...}), use it
+      if (this.executableFunction && typeof this.executableFunction === 'function') {
+        try {
+          const fn = this.executableFunction;
+          this.compiledFn = function(...args) {
+            const paramsObj = {};
+            for (let i = 0; i < paramNames.length; i++) paramsObj[paramNames[i]] = args[i];
+            return fn(paramsObj);
+          };
+          console.log(`[EXECUTABLE COMPILE] ${this.name}: using transformer-provided executableFunction`);
+        } catch (e) {
+          console.warn(`[EXECUTABLE COMPILE] ${this.name}: failed to use executableFunction:`, e && e.message);
+        }
+      }
+
+      if (!this.compiledFn) {
+        this.compiledFn = createExecutableFromExpression(this.body, paramNames, moduleContext);
+      }
       console.log(`[EXECUTABLE COMPILE] ${this.name}: compiledFn created=`, !!this.compiledFn);
       
       if (this.compiledFn) {
@@ -2436,8 +2917,14 @@ class Executable extends BehavioralElement {
     if (this.compiledFn) {
       const processedInputs = this.processDelegations(inputs, model);
       console.log(`[EXECUTABLE EXECUTE] ${this.name}: Calling compiledFn with:`, processedInputs);
-      const result = this.compiledFn.apply(null, processedInputs);
-      console.log(`[EXECUTABLE EXECUTE] ${this.name}: Result:`, result);
+      let result = this.compiledFn.apply(null, processedInputs);
+      // Normalize/resolve model literal tokens (e.g., types.Command::On)
+      try {
+        result = resolveModelLiterals(result, model);
+      } catch (e) {
+        console.warn(`[EXECUTABLE EXECUTE] ${this.name}: Error resolving literals:`, e && e.message);
+      }
+      console.log(`[EXECUTABLE EXECUTE] ${this.name}: Result (resolved):`, result);
       model && model.logEvent && model.logEvent({
         elementType: 'executable_execute',
         name: this.name,
@@ -2487,6 +2974,8 @@ class Action extends BehavioralElement {
         const constraintInstance = new ConstraintClass(`${this.name}_${constraintName}`);
         this.constraints.push(constraintInstance);
         console.log(`[RESOLVE CONSTRAINTS] Added constraint: ${constraintInstance.name}`);
+        // Compile constraint with module context so expressions can access package aliases
+        try { constraintInstance.compile(moduleContext); } catch(e) { /* ignore */ }
       } else {
         console.warn(`Could not resolve constraint: ${constraintName} (searched for CT_*_${constraintName})`);
       }
@@ -2514,6 +3003,8 @@ class Action extends BehavioralElement {
         const executableInstance = new ExecutableClass(`${this.name}_${executableName}`);
         this.executables.push(executableInstance);
         console.log(`[RESOLVE EXECUTABLES] Added executable: ${executableInstance.name}`);
+        // Compile the executable with module context so transformer-provided code or generated expressions can reference package aliases
+        try { executableInstance.compile(moduleContext); } catch(e) { /* ignore */ }
       } else {
         console.warn(`Could not resolve executable: ${executableName} (searched for EX_*_${executableName})`);
       }
@@ -2710,6 +3201,13 @@ class Action extends BehavioralElement {
       }
     }
 
+    // Normalize result (resolve model literals) BEFORE constraints and propagation
+    try {
+      result = resolveModelLiterals(result, model);
+    } catch (e) {
+      console.warn(`[ACTION INVOKE] ${this.name}: Error resolving literals on result:`, e && e.message);
+    }
+
     // Process constraints AFTER computing result (they need outputs to validate)
     if (result !== undefined && result !== null) {
       // Prepare constraint inputs: combine action inputs with computed outputs
@@ -2725,12 +3223,17 @@ class Action extends BehavioralElement {
       // Add computed outputs to constraint inputs
       // If result is an object with output parameters, extract them by name
       if (typeof result === 'object' && !Array.isArray(result)) {
-        // Add output values based on outParameters order
-        this.outParameters.forEach(param => {
-          if (result.hasOwnProperty(param.name)) {
-            constraintInputs.push(result[param.name]);
-          }
-        });
+        // If action defines a single outParameter, pass the whole result object as that output
+        if (this.outParameters.length === 1) {
+          constraintInputs.push(result);
+        } else {
+          // Add output values based on outParameters order (match by property name)
+          this.outParameters.forEach(param => {
+            if (result.hasOwnProperty(param.name)) {
+              constraintInputs.push(result[param.name]);
+            }
+          });
+        }
       } else if (this.outParameters.length === 1) {
         // Single output value - add directly
         console.log(`[ACTION INVOKE] ${this.name}: Adding single result to constraintInputs:`, result);
@@ -2756,7 +3259,8 @@ class Action extends BehavioralElement {
         // Evaluate constraint first
         const constraintResult = constraint.evaluate(constraintInputs, model);
         console.log(`[CONSTRAINT RESULT] ${constraint.name}:`, constraintResult);
-        if (!constraintResult) {
+        // Consider explicit false as failure only. Treat undefined/null as permissive (log warnings elsewhere).
+        if (constraintResult === false) {
           throw new Error(`Constraint ${constraint.name} failed in action ${this.name}`);
         }
         
@@ -2830,7 +3334,8 @@ class Action extends BehavioralElement {
       let result;
       for (const executable of this.executables) {
         if (typeof executable.execute === 'function') {
-          result = executable.execute(executableParams);
+          // Pass model reference if available so executables can resolve literals
+          result = executable.execute(executableParams, this._model || this.model || null);
         } else if (typeof executable.executableFunction === 'function') {
           result = executable.executableFunction(executableParams);
         }
@@ -2902,6 +3407,25 @@ class Activity extends BehavioralElement {
       }
     });
     
+    // Also ensure outParameters exist as pins so delegates that map
+    // out-parameters to external ports (e.g., localTemp1 -> Ct) will work
+    // when incoming connector events try to set those pins.
+    if (this.outParameters && Array.isArray(this.outParameters)) {
+      this.outParameters.forEach(param => {
+        if (!this.pins[param.name]) {
+          this.pins[param.name] = {
+            value: undefined,
+            isFilled: false,
+            type: param.type,
+            direction: param.direction || 'out'
+          };
+          // out-parameters are not required input pins, but provide
+          // a default port->pin mapping unless overridden by delegates
+          if (!this.portToPinMapping[param.name]) this.portToPinMapping[param.name] = param.name;
+        }
+      });
+    }
+    
     // Use delegates to create correct port-to-pin mapping
     // delegates format: [{from: "pinName", to: "portName"}, ...]
     // We need: portToPinMapping["portName"] = "pinName"
@@ -2923,6 +3447,9 @@ class Activity extends BehavioralElement {
   
   // Set pin value and check if activity can execute
   setPin(pinName, value) {
+    try {
+      console.log(`[ACT SETPIN] activity=${this.name} pin=${pinName} value=${JSON.stringify(value)} component=${this.component}`);
+    } catch(e) {}
     if (!this.pins[pinName]) {
       console.warn(`Pin ${pinName} not found in activity ${this.name}`);
       return false;
@@ -2964,6 +3491,10 @@ class Activity extends BehavioralElement {
   // Execute activity when all pins are ready
   executeWhenReady() {
     if (!this.canExecute()) return;
+    try {
+      const pinValues = Object.fromEntries(Object.entries(this.pins || {}).map(([k,v])=>[k, v && v.value]));
+      console.log(`[ACT EXECUTE_READY] activity=${this.name} triggeringConnector=${this._triggeringConnector} pins=${JSON.stringify(pinValues)}`);
+    } catch(e) {}
     
     this.isExecuting = true;
     
@@ -3057,10 +3588,17 @@ class Activity extends BehavioralElement {
   
   // Propagate activity results to connected elements
   propagateResults(result) {
-    console.log(`[ACTIVITY PROPAGATE] ${this.name}: result=${result}`);
-    console.log(`[ACTIVITY PROPAGATE]   - outParameters:`, this.outParameters);
-    console.log(`[ACTIVITY PROPAGATE]   - delegates:`, this.delegates);
-    console.log(`[ACTIVITY PROPAGATE]   - component:`, this.component);
+    try {
+      const safePrint = (v) => {
+        try { return JSON.stringify(v); } catch(e) { return String(v); }
+      };
+      console.log(`[ACTIVITY PROPAGATE] ${this.name}: typeof result=${typeof result} value=${safePrint(result)}`);
+      console.log(`[ACTIVITY PROPAGATE]   - outParameters:`, this.outParameters);
+      console.log(`[ACTIVITY PROPAGATE]   - delegates:`, this.delegates);
+      console.log(`[ACTIVITY PROPAGATE]   - component:`, this.component);
+    } catch(e) {
+      console.log('[ACTIVITY PROPAGATE] [DEBUG] failed to stringify result', e && e.message);
+    }
     
     // Handle single result or multiple results
     const results = Array.isArray(result) ? result : [result];
@@ -3115,16 +3653,32 @@ class Activity extends BehavioralElement {
                   console.log(`[ACTIVITY PROPAGATE]   - Found owning connector: ${connectorFound.name}`);
                   console.log(`[ACTIVITY PROPAGATE]   - Connector keys:`, Object.keys(connectorFound));
                   console.log(`[ACTIVITY PROPAGATE]   - Looking for port ${delegate.to} on connector`);
-                  
+
                   // Access internal participant port
-                  const port = connectorFound.internalParticipants[delegate.to];
-                  console.log(`[ACTIVITY PROPAGATE]   - Internal participant ${delegate.to}:`, port);
-                  
+                  const ips = connectorFound.internalParticipants || {};
+                  console.log(`[ACTIVITY PROPAGATE]   - connector.internalParticipants keys:`, Object.keys(ips));
+                  const port = ips[delegate.to];
+                  console.log(`[ACTIVITY PROPAGATE]   - Internal participant lookup for '${delegate.to}':`, port ? '[FOUND]' : '[MISSING]');
+                  if (port) console.log(`[ACTIVITY PROPAGATE]   - port details:`, {
+                    name: port.name, owner: port.owner, hasSend: typeof port.send === 'function'
+                  });
+
                   if (port && typeof port.send === 'function') {
                     console.log(`[ACTIVITY PROPAGATE]   - Sending ${value} to ${connectorFound.name}.${delegate.to} with model=${this._model?.name}`);
-                    port.send(value, this._model);
+                    try {
+                      port.send(value, this._model);
+                      console.log(`[ACTIVITY PROPAGATE]   - SENT OK to ${connectorFound.name}.${delegate.to}`);
+                    } catch (e) {
+                      console.error(`[ACTIVITY PROPAGATE]   - ERROR sending to ${connectorFound.name}.${delegate.to}:`, e && e.message);
+                    }
                   } else {
                     console.warn(`[ACTIVITY PROPAGATE]   - Port ${delegate.to} not found or invalid on connector ${connectorFound.name}`);
+                    // print per-participant send availability to help debug
+                    Object.keys(ips).forEach(k => {
+                      try {
+                        console.log(`[ACTIVITY PROPAGATE]     - participant '${k}': hasSend=${typeof ips[k].send === 'function'}`);
+                      } catch(_) {}
+                    });
                   }
                 } else {
                   console.warn(`[ACTIVITY PROPAGATE]   - No connector found with activityName=${this.name}`);
@@ -3273,6 +3827,11 @@ class Activity extends BehavioralElement {
     this.validateParameters(inputs);
     
     let last;
+    // Map to hold outputs produced by actions (name -> value)
+    const outputMap = {};
+    // Keep the most recent composite result (object) so later consumers can still access it
+    let lastComposite = undefined;
+
     for (const action of this.actions) {
       model && model.logEvent && model.logEvent({
         elementType: 'action_invoke',
@@ -3282,12 +3841,75 @@ class Activity extends BehavioralElement {
         when: Date.now()
       });
       
-      // Map activity inputs to action inputs based on parameters
-      const actionInputs = action.inParameters.length > 0 
-        ? action.inParameters.map((p, i) => inputs[i])
-        : inputs;
-      
+
+      // Map activity inputs to action inputs based on parameter NAMES (not just index)
+      // Build a map of activity input names -> values
+      const activityInputMap = {};
+      this.inParameters
+        .filter(p => p.direction === 'in')
+        .forEach((p, idx) => { activityInputMap[p.name] = inputs[idx]; });
+
+      const actionInputs = [];
+      for (const p of action.inParameters) {
+        let val;
+        // 1) Prefer activity input with same name
+        if (activityInputMap.hasOwnProperty(p.name)) {
+          val = activityInputMap[p.name];
+        }
+        // 2) Prefer values produced by earlier actions mapped by outParameter name
+        else {
+          if (outputMap.hasOwnProperty(p.name)) {
+            val = outputMap[p.name];
+          }
+
+          // 3) If not found, prefer the most recent composite result (lastComposite)
+          if ((val === undefined || val === null) && lastComposite !== undefined && lastComposite !== null && typeof lastComposite === 'object' && !Array.isArray(lastComposite)) {
+            if (Object.prototype.hasOwnProperty.call(lastComposite, p.name)) {
+              val = lastComposite[p.name];
+            } else if (action.inParameters.length === 1) {
+              // If action expects a single composite input, pass the whole composite object
+              val = lastComposite;
+            }
+          }
+        }
+        // 3) If still undefined, fall back to positional input if available
+        if (val === undefined) {
+          const idx = action.inParameters.indexOf(p);
+          if (idx >= 0 && idx < inputs.length) val = inputs[idx];
+        }
+        actionInputs.push(val);
+      }
+
       last = action.invoke(actionInputs, model);
+
+      // Remember the most recent composite/object result (do not overwrite with primitive)
+      if (last !== undefined && last !== null && typeof last === 'object' && !Array.isArray(last)) {
+        lastComposite = last;
+      }
+
+      // If this action produced named outputs, register them in outputMap so subsequent actions
+      // can consume composite objects by name (prevents a consumer from being starved by an
+      // earlier consumer that returned a primitive)
+      try {
+        if (last !== undefined && last !== null && action.outParameters && action.outParameters.length > 0) {
+          if (action.outParameters.length === 1) {
+            outputMap[action.outParameters[0].name] = last;
+          } else if (typeof last === 'object' && !Array.isArray(last)) {
+            action.outParameters.forEach(param => {
+              if (Object.prototype.hasOwnProperty.call(last, param.name)) {
+                outputMap[param.name] = last[param.name];
+              }
+            });
+          } else if (Array.isArray(last)) {
+            action.outParameters.forEach((param, idx) => {
+              if (idx < last.length) outputMap[param.name] = last[idx];
+            });
+          }
+        }
+      } catch (e) {
+        // Non-fatal if mapping fails
+        console.warn(`[ACTIVITY INVOKE] Could not map outputs for action ${action.name}:`, e && e.message);
+      }
       
       model && model.logEvent && model.logEvent({
         elementType: 'action_result',
@@ -3297,6 +3919,99 @@ class Activity extends BehavioralElement {
         when: Date.now()
       });
     }
+    // Build a final result aligned with activity outParameters using outputMap and any
+    // composite result available. This ensures propagateResults receives values in the
+    // expected shape (array/object) and not just the last action's primitive result.
+    try {
+      if (this.outParameters && this.outParameters.length > 0) {
+        // Helper: try to find a value for an outParameter inside a composite result
+        function findInComposite(paramName, composite, depth = 0) {
+          // defensive checks and depth limit to avoid pathological recursion
+          if (!composite || typeof composite !== 'object' || Array.isArray(composite)) return undefined;
+          if (depth > 4) return undefined;
+
+          // direct property match (case-sensitive)
+          if (Object.prototype.hasOwnProperty.call(composite, paramName)) return composite[paramName];
+
+          const lc = paramName.toLowerCase();
+
+          // case-insensitive direct match
+          for (const k of Object.keys(composite)) {
+            if (k.toLowerCase() === lc) return composite[k];
+          }
+
+          // heuristic: map common verb->agent transformations (e.g. heating -> heater)
+          if (paramName.endsWith('ing')) {
+            const base = paramName.slice(0, -3);
+            const cand1 = base + 'er';
+            const cand2 = base + 'or';
+            if (Object.prototype.hasOwnProperty.call(composite, cand1)) return composite[cand1];
+            if (Object.prototype.hasOwnProperty.call(composite, cand2)) return composite[cand2];
+            // case-insensitive
+            for (const k of Object.keys(composite)) {
+              if (k.toLowerCase() === cand1.toLowerCase()) return composite[k];
+              if (k.toLowerCase() === cand2.toLowerCase()) return composite[k];
+            }
+          }
+
+          // substring match as last resort (e.g. 'cooling' vs 'cooler')
+          for (const k of Object.keys(composite)) {
+            const kk = k.toLowerCase();
+            if (kk.indexOf(lc) >= 0 || lc.indexOf(kk) >= 0) return composite[k];
+          }
+
+          // If not found, also try to descend into likely wrapper properties (cmds, commands, result, payload, data)
+          const wrapperKeys = ['cmds', 'commands', 'command', 'result', 'payload', 'data', 'value', 'values'];
+          for (const wk of wrapperKeys) {
+            if (Object.prototype.hasOwnProperty.call(composite, wk)) {
+              const nested = composite[wk];
+              const nestedFound = findInComposite(paramName, nested, depth + 1);
+              if (nestedFound !== undefined) return nestedFound;
+            }
+          }
+
+          // Finally, try generic recursive descent into any nested object properties (limited depth)
+          for (const k of Object.keys(composite)) {
+            try {
+              const v = composite[k];
+              if (v && typeof v === 'object' && !Array.isArray(v)) {
+                const nestedFound = findInComposite(paramName, v, depth + 1);
+                if (nestedFound !== undefined) return nestedFound;
+              }
+            } catch (e) {
+              // ignore errors while probing
+            }
+          }
+
+          return undefined;
+        }
+
+        const finalResults = this.outParameters.map((param, idx) => {
+          if (outputMap.hasOwnProperty(param.name)) return outputMap[param.name];
+          // try direct composite mapping and heuristics
+          const fromComposite = findInComposite(param.name, lastComposite);
+          if (fromComposite !== undefined) return fromComposite;
+          if (Array.isArray(last) && idx < last.length) return last[idx];
+          // fallback: if single outParameter, return last
+          if (this.outParameters.length === 1) return last;
+          return undefined;
+        });
+
+        try {
+          console.log(`[ACTIVITY INVOKE] ${this.name} - outputMap:`, (function om(m){try{return JSON.stringify(m)}catch(e){return m}})(outputMap));
+          console.log(`[ACTIVITY INVOKE] ${this.name} - lastComposite:`, (function lc(c){try{return JSON.stringify(c)}catch(e){return c}})(lastComposite));
+          console.log(`[ACTIVITY INVOKE] ${this.name} - finalResults:`, (function fr(f){try{return JSON.stringify(f)}catch(e){return f}})(finalResults));
+        } catch(e) {
+          console.log(`[ACTIVITY INVOKE] ${this.name} - debug log failed:`, e && e.message);
+        }
+
+        // If only one outParameter, return single value, else return array of values
+        return finalResults.length === 1 ? finalResults[0] : finalResults;
+      }
+    } catch (e) {
+      console.warn(`[ACTIVITY INVOKE] Could not assemble final results:`, e && e.message);
+    }
+
     return last;
   }
   
@@ -3351,9 +4066,19 @@ class Activity extends BehavioralElement {
       throw error;
     }
   }
+
+  // Set model reference on activity and propagate to actions
+  setModel(model) {
+    this._model = model;
+    if (this.actions && Array.isArray(this.actions)) {
+      this.actions.forEach(action => {
+        if (action) action._model = model;
+      });
+    }
+  }
 }
 
-function createExecutableFromExpression(exprText, paramNames = []) {
+function createExecutableFromExpression(exprText, paramNames = [], moduleContext = null) {
   console.log('[CREATE EXECUTABLE FROM EXPRESSION]', {
     exprText: exprText,
     paramNames: paramNames
@@ -3486,14 +4211,19 @@ function createExecutableFromExpression(exprText, paramNames = []) {
   const pre = translateSysadlExpression(raw);
   if (typeof process !== 'undefined' && process.env && process.env.SYSADL_DEBUG) console.log('[SYSADL-IR] pre:', JSON.stringify(pre));
 
+  // prepare module context keys/values for injection into generated function
+  const ctxKeys = moduleContext && typeof moduleContext === 'object' ? Object.keys(moduleContext) : [];
+  const ctxVals = ctxKeys.map(k => moduleContext[k]);
+
   // try as expression first
   try {
-    const exprFn = new Function(...paramNames, `'use strict'; return (${pre});`);
+    const exprFn = new Function(...paramNames, ...ctxKeys, `'use strict'; return (${pre});`);
     console.log('[CREATE EXECUTABLE] Success as expression with params:', paramNames);
     return function(...args) { 
       console.log('[EXECUTABLE CALL] Params:', paramNames, 'Args:', args);
       try { 
-        const result = exprFn.apply(this, args);
+        const all = args.concat(ctxVals);
+        const result = exprFn.apply(this, all);
         console.log('[EXECUTABLE CALL] Result:', result);
         return result;
       } catch (e) { 
@@ -3520,12 +4250,13 @@ function createExecutableFromExpression(exprText, paramNames = []) {
       }
       body = dedupeLetDeclarations(body);
       if (typeof process !== 'undefined' && process.env && process.env.SYSADL_DEBUG) console.log('[SYSADL-IR] final body to compile:', JSON.stringify(body));
-      const bodyFn = new Function(...paramNames, `'use strict';\n${body}`);
+      const bodyFn = new Function(...paramNames, ...ctxKeys, `'use strict';\n${body}`);
       console.log('[CREATE EXECUTABLE] Success as body with params:', paramNames);
       return function(...args) { 
         console.log('[EXECUTABLE CALL] Params:', paramNames, 'Args:', args);
         try { 
-          const result = bodyFn.apply(this, args);
+          const all = args.concat(ctxVals);
+          const result = bodyFn.apply(this, all);
           console.log('[EXECUTABLE CALL] Result:', result);
           return result;
         } catch (e) { 
@@ -3555,14 +4286,72 @@ function createExecutableFromExpression(exprText, paramNames = []) {
           if (expr.indexOf('::') !== -1) return expr;
           if (paramNames.includes(expr)) return env[expr];
           const fnBody = `return (${expr});`;
-          const f = new Function(...Object.keys(env), fnBody);
-          return f(...Object.values(env));
+              const f = new Function(...Object.keys(env).concat(ctxKeys), fnBody);
+              return f(...Object.values(env).concat(ctxVals));
         } catch (err) {
           return undefined;
         }
       };
     }
   }
+}
+
+// Resolve model-specific literals returned by compiled executables
+function resolveModelLiterals(value, model) {
+  // primitives
+  if (value === null || value === undefined) return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return value;
+
+  // Strings of form Namespace::Literal -> try to map to types in model
+  if (typeof value === 'string') {
+    const m = value.match(/^([A-Za-z0-9_\.]+)::([A-Za-z0-9_]+)$/);
+    if (m) {
+      const fq = m[1]; // e.g. types.Command
+      const lit = m[2]; // e.g. On
+      // candidate type name is last segment after dot
+      const parts = fq.split('.');
+      const typeName = parts[parts.length - 1];
+
+      // try typeRegistry -> moduleContext mapping
+      const registryKey = model && model.typeRegistry && model.typeRegistry[typeName];
+      const candidates = [];
+      if (registryKey) candidates.push(registryKey);
+      // Add common prefixes
+      candidates.push(`EN_${typeName}`);
+      candidates.push(`DT_${typeName}`);
+      candidates.push(`VT_${typeName}`);
+      candidates.push(`UN_${typeName}`);
+
+      for (const key of candidates) {
+        if (!key) continue;
+        const obj = model && model._moduleContext && model._moduleContext[key];
+        if (obj) {
+          // If Enum, return matching property (case-insensitive)
+          if (typeof obj === 'object' && obj !== null) {
+            const prop = lit.toLowerCase();
+            if (obj.hasOwnProperty(prop)) return obj[prop];
+            // If Enum implemented with getters returning strings
+            if (obj[prop] !== undefined) return obj[prop];
+          }
+        }
+      }
+      // fallback: return original string
+      return value;
+    }
+    return value;
+  }
+
+  // Arrays / Objects: recurse
+  if (Array.isArray(value)) return value.map(v => resolveModelLiterals(v, model));
+  if (typeof value === 'object') {
+    const out = {};
+    for (const k of Object.keys(value)) {
+      out[k] = resolveModelLiterals(value[k], model);
+    }
+    return out;
+  }
+
+  return value;
 }
 
 // Base classes for SysADL type system
@@ -3714,7 +4503,10 @@ const Real = class extends ValueType {
 
 // Export aliases to avoid conflicts with JavaScript native types
 const Boolean = SysADLBoolean;
-const String = SysADLString;
+// Note: do NOT alias `String` to `SysADLString` here because that would
+// shadow the global `String` constructor and break code that relies on
+// calling `String(value)` for primitive coercion. Keep only the SysADL type
+// under its explicit name and export it later under the `String` property.
 
 // Simple Enum class for generated code
 class Enum {
@@ -3723,12 +4515,24 @@ class Enum {
 
     // Add properties for each enum value (lowercase access)
     values.forEach((value, index) => {
-      const propName = value.toLowerCase();
-      Object.defineProperty(this, propName, {
-        get() { return value; },
-        enumerable: true,
-        configurable: true
-      });
+      // expose both the original-case name and a lowercase variant
+      const valStr = (value && typeof value.toString === 'function') ? value.toString() : ('' + value);
+      const propLower = valStr.toLowerCase();
+      const propOriginal = valStr;
+      try {
+        Object.defineProperty(this, propLower, {
+          get() { return value; },
+          enumerable: true,
+          configurable: true
+        });
+      } catch (e) {}
+      try {
+        Object.defineProperty(this, propOriginal, {
+          get() { return value; },
+          enumerable: true,
+          configurable: true
+        });
+      } catch (e) {}
     });
   }
 

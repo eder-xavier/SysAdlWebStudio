@@ -68,8 +68,9 @@ function findInputPorts(model, aliasMap){
         console.log(`[FIND PORTS]   - Port ${pname}: direction=${port.direction}, type=${port.constructor?.name}, isBoundary=${root.props?.isBoundary}`);
         
         // Aceita portas de entrada OU portas de saída de componentes boundary (sensores)
-        const isInputPort = !port.direction || port.direction === 'in';
-        const isBoundaryOutputPort = port.direction === 'out' && root.props?.isBoundary === true;
+        // Também tratar 'inout' como possível alvo de estímulo
+        const isInputPort = !port.direction || port.direction === 'in' || port.direction === 'inout';
+        const isBoundaryOutputPort = (port.direction === 'out' || port.direction === 'inout') && root.props?.isBoundary === true;
         
         if (isInputPort || isBoundaryOutputPort) {
           const componentPath = path || (root.name || 'root');
@@ -284,7 +285,37 @@ function resolveAliasTarget(model, alias, portAliases){
 }
 
 function sendPayloadToPortByName(model, portName, payload){
-  // Função auxiliar para buscar e enviar para porta recursivamente
+  // Se o nome contém caminho (ex: a.b.c.port), tente descer pela árvore de componentes
+  if (portName && portName.indexOf('.') !== -1) {
+    const parts = portName.split('.');
+    const pName = parts.pop();
+    const compParts = parts;
+
+    let cur = model.components || model;
+    // Tentar percorrer usando chaves diretas ou propriedade components
+    for (const seg of compParts) {
+      if (!cur) break;
+      if (cur[seg]) {
+        cur = cur[seg];
+        continue;
+      }
+      if (cur.components && cur.components[seg]) {
+        cur = cur.components[seg];
+        continue;
+      }
+      // não encontrou segment
+      cur = null;
+      break;
+    }
+
+    if (cur && cur.ports && cur.ports[pName]) {
+      cur.ports[pName].send(payload, model);
+      return true;
+    }
+    // se descida falhou, continuamos com busca recursiva
+  }
+
+  // Função auxiliar para buscar e enviar para porta recursivamente (fallback)
   const findAndSendPort = (root, name) => {
     if (!root || typeof root !== 'object') return false;
 
@@ -534,90 +565,100 @@ function runBrowser(generatedCode, options = {}) {
         
         for (const [portKey, value] of Object.entries(options.params)) {
           try {
-            console.log(`\n[PARAM] Tentando aplicar: ${portKey} = ${value}`);
-            let success = false;
-            let flowId = null;
-            
-            // Create flow for this parameter
-            if (simulationLogger) {
-              flowId = simulationLogger.createFlow(portKey);
-              const [compName, portName] = portKey.includes('.') ? portKey.split('.') : ['', portKey];
-              simulationLogger.logParamSet(compName || portKey, portName || '', value, flowId);
-            }
-            
-            // Estratégia 1: Buscar porta usando alias (component.alias)
-            if (portKey.includes('.')) {
-              const [compName, portName] = portKey.split('.');
-              
-              // Buscar por alias primeiro
-              const targetPortByAlias = inputPorts.find(p => 
-                p.component === compName && p.alias === portName
-              );
-              
-              if (targetPortByAlias && targetPortByAlias.portObj && typeof targetPortByAlias.portObj.send === 'function') {
-                // Attach flow ID to port
-                if (flowId) {
-                  targetPortByAlias.portObj._currentFlowId = flowId;
+                console.log(`\n[PARAM] Tentando aplicar: ${portKey} = ${value}`);
+                let success = false;
+                let flowId = null;
+                let matchedStrategy = null;
+                let matchedTarget = null;
+
+                // Suporte a caminhos multi-segmento: se `a.b.c.port`, separar pelo último segmento
+                let compName = '';
+                let portName = '';
+                if (portKey.includes('.')) {
+                  const parts = portKey.split('.');
+                  portName = parts.pop();
+                  compName = parts.join('.');
+                } else {
+                  compName = portKey;
+                  portName = '';
                 }
-                targetPortByAlias.portObj.send(value, model);
-                // output += `  ${portKey} → ${targetPortByAlias.component}.${targetPortByAlias.port} = ${value} (via alias)\n`;
-                console.log(`[PARAM] Sucesso via alias: ${portKey} → ${targetPortByAlias.port}`);
-                success = true;
-              }
-            }
-            
-            // Estratégia 2: Buscar porta por nome real (component.realPort)
-            if (!success && portKey.includes('.')) {
-              const [compName, portName] = portKey.split('.');
-              const targetPort = inputPorts.find(p => 
-                (p.component === compName && p.port === portName) ||
-                p.fullPath === portKey
-              );
-              
-              if (targetPort && targetPort.portObj && typeof targetPort.portObj.send === 'function') {
-                // Attach flow ID to port
-                if (flowId) {
-                  targetPort.portObj._currentFlowId = flowId;
+
+                // Create flow for this parameter
+                if (simulationLogger) {
+                  flowId = simulationLogger.createFlow(portKey);
+                  simulationLogger.logParamSet(compName || portKey, portName || '', value, flowId);
                 }
-                targetPort.portObj.send(value, model);
-                // output += `  ${portKey} = ${value} (nome real)\n`;
-                console.log(`[PARAM] Sucesso via nome real: ${portKey}`);
-                success = true;
-              }
-            }
-            
-            // Estratégia 3: Buscar apenas por nome da porta ou alias
-            if (!success) {
-              const targetPort = inputPorts.find(p => p.port === portKey || p.alias === portKey);
-              if (targetPort && targetPort.portObj && typeof targetPort.portObj.send === 'function') {
-                // Attach flow ID to port
-                if (flowId) {
-                  targetPort.portObj._currentFlowId = flowId;
+
+                // Estratégia 1: Buscar porta usando alias (component.alias)
+                if (compName && portName) {
+                  // Buscar por alias primeiro
+                  const targetPortByAlias = inputPorts.find(p => 
+                    p.component === compName && p.alias === portName
+                  );
+
+                  if (targetPortByAlias && targetPortByAlias.portObj && typeof targetPortByAlias.portObj.send === 'function') {
+                    if (flowId) targetPortByAlias.portObj._currentFlowId = flowId;
+                    targetPortByAlias.portObj.send(value, model);
+                    console.log(`[PARAM] Sucesso via alias: ${portKey} → ${targetPortByAlias.port}`);
+                    matchedStrategy = 'alias';
+                    matchedTarget = `${targetPortByAlias.component}.${targetPortByAlias.port}`;
+                    success = true;
+                  }
                 }
-                targetPort.portObj.send(value, model);
-                // output += `  ${portKey} (${targetPort.component}.${targetPort.port}) = ${value} (busca simples)\n`;
-                console.log(`[PARAM] Sucesso via busca simples: ${portKey} → ${targetPort.component}.${targetPort.port}`);
-                success = true;
-              }
-            }
-            
-            // Estratégia 4: Usar função auxiliar de busca recursiva
-            if (!success) {
-              try {
-                sendPayloadToPortByName(model, portKey, value);
-                // output += `  ${portKey} = ${value} (recursivo)\n`;
-                console.log(`[PARAM] Sucesso via busca recursiva: ${portKey}`);
-                success = true;
-              } catch (e) {
-                // Falha silenciosa, tentará próxima estratégia
-                console.log(`[PARAM] Falha na busca recursiva: ${e.message}`);
-              }
-            }
-            
-            if (!success) {
-              output += `  ❌ ${portKey} = ${value} (porta não encontrada)\n`;
-              console.log(`[PARAM] ❌ Porta não encontrada após todas as estratégias: ${portKey}`);
-            }
+
+                // Estratégia 2: Buscar porta por nome real (component.realPort)
+                if (!success && compName && portName) {
+                  const targetPort = inputPorts.find(p => 
+                    (p.component === compName && p.port === portName) ||
+                    p.fullPath === portKey
+                  );
+                  
+                  if (targetPort && targetPort.portObj && typeof targetPort.portObj.send === 'function') {
+                    if (flowId) targetPort.portObj._currentFlowId = flowId;
+                    targetPort.portObj.send(value, model);
+                    console.log(`[PARAM] Sucesso via nome real: ${portKey}`);
+                    matchedStrategy = 'realName';
+                    matchedTarget = `${targetPort.component}.${targetPort.port}`;
+                    success = true;
+                  }
+                }
+
+                // Estratégia 3: Buscar apenas por nome da porta ou alias
+                if (!success) {
+                  const targetPort = inputPorts.find(p => p.port === portKey || p.alias === portKey);
+                  if (targetPort && targetPort.portObj && typeof targetPort.portObj.send === 'function') {
+                    // Attach flow ID to port
+                    if (flowId) {
+                      targetPort.portObj._currentFlowId = flowId;
+                    }
+                    targetPort.portObj.send(value, model);
+                    console.log(`[PARAM] Sucesso via busca simples: ${portKey} → ${targetPort.component}.${targetPort.port}`);
+                    matchedStrategy = 'simpleName';
+                    matchedTarget = `${targetPort.component}.${targetPort.port}`;
+                    success = true;
+                  }
+                }
+
+                // Estratégia 4: Usar função auxiliar de busca recursiva
+                if (!success) {
+                  try {
+                    sendPayloadToPortByName(model, portKey, value);
+                    console.log(`[PARAM] Sucesso via busca recursiva: ${portKey}`);
+                    matchedStrategy = 'recursive';
+                    matchedTarget = portKey;
+                    success = true;
+                  } catch (e) {
+                    // Falha silenciosa, tentará próxima estratégia
+                    console.log(`[PARAM] Falha na busca recursiva: ${e.message}`);
+                  }
+                }
+
+                if (!success) {
+                  output += `  ❌ ${portKey} = ${value} (porta não encontrada)\n`;
+                  console.log(`[PARAM] ❌ Porta não encontrada após todas as estratégias: ${portKey}`);
+                } else {
+                  console.log(`[PARAM-RESULT] ${portKey} => strategy=${matchedStrategy} target=${matchedTarget}`);
+                }
             
           } catch (error) {
             output += `  ❌ ${portKey} = ${value} (erro: ${error.message})\n`;

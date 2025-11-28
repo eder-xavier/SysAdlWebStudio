@@ -12,6 +12,15 @@ const VT_types_FahrenheitTemperature = valueType('FahrenheitTemperature', { exte
 const VT_types_CelsiusTemperature = valueType('CelsiusTemperature', { extends: VT_types_temperature, unit: UN_types_Celsius, dimension: DM_types_Temperature });
 const EN_types_Command = new Enum("On", "Off");
 const DT_types_Commands = dataType('Commands', { heater: EN_types_Command, cooler: EN_types_Command });
+const types = {
+  Command: EN_types_Command,
+  Commands: DT_types_Commands,
+  temperature: VT_types_temperature,
+  FahrenheitTemperature: VT_types_FahrenheitTemperature,
+  CelsiusTemperature: VT_types_CelsiusTemperature,
+  Celsius: UN_types_Celsius,
+  Fahrenheit: UN_types_Fahrenheit
+};
 
 // Ports
 class PT_Ports_FTemperatureOPT extends SimplePort {
@@ -218,8 +227,8 @@ class CP_Components_RoomTemperatureControllerCP extends Component {
       const portAliases = opts.portAliases || {};
       const portName_detectedRTC = portAliases["detectedRTC"] || "detectedRTC";
       this.addPort(new PT_Ports_PresenceIPT(portName_detectedRTC, { owner: name, originalName: "detectedRTC" }));
-      const portName_localtemp1 = portAliases["localtemp1"] || "localtemp1";
-      this.addPort(new PT_Ports_CTemperatureIPT(portName_localtemp1, { owner: name, originalName: "localtemp1" }));
+      const portName_localTemp1 = portAliases["localTemp1"] || "localTemp1";
+      this.addPort(new PT_Ports_CTemperatureIPT(portName_localTemp1, { owner: name, originalName: "localTemp1" }));
       const portName_localTemp2 = portAliases["localTemp2"] || "localTemp2";
       this.addPort(new PT_Ports_CTemperatureIPT(portName_localTemp2, { owner: name, originalName: "localTemp2" }));
       const portName_userTempRTC = portAliases["userTempRTC"] || "userTempRTC";
@@ -302,7 +311,7 @@ class AC_Components_DecideCommandAC extends Activity {
     super(name, component, inputPorts, delegates, {
       ...opts,
       inParameters: [{"name":"average2","type":"CelsiusTemperature","direction":"in"},{"name":"target2","type":"CelsiusTemperature","direction":"in"}],
-      outParameters: [{"name":"cooling","type":"Command","direction":"out"},{"name":"heating","type":"Command","direction":"out"}]
+        outParameters: [{"name":"cooling","type":"Command","direction":"out"},{"name":"heating","type":"Command","direction":"out"}]
     });
   }
 }
@@ -313,7 +322,7 @@ class AC_Components_FahrenheitToCelsiusAC extends Activity {
     super(name, component, inputPorts, delegates, {
       ...opts,
       inParameters: [{"name":"current1","type":"FahrenheitTemperature","direction":"in"}],
-      outParameters: [{"name":"loalTemp1","type":"CelsiusTemperature","direction":"out"}]
+      outParameters: [{"name":"localTemp1","type":"CelsiusTemperature","direction":"out"}]
     });
   }
 }
@@ -324,7 +333,7 @@ class AN_Components_CalculateAverageTemperatureAN extends Action {
     super(name, {
       ...opts,
       inParameters: [{"name":"t1","type":"CelsiusTemperature","direction":"in"},{"name":"t2","type":"CelsiusTemperature","direction":"in"}],
-      outParameters: [{"name":"CalculateAverageTemperatureAN","type":"CelsiusTemperature","direction":"out"}],
+      outParameters: [{"name":"cmds","type":"CelsiusTemperature","direction":"out"}],
       constraints: ["CalculateAverageTemperatureEQ"],
       executables: ["CalculateAverageTemperatureEx"],
     });
@@ -337,7 +346,7 @@ class AN_Components_CompareTemperatureAN extends Action {
     super(name, {
       ...opts,
       inParameters: [{"name":"average2","type":"CelsiusTemperature","direction":"in"},{"name":"target2","type":"CelsiusTemperature","direction":"in"}],
-      outParameters: [{"name":"CompareTemperatureAN","type":"Commands","direction":"out"}],
+      outParameters: [{"name":"cmds","type":"Commands","direction":"out"}],
       constraints: ["CompareTemperatureEQ"],
       executables: ["CompareTemperatureEx"],
     });
@@ -350,7 +359,7 @@ class AN_Components_CommandHeaterAN extends Action {
     super(name, {
       ...opts,
       inParameters: [{"name":"cmds","type":"Commands","direction":"in"}],
-      outParameters: [{"name":"CommandHeaterAN","type":"Command","direction":"out"}],
+      outParameters: [{"name":"cmds","type":"Command","direction":"out"}],
       constraints: ["CommandHeaterEQ"],
       executables: ["CommandHeaterEx"],
     });
@@ -363,7 +372,7 @@ class AN_Components_CommandCoolerAN extends Action {
     super(name, {
       ...opts,
       inParameters: [{"name":"cmds","type":"Commands","direction":"in"}],
-      outParameters: [{"name":"CommandCoolerAN","type":"Command","direction":"out"}],
+      outParameters: [{"name":"cmds","type":"Command","direction":"out"}],
       constraints: ["CommandCoolerEQ"],
       executables: ["CommandCoolerEx"],
     });
@@ -376,20 +385,20 @@ class AN_Components_FahrenheitToCelsiusAN extends Action {
     super(name, {
       ...opts,
       inParameters: [{"name":"current1","type":"FahrenheitTemperature","direction":"in"}],
-      outParameters: [{"name":"FahrenheitToCelsiusAN","type":"CelsiusTemperature","direction":"out"}],
+      outParameters: [{"name":"cmds","type":"CelsiusTemperature","direction":"out"}],
       constraints: ["FahrenheitToCelsiusEQ"],
       executables: ["FahrenheitToCelsiusEx"],
     });
   }
 }
 
-// Action class: CheckPeresenceToSetTemperatureAN
-class AN_Components_CheckPeresenceToSetTemperatureAN extends Action {
+// Action class: CheckPresenceToSetTemperatureAN
+class AN_Components_CheckPresenceToSetTemperatureAN extends Action {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
       inParameters: [{"name":"detected","type":"Boolean","direction":"in"},{"name":"userTemp","type":"CelsiusTemperature","direction":"in"}],
-      outParameters: [{"name":"CheckPeresenceToSetTemperatureAN","type":"CelsiusTemperature","direction":"out"}],
+      outParameters: [{"name":"cmds","type":"CelsiusTemperature","direction":"out"}],
       constraints: ["CheckPresenceToSetTemperatureEQ"],
       executables: ["CheckPresenceToSetTemperature"],
     });
@@ -405,11 +414,12 @@ class CT_Components_CalculateAverageTemperatureEQ extends Constraint {
       outParameters: [{"name":"av","type":"CelsiusTemperature","direction":"out"}],
       equation: "(av == ((t1 + t2) / 2))",
       constraintFunction: function(params) {// Constraint equation: (av == ((t1 + t2) / 2))
-          const { t1, t2 } = params;
+          const { t1, t2, av } = params;
           
           // Type validation
           // Type validation for t1: CelsiusTemperature (no validation implemented)
           // Type validation for t2: CelsiusTemperature (no validation implemented)
+          // Type validation for av: CelsiusTemperature (no validation implemented)
           return av == ((t1 + t2) / 2);
         }
     });
@@ -421,19 +431,19 @@ class CT_Components_CompareTemperatureEQ extends Constraint {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [{"name":"target","type":"CelsiusTemperature","direction":"in"},{"name":"average","type":"CelsiusTemperature","direction":"in"}],
+      inParameters: [{"name":"target2","type":"CelsiusTemperature","direction":"in"},{"name":"average2","type":"CelsiusTemperature","direction":"in"}],
       outParameters: [{"name":"cmds","type":"Commands","direction":"out"}],
-      equation: "((average > target) ? ((cmds == types.Commands.heater.Off) && types.Commands.cooler.On) : (types.Commands.heater.On && (cmds == types.Commands.cooler.Off)))",
-      constraintFunction: function(params) {// Conditional constraint: ((average > target) ? ((cmds == types.Commands.heater.Off) && types.Commands.cooler.On) : (types.Commands.heater.On && (cmds == types.Commands.cooler.Off)))
-          const { average, target, cmds, heater, cooler } = params;
+      equation: "((average2 > target2) ? ((cmds == types.Commands.heater.Off) && types.Commands.cooler.On) : (types.Commands.heater.On && (cmds == types.Commands.cooler.Off)))",
+      constraintFunction: function(params) {// Conditional constraint: ((average2 > target2) ? ((cmds == types.Commands.heater.Off) && types.Commands.cooler.On) : (types.Commands.heater.On && (cmds == types.Commands.cooler.Off)))
+          const { target2, average2, cmds, heater, cooler } = params;
           
           // Type validation
-          if (typeof average !== 'number') throw new Error('Parameter average must be a Real (number)');
-          if (typeof target !== 'number') throw new Error('Parameter target must be a Real (number)');
-          if (typeof cmds !== 'number') throw new Error('Parameter cmds must be a Real (number)');
+          // Type validation for target2: CelsiusTemperature (no validation implemented)
+          // Type validation for average2: CelsiusTemperature (no validation implemented)
+          // Type validation for cmds: Commands (no validation implemented)
           if (typeof heater !== 'number') throw new Error('Parameter heater must be a Real (number)');
           if (typeof cooler !== 'number') throw new Error('Parameter cooler must be a Real (number)');
-          return (average > target) ? ((cmds == types.Commands.heater.Off) && types.Commands.cooler.On) : (types.Commands.heater.On && (cmds == types.Commands.cooler.Off));
+          return (average2 > target2) ? ((cmds == types.Commands.heater.Off) && types.Commands.cooler.On) : (types.Commands.heater.On && (cmds == types.Commands.cooler.Off));
         }
     });
   }
@@ -448,10 +458,11 @@ class CT_Components_FahrenheitToCelsiusEQ extends Constraint {
       outParameters: [{"name":"c","type":"CelsiusTemperature","direction":"out"}],
       equation: "(c == ((5 * (f - 32)) / 9))",
       constraintFunction: function(params) {// Constraint equation: (c == ((5 * (f - 32)) / 9))
-          const { f } = params;
+          const { f, c } = params;
           
           // Type validation
           // Type validation for f: FahrenheitTemperature (no validation implemented)
+          // Type validation for c: CelsiusTemperature (no validation implemented)
           return c == ((5 * (f - 32)) / 9);
         }
     });
@@ -467,10 +478,11 @@ class CT_Components_CommandHeaterEQ extends Constraint {
       outParameters: [{"name":"c","type":"Command","direction":"out"}],
       equation: "(c == cmds.heater)",
       constraintFunction: function(params) {// Constraint equation: (c == cmds.heater)
-          const { cmds, heater } = params;
+          const { cmds, c, heater } = params;
           
           // Type validation
           // Type validation for cmds: Commands (no validation implemented)
+          // Type validation for c: Command (no validation implemented)
           if (typeof heater !== 'number') throw new Error('Parameter heater must be a Real (number)');
           return c == cmds.heater;
         }
@@ -487,10 +499,11 @@ class CT_Components_CommandCoolerEQ extends Constraint {
       outParameters: [{"name":"c","type":"Command","direction":"out"}],
       equation: "(c == cmds.cooler)",
       constraintFunction: function(params) {// Constraint equation: (c == cmds.cooler)
-          const { cmds, cooler } = params;
+          const { cmds, c, cooler } = params;
           
           // Type validation
           // Type validation for cmds: Commands (no validation implemented)
+          // Type validation for c: Command (no validation implemented)
           if (typeof cooler !== 'number') throw new Error('Parameter cooler must be a Real (number)');
           return c == cmds.cooler;
         }
@@ -507,12 +520,12 @@ class CT_Components_CheckPresenceToSetTemperatureEQ extends Constraint {
       outParameters: [{"name":"target","type":"CelsiusTemperature","direction":"out"}],
       equation: "((detected == true) ? (target == userTemp) : (target == 2))",
       constraintFunction: function(params) {// Conditional constraint: ((detected == true) ? (target == userTemp) : (target == 2))
-          const { detected, target, userTemp } = params;
+          const { detected, userTemp, target } = params;
           
           // Type validation
-          if (typeof detected !== 'number') throw new Error('Parameter detected must be a Real (number)');
-          if (typeof target !== 'number') throw new Error('Parameter target must be a Real (number)');
-          if (typeof userTemp !== 'number') throw new Error('Parameter userTemp must be a Real (number)');
+          if (typeof detected !== 'boolean') throw new Error('Parameter detected must be a Boolean');
+          // Type validation for userTemp: CelsiusTemperature (no validation implemented)
+          // Type validation for target: CelsiusTemperature (no validation implemented)
           return (detected == true) ? (target == userTemp) : (target == 2);
         }
     });
@@ -619,6 +632,7 @@ class EX_Components_CompareTemperatureEx extends Executable {
           // Type validation for average: (auto-detected from usage)
           const { target, average } = params;
           let heater = types.Command.Off; let cooler = types.Command.Off; if(average > target) {heater = types.Command.Off; cooler = types.Command.On ; } else {heater = types.Command.On; cooler = types.Command.Off ;}
+return {heater: heater, cooler: cooler};
         }
     });
   }
@@ -660,11 +674,12 @@ class SysADLModel extends Model {
     average.bind(this.RTCSystemCFD.rtc.sm.getPort("average"), this.RTCSystemCFD.rtc.cm.getPort("average2"));
     this.RTCSystemCFD.addConnector(new CN_Connectors_FahrenheitToCelsiusCN("c1"));
     const c1 = this.RTCSystemCFD.connectors["c1"];
-    c1.bind(this.RTCSystemCFD.s1.getPort("current1"), this.RTCSystemCFD.rtc.getPort("localtemp1"));
+    c1.bind(this.RTCSystemCFD.s1.getPort("current1"), this.RTCSystemCFD.rtc.getPort("localTemp1"));
     this.RTCSystemCFD.addConnector(new CN_Connectors_CTemperatureCN("uc"));
     const uc = this.RTCSystemCFD.connectors["uc"];
     uc.bind(this.RTCSystemCFD.ui.getPort("desired"), this.RTCSystemCFD.rtc.pc.getPort("userTemp"));
     this.RTCSystemCFD.addConnector(new CN_Connectors_CommandCN("cc2"));
+    try { this.RTCSystemCFD.connectors["cc2"].activityName = "DecideCommandAC"; } catch(e) {}
     const cc2 = this.RTCSystemCFD.connectors["cc2"];
     cc2.bind(this.RTCSystemCFD.rtc.cm.getPort("cooling"), this.RTCSystemCFD.a2.getPort("controllerC"));
     this.RTCSystemCFD.addConnector(new CN_Connectors_PresenceCN("pc"));
@@ -674,49 +689,115 @@ class SysADLModel extends Model {
     const c2 = this.RTCSystemCFD.connectors["c2"];
     c2.bind(this.RTCSystemCFD.s2.getPort("current2"), this.RTCSystemCFD.rtc.getPort("localTemp2"));
     this.RTCSystemCFD.addConnector(new CN_Connectors_CommandCN("cc1"));
+    try { this.RTCSystemCFD.connectors["cc1"].activityName = "DecideCommandAC"; } catch(e) {}
     const cc1 = this.RTCSystemCFD.connectors["cc1"];
     cc1.bind(this.RTCSystemCFD.rtc.cm.getPort("heating"), this.RTCSystemCFD.a1.getPort("controllerH"));
 
     const ac_SensorsMonitorCP = new AC_Components_CalculateAverageTemperatureAC(
       "CalculateAverageTemperatureAC",
-      "SensorsMonitorCP",
+      "RTCSystemCFD.rtc.sm",
       [],
-      [{"from":"s1","to":"s1"},{"from":"s2","to":"s2"},{"from":"average","to":"CalcAvTemp"}]
+      [{"from":"s1","to":"s1"},{"from":"s2","to":"s2"},{"from":"average","to":"CalcAvTemp"}],
+      {"outParameters":[{"name":"s1","type":"Real","direction":"out"},{"name":"s2","type":"Real","direction":"out"},{"name":"average","type":"Real","direction":"out"}]}
     );
-    const CalcAvTemp = new AN_Components_CalculateAverageTemperatureAN("CalcAvTemp");
+    const CalcAvTemp = new AN_Components_CalculateAverageTemperatureAN("CalcAvTemp", { outParameters: [{"name":"average","type":"Real","direction":"out"}] });
     ac_SensorsMonitorCP.registerAction(CalcAvTemp);
+    try { ac_SensorsMonitorCP.portToPinMapping["s1"] = "s1"; } catch(e) {}
+    try { ac_SensorsMonitorCP.portToPinMapping["s1"] = "s1"; } catch(e) {}
+    try { ac_SensorsMonitorCP.portToPinMapping["s"] = "s1"; } catch(e) {}
+    try { ac_SensorsMonitorCP.portToPinMapping["s"] = "s1"; } catch(e) {}
+    try { ac_SensorsMonitorCP.portToPinMapping["s2"] = "s2"; } catch(e) {}
+    try { ac_SensorsMonitorCP.portToPinMapping["s2"] = "s2"; } catch(e) {}
+    try { ac_SensorsMonitorCP.portToPinMapping["s"] = "s2"; } catch(e) {}
+    try { ac_SensorsMonitorCP.portToPinMapping["s"] = "s2"; } catch(e) {}
+    try { ac_SensorsMonitorCP.portToPinMapping["CalcAvTemp"] = "average"; } catch(e) {}
+    try { ac_SensorsMonitorCP.portToPinMapping["calcavtemp"] = "average"; } catch(e) {}
     this.registerActivity("CalculateAverageTemperatureAC", ac_SensorsMonitorCP);
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["RTCSystemCFD.rtc.sm"] = ac_SensorsMonitorCP; } catch(e) {}
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["rtcsystemcfd.rtc.sm"] = ac_SensorsMonitorCP; } catch(e) {}
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["rtc.sm"] = ac_SensorsMonitorCP; } catch(e) {}
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["sm"] = ac_SensorsMonitorCP; } catch(e) {}
     const ac_PresenceCheckerCP = new AC_Components_CheckPresenceToSetTemperatureAC(
       "CheckPresenceToSetTemperatureAC",
-      "PresenceCheckerCP",
+      "RTCSystemCFD.rtc.pc",
       [],
-      [{"from":"detected","to":"detected"},{"from":"userTemp","to":"userTemp"},{"from":"target","to":"CheckPeresenceToSetTemperatureAN"}]
+      [{"from":"detected","to":"detected"},{"from":"userTemp","to":"userTemp"},{"from":"target","to":"CheckPresenceToSetTemperatureAN"}],
+      {"outParameters":[{"name":"detected","type":"Real","direction":"out"},{"name":"userTemp","type":"Real","direction":"out"},{"name":"target","type":"Real","direction":"out"}]}
     );
-    const CheckPeresenceToSetTemperatureAN_inst = new AN_Components_CheckPeresenceToSetTemperatureAN("CheckPeresenceToSetTemperatureAN");
-    ac_PresenceCheckerCP.registerAction(CheckPeresenceToSetTemperatureAN_inst);
+    const CheckPresenceToSetTemperatureAN_inst = new AN_Components_CheckPresenceToSetTemperatureAN("CheckPresenceToSetTemperatureAN", { outParameters: [{"name":"target","type":"Real","direction":"out"}] });
+    ac_PresenceCheckerCP.registerAction(CheckPresenceToSetTemperatureAN_inst);
+    try { ac_PresenceCheckerCP.portToPinMapping["detected"] = "detected"; } catch(e) {}
+    try { ac_PresenceCheckerCP.portToPinMapping["detected"] = "detected"; } catch(e) {}
+    try { ac_PresenceCheckerCP.portToPinMapping["detectedS"] = "detected"; } catch(e) {}
+    try { ac_PresenceCheckerCP.portToPinMapping["detecteds"] = "detected"; } catch(e) {}
+    try { ac_PresenceCheckerCP.portToPinMapping["detectedRTC"] = "detected"; } catch(e) {}
+    try { ac_PresenceCheckerCP.portToPinMapping["detectedrtc"] = "detected"; } catch(e) {}
+    try { ac_PresenceCheckerCP.portToPinMapping["detected"] = "detected"; } catch(e) {}
+    try { ac_PresenceCheckerCP.portToPinMapping["detected"] = "detected"; } catch(e) {}
+    try { ac_PresenceCheckerCP.portToPinMapping["detected"] = "detected"; } catch(e) {}
+    try { ac_PresenceCheckerCP.portToPinMapping["detected"] = "detected"; } catch(e) {}
+    try { ac_PresenceCheckerCP.portToPinMapping["userTemp"] = "userTemp"; } catch(e) {}
+    try { ac_PresenceCheckerCP.portToPinMapping["usertemp"] = "userTemp"; } catch(e) {}
+    try { ac_PresenceCheckerCP.portToPinMapping["userTemp"] = "userTemp"; } catch(e) {}
+    try { ac_PresenceCheckerCP.portToPinMapping["usertemp"] = "userTemp"; } catch(e) {}
+    try { ac_PresenceCheckerCP.portToPinMapping["userTemp"] = "userTemp"; } catch(e) {}
+    try { ac_PresenceCheckerCP.portToPinMapping["usertemp"] = "userTemp"; } catch(e) {}
+    // Connector participant mappings (added to support connector participant names like pOut/pIn)
+    try { ac_PresenceCheckerCP.portToPinMapping["pOut"] = "detected"; } catch(e) {}
+    try { ac_PresenceCheckerCP.portToPinMapping["pIn"] = "userTemp"; } catch(e) {}
+    try { ac_PresenceCheckerCP.portToPinMapping["CheckPresenceToSetTemperatureAN"] = "target"; } catch(e) {}
+    try { ac_PresenceCheckerCP.portToPinMapping["checkpresencetosettemperaturean"] = "target"; } catch(e) {}
     this.registerActivity("CheckPresenceToSetTemperatureAC", ac_PresenceCheckerCP);
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["RTCSystemCFD.rtc.pc"] = ac_PresenceCheckerCP; } catch(e) {}
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["rtcsystemcfd.rtc.pc"] = ac_PresenceCheckerCP; } catch(e) {}
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["rtc.pc"] = ac_PresenceCheckerCP; } catch(e) {}
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["pc"] = ac_PresenceCheckerCP; } catch(e) {}
     const ac_CommanderCP = new AC_Components_DecideCommandAC(
       "DecideCommandAC",
-      "CommanderCP",
+      "RTCSystemCFD.rtc.cm",
       [],
-      [{"from":"average2","to":"average2"},{"from":"target2","to":"target2"},{"from":"heating","to":"cmdH"},{"from":"cooling","to":"cmdC"}]
+      [{"from":"average2","to":"average2"},{"from":"target2","to":"target2"},{"from":"heating","to":"cmdH"},{"from":"cooling","to":"cmdC"}],
+      {"outParameters":[{"name":"average2","type":"Real","direction":"out"},{"name":"target2","type":"Real","direction":"out"},{"name":"heating","type":"Real","direction":"out"},{"name":"cooling","type":"Real","direction":"out"}]}
     );
-    const cmdC = new AN_Components_CommandCoolerAN("cmdC");
+    const cmdC = new AN_Components_CommandCoolerAN("cmdC", { outParameters: [{"name":"cooling","type":"Real","direction":"out"}] });
     ac_CommanderCP.registerAction(cmdC);
-    const cmdH = new AN_Components_CommandHeaterAN("cmdH");
+    const cmdH = new AN_Components_CommandHeaterAN("cmdH", { outParameters: [{"name":"heating","type":"Real","direction":"out"}] });
     ac_CommanderCP.registerAction(cmdH);
     const ct = new AN_Components_CompareTemperatureAN("ct");
     ac_CommanderCP.registerAction(ct);
+    try { ac_CommanderCP.portToPinMapping["average2"] = "average2"; } catch(e) {}
+    try { ac_CommanderCP.portToPinMapping["average2"] = "average2"; } catch(e) {}
+    try { ac_CommanderCP.portToPinMapping["average"] = "average2"; } catch(e) {}
+    try { ac_CommanderCP.portToPinMapping["average"] = "average2"; } catch(e) {}
+    try { ac_CommanderCP.portToPinMapping["target2"] = "target2"; } catch(e) {}
+    try { ac_CommanderCP.portToPinMapping["target2"] = "target2"; } catch(e) {}
+    try { ac_CommanderCP.portToPinMapping["target"] = "target2"; } catch(e) {}
+    try { ac_CommanderCP.portToPinMapping["target"] = "target2"; } catch(e) {}
+    try { ac_CommanderCP.portToPinMapping["cmdH"] = "heating"; } catch(e) {}
+    try { ac_CommanderCP.portToPinMapping["cmdh"] = "heating"; } catch(e) {}
+    try { ac_CommanderCP.portToPinMapping["cmdC"] = "cooling"; } catch(e) {}
+    try { ac_CommanderCP.portToPinMapping["cmdc"] = "cooling"; } catch(e) {}
     this.registerActivity("DecideCommandAC", ac_CommanderCP);
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["RTCSystemCFD.rtc.cm"] = ac_CommanderCP; } catch(e) {}
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["rtcsystemcfd.rtc.cm"] = ac_CommanderCP; } catch(e) {}
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["rtc.cm"] = ac_CommanderCP; } catch(e) {}
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["cm"] = ac_CommanderCP; } catch(e) {}
     const ac_FahrenheitToCelsiusCN = new AC_Components_FahrenheitToCelsiusAC(
       "FahrenheitToCelsiusAC",
       "FahrenheitToCelsiusCN",
       [],
-      [{"from":"current1","to":"Ft"},{"from":"loalTemp1","to":"Ct"}]
+      [{"from":"current1","to":"Ft"},{"from":"localTemp1","to":"Ct"}],
+      {"outParameters":[{"name":"current1","type":"Real","direction":"out"},{"name":"localTemp1","type":"Real","direction":"out"}]}
     );
-    const FtC = new AN_Components_FahrenheitToCelsiusAN("FtC");
+    const FtC = new AN_Components_FahrenheitToCelsiusAN("FtC", { outParameters: [{"name":"current1","type":"Real","direction":"out"},{"name":"localTemp1","type":"Real","direction":"out"}] });
     ac_FahrenheitToCelsiusCN.registerAction(FtC);
+    try { ac_FahrenheitToCelsiusCN.portToPinMapping["Ft"] = "current1"; } catch(e) {}
+    try { ac_FahrenheitToCelsiusCN.portToPinMapping["ft"] = "current1"; } catch(e) {}
+    try { ac_FahrenheitToCelsiusCN.portToPinMapping["Ct"] = "localTemp1"; } catch(e) {}
+    try { ac_FahrenheitToCelsiusCN.portToPinMapping["ct"] = "localTemp1"; } catch(e) {}
     this.registerActivity("FahrenheitToCelsiusAC", ac_FahrenheitToCelsiusCN);
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["FahrenheitToCelsiusCN"] = ac_FahrenheitToCelsiusCN; } catch(e) {}
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["fahrenheittocelsiuscn"] = ac_FahrenheitToCelsiusCN; } catch(e) {}
   }
 
 }
@@ -756,6 +837,13 @@ function createModel(){
     EX_Components_CalculateAverageTemperatureEx,
     EX_Components_CheckPresenceToSetTemperature,
     EX_Components_CompareTemperatureEx,
+    EN_types_Command,
+    DT_types_Commands,
+    VT_types_temperature,
+    VT_types_FahrenheitTemperature,
+    VT_types_CelsiusTemperature,
+    UN_types_Celsius,
+    UN_types_Fahrenheit,
   };
   
   // Initialize all connectors now that _moduleContext is available

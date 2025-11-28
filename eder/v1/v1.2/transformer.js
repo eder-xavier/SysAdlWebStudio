@@ -816,6 +816,58 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
     }
 
     // Add blank line between type declarations and port classes
+    // Build package alias objects so generated executable/constraint functions can reference package namespaces (e.g. `types.Command`)
+    try {
+      const pkgMap = {}; // packageName -> { shortName, entries }
+      function shortPkgName(pkg) {
+        if (!pkg) return 'types';
+        const parts = pkg.split('.');
+        return parts[parts.length - 1].replace(/[^a-zA-Z0-9_]/g, '_');
+      }
+
+      // Collect enums
+      Object.keys(t.enumerations || {}).forEach(name => {
+        const pkg = packageMap[name] || 'types';
+        const short = shortPkgName(pkg);
+        pkgMap[pkg] = pkgMap[pkg] || { short, entries: [] };
+        const pref = getPackagePrefix(name, 'EN') + name;
+        pkgMap[pkg].entries.push({ key: name, val: pref });
+      });
+      // Collect datatypes
+      Object.keys(t.datatypes || {}).forEach(name => {
+        const pkg = packageMap[name] || 'types';
+        const short = shortPkgName(pkg);
+        pkgMap[pkg] = pkgMap[pkg] || { short, entries: [] };
+        const pref = getPackagePrefix(name, 'DT') + name;
+        pkgMap[pkg].entries.push({ key: name, val: pref });
+      });
+      // Collect value types
+      Object.keys(t.valueTypes || {}).forEach(name => {
+        if (primitiveTypes.has(name)) return;
+        const pkg = packageMap[name] || 'types';
+        const short = shortPkgName(pkg);
+        pkgMap[pkg] = pkgMap[pkg] || { short, entries: [] };
+        const pref = getPackagePrefix(name, 'VT') + name;
+        pkgMap[pkg].entries.push({ key: name, val: pref });
+      });
+      // Collect units
+      Object.keys(t.units || {}).forEach(name => {
+        const pkg = packageMap[name] || 'types';
+        const short = shortPkgName(pkg);
+        pkgMap[pkg] = pkgMap[pkg] || { short, entries: [] };
+        const pref = getPackagePrefix(name, 'UN') + name;
+        pkgMap[pkg].entries.push({ key: name, val: pref });
+      });
+
+      // Emit alias objects
+      Object.values(pkgMap).forEach(pkg => {
+        const items = pkg.entries.map(e => `  ${e.key}: ${e.val}`).join(',\n');
+        classLines.push(`const ${pkg.short} = {\n${items}\n};`);
+      });
+    } catch (e) {
+      // ignore packaging alias creation errors
+    }
+
     if (Object.keys(t.ports || {}).length > 0) {
       classLines.push('');
       classLines.push('// Ports');
@@ -1296,6 +1348,28 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   
   // NEW: Build port aliases map before generating component classes
   const componentPortAliases = buildUsingAliasMap();
+
+  // Helper: return canonical port name for a given instancePath or owner key
+  function canonicalPortNameForInstance(instancePathExpr, portName) {
+    try {
+      if (!instancePathExpr || !portName) return portName;
+      // instancePathExpr is like 'this.rtc' or 'this.Parent.child'
+      const ownerKey = String(instancePathExpr).replace(/^this\./, '');
+      if (typeof compPortsMap_main !== 'undefined' && compPortsMap_main) {
+        const portSet = compPortsMap_main[ownerKey] || compPortsMap_main[ownerKey.toLowerCase()];
+        if (portSet) {
+          for (const p of Array.from(portSet)) {
+            if (String(p) === String(portName)) return p; // exact match
+          }
+          // try case-insensitive match and return original-case port
+          for (const p of Array.from(portSet)) {
+            if (String(p).toLowerCase() === String(portName).toLowerCase()) return p;
+          }
+        }
+      }
+    } catch (e) { /* ignore */ }
+    return portName;
+  }
   
   // Helper function to extract ports from ComponentDef
   function extractComponentDefPorts(compDefNode) {
@@ -1786,9 +1860,20 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
                     let portAccess;
                     if (owner === 'this') {
                       // Use the connector owner context instead of 'this'
-                      portAccess = `${connectorOwner}.getPort("${port}")`;
+                      try {
+                        const canon = canonicalPortNameForInstance(connectorOwner, port);
+                        portAccess = `${connectorOwner}.getPort(${JSON.stringify(canon)})`;
+                      } catch(e) {
+                        portAccess = `${connectorOwner}.getPort(${JSON.stringify(port)})`;
+                      }
                     } else {
-                      portAccess = `${owner}.getPort("${port}")`;
+                      try {
+                        const ownerExpr = owner;
+                        const canon = canonicalPortNameForInstance(ownerExpr, port);
+                        portAccess = `${owner}.getPort(${JSON.stringify(canon)})`;
+                      } catch(e) {
+                        portAccess = `${owner}.getPort(${JSON.stringify(port)})`;
+                      }
                     }
                     portAccesses.push(portAccess);
                   }
@@ -1833,7 +1918,12 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
                           const instancePath = instancePathMap[instanceName];
                           if (instancePath) {
                             // Port was created with alias name (Solution 2), so use alias
-                            return `${instancePath}.getPort("${alias}")`;
+                            try {
+                              const canon = canonicalPortNameForInstance(instancePath, alias);
+                              return `${instancePath}.getPort(${JSON.stringify(canon)})`;
+                            } catch(e) {
+                              return `${instancePath}.getPort(${JSON.stringify(alias)})`;
+                            }
                           }
                         }
                       }
@@ -1865,10 +1955,20 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
                           if (componentPortAliases[instanceName] && componentPortAliases[instanceName][portName]) {
                             // Instance has alias, use it (ports created with alias names)
                             const alias = componentPortAliases[instanceName][portName];
-                            return `${instancePath}.getPort("${alias}")`;
+                            try {
+                              const canon = canonicalPortNameForInstance(instancePath, alias);
+                              return `${instancePath}.getPort(${JSON.stringify(canon)})`;
+                            } catch(e) {
+                              return `${instancePath}.getPort(${JSON.stringify(alias)})`;
+                            }
                           } else {
                             // Instance has no alias, use original name
-                            return `${instancePath}.getPort("${portName}")`;
+                            try {
+                              const canon = canonicalPortNameForInstance(instancePath, portName);
+                              return `${instancePath}.getPort(${JSON.stringify(canon)})`;
+                            } catch(e) {
+                              return `${instancePath}.getPort(${JSON.stringify(portName)})`;
+                            }
                           }
                         }
                       }
@@ -1877,7 +1977,12 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
                   
                   // STEP 3: Fallback - assume it's a port at the connector owner level
                   const ownerBase = connectorOwner.split('.').slice(0, -1).join('.') || 'this';
-                  return `${ownerBase}.getPort("${portName}")`;
+                  try {
+                    const canon = canonicalPortNameForInstance(ownerBase, portName);
+                    return `${ownerBase}.getPort(${JSON.stringify(canon)})`;
+                  } catch(e) {
+                    return `${ownerBase}.getPort(${JSON.stringify(portName)})`;
+                  }
                 };
                 
                 fromAccess = findComponentForPort(fromPort, true);
@@ -1888,6 +1993,12 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
                 // Add binding after connector creation
                 if (fromAccess && toAccess) {
                   lines.push(`    ${connectorOwner}.addConnector(${connectorInstantiation});`);
+                  // If this is a Command connector, associate it with the DecideCommand activity
+                  try {
+                    if ((String(connectorDef || '').toLowerCase().indexOf('command') >= 0) || (String(connectorClass || '').indexOf('CommandCN') >= 0)) {
+                      lines.push(`    try { ${connectorOwner}.connectors[${JSON.stringify(cname)}].activityName = ${JSON.stringify('DecideCommandAC')}; } catch(e) {}`);
+                    }
+                  } catch(e) { /* ignore */ }
                   lines.push(`    const ${jsVarName} = ${connectorOwner}.connectors[${JSON.stringify(cname)}];`);
                   lines.push(`    ${jsVarName}.bind(${fromAccess}, ${toAccess});`);
                   continue; // Skip the normal addConnector call
@@ -1908,6 +2019,12 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
         
         // Add connector to the appropriate component
         lines.push(`    ${connectorOwner}.addConnector(${connectorInstantiation});`);
+        // If this is a Command connector, associate it with the DecideCommand activity
+        try {
+          if ((String(connectorDef || '').toLowerCase().indexOf('command') >= 0) || (String(connectorClass || '').indexOf('CommandCN') >= 0)) {
+            lines.push(`    try { ${connectorOwner}.connectors[${JSON.stringify(cname)}].activityName = ${JSON.stringify('DecideCommandAC')}; } catch(e) {}`);
+          }
+        } catch(e) { /* ignore */ }
       }
       
       lines.push('');
@@ -2352,46 +2469,55 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
         // Input parameters are variables that appear in the right side but not in left side
         const inputVars = rightVars.filter(v => !leftVars.includes(v));
         const outputVars = leftVars;
-        
-        // Use extracted variables or fallback to provided parameters, but ensure no duplicates
-        let paramNames = inputVars.length > 0 ? [...new Set(inputVars)] : 
-                        (inParamNames.length > 0 ? [...new Set(inParamNames)] : [...new Set(outputVars)]);
-        
-        // Remove any remaining type-related words
-        paramNames = paramNames.filter(name => 
-          !['types', 'Commands', 'Command', 'On', 'Off', 'true', 'false', 'null'].includes(name)
-        );
-        
-        const paramTypes = paramNames.map((_, idx) => inParamTypes[idx] || 'Real');
-        
-        // Generate type validation
-        const typeValidation = generateTypeValidation(paramNames, paramTypes);
-        
-        // Determine the type of constraint based on expression structure
+
+        // Build combined parameter list: prefer explicit in/out param lists provided by the caller,
+        // but include any variables detected in the expression as fallback.
+        const explicitInNames = inParamNames || [];
+        const explicitOutNames = outParamNames || [];
+
+        // Param names detected from expression (e.g., t1,t2,av)
+        let detectedParamNames = [];
+        if (inputVars.length > 0 || outputVars.length > 0) {
+          detectedParamNames = [...new Set([...inputVars, ...outputVars])];
+        }
+
+        // Compose final destructure order: inParams first, then outParams, then any detected extras
+        const finalParamNames = [...new Set([...(explicitInNames.length ? explicitInNames : inputVars), ...(explicitOutNames.length ? explicitOutNames : outputVars), ...detectedParamNames])];
+
+        // Build corresponding types array using provided type hints when available
+        const finalParamTypes = finalParamNames.map(name => {
+          // try to find in explicit inParams
+          const idxIn = (inParams || []).findIndex(p => ((typeof p === 'object' ? p.name : p) === name));
+          if (idxIn !== -1) return (inParams[idxIn] && inParams[idxIn].type) || inParamTypes[idxIn] || 'Real';
+          const idxOut = (outParams || []).findIndex(p => ((typeof p === 'object' ? p.name : p) === name));
+          if (idxOut !== -1) return (outParams[idxOut] && outParams[idxOut].type) || 'Real';
+          // fallback to inferred types
+          const inferIdx = inParamNames.indexOf(name);
+          return (inferIdx !== -1 && inParamTypes[inferIdx]) ? inParamTypes[inferIdx] : 'Real';
+        });
+
+        // Remove any remaining type-related words from finalParamNames (safety)
+        const cleanedFinalParamNames = finalParamNames.filter(name => !['types', 'Commands', 'Command', 'On', 'Off', 'true', 'false', 'null'].includes(name));
+
+        // Generate type validation for the combined parameter set
+        const typeValidation = generateTypeValidation(cleanedFinalParamNames, finalParamTypes);
+
+        // Construct function body: destructure combined param names so out-params (like `av` or `c`) are available
+        const destructureList = cleanedFinalParamNames.join(', ');
         let functionBody;
         if (alfExpression.includes('==') && !alfExpression.includes('?')) {
           // Simple equality constraint - return boolean result directly
-          functionBody = `// Constraint equation: ${alfExpression}
-          const { ${paramNames.join(', ')} } = params;
-          ${typeValidation.replace(/typeof (\w+)/g, 'typeof $1')}
-          return ${alfExpression.replace(/^\((.*)\)$/, '$1')};
-        `;
+          functionBody = `// Constraint equation: ${alfExpression}\n          const { ${destructureList} } = params;\n          ${typeValidation.replace(/typeof (\\w+)/g, 'typeof $1')}\n          return ${alfExpression.replace(/^\((.*)\)$/, '$1')};\n        `;
         } else {
           // Numeric comparison constraint - use tolerance for floating point
-          functionBody = `// Constraint equation: ${alfExpression}
-          const { ${paramNames.join(', ')} } = params;
-          ${typeValidation.replace(/typeof (\w+)/g, 'typeof $1')}
-          const expectedValue = ${cleanRightSide};
-          const actualValue = ${cleanLeftSide};
-          return Math.abs(expectedValue - actualValue) < 1e-10; // tolerance for floating point comparison
-        `;
+          functionBody = `// Constraint equation: ${alfExpression}\n          const { ${destructureList} } = params;\n          ${typeValidation.replace(/typeof (\\w+)/g, 'typeof $1')}\n          const expectedValue = ${cleanRightSide};\n          const actualValue = ${cleanLeftSide};\n          return Math.abs(expectedValue - actualValue) < 1e-10; // tolerance for floating point comparison\n        `;
         }
 
         return {
           type: 'constraint',
           javascript: `function(params) {${functionBody}}`,
           equation: alfExpression,
-          parameters: paramNames.map((name, idx) => ({ name, type: paramTypes[idx] }))
+          parameters: cleanedFinalParamNames.map((name, idx) => ({ name, type: finalParamTypes[idx] || 'Real' }))
         };
       }
       
@@ -2418,29 +2544,36 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
         }
         
         const allVars = [...new Set(extractVariablesFromExpression(cleanExpression))];
-        
-        // Filter out type-related words and JavaScript reserved words
-        const paramNames = allVars.filter(name => 
-          !['types', 'Commands', 'Command', 'On', 'Off', 'true', 'false', 'null', 'return', 'else', 'if', 'for', 'while', 'function', 'var', 'let', 'const'].includes(name)
-        );
-        
-        const paramTypes = paramNames.map(() => 'Real'); // Default to Real for conditional expressions
-        
-        // Generate type validation
-        const typeValidation = generateTypeValidation(paramNames, paramTypes);
-        
+
+        // Start from explicit in/out parameter names provided by caller
+        const explicitInNames = inParamNames || [];
+        const explicitOutNames = outParamNames || [];
+
+        // Filter out type-related words and JavaScript reserved words from detected vars
+        const detectedNames = allVars.filter(name => !['types', 'Commands', 'Command', 'On', 'Off', 'true', 'false', 'null', 'return', 'else', 'if', 'for', 'while', 'function', 'var', 'let', 'const'].includes(name));
+
+        // Compose final parameter list: prefer explicit in/out lists, then detected names
+        const finalParamNames = [...new Set([...(explicitInNames.length ? explicitInNames : detectedNames), ...(explicitOutNames.length ? explicitOutNames : []), ...detectedNames])];
+
+        // Build type array (default to Real when unknown)
+        const finalParamTypes = finalParamNames.map(name => {
+          const idxIn = (inParams || []).findIndex(p => ((typeof p === 'object' ? p.name : p) === name));
+          if (idxIn !== -1) return (inParams[idxIn] && inParams[idxIn].type) || 'Real';
+          const idxOut = (outParams || []).findIndex(p => ((typeof p === 'object' ? p.name : p) === name));
+          if (idxOut !== -1) return (outParams[idxOut] && outParams[idxOut].type) || 'Real';
+          return 'Real';
+        });
+
+        const typeValidation = generateTypeValidation(finalParamNames, finalParamTypes);
+
         // Create constraint validation function - conditional expressions return boolean directly
-        const functionBody = `// Conditional constraint: ${alfExpression}
-          const { ${paramNames.join(', ')} } = params;
-          ${typeValidation.replace(/typeof (\w+)/g, 'typeof $1')}
-          return ${cleanExpression};
-        `;
-        
+        const functionBody = `// Conditional constraint: ${alfExpression}\n          const { ${finalParamNames.join(', ')} } = params;\n          ${typeValidation.replace(/typeof (\\w+)/g, 'typeof $1')}\n          return ${cleanExpression};\n        `;
+
         return {
           type: 'constraint', 
           javascript: `function(params) {${functionBody}}`,
           equation: alfExpression,
-          parameters: paramNames.map((name, idx) => ({ name, type: paramTypes[idx] }))
+          parameters: finalParamNames.map((name, idx) => ({ name, type: finalParamTypes[idx] }))
         };
       }
       
@@ -2503,7 +2636,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   }
 
   // Compile executable body to JavaScript function
-  function compileExecutableToJS(executableBody, parameters = []) {
+  function compileExecutableToJS(executableBody, parameters = [], expectedOutNames = []) {
     try {
       // Extract parameter definitions directly from executable signature
       let paramNames = [];
@@ -2541,6 +2674,34 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
       
       // Clean SysADL syntax to JavaScript
       functionBody = cleanSysADLToJS(functionBody);
+
+      // If no explicit return exists, but there are local variables declared, append a return object
+      try {
+        const hasReturn = /\breturn\b/.test(functionBody);
+        if (!hasReturn) {
+          const declared = [];
+          let m;
+          const letRe = /\blet\s+([A-Za-z_$][\w$]*)/g;
+          while ((m = letRe.exec(functionBody)) !== null) {
+            declared.push(m[1]);
+          }
+          // Also consider vars declared via simple assignment at top-level (fallback)
+          if (declared.length > 0) {
+            // If expected out parameter names are provided and match the declared vars,
+            // map declared variable values to those out parameter names to build the return object.
+            if (Array.isArray(expectedOutNames) && expectedOutNames.length === declared.length) {
+              const pairs = declared.map((v, i) => `${expectedOutNames[i]}: ${v}`).join(', ');
+              functionBody = functionBody + '\nreturn {' + pairs + '};';
+              console.log('Transformer: appended return mapping declared vars to outParameters:', declared, expectedOutNames);
+            } else {
+              functionBody = functionBody + '\nreturn {' + declared.map(n => `${n}: ${n}`).join(', ') + '};';
+              console.log('Transformer: appended return for variables:', declared);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Transformer: error while appending return to executable body', e && e.message);
+      }
       
       console.log(`DEBUG: Executable function - params: ${JSON.stringify(paramNames)}, body: ${functionBody}`);
       
@@ -2722,6 +2883,13 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
         actionDefs.push({ name, inPins, outPins, body, node: n });
       }
     });
+    // Build a global set of input parameter names used by actions (helpful for heuristics)
+    const globalActionInParamNames = new Set();
+    try {
+      for (const a of actionDefs) {
+        if (Array.isArray(a.inPins)) a.inPins.forEach(p => { if (p && p.name) globalActionInParamNames.add(String(p.name)); });
+      }
+    } catch (e) { /* ignore heuristics on failure */ }
     
     // Collect ConstraintDef nodes
     const constraintDefs = [];
@@ -2803,14 +2971,63 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
       const actionDels = actDels2[actDef.name] || [];
       const actionConstraints = actionToConstraintsMap[actDef.name] || [];
       const actionExecutable = actionToExecutableMap[actDef.name];
-      
+
+      // Determine outParameters in a robust, generic way:
+      // - If the action definition already declares outPins, keep them but prefer names from delegations
+      // - If no outPins declared, derive them from action delegations (from -> output pin names)
+      let finalOutPins = Array.isArray(actDef.outPins) ? actDef.outPins.slice() : [];
+
+      try {
+        if ((!finalOutPins || finalOutPins.length === 0) && actionDels && actionDels.length > 0) {
+          // Use the 'from' side of action delegations as the action's out-parameters
+          const uniqueOutNames = [...new Set(actionDels.map(d => d.from).filter(Boolean))];
+          finalOutPins = uniqueOutNames.map(n => ({ name: n, type: 'Real', direction: 'out' }));
+        } else if (finalOutPins && finalOutPins.length > 0 && actionDels && actionDels.length > 0) {
+          // Align existing outPins to delegation 'from' names when possible
+          const delFroms = actionDels.map(d => d.from);
+          // If counts match, replace out pin names with delegation names to ensure mapping
+          if (delFroms.length === finalOutPins.length) {
+            finalOutPins = finalOutPins.map((p, idx) => ({ name: delFroms[idx] || p.name, type: p.type || 'Real', direction: p.direction || 'out' }));
+          } else {
+            // Otherwise ensure we include delegation outputs in addition to declared ones
+            const declaredNames = finalOutPins.map(p => p.name);
+            for (const df of delFroms) {
+              if (!declaredNames.includes(df)) finalOutPins.push({ name: df, type: 'Real', direction: 'out' });
+            }
+          }
+        }
+      } catch (e) {
+        // defensive: if anything fails, fall back to declared outPins
+        try { finalOutPins = Array.isArray(actDef.outPins) ? actDef.outPins.slice() : finalOutPins; } catch (e2) {}
+      }
+
+      // Heuristic: if the action returns a Commands/Command-like type or
+      // if another action expects an input named 'cmds', normalize the
+      // out-parameter name to 'cmds' so downstream actions receive it.
+      try {
+        if (Array.isArray(finalOutPins) && finalOutPins.length > 0) {
+          // find candidate pin that represents commands (by type or by name)
+          for (let i = 0; i < finalOutPins.length; i++) {
+            const p = finalOutPins[i];
+            const pType = (p && p.type) ? String(p.type) : '';
+            const pName = (p && p.name) ? String(p.name) : '';
+            const looksLikeCommandsType = /command(s)?/i.test(pType) || /commands?/i.test(pName);
+            if (looksLikeCommandsType || globalActionInParamNames.has('cmds')) {
+              // rename this out-parameter to the canonical 'cmds'
+              finalOutPins[i] = { name: 'cmds', type: pType || p.type || 'Object', direction: 'out' };
+              break; // only normalize the first matching pin
+            }
+          }
+        }
+      } catch (e) { /* best-effort only */ }
+
       behavioralLines.push(`// Action class: ${actDef.name}`);
       behavioralLines.push(`class ${className} extends Action {`);
       behavioralLines.push(`  constructor(name, opts = {}) {`);
       behavioralLines.push(`    super(name, {`);
       behavioralLines.push(`      ...opts,`);
       behavioralLines.push(`      inParameters: ${JSON.stringify(actDef.inPins)},`);
-      behavioralLines.push(`      outParameters: ${JSON.stringify(actDef.outPins)},`);
+      behavioralLines.push(`      outParameters: ${JSON.stringify(finalOutPins)},`);
       if (actionDels.length > 0) {
         behavioralLines.push(`      delegates: ${JSON.stringify(actionDels)},`);
       }
@@ -2889,9 +3106,20 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
       behavioralLines.push(`      inParameters: ${JSON.stringify(inPins)},`);
       if (ex.body) {
         behavioralLines.push(`      body: ${JSON.stringify(ex.body)},`);
-        
+
+        // Determine expected out parameter names from mapped action (if any)
+        let expectedOutNames = [];
+        try {
+          // executableToActionMap and actionDefs are built earlier in this function's scope
+          const actionName = (typeof executableToActionMap !== 'undefined' && executableToActionMap[ex.name]) || null;
+          if (actionName && Array.isArray(actionDefs)) {
+            const a = actionDefs.find(ad => ad.name === actionName);
+            if (a && Array.isArray(a.outPins)) expectedOutNames = a.outPins.map(p => p.name);
+          }
+        } catch (e) { /* ignore */ }
+
         // Compile ALF body to JavaScript function for executables
-        const executableFunc = compileExecutableToJS(ex.body, inPins);
+        const executableFunc = compileExecutableToJS(ex.body, inPins, expectedOutNames);
         if (executableFunc) {
           behavioralLines.push(`      executableFunction: ${executableFunc}`);
         }
@@ -3147,12 +3375,84 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
       // Use explicit Activity class with prefix and include delegations
       const activityClassName = getPackagePrefix(a.activityName, 'AC') + a.activityName;
       const activityDels = activityDelegations[a.activityName] || [];
-      lines.push(`    const ${actVar} = new ${activityClassName}(`);
-      lines.push(`      ${JSON.stringify(a.activityName)},`);
-      lines.push(`      ${JSON.stringify(comp)},`);
-      lines.push(`      ${JSON.stringify(inputPorts)},`);
-      lines.push(`      ${JSON.stringify(activityDels)}`);
-      lines.push(`    );`);
+      // Determine the best component owner identifier to attach this activity to.
+      let _ownerName = comp;
+      try {
+        // If parentMap maps this instance, use its full path (remove leading 'this.')
+        if (parentMap && parentMap[comp]) {
+          _ownerName = String(parentMap[comp]).replace(/^this\./, '') + '.' + comp;
+        } else if (compInstanceDef && compInstanceDef[comp]) {
+          // comp refers to an instance name; try to build qualified path
+          const p = parentMap && parentMap[comp];
+          _ownerName = p ? String(p).replace(/^this\./, '') + '.' + comp : comp;
+        } else {
+          // comp might be a definition name; try to find an instance that uses this def
+          const candidateInst = Object.keys(compInstanceDef || {}).find(k => String(compInstanceDef[k]) === String(comp));
+          if (candidateInst) {
+            const p2 = parentMap && parentMap[candidateInst];
+            _ownerName = p2 ? String(p2).replace(/^this\./, '') + '.' + candidateInst : candidateInst;
+          }
+        }
+
+        // Prefer owner that actually exposes the input ports (more reliable match).
+        // compPortsMap_main maps qualified owner -> Set(portNames).
+        try {
+          if (inputPorts && inputPorts.length && typeof compPortsMap_main !== 'undefined' && compPortsMap_main) {
+            // For each input port, collect candidate owners that expose it
+            const portOwnersPerPort = inputPorts.map(pn => {
+              const name = String(pn || '').trim();
+              return Object.keys(compPortsMap_main || {}).filter(o => {
+                try { return compPortsMap_main[o] && compPortsMap_main[o].has && compPortsMap_main[o].has(name); } catch(e){ return false; }
+              });
+            });
+
+            // If all ports have at least one common owner, pick that owner
+            const commonOwners = portOwnersPerPort.reduce((acc, arr) => {
+              if (!acc) return arr.slice();
+              return acc.filter(x => arr.indexOf(x) !== -1);
+            }, null);
+
+            if (Array.isArray(commonOwners) && commonOwners.length === 1) {
+              _ownerName = commonOwners[0];
+            } else if (Array.isArray(commonOwners) && commonOwners.length > 1) {
+              // Prefer the one that is closest to the current _ownerName (prefix match)
+              const ownerLower = String(_ownerName || '').toLowerCase();
+              const pref = commonOwners.find(o => String(o).toLowerCase().indexOf(ownerLower) !== -1);
+              if (pref) _ownerName = pref;
+            } else {
+              // No single common owner: try to pick the most specific owner for the first input
+              const firstOwners = portOwnersPerPort[0] || [];
+              if (firstOwners.length === 1) _ownerName = firstOwners[0];
+            }
+          }
+        } catch(e) { /* ignore compPortsMap_main errors */ }
+      } catch (e) { /* ignore and fallback to comp */ }
+
+      // Determine candidate outParameters for this activity based on delegations
+      try {
+        const outPinsForEmit = (Array.isArray(activityDels) ? activityDels.map(d => d && d.from).filter(Boolean) : []).filter(p => {
+          try {
+            // Exclude any pins that are actually input ports
+            return !(Array.isArray(inputPorts) && inputPorts.map(x=>String(x)).indexOf(String(p)) >= 0);
+          } catch(e) { return true; }
+        }).map(n => ({ name: n, type: 'Real', direction: 'out' }));
+
+        lines.push(`    const ${actVar} = new ${activityClassName}(`);
+        lines.push(`      ${JSON.stringify(a.activityName)},`);
+        lines.push(`      ${JSON.stringify(String(_ownerName))},`);
+        lines.push(`      ${JSON.stringify(inputPorts)},`);
+        lines.push(`      ${JSON.stringify(activityDels)},`);
+        lines.push(`      ${JSON.stringify({ outParameters: outPinsForEmit })}`);
+        lines.push(`    );`);
+      } catch(e) {
+        // fallback to legacy constructor if anything goes wrong
+        lines.push(`    const ${actVar} = new ${activityClassName}(`);
+        lines.push(`      ${JSON.stringify(a.activityName)},`);
+        lines.push(`      ${JSON.stringify(String(_ownerName))},`);
+        lines.push(`      ${JSON.stringify(inputPorts)},`);
+        lines.push(`      ${JSON.stringify(activityDels)}`);
+        lines.push(`    );`);
+      }
       // emit-lines debug removed
       
       // Register actions within this activity using explicit classes
@@ -3168,8 +3468,38 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
           const actionVarName = sanitizeId(resolvedInstance);
 
           if (exec) {
-            // Create explicit action class instance using the resolved instance name
-            lines.push(`    const ${actionVarName} = new ${actionClassName}(${JSON.stringify(instanceNameRaw)});`);
+            // Heuristic: derive action out-parameters from activity delegations when possible.
+            //  - If activity delegations reference this action by name (to == instanceName or to == actionName), use those 'from' names as out params.
+            //  - If activity has a single action, and delegations exist, use delegation 'from' names that are not listed as activity inputPorts.
+            //  - Otherwise, leave action's own declared outParameters as-is.
+            try {
+              const _actDels = activityDels || [];
+              const _inst = instanceNameRaw || actionName;
+              let _actionOuts = [];
+              try {
+                // match delegations that target this action by instance token or by action name
+                const matched = (_actDels || []).filter(d => d && (String(d.to) === String(_inst) || String(d.to) === String(actionName)));
+                if (matched && matched.length) {
+                  _actionOuts = [...new Set(matched.map(d => d.from).filter(Boolean))];
+                } else if ((_actDels || []).length && Array.isArray(actions) && actions.length === 1) {
+                  // single-action activity: treat all delegations that look like outputs (not in inputPorts)
+                  const inps = Array.isArray(inputPorts) ? inputPorts.map(x=>String(x)) : [];
+                  const outs = (_actDels || []).map(d=>d.from).filter(Boolean).filter(n => inps.indexOf(String(n)) === -1);
+                  _actionOuts = [...new Set(outs)];
+                }
+              } catch(e) { _actionOuts = []; }
+
+              if (_actionOuts && _actionOuts.length) {
+                const outPinsForEmit = _actionOuts.map(n => ({ name: n, type: 'Real', direction: 'out' }));
+                lines.push(`    const ${actionVarName} = new ${actionClassName}(${JSON.stringify(instanceNameRaw)}, { outParameters: ${JSON.stringify(outPinsForEmit)} });`);
+              } else {
+                // Create explicit action class instance using the resolved instance name
+                lines.push(`    const ${actionVarName} = new ${actionClassName}(${JSON.stringify(instanceNameRaw)});`);
+              }
+            } catch(e) {
+              // on any failure, fall back to simple instantiation
+              lines.push(`    const ${actionVarName} = new ${actionClassName}(${JSON.stringify(instanceNameRaw)});`);
+            }
             lines.push(`    ${actVar}.registerAction(${actionVarName});`);
           } else {
             // Fallback to legacy Action creation but use instance name as the Action name
@@ -3178,7 +3508,195 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
         }
       }
       
+      // Emit explicit port->pin mappings based on deduced delegations (best-effort)
+      try {
+        if (Array.isArray(activityDels) && activityDels.length) {
+          for (const _d of activityDels) {
+            try {
+              if (_d && _d.from && _d.to) {
+                // Ensure mapping: external port name (to) -> internal pin name (from)
+                lines.push(`    try { ${actVar}.portToPinMapping[${JSON.stringify(String(_d.to))}] = ${JSON.stringify(String(_d.from))}; } catch(e) {}`);
+                // Also add lowercase variant for robustness (connectors sometimes use lowercase owners)
+                lines.push(`    try { ${actVar}.portToPinMapping[${JSON.stringify(String(_d.to).toLowerCase())}] = ${JSON.stringify(String(_d.from))}; } catch(e) {}`);
+
+                // Heuristic mapping: if the 'to' name contains a numeric suffix (e.g. target2),
+                // also emit a mapping for the base name without the digits (e.g. target -> target2).
+                try {
+                  const toStr = String(_d.to || '');
+                  const fromStr = String(_d.from || '');
+                  const base = toStr.replace(/\d+$/, '');
+                  if (base && base !== toStr) {
+                    lines.push(`    try { ${actVar}.portToPinMapping[${JSON.stringify(base)}] = ${JSON.stringify(fromStr)}; } catch(e) {}`);
+                    lines.push(`    try { ${actVar}.portToPinMapping[${JSON.stringify(base.toLowerCase())}] = ${JSON.stringify(fromStr)}; } catch(e) {}`);
+                  }
+                } catch(e) { /* ignore heuristic failures */ }
+
+                // NEW: if this activity belongs to a component instance that has port aliases
+                // (componentPortAliases), emit mappings so that instance-level port names
+                // (e.g. localTemp2) are mapped to the activity pin. This helps routing when
+                // connectors deliver to the parent instance port names.
+                try {
+                  if (typeof componentPortAliases !== 'undefined' && componentPortAliases) {
+                    // componentPortAliases: { instanceName -> { mappedPortName -> aliasName } }
+                    for (const instName of Object.keys(componentPortAliases)) {
+                      try {
+                        const aliasMap = componentPortAliases[instName] || {};
+                        // If the component defines an alias for the pin named like _d.to,
+                        // then emit mapping alias -> internal pin name
+                        const candidate = aliasMap[String(_d.to)];
+                        if (candidate) {
+                          lines.push(`    try { ${actVar}.portToPinMapping[${JSON.stringify(String(candidate))}] = ${JSON.stringify(String(_d.from))}; } catch(e) {}`);
+                          lines.push(`    try { ${actVar}.portToPinMapping[${JSON.stringify(String(candidate).toLowerCase())}] = ${JSON.stringify(String(_d.from))}; } catch(e) {}`);
+                        }
+
+                        // Also check reverse mapping: if aliasMap maps some originalPort -> alias
+                        // and the activity delegation 'to' matches the originalPort, we've already handled it.
+
+                  // EXTRA HEURISTIC: attempt to map parent-component ports to activity pins
+                  // by inspecting compPortsMap_main for parent owners. This helps cases where
+                  // delegations connect child pins (s1/s2) to parent ports (localTemp1/localTemp2).
+                  try {
+                    if (typeof compPortsMap_main !== 'undefined' && compPortsMap_main && _ownerName) {
+                      // build list of parent candidate owners (strip last segments)
+                      const ownerParts = String(_ownerName || '').split('.').filter(Boolean);
+                      const parentOwners = [];
+                      for (let i = ownerParts.length - 1; i > 0; i--) {
+                        parentOwners.push(ownerParts.slice(0, i).join('.'));
+                        parentOwners.push(ownerParts.slice(0, i).join('.').toLowerCase());
+                      }
+
+                      // Choose internal pin name and trailing digit heuristic
+                      const internalPin = String(_d.from || '');
+                      const internalLower = internalPin.toLowerCase();
+                      const tailDigits = (internalLower.match(/(\d+)$/) || [])[0] || null;
+                      const baseAlpha = internalLower.replace(/\d+$/, '');
+
+                      for (const pOwner of parentOwners) {
+                        try {
+                          const portSet = compPortsMap_main[pOwner];
+                          if (!portSet) continue;
+                          for (const parentPort of Array.from(portSet)) {
+                            try {
+                              const pp = String(parentPort || '').toLowerCase();
+                              let match = false;
+                              // 1) trailing digit match (s2 -> localTemp2)
+                              if (tailDigits && pp.endsWith(tailDigits)) match = true;
+                              // 2) base alpha substring (s -> temp) - only if contains 'temp' or similar
+                              if (!match && baseAlpha && (pp.includes(baseAlpha) || pp.includes('temp') || pp.includes('local'))) match = true;
+                              // 3) direct contains mapping (s1 inside parentPort)
+                              if (!match && pp.indexOf(internalLower) >= 0) match = true;
+
+                              if (match) {
+                                lines.push(`    try { ${actVar}.portToPinMapping[${JSON.stringify(String(parentPort))}] = ${JSON.stringify(String(_d.from))}; } catch(e) {}`);
+                                lines.push(`    try { ${actVar}.portToPinMapping[${JSON.stringify(String(parentPort).toLowerCase())}] = ${JSON.stringify(String(_d.from))}; } catch(e) {}`);
+                              }
+                            } catch(e) { /* ignore per-port */ }
+                          }
+                        } catch(e) { /* ignore per-owner */ }
+                      }
+                    }
+                  } catch(e) { /* non-fatal */ }
+                        // Additionally, support the case where the delegation 'to' is already an alias;
+                        // find any original port whose alias equals _d.to and emit mapping for the originalName too.
+                        for (const [origPort, aliasName] of Object.entries(aliasMap)) {
+                          if (String(aliasName) === String(_d.to)) {
+                            // Then emit mapping for origPort -> internal pin
+                            lines.push(`    try { ${actVar}.portToPinMapping[${JSON.stringify(String(origPort))}] = ${JSON.stringify(String(_d.from))}; } catch(e) {}`);
+                            lines.push(`    try { ${actVar}.portToPinMapping[${JSON.stringify(String(origPort).toLowerCase())}] = ${JSON.stringify(String(_d.from))}; } catch(e) {}`);
+                          }
+                        }
+                      } catch(e) { /* ignore per-instance errors */ }
+                    }
+                  }
+                } catch(e) { /* ignore aliasing heuristics */ }
+              }
+            } catch(e) { /* ignore individual delegate errors */ }
+          }
+        }
+      } catch(e) { /* best-effort only */ }
+
+      // Heuristic: if any action in this activity returns a composite object
+      // canonicalized as 'cmds', generate portToPinMapping entries that map
+      // composite fields (e.g. 'cmds.heater') to the activity pin names (e.g.
+      // 'heating', 'cooling'). This helps the runtime unpack composite
+      // action results into the activity's output pins when executables
+      // produce objects rather than scalar pin values.
+      try {
+        const activityActionNames = Array.isArray(actions) ? actions.map(it => (it && (it.name || it.executable || it.instanceName)) || null).filter(Boolean) : [];
+        // Broad detection: any action definition that mentions 'cmds' as an in/out pin
+        const hasCompositeCmds = (actionDefs || []).some(ad => {
+          try {
+            if (Array.isArray(ad.outPins) && ad.outPins.some(p => String(p.name).toLowerCase() === 'cmds')) return true;
+            if (Array.isArray(ad.inPins) && ad.inPins.some(p => String(p.name).toLowerCase() === 'cmds')) return true;
+          } catch(e) {}
+          return false;
+        });
+        if (hasCompositeCmds && Array.isArray(activityDels) && activityDels.length) {
+          for (const _d of activityDels) {
+            try {
+              if (!_d || !_d.from) continue;
+              const internalPin = String(_d.from);
+              // Build candidate field names to map from cmds.FIELD -> internalPin
+              const candidates = new Set();
+              candidates.add(internalPin);
+              // common name variants: try singular/plural and verb forms
+              const base = internalPin.replace(/ing$/i, '').replace(/ed$/i, '').replace(/s$/i, '');
+              candidates.add(base);
+              candidates.add(base + 'er');
+              candidates.add(base + 'ing');
+              candidates.add(internalPin.toLowerCase());
+
+              for (const field of Array.from(candidates)) {
+                if (!field) continue;
+                const key1 = `cmds.${field}`;
+                const key2 = `cmds.${field.toLowerCase()}`;
+                lines.push(`    try { ${actVar}.portToPinMapping[${JSON.stringify(key1)}] = ${JSON.stringify(internalPin)}; } catch(e) {}`);
+                lines.push(`    try { ${actVar}.portToPinMapping[${JSON.stringify(key2)}] = ${JSON.stringify(internalPin)}; } catch(e) {}`);
+              }
+            } catch(e) { /* ignore per-field errors */ }
+          }
+        }
+      } catch(e) { /* best-effort only */ }
+
       lines.push(`    this.registerActivity(${JSON.stringify(a.activityName)}, ${actVar});`);
+      // Also register conservative alias keys for owner lookup (exact, tail forms, lowercase)
+      try {
+        const compForAliases = String(String(_ownerName || comp || (a.descriptor && a.descriptor.component) || a.activityName) || '').replace(/^this\./, '').replace(/^SysADLModel\./, '');
+        const aliasKeys = new Set();
+        if (compForAliases) {
+          // canonical (full) and lowercase canonical
+          aliasKeys.add(compForAliases);
+          aliasKeys.add(compForAliases.toLowerCase());
+
+          // only add short tail forms (last two segments and last segment)
+          const partsAlias = compForAliases.split('.').filter(Boolean);
+          if (partsAlias.length >= 2) aliasKeys.add(partsAlias.slice(-2).join('.'));
+          if (partsAlias.length >= 1) aliasKeys.add(partsAlias.slice(-1)[0]);
+          // lowercase variants for tail forms
+          if (partsAlias.length >= 2) aliasKeys.add(partsAlias.slice(-2).join('.').toLowerCase());
+          if (partsAlias.length >= 1) aliasKeys.add(partsAlias.slice(-1)[0].toLowerCase());
+
+          // Special-case: if this activity belongs to a commander-like child ('.cm'),
+          // also add the parent owner (e.g. 'RTCSystemCFD.rtc') so the controller
+          // receives values delivered to the parent component ports.
+          try {
+            // Intentionally do NOT add a broad parent-owner alias here. Adding the parent
+            // owner (e.g. 'RTCSystemCFD.rtc') for all commander activities caused
+            // deliveries to be routed incorrectly to the commander when they should
+            // be handled by more specific child activities (e.g. SensorsMonitor).
+            // If future cases require parent-owner routing, add it only when the
+            // activity has explicit mappings to the parent-level port names.
+          } catch(e) {}
+        }
+
+        // Emit alias assignments but avoid emitting ancestor prefixes that can override parent component keys
+        for (const ak of Array.from(aliasKeys)) {
+          if (!ak) continue;
+          lines.push(`    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex[${JSON.stringify(ak)}] = ${actVar}; } catch(e) {}`);
+        }
+      } catch (e) {
+        // best-effort only - do not fail generation
+      }
     }
   }
   const unresolvedBindings = [];
@@ -3331,6 +3849,26 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
       lines.push(`    ${prefixedName},`);
     });
   }
+
+  // Add enumerations, datatypes, value types and units to module context
+  Object.keys(embeddedTypes.enumerations || {}).forEach(enumName => {
+    const prefixedName = getPackagePrefix(enumName, 'EN') + enumName;
+    lines.push(`    ${prefixedName},`);
+  });
+  Object.keys(embeddedTypes.datatypes || {}).forEach(dtName => {
+    const prefixedName = getPackagePrefix(dtName, 'DT') + dtName;
+    lines.push(`    ${prefixedName},`);
+  });
+  Object.keys(embeddedTypes.valueTypes || {}).forEach(vtName => {
+    if (!primitiveTypes.has(vtName)) {
+      const prefixedName = getPackagePrefix(vtName, 'VT') + vtName;
+      lines.push(`    ${prefixedName},`);
+    }
+  });
+  Object.keys(embeddedTypes.units || {}).forEach(unName => {
+    const prefixedName = getPackagePrefix(unName, 'UN') + unName;
+    lines.push(`    ${prefixedName},`);
+  });
   
   lines.push(`  };`);
   lines.push(`  `);
@@ -7457,7 +7995,56 @@ async function main() {
       if ((!finalInputs || finalInputs.length === 0) && enriched && enriched.length) {
         for (const ea of enriched) { if (ea.params && ea.params.length) { finalInputs = ea.params.slice(); break; } }
       }
-      activitiesToRegister.push({ activityName: an, descriptor: { component: cand, inputPorts: finalInputs || [], actions: enriched } });
+      // Compute a canonical component/owner string for this activity so the runtime
+      // can match incoming port.owner values. Prefer instancePathMap entries
+      // (which reference `this.<inst>`), but emit a cleaned qualified name
+      // without the leading `this.` or model prefix. For connector-based
+      // activities, resolve the connector's owner component when possible.
+      let compOwner = cand;
+      try {
+        if (instancePathMap && instancePathMap[cand]) {
+          compOwner = String(instancePathMap[cand]).replace(/^this\./, '').replace(/^SysADLModel\./, '');
+        } else if (Array.isArray(connectorDescriptors)) {
+          const connDesc = connectorDescriptors.find(d => d && String(d.name) === String(cand));
+          if (connDesc) {
+            if (connDesc.owner && instancePathMap && instancePathMap[connDesc.owner]) {
+              compOwner = String(instancePathMap[connDesc.owner]).replace(/^this\./, '').replace(/^SysADLModel\./, '');
+            } else if (connDesc.owner) {
+              // If owner is present but not in instancePathMap, use raw owner string
+              compOwner = String(connDesc.owner).replace(/^this\./, '').replace(/^SysADLModel\./, '');
+            } else {
+              // Fallback: use first available instance path (best-effort)
+              const vals = Object.values(instancePathMap || {});
+              if (vals && vals.length) compOwner = String(vals[0]).replace(/^this\./, '').replace(/^SysADLModel\./, '');
+            }
+          }
+        }
+      } catch (e) {
+        // On any error, fall back to the original candidate name
+        compOwner = cand;
+      }
+
+      // Normalize delegation targets/ sources to real port names where possible
+      let normalizedDelegations = [];
+      try {
+        const rawDels = (activityDelegations && activityDelegations[an]) ? activityDelegations[an] : [];
+        for (const d of rawDels) {
+          try {
+            const resolvedTo = (typeof resolveSide === 'function') ? resolveSide(d.to, comp) : null;
+            const resolvedFrom = (typeof resolveSide === 'function') ? resolveSide(d.from, comp) : null;
+            const toName = resolvedTo && resolvedTo.port ? resolvedTo.port : (d.to || null);
+            const fromName = resolvedFrom && resolvedFrom.port ? resolvedFrom.port : (d.from || null);
+            normalizedDelegations.push({ from: fromName, to: toName });
+          } catch(e) {
+            // fallback to raw delegation
+            normalizedDelegations.push({ from: d.from, to: d.to });
+          }
+        }
+      } catch(e) {
+        normalizedDelegations = [];
+      }
+
+      activitiesToRegister.push({ activityName: an, descriptor: { component: compOwner, inputPorts: finalInputs || [], actions: enriched, delegates: normalizedDelegations } });
     }
   }
 

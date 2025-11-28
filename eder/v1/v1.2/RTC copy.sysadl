@@ -69,14 +69,14 @@ package Connectors {
 	  			rtc : RoomTemperatureControllerCP {	 
 	  				using ports : 
 	  					detected : PresenceIPT ; 
-						localTemp1 : CTemperatureIPT ; 
+	  					localtemp1 : CTemperatureIPT ; 
 	  					localTemp2 : CTemperatureIPT ; 
 	  					userTemp : CTemperatureIPT ; 
 	  					heating : CommandOPT ; 
 	  					cooling : CommandOPT ; 
 	  			}
 	  		connectors : 
-				c1 : FahrenheitToCelsiusCN bindings current1 = localTemp1 ; 
+	  			c1 : FahrenheitToCelsiusCN bindings current1 = localtemp1 ; 
 	  			uc : CTemperatureCN bindings desired = userTemp ; 
 	  			cc2 : CommandCN bindings cooling = controllerC ; 
 	  			pc : PresenceCN bindings detectedS = detected ; 
@@ -86,7 +86,7 @@ package Connectors {
 	  }
 
 	component def RoomTemperatureControllerCP {	 
-		ports : detectedRTC : PresenceIPT ; localTemp1 : CTemperatureIPT ; localTemp2 : CTemperatureIPT ; userTempRTC : CTemperatureIPT ; heatingRTC : CommandOPT ; coolingRTC : CommandOPT ; 
+		ports : detectedRTC : PresenceIPT ; localtemp1 : CTemperatureIPT ; localTemp2 : CTemperatureIPT ; userTempRTC : CTemperatureIPT ; heatingRTC : CommandOPT ; coolingRTC : CommandOPT ; 
 		configuration {	 
 			components : 
 				sm : SensorsMonitorCP {	 
@@ -113,7 +113,7 @@ package Connectors {
   			delegations :
   				userTemp to userTempRTC 
   				detected to detectedRTC 
-                		s1 to localTemp1 
+  				s1 to localtemp1 
   				s2 to localTemp2 
   				heating to heatingRTC 
   				cooling to coolingRTC 
@@ -165,14 +165,14 @@ package Connectors {
 	} 
 	activity def CheckPresenceToSetTemperatureAC ( detected : Boolean ) ( userTemp : CelsiusTemperature ) : ( target : CelsiusTemperature ) { 
 		body { 
-			actions : CheckPresenceToSetTemperatureAN : CheckPresenceToSetTemperatureAN { 
+			actions : CheckPeresenceToSetTemperatureAN : CheckPeresenceToSetTemperatureAN { 
 				using pins : 
 					detected : Boolean ; 
 					userTemp : CelsiusTemperature ;
 			} 
 			delegate detected to detected 
 			delegate userTemp to userTemp 
-			delegate target to CheckPresenceToSetTemperatureAN
+			delegate target to CheckPeresenceToSetTemperatureAN
 		}
 	} 
 	activity def DecideCommandAC ( average2 : CelsiusTemperature ) ( target2 : CelsiusTemperature ) : ( cooling : Command , heating : Command ) { 
@@ -209,13 +209,13 @@ package Connectors {
 		} 
 	constraint CommandCoolerEQ ( cmds : Commands ) : ( c : Command ) {equation = c == cmds->cooler } 
 	action def FahrenheitToCelsiusAN ( current1 : FahrenheitTemperature ) : CelsiusTemperature { constraint : post-condition FahrenheitToCelsiusEQ } 	
-	action def CheckPresenceToSetTemperatureAN ( detected : Boolean , userTemp : CelsiusTemperature ) : CelsiusTemperature { constraint : post-condition CheckPresenceToSetTemperatureEQ } 
+	action def CheckPeresenceToSetTemperatureAN ( detected : Boolean , userTemp : CelsiusTemperature ) : CelsiusTemperature { constraint : post-condition CheckPresenceToSetTemperatureEQ } 
 	constraint CheckPresenceToSetTemperatureEQ ( detected : Boolean , userTemp : CelsiusTemperature ) : ( target : CelsiusTemperature ) {equation = detected == true ? target == userTemp : target == 2 } 
 	executable def CommandCoolerEx(in cmds:Commands): out Command{return cmds->cooler ; } 
 	executable def CommandHeaterEx(in cmds:Commands): out Command{return cmds->heater ; }
 	executable def FahrenheitToCelsiusEx(in f:FahrenheitTemperature): out CelsiusTemperature{return 5*(f - 32)/9 ; }
 	executable def CalculateAverageTemperatureEx(in temp1:CelsiusTemperature,in temp2:CelsiusTemperature):out CelsiusTemperature{return (temp1 + temp2)/2 ; }
-		executable def CheckPresenceToSetTemperature(in presence:Boolean, in userTemp:CelsiusTemperature):out CelsiusTemperature{if(presence == true) return userTemp; else return 2; }
+	executable def CheckPresenceToSetTemperature(in presence:Boolean, in userTemp:CelsiusTemperature):out CelsiusTemperature{if(presence == true) return userTemp; else return 2; }
 	executable def CompareTemperatureEx(in target:CelsiusTemperature, in average:CelsiusTemperature):out Commands{let heater:Command = types.Command::Off; let cooler:Command = types.Command::Off; if(average > target) {heater = types.Command::Off; cooler = types.Command::On ; } else {heater = types.Command::On; cooler = types.Command::Off ;} } } 
 	
 	allocations { 
@@ -227,6 +227,6 @@ package Connectors {
 		executable CompareTemperatureEx to CompareTemperatureAN 
 		executable CommandHeaterEx to CommandHeaterAN 
 		executable CommandCoolerEx to CommandCoolerAN 
-		executable CheckPresenceToSetTemperature to CheckPresenceToSetTemperatureAN 
+		executable CheckPresenceToSetTemperature to CheckPeresenceToSetTemperatureAN 
 		executable CalculateAverageTemperatureEx to CalculateAverageTemperatureAN
 	}
