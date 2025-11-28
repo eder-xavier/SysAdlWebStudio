@@ -527,22 +527,6 @@ class MyEvents extends EventsDefinitions {
             return results;
           }
         },
-        {
-          trigger: 'AGV1atStationA',
-          tasks: {
-            AGV1DetectedStationA: (context) => {
-              agv1.sensor = 'stationA';
-              return true;
-            },
-          },
-          execute: (context) => {
-            if (context.sysadlBase && context.sysadlBase.logger) context.sysadlBase.logger.log('⚡ Executing AGV1Events: AGV1atStationA -> AGV1DetectedStationA');
-            const results = [];
-            const currentRule = this.AGV1Events.rules.find(r => r.trigger === 'AGV1atStationA');
-            results.push(currentRule.tasks.AGV1DetectedStationA(context));
-            return results;
-          }
-        },
       ],
       hasRule: (triggerName) => {
         return this.AGV1Events.rules.some(rule => rule.trigger === triggerName);
@@ -1744,10 +1728,6 @@ class MyScenariosExecution extends ScenarioExecution {
     // inject SetAGV2SensorStationD when agv1.location == stationA.ID;
     if (context.eventScheduler) {
       context.eventScheduler.scheduleOnCondition('SetAGV2SensorStationD', () => context.model?.environmentConfig?.agv1?.location == context.model?.environmentConfig?.stationA?.ID);
-    }
-    // inject AGV1atStationA after cmdAGV1toA;
-    if (context.eventScheduler) {
-      context.eventScheduler.scheduleAfterScenario('AGV1atStationA', 'cmdAGV1toA');
     }
 
     // Execute scenarios

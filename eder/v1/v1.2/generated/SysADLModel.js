@@ -542,7 +542,9 @@ class EX_Components_CommandCoolerEx extends Executable {
       executableFunction: function(params) {
           // Type validation
           // Type validation for cmds: (auto-detected from usage)
+          // Mapped cmds -> cmds (Exact Match)
           const { cmds } = params;
+          
           return cmds.cooler;
         }
     });
@@ -559,7 +561,9 @@ class EX_Components_CommandHeaterEx extends Executable {
       executableFunction: function(params) {
           // Type validation
           // Type validation for cmds: (auto-detected from usage)
+          // Mapped cmds -> cmds (Exact Match)
           const { cmds } = params;
+          
           return cmds.heater;
         }
     });
@@ -571,12 +575,14 @@ class EX_Components_FahrenheitToCelsiusEx extends Executable {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [{"name":"f","type":"FahrenheitTemperature","direction":"in"}],
+      inParameters: [{"name":"current1","type":"FahrenheitTemperature","direction":"in"}],
       body: "executable def FahrenheitToCelsiusEx(in f:FahrenheitTemperature): out CelsiusTemperature{return 5*(f - 32)/9 ; }",
       executableFunction: function(params) {
           // Type validation
           // Type validation for f: (auto-detected from usage)
-          const { f } = params;
+          // Mapped f -> current1 (Positional Fallback)
+          const { current1 } = params;
+          const f = current1;
           return 5*(f - 32)/9;
         }
     });
@@ -588,13 +594,17 @@ class EX_Components_CalculateAverageTemperatureEx extends Executable {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [{"name":"temp1","type":"CelsiusTemperature","direction":"in"},{"name":"temp2","type":"CelsiusTemperature","direction":"in"}],
+      inParameters: [{"name":"t1","type":"CelsiusTemperature","direction":"in"},{"name":"t2","type":"CelsiusTemperature","direction":"in"}],
       body: "executable def CalculateAverageTemperatureEx(in temp1:CelsiusTemperature,in temp2:CelsiusTemperature):out CelsiusTemperature{return (temp1 + temp2)/2 ; }",
       executableFunction: function(params) {
           // Type validation
           // Type validation for temp1: (auto-detected from usage)
           // Type validation for temp2: (auto-detected from usage)
-          const { temp1, temp2 } = params;
+          // Mapped temp1 -> t1 (Positional Fallback)
+          // Mapped temp2 -> t2 (Positional Fallback)
+          const { t1, t2 } = params;
+          const temp1 = t1;
+          const temp2 = t2;
           return (temp1 + temp2)/2;
         }
     });
@@ -606,13 +616,16 @@ class EX_Components_CheckPresenceToSetTemperature extends Executable {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [{"name":"presence","type":"Boolean","direction":"in"},{"name":"userTemp","type":"CelsiusTemperature","direction":"in"}],
+      inParameters: [{"name":"detected","type":"Boolean","direction":"in"},{"name":"userTemp","type":"CelsiusTemperature","direction":"in"}],
       body: "executable def CheckPresenceToSetTemperature(in presence:Boolean, in userTemp:CelsiusTemperature):out CelsiusTemperature{if(presence == true) return userTemp; else return 2; }",
       executableFunction: function(params) {
           // Type validation
           // Type validation for presence: (auto-detected from usage)
           // Type validation for userTemp: (auto-detected from usage)
-          const { presence, userTemp } = params;
+          // Mapped userTemp -> userTemp (Exact Match)
+          // Mapped presence -> detected (Positional Fallback)
+          const { userTemp, detected } = params;
+          const presence = detected;
           if(presence == true) return userTemp; else return 2;
         }
     });
@@ -624,13 +637,17 @@ class EX_Components_CompareTemperatureEx extends Executable {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [{"name":"target","type":"CelsiusTemperature","direction":"in"},{"name":"average","type":"CelsiusTemperature","direction":"in"}],
+      inParameters: [{"name":"average2","type":"CelsiusTemperature","direction":"in"},{"name":"target2","type":"CelsiusTemperature","direction":"in"}],
       body: "executable def CompareTemperatureEx(in target:CelsiusTemperature, in average:CelsiusTemperature):out Commands{let heater:Command = types.Command::Off; let cooler:Command = types.Command::Off; if(average > target) {heater = types.Command::Off; cooler = types.Command::On ; } else {heater = types.Command::On; cooler = types.Command::Off ;} }",
       executableFunction: function(params) {
           // Type validation
           // Type validation for target: (auto-detected from usage)
           // Type validation for average: (auto-detected from usage)
-          const { target, average } = params;
+          // Mapped target -> target2 (Substring Match)
+          // Mapped average -> average2 (Substring Match)
+          const { target2, average2 } = params;
+          const target = target2;
+          const average = average2;
           let heater = types.Command.Off; let cooler = types.Command.Off; if(average > target) {heater = types.Command.Off; cooler = types.Command.On ; } else {heater = types.Command.On; cooler = types.Command.Off ;}
 return {heater: heater, cooler: cooler};
         }

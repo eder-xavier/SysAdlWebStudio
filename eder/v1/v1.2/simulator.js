@@ -67,34 +67,65 @@ function findInputPorts(model, aliasMap){
       for (const [pname, port] of Object.entries(root.ports)) {
         console.log(`[FIND PORTS]   - Port ${pname}: direction=${port.direction}, type=${port.constructor?.name}, isBoundary=${root.props?.isBoundary}`);
         
-        // Aceita portas de entrada OU portas de saída de componentes boundary (sensores)
-        // Também tratar 'inout' como possível alvo de estímulo
-        const isInputPort = !port.direction || port.direction === 'in' || port.direction === 'inout';
-        const isBoundaryOutputPort = (port.direction === 'out' || port.direction === 'inout') && root.props?.isBoundary === true;
+        const componentPath = path || (root.name || 'root');
         
-        if (isInputPort || isBoundaryOutputPort) {
-          const componentPath = path || (root.name || 'root');
-          
-          // Get alias for this port if exists
-          let aliasName = null;
-          if (aliasMap && aliasMap[componentPath]) {
-            // Check if this real port name has an alias
-            for (const [realName, alias] of Object.entries(aliasMap[componentPath])) {
-              if (realName === pname) {
-                aliasName = alias;
-                break;
-              }
+        // Get alias for this port if exists
+        let aliasName = null;
+        if (aliasMap && aliasMap[componentPath]) {
+          // Check if this real port name has an alias
+          for (const [realName, alias] of Object.entries(aliasMap[componentPath])) {
+            if (realName === pname) {
+              aliasName = alias;
+              break;
             }
           }
+        }
+        
+        // Check if this is a composite port with sub-ports
+        const isComposite = port.direction === 'composite' || (port.subports && Object.keys(port.subports).length > 0);
+        
+        if (isComposite) {
+          // For composite ports, expand sub-ports
+          try {
+            const subports = port.subports || {};
+            const subNames = Object.keys(subports);
+            for (const subName of subNames) {
+              const subPortObj = (typeof port.getSubPort === 'function') ? port.getSubPort(subName) : subports[subName];
+              if (!subPortObj) continue;
+              
+              // Only include input sub-ports or boundary output sub-ports
+              const subIsInputPort = !subPortObj.direction || subPortObj.direction === 'in' || subPortObj.direction === 'inout';
+              const subIsBoundaryOutputPort = (subPortObj.direction === 'out' || subPortObj.direction === 'inout') && root.props?.isBoundary === true;
+              
+              if (subIsInputPort || subIsBoundaryOutputPort) {
+                inputPorts.push({
+                  component: componentPath,
+                  port: `${pname}.${subName}`,
+                  alias: aliasName ? `${aliasName}.${subName}` : null,
+                  portObj: subPortObj,
+                  fullPath: path ? `${path}.${pname}.${subName}` : `${pname}.${subName}`,
+                  fullPathWithAlias: aliasName && path ? `${path}.${aliasName}.${subName}` : null
+                });
+              }
+            }
+          } catch(e) {
+            // ignore if port structure unexpected
+          }
+        } else {
+          // Non-composite port: include if it's input or boundary output
+          const isInputPort = !port.direction || port.direction === 'in' || port.direction === 'inout';
+          const isBoundaryOutputPort = (port.direction === 'out' || port.direction === 'inout') && root.props?.isBoundary === true;
           
-          inputPorts.push({
-            component: componentPath,
-            port: pname,
-            alias: aliasName,
-            portObj: port,
-            fullPath: path ? `${path}.${pname}` : pname,
-            fullPathWithAlias: aliasName && path ? `${path}.${aliasName}` : null
-          });
+          if (isInputPort || isBoundaryOutputPort) {
+            inputPorts.push({
+              component: componentPath,
+              port: pname,
+              alias: aliasName,
+              portObj: port,
+              fullPath: path ? `${path}.${pname}` : pname,
+              fullPathWithAlias: aliasName && path ? `${path}.${aliasName}` : null
+            });
+          }
         }
       }
     }
@@ -293,21 +324,60 @@ function sendPayloadToPortByName(model, portName, payload){
 
     let cur = model.components || model;
     // Tentar percorrer usando chaves diretas ou propriedade components
-    for (const seg of compParts) {
+    // Walk segments but be aware that some segments may name PORTS (not components)
+    // Example: FactoryAutomationSystem.ss.in_outDataSup.outMoveToStation
+    // where 'in_outDataSup' is a port that contains a sub-port 'outMoveToStation'.
+    for (let i = 0; i < compParts.length; i++) {
+      const seg = compParts[i];
       if (!cur) break;
-      if (cur[seg]) {
-        cur = cur[seg];
-        continue;
-      }
+
+      // Prefer descending into a component if available
       if (cur.components && cur.components[seg]) {
         cur = cur.components[seg];
         continue;
       }
-      // não encontrou segment
+
+      // Some model shapes expose components directly as properties
+      if (cur[seg]) {
+        cur = cur[seg];
+        continue;
+      }
+
+      // If there's a port with this name, it may be a composite port. Handle sub-port if next segment exists.
+      if (cur.ports && cur.ports[seg]) {
+        const portObj = cur.ports[seg];
+        const remaining = compParts.slice(i + 1);
+        if (remaining.length > 0) {
+          // attempt to resolve sub-port
+          const subName = remaining[0];
+          try {
+            const sp = (typeof portObj.getSubPort === 'function') ? portObj.getSubPort(subName) : (portObj.subports && portObj.subports[subName]);
+            if (sp && typeof sp.send === 'function') {
+              // if there are more segments after sub-port, we don't support deeper nesting — but send to this sub-port
+              sp.send(payload, model);
+              return true;
+            }
+          } catch (e) {
+            // fallthrough to null
+          }
+        } else {
+          // no remaining segments, send to the composite port itself
+          if (typeof portObj.send === 'function') {
+            portObj.send(payload, model);
+            return true;
+          }
+        }
+        // If we tried port path and failed, stop descent
+        cur = null;
+        break;
+      }
+
+      // not found
       cur = null;
       break;
     }
 
+    // If the final segment corresponds to a direct port name
     if (cur && cur.ports && cur.ports[pName]) {
       cur.ports[pName].send(payload, model);
       return true;

@@ -2990,6 +2990,12 @@ class Executable extends BehavioralElement {
       body: this.body
     });
     
+    // Validate parameter count
+    if (this.inParameters && inputs.length !== this.inParameters.length) {
+      console.warn(`[EXECUTABLE EXECUTE] ${this.name}: Parameter count mismatch - expected ${this.inParameters.length}, got ${inputs.length}`);
+      console.warn(`[EXECUTABLE EXECUTE] Expected parameters:`, this.inParameters.map(p => p.name));
+    }
+    
     // this.validateParameters(inputs);  // Skip validation for now
     if (!this.compiledFn) this.compile();
     
@@ -3171,6 +3177,47 @@ class Action extends BehavioralElement {
     }
   }
 
+  // Map action parameters to executable parameters by name (not position)
+  mapParametersToExecutable(executable, inputs) {
+    // If no inParameters in either action or executable, return inputs as-is
+    if (!this.inParameters || !executable.inParameters) {
+      return inputs;
+    }
+    
+    // Create a map of action parameter names to their values
+    const actionParams = {};
+    this.inParameters.forEach((param, index) => {
+      if (index < inputs.length) {
+        actionParams[param.name] = inputs[index];
+      }
+    });
+    
+    // Track if there were any mismatches
+    let hasMismatch = false;
+    
+    // Reorder inputs according to executable's parameter order - STRICT nominal matching
+    const mappedInputs = executable.inParameters.map((execParam, execIndex) => {
+      // Try exact match by name
+      if (actionParams.hasOwnProperty(execParam.name)) {
+        return actionParams[execParam.name];
+      }
+      
+      // No match found - this is an error that must be fixed in the model
+      if (!hasMismatch) {
+        console.error(`[PARAM MAPPING ERROR] ${this.name} → ${executable.name}: Parameter name mismatch detected`);
+        console.error(`[PARAM MAPPING ERROR]   Action parameters:`, this.inParameters.map(p => p.name));
+        console.error(`[PARAM MAPPING ERROR]   Executable parameters:`, executable.inParameters.map(p => p.name));
+        console.error(`[PARAM MAPPING ERROR] ⚠️  This model has incompatible parameter names and must be fixed!`);
+        hasMismatch = true;
+      }
+      
+      // Return undefined to cause constraint failure - this will make the issue visible
+      return undefined;
+    });
+    
+    return mappedInputs;
+  }
+
   invoke(inputs, model) {
     this.validateParameters(inputs);
     
@@ -3242,7 +3289,9 @@ class Action extends BehavioralElement {
         );
       }
       
-      result = executable.execute(inputs, model);
+      // Map action parameters to executable parameters by name (not position)
+      const mappedInputs = this.mapParametersToExecutable(executable, inputs);
+      result = executable.execute(mappedInputs, model);
       console.log(`[ACTION INVOKE] Result: ${result}`);
       
       // Trace executable execution
