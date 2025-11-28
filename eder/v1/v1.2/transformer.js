@@ -2001,6 +2001,15 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
                   } catch(e) { /* ignore */ }
                   lines.push(`    const ${jsVarName} = ${connectorOwner}.connectors[${JSON.stringify(cname)}];`);
                   lines.push(`    ${jsVarName}.bind(${fromAccess}, ${toAccess});`);
+
+                  // Emit explicit runtime portToPinMapping assignments for connector participant tokens
+                  try {
+                    if (actualBindings && actualBindings.length) {
+                      const bindsLiteral = JSON.stringify(actualBindings);
+                      lines.push(`    try { (function(){ const _binds = ${bindsLiteral}; _binds.forEach(b => { try { const left = String(b.left || b.source || b.from); const right = String(b.right || b.destination || b.to); Object.values(model._activities || {}).forEach(act => { try { if (act && act.portToPinMapping) { const mapped = act.portToPinMapping[right] || act.portToPinMapping[String(right).toLowerCase()]; if (mapped) { try { act.portToPinMapping[left] = mapped; } catch(e){} } else { /* if no mapping exists, still expose mapping to external name */ try { act.portToPinMapping[left] = right; } catch(e){} } } } catch(e){} }); } catch(e){} }); })(); } catch(e) {}`);
+                    }
+                  } catch(e) { /* ignore generation-time mapping emission errors */ }
+
                   continue; // Skip the normal addConnector call
                 }
               } else {
@@ -2025,6 +2034,14 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
             lines.push(`    try { ${connectorOwner}.connectors[${JSON.stringify(cname)}].activityName = ${JSON.stringify('DecideCommandAC')}; } catch(e) {}`);
           }
         } catch(e) { /* ignore */ }
+
+        // Emit explicit runtime portToPinMapping assignments for connector participant tokens
+        try {
+          if (actualBindings && actualBindings.length) {
+            const bindsLiteral2 = JSON.stringify(actualBindings);
+            lines.push(`    try { (function(){ const _binds = ${bindsLiteral2}; _binds.forEach(b => { try { const left = String(b.left || b.source || b.from); const right = String(b.right || b.destination || b.to); Object.values(model._activities || {}).forEach(act => { try { if (act && act.portToPinMapping) { const mapped = act.portToPinMapping[right] || act.portToPinMapping[String(right).toLowerCase()]; if (mapped) { try { act.portToPinMapping[left] = mapped; } catch(e){} } else { try { act.portToPinMapping[left] = right; } catch(e){} } } } catch(e){} }); } catch(e){} }); })(); } catch(e) {}`);
+          }
+        } catch(e) { /* ignore generation-time mapping emission errors */ }
       }
       
       lines.push('');

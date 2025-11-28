@@ -72,14 +72,20 @@ const server = http.createServer(async (req, res) => {
         console.log('✅ Transformação concluída com sucesso');
         
       } catch (error) {
-        console.error('❌ Erro na transformação:', error.message);
-        
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
+        console.error('❌ Erro na transformação:', error && error.message ? error.message : error);
+        if (error && error.stderr) console.error('--- transformer stderr ---\n', error.stderr);
+        if (error && error.stdout) console.error('--- transformer stdout ---\n', error.stdout);
+
+        const resp = {
           success: false,
-          error: error.message,
-          stack: error.stack
-        }));
+          error: error && error.message ? error.message : String(error),
+          stack: error && error.stack ? error.stack : null
+        };
+        if (error && error.stderr) resp.stderr = error.stderr;
+        if (error && error.stdout) resp.stdout = error.stdout;
+
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(resp));
       }
     });
     
@@ -165,7 +171,10 @@ async function transformSysADL(sysadlCode, options = {}) {
 function runTransformer(inputFile) {
   return new Promise((resolve, reject) => {
     const transformerPath = path.join(__dirname, 'transformer.js');
-    const args = [transformerPath, inputFile];
+    // Passar explicitamente um outFile para garantir nome de saída determinístico
+    const modelName = path.basename(inputFile, path.extname(inputFile));
+    const outFilePath = path.join(__dirname, 'generated', `${modelName}.js`);
+    const args = [transformerPath, inputFile, outFilePath];
     
     console.log('🚀 Executando:', 'node', args.join(' '));
     
@@ -188,7 +197,11 @@ function runTransformer(inputFile) {
     child.on('close', (code) => {
       if (code !== 0) {
         console.error('❌ Transformer falhou:', stderr);
-        reject(new Error(`Transformer falhou com código ${code}: ${stderr}`));
+        const err = new Error(`Transformer falhou com código ${code}`);
+        err.code = code;
+        err.stdout = stdout;
+        err.stderr = stderr;
+        reject(err);
         return;
       }
       
@@ -196,37 +209,44 @@ function runTransformer(inputFile) {
       
       try {
         // Procurar pelos arquivos gerados na pasta 'generated'
+        // Preferir o arquivo outFile explicitamente solicitado
         const generatedDir = path.join(__dirname, 'generated');
-        const inputModelName = extractModelName(fs.readFileSync(inputFile, 'utf8')) || 'Model';
-        
-        // Procurar por arquivo JavaScript gerado baseado no nome do modelo
-        let generatedJsFile = null;
-        const possibleFiles = [
-          path.join(generatedDir, `${inputModelName}.js`),
-          path.join(generatedDir, `${inputModelName}Model.js`),
-          path.join(generatedDir, `${inputModelName}-env-scen.js`)
-        ];
-        
-        for (const file of possibleFiles) {
-          if (fs.existsSync(file)) {
-            generatedJsFile = file;
-            break;
-          }
-        }
-        
-        // Se não encontrou arquivo específico, pegar o mais recente
-        if (!generatedJsFile && fs.existsSync(generatedDir)) {
-          const files = fs.readdirSync(generatedDir)
-            .filter(f => f.endsWith('.js'))
-            .map(f => ({
-              name: f,
-              path: path.join(generatedDir, f),
-              mtime: fs.statSync(path.join(generatedDir, f)).mtime
-            }))
-            .sort((a, b) => b.mtime - a.mtime);
-          
-          if (files.length > 0) {
-            generatedJsFile = files[0].path;
+        let generatedJsFile = outFilePath;
+
+        // Se outFile não existir por algum motivo, tentar heurísticas antigas
+        if (!generatedJsFile || !fs.existsSync(generatedJsFile)) {
+          try {
+            const inputModelName = extractModelName(fs.readFileSync(inputFile, 'utf8')) || modelName || 'Model';
+            const possibleFiles = [
+              path.join(generatedDir, `${inputModelName}.js`),
+              path.join(generatedDir, `${inputModelName}Model.js`),
+              path.join(generatedDir, `${inputModelName}-env-scen.js`)
+            ];
+
+            for (const file of possibleFiles) {
+              if (fs.existsSync(file)) {
+                generatedJsFile = file;
+                break;
+              }
+            }
+
+            if ((!generatedJsFile || !fs.existsSync(generatedJsFile)) && fs.existsSync(generatedDir)) {
+              const files = fs.readdirSync(generatedDir)
+                .filter(f => f.endsWith('.js'))
+                .map(f => ({
+                  name: f,
+                  path: path.join(generatedDir, f),
+                  mtime: fs.statSync(path.join(generatedDir, f)).mtime
+                }))
+                .sort((a, b) => b.mtime - a.mtime);
+
+              if (files.length > 0) {
+                generatedJsFile = files[0].path;
+              }
+            }
+          } catch (heuristicError) {
+            console.warn('⚠️ Heurística de localização do arquivo gerado falhou:', heuristicError.message);
+            generatedJsFile = null;
           }
         }
         
@@ -236,7 +256,15 @@ function runTransformer(inputFile) {
         
         const generatedCode = fs.readFileSync(generatedJsFile, 'utf8');
         console.log('📄 Código gerado carregado de:', generatedJsFile);
-        
+
+        // Garantir que inputModelName exista (escopo/fallback seguro)
+        let inputModelName;
+        try {
+          inputModelName = extractModelName(fs.readFileSync(inputFile, 'utf8')) || modelName || 'Model';
+        } catch (e) {
+          inputModelName = modelName || 'Model';
+        }
+
         resolve({
           code: generatedCode,
           metadata: {
@@ -257,7 +285,9 @@ function runTransformer(inputFile) {
     
     child.on('error', (error) => {
       console.error('❌ Erro ao executar transformer:', error);
-      reject(new Error(`Erro ao executar transformer: ${error.message}`));
+      const err = new Error(`Erro ao executar transformer: ${error.message}`);
+      err.stderr = String(error && error.stack ? error.stack : error);
+      reject(err);
     });
   });
 }

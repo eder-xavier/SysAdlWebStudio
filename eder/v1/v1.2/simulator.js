@@ -507,6 +507,8 @@ function runBrowser(generatedCode, options = {}) {
       // Re-throw other errors
       throw error;
     }
+    // Expose model for browser debugging/inspection
+    try { if (typeof window !== 'undefined') window._lastModel = model; } catch(e) {}
     // output += `Model created: ${model.name || 'unnamed'}\n`;
     
     // Attach SimulationLogger to model

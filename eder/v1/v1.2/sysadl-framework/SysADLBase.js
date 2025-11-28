@@ -1579,6 +1579,44 @@ class Model extends SysADLBase {
             if (found) extPortKey = found;
           }
         }
+        // Additional fallback: if owner is a connector and portName is a connector participant
+        // try to resolve the participant's binding to an external port name and use that
+        // as the external port key (e.g. connector participant 'pOut' -> bound to component port 'detected')
+        try {
+          if (!extPortKey || (extPortKey === portName)) {
+            // locate connector instance with matching name (owner may be qualified)
+            let connInstance = null;
+            const ownerSimple = String(owner || '').split('.').slice(-1)[0];
+            this.walkConnectors(c => {
+              try {
+                if (c && (c.name === owner || c.name === ownerSimple)) connInstance = c;
+              } catch(e){}
+            });
+
+            if (connInstance && connInstance.internalParticipants && connInstance.internalParticipants[portName]) {
+              const participant = connInstance.internalParticipants[portName];
+              // participant.binding may refer to an external Port instance
+              const bound = participant && participant.binding;
+              if (bound && bound.name) {
+                const candidate = bound.name;
+                // prefer exact mapping if available
+                if (activity.portToPinMapping && activity.portToPinMapping.hasOwnProperty(candidate)) {
+                  extPortKey = candidate;
+                  console.log(`[TRIGGER ACTIVITY]   - Resolved connector participant '${portName}' -> '${candidate}' via binding for activity ${activity.name}`);
+                } else if (activity.portToPinMapping && activity.portToPinMapping.hasOwnProperty(String(candidate).toLowerCase())) {
+                  extPortKey = String(candidate).toLowerCase();
+                  console.log(`[TRIGGER ACTIVITY]   - Resolved connector participant '${portName}' -> '${candidate.toLowerCase()}' (lowercase) for activity ${activity.name}`);
+                } else {
+                  // if no mapping exists for the bound port name, still try to use the bound name as key
+                  extPortKey = candidate;
+                  console.log(`[TRIGGER ACTIVITY]   - Using bound port name '${candidate}' as extPortKey for participant '${portName}' (activity ${activity.name})`);
+                }
+              }
+            }
+          }
+        } catch(e) {
+          console.warn(`[TRIGGER ACTIVITY] connector-binding fallback failed for ${owner}.${portName}: ${e && e.message}`);
+        }
       } catch (e) {
         console.warn(`[TRIGGER ACTIVITY] error while resolving activity port mapping for ${activity && activity.name}: ${e && e.message}`);
       }
@@ -1588,6 +1626,33 @@ class Model extends SysADLBase {
         console.log(`[TRIGGER ACTIVITY]   - Calling activity.trigger(${extPortKey}, <value>, ${owner})`);
         const triggerResult = activity.trigger(extPortKey, value, owner);
         console.log(`[TRIGGER ACTIVITY]   - activity.trigger() returned:`, triggerResult);
+
+        // If activity did not accept the pin (e.g., missing mapping) and the trigger came
+        // from a connector participant, attempt connector-based propagation as a fallback.
+        try {
+          if (!triggerResult && activity && activity._triggeringConnector) {
+            const connName = activity._triggeringConnector;
+            console.log(`[DATA FLOW FALLBACK] activity ${activity.name} did not accept pin; attempting connector propagation via '${connName}'`);
+            let connInst = null;
+            this.walkConnectors(c => { try { if (c && (c.name === connName || c.name === String(connName).split('.').slice(-1)[0])) connInst = c; } catch(e){} });
+            if (connInst && connInst.internalParticipants) {
+              const receivingParticipant = connInst.internalParticipants[portName];
+              if (receivingParticipant && receivingParticipant.direction === 'out') {
+                for (const [pName, participant] of Object.entries(connInst.internalParticipants)) {
+                  try {
+                    if (participant && participant.direction === 'in' && pName !== portName) {
+                      console.log(`[DATA FLOW FALLBACK] Propagating value from ${connName}.${portName} -> ${connName}.${pName}`);
+                      participant.send(value, this);
+                      break;
+                    }
+                  } catch (e) { /* ignore per-participant errors */ }
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.warn(`[DATA FLOW FALLBACK] failed for ${activity && activity.name}: ${e && e.message}`);
+        }
       } else {
         console.warn(`Activity ${activity.name} does not have trigger method`);
       }
@@ -2589,6 +2654,14 @@ class Port extends Element {
     
     // Debug: Check if binding exists
     console.log(`[PORT SEND DEBUG] ${this.owner}.${this.name} has binding:`, !!this.binding, `type:`, this.binding?.constructor?.name);
+    // Targeted debug: watch specific ports of interest
+    try {
+      const fq = `${this.owner}.${this.name}`;
+      const watched = ['rtc.pc.target','rtc.cm.target2','rtc.cm.heating','rtc.cm.cooling'];
+      if (watched.includes(fq)) {
+        console.log(`[PORT SEND WATCH] ${fq} -> value=`, v, ` model=${model?.name}`);
+      }
+    } catch(e) {}
     
     // Call connector binding if present
     if (this.binding && typeof this.binding.receive === 'function') {
@@ -2641,6 +2714,14 @@ class Port extends Element {
     // Type validation removed
     model && model.logEvent && model.logEvent({ elementType: 'port_receive', component: this.owner, name: this.name, inputs: [v], when: Date.now() });
     this.last = v;
+    // Targeted debug: watch specific ports when they receive values
+    try {
+      const fq2 = `${this.owner}.${this.name}`;
+      const watched2 = ['rtc.pc.target','rtc.cm.target2','rtc.cm.heating','rtc.cm.cooling'];
+      if (watched2.includes(fq2)) {
+        console.log(`[PORT RECEIVE WATCH] ${fq2} <- value=`, v, ` model=${model?.name}`);
+      }
+    } catch(e) {}
     console.log(`[PORT RECEIVE DEBUG] About to call handlePortReceive(${this.owner}, ${this.name}, ${v})`);
     if (model) model.handlePortReceive(this.owner, this.name, v);
     console.log(`[PORT RECEIVE DEBUG] handlePortReceive completed for ${this.owner}.${this.name}`);
@@ -3614,6 +3695,15 @@ class Activity extends BehavioralElement {
           for (const delegate of this.delegates) {
             if (delegate.from === param.name) {
               console.log(`[ACTIVITY PROPAGATE]   - Found delegate: ${delegate.from} -> ${delegate.to}`);
+                    // Targeted logging for important delegates/activities
+                    try {
+                      const dfrom = delegate.from || '';
+                      const dto = delegate.to || '';
+                      const importantDelegates = ['target','target2','Commands','heating','cooling','cmdH','cmdC'];
+                      if (importantDelegates.includes(dfrom) || importantDelegates.includes(dto) || this.name === 'DecideCommandAC' || this.name === 'CheckPresenceToSetTemperatureAC') {
+                        console.log(`[ACTIVITY PROPAGATE WATCH] activity=${this.name} outParam=${param.name} delegate.from=${dfrom} delegate.to=${dto} value=${safePrint(value)}`);
+                      }
+                    } catch(e) {}
               console.log(`[ACTIVITY PROPAGATE]   - CHECKPOINT A: About to check _model`);
               console.log(`[ACTIVITY PROPAGATE]   - this._model value:`, this._model);
               console.log(`[ACTIVITY PROPAGATE]   - this._model is null/undefined?`, this._model == null);
