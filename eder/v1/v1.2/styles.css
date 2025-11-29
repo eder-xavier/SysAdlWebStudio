@@ -1,6 +1,14 @@
 /* SysADL Studio inspired theme */
-* { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; height: 100%; }
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
 
 :root {
   --bg: #f4f6fb;
@@ -110,7 +118,9 @@ body {
   flex-wrap: wrap;
 }
 
-.toolbar .spacer { flex: 1; }
+.toolbar .spacer {
+  flex: 1;
+}
 
 .switch {
   display: flex;
@@ -316,17 +326,36 @@ button.secondary:hover {
 
 .viz-layout {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 18px;
   align-items: stretch;
 }
 
 #architectureViz {
-  flex: 2 1 520px;
+  width: 100%;
+  min-height: 450px;
+}
+
+.viz-wrapper.maximized {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 9999;
+  background: var(--surface);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.viz-wrapper.maximized #architectureViz {
+  height: 100% !important;
+  min-height: 0 !important;
 }
 
 .trace-panel {
-  flex: 1 1 280px;
+  width: 100%;
   background: rgba(15, 23, 42, 0.02);
   border: 1px solid rgba(148, 163, 184, 0.4);
   border-radius: 16px;
@@ -334,7 +363,7 @@ button.secondary:hover {
   display: flex;
   flex-direction: column;
   min-width: 260px;
-  max-height: 450px;
+  max-height: 300px;
 }
 
 .trace-panel-header {
@@ -391,7 +420,7 @@ button.secondary:hover {
 
 .trace-table thead {
   /*background: rgba(59, 130, 246, 0.08); */
-  background: rgba(220, 220, 220, 0.695);
+  background: #dcdcdc;
   position: sticky;
   top: 0;
   z-index: 1;
@@ -434,16 +463,8 @@ button.secondary:hover {
 
 .trace-table tbody tr.active {
   background: rgba(59, 130, 246, 0.18);
-  position: relative;
-}
-
-.trace-table tbody tr.active::before {
-  content: '';
-  position: absolute;
-  inset: 2px;
-  border-radius: 8px;
-  border: 1px solid rgba(59, 130, 246, 0.8);
-  pointer-events: none;
+  outline: 1px solid rgba(59, 130, 246, 0.8);
+  outline-offset: -1px;
 }
 
 
@@ -454,7 +475,8 @@ footer {
   font-size: 14px;
 }
 
-input, textarea {
+input,
+textarea {
   -webkit-user-select: text !important;
   -moz-user-select: text !important;
   user-select: text !important;
@@ -501,7 +523,10 @@ input[type="number"] {
   user-select: text !important;
 }
 
-pre, code, .pre, .log {
+pre,
+code,
+.pre,
+.log {
   -webkit-user-select: text !important;
   -moz-user-select: text !important;
   user-select: text !important;
@@ -528,7 +553,8 @@ pre, code, .pre, .log {
     align-items: stretch;
   }
 
-  button, .file-input {
+  button,
+  .file-input {
     width: 100%;
     justify-content: center;
   }
@@ -537,4 +563,3 @@ pre, code, .pre, .log {
     min-height: 480px;
   }
 }
-

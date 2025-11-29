@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -8,6 +9,7 @@
   <link rel="preconnect" href="https://unpkg.com" crossorigin>
   <link rel="stylesheet" href="./styles.css" />
 </head>
+
 <body>
   <header class="app-header">
     <h1>SysADL ▶ JavaScript — Simulation</h1>
@@ -29,7 +31,7 @@
         <div class="spacer"></div>
         <label class="switch">
           <input style="display: none;" id="traceToggle" type="checkbox" />
-        <span style="display: none;">Trace execution</span>
+          <span style="display: none;">Trace execution</span>
         </label>
         <label class="switch">
           <span style="display: none;">Iterations</span>
@@ -40,27 +42,23 @@
       <div class="toolbar" style="margin-top: 10px; border-top: 1px solid #ddd; padding-top: 10px; display: block;">
         <div style="margin-bottom: 20px;">
           <label style="display: block; margin-bottom: 8px;">
-            <strong>Available Ports (from boundary components):</strong>
+            <strong>Available Out Ports (from boundary components):</strong>
             <small style="color: #666;">Select ports and set values to include in simulation parameters</small>
           </label>
-          <div id="availablePortsList" 
-               style="max-height: 300px; overflow-y: auto; border: 2px solid #1976d2; border-radius: 6px; padding: 12px; background: #f7f7f7;">
+          <div id="availablePortsList"
+            style="max-height: 300px; overflow-y: auto; border: 2px solid #1976d2; border-radius: 6px; padding: 12px; background: #f7f7f7;">
             <p style="color: #666; font-style: italic; margin: 0;">Press 'Transform ▶' to see available ports...</p>
           </div>
         </div>
-        
+
         <div>
           <label style="display: block; margin-bottom: 5px;">
             <strong>Simulation Parameters (JSON):</strong>
             <small style="color: #666;">Auto-generated from selected ports above</small>
           </label>
-          <textarea id="simulationParams" placeholder='{"component.port": value}' 
-                    style="width: 100%; min-height: 120px; font-family: 'Fira Mono', 'Consolas', monospace; font-size: 15px; border: 2px solid #1976d2; border-radius: 6px; padding: 12px; background: #f7f7f7; color: #222; resize: vertical; box-shadow: 0 2px 8px #0001;"
-                    spellcheck="false"
-                    autocomplete="off"
-                    autocorrect="off"
-                    autocapitalize="off"
-                    ></textarea>
+          <textarea id="simulationParams" placeholder='{"component.port": value}'
+            style="width: 100%; min-height: 120px; font-family: 'Fira Mono', 'Consolas', monospace; font-size: 15px; border: 2px solid #1976d2; border-radius: 6px; padding: 12px; background: #f7f7f7; color: #222; resize: vertical; box-shadow: 0 2px 8px #0001;"
+            spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
           <button id="copyParams" style="margin-top:6px;float:right;">Copy parameters</button>
         </div>
       </div>
@@ -84,16 +82,7 @@
 
     <section class="panel">
       <h2>3) Architecture Visualization</h2>
-      <div style="margin-bottom: 10px; padding: 12px; background: rgba(241,245,255,0.6); border-radius: 12px; border:1px solid rgba(214,222,235,0.6);">
-        <strong>Legend:</strong>
-        <ul style="list-style: none; padding: 0; margin: 5px 0;">
-          <li><span style="display:inline-block;width:14px;height:14px;border-radius:4px;background:#dbeafe;border:1px solid #312e81;margin-right:6px;"></span>Root Component</li>
-          <li><span style="display:inline-block;width:14px;height:14px;border-radius:4px;background:#f1f2f9;border:1px solid #475569;margin-right:6px;"></span>Component</li>
-          <li><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#22d3ee;margin-right:8px;border:2px solid #0f172a;"></span>Output port</li>
-          <li><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#fb7185;margin-right:8px;border:2px solid #0f172a;"></span>Input port</li>
-          <li><span style="display:inline-block;width:24px;height:2px;background:#334155;margin-right:8px;border-radius:1px;"></span>Connector / flow</li>
-        </ul>
-      </div>
+
       <div class="viz-controls">
         <button id="btnTracePlay" class="secondary" disabled>Animate trace</button>
         <button id="btnTracePause" class="secondary" disabled>Pause</button>
@@ -101,7 +90,39 @@
         <span id="traceStatus" class="trace-status">Run a simulation to enable trace animation.</span>
       </div>
       <div class="viz-layout">
-        <div id="architectureViz" aria-label="Architecture visualization canvas"></div>
+        <div class="viz-wrapper" style="position: relative; width: 100%;">
+          <button id="btnToggleViz" class="secondary"
+            style="position: absolute; top: 10px; right: 10px; z-index: 10; padding: 6px 10px; min-width: auto;"
+            title="Maximize/Minimize">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+            </svg>
+          </button>
+          <div id="architectureViz" aria-label="Architecture visualization canvas"></div>
+        </div>
+
+        <div
+          style="margin: 10px 0; padding: 8px 12px; background: rgba(241,245,255,0.6); border-radius: 12px; border:1px solid rgba(214,222,235,0.6); display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+          <strong style="white-space: nowrap;">Legend:</strong>
+          <ul
+            style="list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 15px; align-items: center;">
+            <li><span
+                style="display:inline-block;width:14px;height:14px;border-radius:4px;background:#dbeafe;border:1px solid #312e81;margin-right:6px;"></span>Root
+              Component</li>
+            <li><span
+                style="display:inline-block;width:14px;height:14px;border-radius:4px;background:#f1f2f9;border:1px solid #475569;margin-right:6px;"></span>Component
+            </li>
+            <li><span
+                style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#22d3ee;margin-right:8px;border:2px solid #0f172a;"></span>Output
+              port</li>
+            <li><span
+                style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#fb7185;margin-right:8px;border:2px solid #0f172a;"></span>Input
+              port</li>
+            <li><span
+                style="display:inline-block;width:24px;height:2px;background:#334155;margin-right:8px;border-radius:1px;"></span>Connector
+              / flow</li>
+          </ul>
+        </div>
         <aside class="trace-panel" aria-live="polite">
           <div class="trace-panel-header">
             <div>
@@ -160,15 +181,15 @@
 
   <!-- Runtime base + simulador + transformador -->
   <script>
-    try { window.module = undefined; window.exports = undefined; } catch (e) {}
+    try { window.module = undefined; window.exports = undefined; } catch (e) { }
   </script>
 
   <script>
-    var normalizeEntry = function(entry) {
+    var normalizeEntry = function (entry) {
       try {
         const seen = new WeakSet();
         return JSON.parse(JSON.stringify(entry, (k, v) => {
-          if (typeof v === 'function') return `[Function ${v.name||'anonymous'}]`;
+          if (typeof v === 'function') return `[Function ${v.name || 'anonymous'}]`;
           if (v instanceof Error) return { name: v.name, message: v.message };
           if (typeof v === 'object' && v !== null) {
             if (seen.has(v)) return '[Circular]';
@@ -196,7 +217,7 @@
     } else {
       console.error('❌ window.SysADLBase NOT LOADED!');
     }
-    
+
     // Debug: Verify SimulationLogger loaded
     console.log('🔍 After SimulationLogger load:');
     console.log('  - typeof window.SimulationLogger:', typeof window.SimulationLogger);
@@ -206,4 +227,5 @@
   <script type="module" src="./visualizer.js"></script>
   <script type="module" src="./app.js"></script>
 </body>
+
 </html>

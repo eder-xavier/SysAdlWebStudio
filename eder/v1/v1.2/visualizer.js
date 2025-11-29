@@ -333,17 +333,13 @@ function extractArchitectureData(model, logElement) {
       margin: parentId ? 18 : 24,
       color: parentId
         ? {
-            background: palette.subcomponentBg,
-            border: palette.subcomponentBorder,
-            highlight: { background: palette.subcomponentHighlight, border: palette.subcomponentHighlight },
-            hover: { background: palette.subcomponentHighlight, border: palette.subcomponentHighlight }
-          }
+          background: palette.subcomponentBg,
+          border: palette.subcomponentBorder
+        }
         : {
-            background: palette.componentBg,
-            border: palette.componentBorder,
-            highlight: { background: palette.componentHighlight, border: palette.componentHighlight },
-            hover: { background: palette.componentHighlight, border: palette.componentHighlight }
-          },
+          background: palette.componentBg,
+          border: palette.componentBorder
+        },
       borderWidth: 0,
       font: {
         color: '#0f172a',
@@ -576,7 +572,7 @@ function extractArchitectureData(model, logElement) {
               to: toPortId,
               label: connName,
               arrows: { to: { enabled: true, type: 'triangle', scaleFactor: 0.82 } },
-              color: { color: palette.connectorEdge, highlight: palette.connectorHighlight },
+              color: { color: palette.connectorEdge },
               width: 2.6,
               smooth: { type: 'cubicBezier', roundness: 0.34 },
               shadow: { enabled: true, size: 6, x: 0, y: 2, color: 'rgba(15, 23, 42, 0.18)' },
@@ -600,24 +596,24 @@ function extractArchitectureData(model, logElement) {
       } else if (conn.from && conn.to) {
         const fromParts = conn.from.split('.');
         const toParts = conn.to.split('.');
-          let fromPortId = buildPortId(fromParts[0], fromParts[1]);
-          let toPortId = buildPortId(toParts[0], toParts[1]);
+        let fromPortId = buildPortId(fromParts[0], fromParts[1]);
+        let toPortId = buildPortId(toParts[0], toParts[1]);
 
-          if (fromPortId && toPortId && nodes.has(fromPortId) && nodes.has(toPortId)) {
-            const fromNode = ports.get(fromPortId);
-            const toNode = ports.get(toPortId);
-            const fromDir = (fromNode?.direction || '').toLowerCase();
-            const toDir = (toNode?.direction || '').toLowerCase();
-            const shouldSwap =
-              (fromDir === 'in' && toDir === 'out') ||
-              (fromDir === 'in' && (!toDir || toDir === 'in')) ||
-              (fromDir !== 'out' && toDir === 'out');
-            if (shouldSwap) {
-              const tmp = fromPortId;
-              fromPortId = toPortId;
-              toPortId = tmp;
-            }
+        if (fromPortId && toPortId && nodes.has(fromPortId) && nodes.has(toPortId)) {
+          const fromNode = ports.get(fromPortId);
+          const toNode = ports.get(toPortId);
+          const fromDir = (fromNode?.direction || '').toLowerCase();
+          const toDir = (toNode?.direction || '').toLowerCase();
+          const shouldSwap =
+            (fromDir === 'in' && toDir === 'out') ||
+            (fromDir === 'in' && (!toDir || toDir === 'in')) ||
+            (fromDir !== 'out' && toDir === 'out');
+          if (shouldSwap) {
+            const tmp = fromPortId;
+            fromPortId = toPortId;
+            toPortId = tmp;
           }
+        }
 
         if (fromPortId && toPortId && nodes.has(fromPortId) && nodes.has(toPortId)) {
           const edgeId = `conn:${connName}:${edges.length}`;
@@ -627,7 +623,7 @@ function extractArchitectureData(model, logElement) {
             to: toPortId,
             label: connName,
             arrows: { to: { enabled: true, type: 'triangle', scaleFactor: 0.82 } },
-            color: { color: palette.connectorEdge, highlight: palette.connectorHighlight },
+            color: { color: palette.connectorEdge },
             width: 2.6,
             smooth: { type: 'cubicBezier', roundness: 0.34 },
             shadow: { enabled: true, size: 6, x: 0, y: 2, color: 'rgba(15, 23, 42, 0.18)' },
@@ -806,18 +802,14 @@ function renderVisualization(containerId, generatedCode, logElement) {
         component: {
           color: {
             background: palette.componentBg,
-            border: palette.componentBorder,
-            highlight: { background: palette.componentHighlight, border: palette.componentHighlight },
-            hover: { background: palette.componentHighlight, border: palette.componentHighlight }
+            border: palette.componentBorder
           },
           font: { color: '#0f172a', bold: { color: '#0f172a', size: 17 } }
         },
         subcomponent: {
           color: {
             background: palette.subcomponentBg,
-            border: palette.subcomponentBorder,
-            highlight: { background: palette.subcomponentHighlight, border: palette.subcomponentHighlight },
-            hover: { background: palette.subcomponentHighlight, border: palette.subcomponentHighlight }
+            border: palette.subcomponentBorder
           },
           font: { color: '#0f172a', bold: { color: '#0f172a', size: 15 } }
         },
@@ -825,9 +817,7 @@ function renderVisualization(containerId, generatedCode, logElement) {
           shape: 'square',
           color: {
             background: palette.portOut,
-            border: '#0b5675',
-            highlight: { background: '#38bdf8', border: '#0b5675' },
-            hover: { background: '#38bdf8', border: '#0b5675' }
+            border: '#0b5675'
           },
           size: 10,
           borderWidth: 1.5
@@ -836,9 +826,7 @@ function renderVisualization(containerId, generatedCode, logElement) {
           shape: 'square',
           color: {
             background: palette.portIn,
-            border: '#c2410c',
-            highlight: { background: '#fb923c', border: '#c2410c' },
-            hover: { background: '#fb923c', border: '#c2410c' }
+            border: '#c2410c'
           },
           size: 10,
           borderWidth: 1.5
@@ -847,9 +835,7 @@ function renderVisualization(containerId, generatedCode, logElement) {
           shape: 'square',
           color: {
             background: palette.portUnknown,
-            border: '#64748b',
-            highlight: { background: '#94a3b8', border: '#475569' },
-            hover: { background: '#94a3b8', border: '#475569' }
+            border: '#64748b'
           },
           size: 10,
           borderWidth: 1.5
@@ -868,22 +854,24 @@ function renderVisualization(containerId, generatedCode, logElement) {
           background: palette.connectorLabelBg,
           strokeWidth: 0,
           vadjust: -4
-        }
+        },
+        chosen: false
       },
       physics: {
         enabled: false
       },
       interaction: {
-        dragNodes: true,
+        dragNodes: false,
         dragView: true,
         zoomView: true,
-        hover: true,
+        hover: false,
         tooltipDelay: 120,
-        hoverConnectedEdges: true,
+        hoverConnectedEdges: false,
         multiselect: true,
         selectable: true,
         navigationButtons: true,
-        keyboard: { enabled: true, bindToWindow: false }
+        keyboard: { enabled: true, bindToWindow: false },
+        selectConnectedEdges: false
       },
       manipulation: {
         enabled: false
@@ -1153,6 +1141,11 @@ function renderVisualization(containerId, generatedCode, logElement) {
       clearHighlights: () => {
         resetHighlights();
         flowAnimator.hideAll();
+      },
+      fit: () => {
+        if (network) {
+          network.fit({ animation: { duration: 500, easingFunction: 'easeInOutQuad' } });
+        }
       }
     };
 
