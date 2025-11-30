@@ -70,7 +70,7 @@ const els = {
   architectureViz: document.getElementById('architectureViz'),
   traceTableBody: document.getElementById('traceTableBody'),
   traceEventCount: document.getElementById('traceEventCount'),
-  btnToggleViz: document.getElementById('btnToggleViz')
+  traceTableWrapper: document.querySelector('.trace-table-wrapper')
 };
 
 // 3) Monaco init
@@ -424,13 +424,28 @@ function highlightTraceTableRow(index, { smooth = false } = {}) {
   const row = els.traceTableBody.querySelector(`tr[data-index="${index}"]`);
   if (!row) return;
   row.classList.add('active');
-  const behavior = smooth ? 'smooth' : 'auto';
-  row.scrollIntoView({ block: 'nearest', behavior });
+  scrollTraceTableRowIntoView(row, { smooth });
 }
 
 function clearTraceTableSelection() {
   if (!els.traceTableBody) return;
   els.traceTableBody.querySelectorAll('tr.active').forEach(row => row.classList.remove('active'));
+}
+
+function scrollTraceTableRowIntoView(row, { smooth = false } = {}) {
+  const container = els.traceTableWrapper || document.querySelector('.trace-table-wrapper');
+  if (!container || !row) return;
+  const rowRect = row.getBoundingClientRect();
+  const containerRect = container.getBoundingClientRect();
+  const behavior = smooth ? 'smooth' : 'auto';
+
+  if (rowRect.top < containerRect.top) {
+    const delta = rowRect.top - containerRect.top - 6;
+    container.scrollBy({ top: delta, behavior });
+  } else if (rowRect.bottom > containerRect.bottom) {
+    const delta = rowRect.bottom - containerRect.bottom + 6;
+    container.scrollBy({ top: delta, behavior });
+  }
 }
 
 function stopTraceTimer() {

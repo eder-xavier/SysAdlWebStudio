@@ -184,6 +184,10 @@ class FlowAnimator {
       });
     });
   }
+
+  getTarget(flowId) {
+    return this.targets.get(this._key(flowId)) || null;
+  }
 }
 
 // Function to create a model from generated JS code
@@ -861,7 +865,7 @@ function renderVisualization(containerId, generatedCode, logElement) {
         enabled: false
       },
       interaction: {
-        dragNodes: false,
+        dragNodes: true,
         dragView: true,
         zoomView: true,
         hover: false,
@@ -886,6 +890,14 @@ function renderVisualization(containerId, generatedCode, logElement) {
     overlay.setAttribute('aria-hidden', 'true');
     container.appendChild(overlay);
     const flowAnimator = new FlowAnimator(network, overlay);
+    const portOwnerMap = new Map();
+    Object.entries(componentPortMap || {}).forEach(([componentId, groups]) => {
+      ['in', 'out', 'other'].forEach(bucket => {
+        (groups?.[bucket] || []).forEach(port => {
+          if (port?.id) portOwnerMap.set(port.id, componentId);
+        });
+      });
+    });
 
 
     // Animation support: highlight nodes/edges based on trace events
@@ -975,12 +987,62 @@ function renderVisualization(containerId, generatedCode, logElement) {
       if (updates.length) edgeDataset.update(updates);
     };
 
+    const getComponentForPort = (portId) => {
+      if (!portId) return null;
+      if (portOwnerMap.has(portId)) return portOwnerMap.get(portId);
+      const parts = portId.split('.');
+      parts.pop();
+      const candidate = parts.join('.');
+      if (candidate && nodeDataset?.get(candidate)) return candidate;
+      return null;
+    };
+
+    const highlightPortContext = (portId) => {
+      if (!portId) return;
+      const compId = getComponentForPort(portId);
+      const nodesToGlow = [portId];
+      if (compId) nodesToGlow.push(compId);
+      glowNodes(nodesToGlow);
+    };
+
+    const moveTokenToNode = (flowId, targetId, value) => {
+      if (!targetId) return false;
+      const lastTarget = flowAnimator.getTarget(flowId);
+      const fromId = lastTarget?.id;
+      if (fromId && fromId !== targetId) {
+        glowEdge(fromId, targetId);
+        const animated = flowAnimator.animate(flowId, fromId, targetId, value);
+        if (animated) return true;
+      }
+      return flowAnimator.moveToNode(flowId, targetId, value);
+    };
+
+    const highlightConnectorPath = (fromId, toId) => {
+      if (fromId) highlightPortContext(fromId);
+      if (toId) highlightPortContext(toId);
+      if (fromId && toId) {
+        glowEdge(fromId, toId);
+        return true;
+      }
+      return false;
+    };
+
+    const highlightComponentNode = (componentPath, value, flowId) => {
+      const compId = resolveComponentNode(componentPath);
+      if (!compId) return false;
+      glowNodes([compId]);
+      return flowAnimator.moveToNode(flowId, compId, value);
+    };
+
     const highlightEvent = (event) => {
       resetHighlights();
       if (!event) {
         flowAnimator.hideAll();
         return 'No event';
       }
+
+      flowAnimator.deemphasize();
+
       const data = event.data || {};
       const flowId = event.flowId;
       let message = event.type;
@@ -989,49 +1051,55 @@ function renderVisualization(containerId, generatedCode, logElement) {
       switch (event.type) {
         case 'PARAM_SET': {
           const portId = resolvePortNode(`${data.component}.${data.port}`);
-          const componentId = resolveComponentNode(data.component);
-          glowNodes([portId, componentId]);
-          moved = flowAnimator.moveToNode(flowId, portId, data.value);
+          highlightPortContext(portId);
+          moved = moveTokenToNode(flowId, portId, data.value);
           message = `Set ${data.component}.${data.port} = ${data.value}`;
           break;
         }
         case 'PORT_SEND':
         case 'PORT_RECEIVE': {
           const pid = resolvePortNode(data.portPath);
-          const compId = pid ? pid.split('.').slice(0, -1).join('.') : null;
-          glowNodes([pid, compId]);
-          moved = flowAnimator.moveToNode(flowId, pid, data.value);
+          highlightPortContext(pid);
+          moved = moveTokenToNode(flowId, pid, data.value);
           message = `${event.type.replace('_', ' ')} ${data.portPath}${data.value !== undefined ? ` = ${data.value}` : ''}`;
           break;
         }
         case 'CONNECTOR_TRIGGERED': {
           const fromId = resolvePortNode(data.from);
           const toId = resolvePortNode(data.to);
-          glowNodes([fromId, toId]);
-          if (fromId && toId) glowEdge(fromId, toId);
-          moved = flowAnimator.animate(flowId, fromId, toId, data.activityName || data.connectorName || '');
+          highlightConnectorPath(fromId, toId);
+          moved = flowAnimator.animate(flowId, fromId || flowAnimator.getTarget(flowId)?.id, toId || fromId, data.value ?? data.activityName ?? data.connectorName ?? '');
           message = `Connector ${data.connectorName || ''}: ${data.from} → ${data.to}`;
           break;
         }
         case 'CONNECTOR_DIRECT_TRANSFER': {
           const fromId = resolvePortNode(data.from || '');
           const toId = resolvePortNode(data.to || '');
-          glowNodes([fromId, toId]);
-          if (fromId && toId) glowEdge(fromId, toId);
-          moved = flowAnimator.animate(flowId, fromId, toId, data.value);
+          highlightConnectorPath(fromId, toId);
+          moved = flowAnimator.animate(flowId, fromId || flowAnimator.getTarget(flowId)?.id, toId || fromId, data.value);
           message = `Direct transfer ${data.connectorName || ''}`;
           break;
         }
         case 'ACTIVITY_WRITE_OUTPUT': {
           const targetId = resolvePortNode(data.targetPort);
-          glowNodes([targetId]);
-          moved = flowAnimator.moveToNode(flowId, targetId, data.value);
+          highlightPortContext(targetId);
+          moved = moveTokenToNode(flowId, targetId, data.value);
           message = `Activity ${data.activityName || ''} → ${data.targetPort}`;
+          break;
+        }
+        case 'COMPONENT_INSTANTIATION':
+        case 'COMPONENT_NO_ACTIVITY':
+        case 'SYNC_DECISION':
+        case 'SYNC_CHECK': {
+          if (data.component) {
+            moved = highlightComponentNode(data.component, data.value ?? data.reason ?? '', flowId);
+            message = `${event.type.replace('_', ' ')} ${data.component}`;
+          }
           break;
         }
         default: {
           if (data.component) {
-            glowNodes([resolveComponentNode(data.component)]);
+            moved = highlightComponentNode(data.component, data.value ?? data.result ?? '', flowId);
             message = `${event.type} ${data.component}`;
           }
           break;
@@ -1039,7 +1107,6 @@ function renderVisualization(containerId, generatedCode, logElement) {
       }
 
       if (moved) {
-        flowAnimator.deemphasize();
         flowAnimator.focus(flowId);
       }
 

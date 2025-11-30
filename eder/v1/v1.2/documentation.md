@@ -21,9 +21,9 @@ All UX is orchestrated by `app.js` and `index.html`, with presentation controlle
 
 | File | Purpose |
 | --- | --- |
-| `index.html` | Static shell: Monaco editors, toolbar, log window, legend, and the architecture canvas. |
-| `styles.css` | “SysADL Studio” inspired light theme covering panels, buttons, Monaco overrides, and the visualisation container. |
-| `app.js` | Front-end controller. Loads Monaco, calls the `/api/transform` endpoint, triggers visualisation, runs simulations, and mirrors log messages to the UI. |
+| `index.html` | Static shell: Monaco editors, toolbar, log window, legend, the architecture canvas, and the new trace panel. |
+| `styles.css` | “SysADL Studio” inspired light theme covering panels, buttons, Monaco overrides, the visualisation container, and the trace/event table styles. |
+| `app.js` | Front-end controller. Loads Monaco, calls the `/api/transform` endpoint, triggers visualisation, runs simulations, and now feeds the trace table + playback controls. |
 | `visualizer.js` | Creates the dynamic model, extracts nodes/edges, pins ports to component borders, enforces connector direction, and instantiates the `vis-network` canvas. |
 | `sysadl-framework/SysADLBase.js` | Browser-friendly runtime used by the generated models. The recent changes record `boundParticipants` so the visualiser can locate concrete source/target ports. |
 | `generated/` | Output from the transformation step (e.g. `Simple.js`, `SysADLModel.js`). Helpful when debugging binding metadata. |
@@ -60,6 +60,9 @@ All UX is orchestrated by `app.js` and `index.html`, with presentation controlle
 * **Theme:** The entire UI, including Monaco editors, adopts the SysADL Studio inspired light look; the architecture canvas has no internal padding so the network can use the full area.
 * **Mobile tweaks:** Header/toolbar/button styles adapt on small screens so controls remain reachable, while desktop keeps the single-column layout users expect.
 * **Log console:** The simulation log mimics a terminal (dark background, monospace font) and includes a “Download log” button that saves the current output as a timestamped `.txt`.
+* **Trace playback:** Running a simulation with tracing enabled populates a side table that lists every `SimulationLogger` event, keeps the highlighted row in sync with the animation, and exposes speed presets (0.5×‑3×). Clicking a row jumps the animation to that point without disturbing the main layout.
+* **Flow animation:** The animated token now replays the actual data flow reported by the logger: it keeps the current value inside the marker, traverses the connectors between the exact source/target ports, and automatically highlights the owning components as the data moves.
+* **Active element highlight:** Only the element being executed (port, component, or connector edge) glows during the animation, so it is easier to read long traces without older highlights lingering.
 
 ---
 
@@ -117,6 +120,7 @@ All UX is orchestrated by `app.js` and `index.html`, with presentation controlle
 
 | Date | Summary |
 | --- | --- |
+| 2025‑11‑20 | Added per-event trace table with adjustable playback speed, restored node dragging, and reworked the animation so the data token follows the actual port→connector→component path (only the active element remains highlighted). |
 | 2025‑10‑29 | Introduced UML-style palette, improved legend, expanded log area, added mobile tweaks, throttled port docking for smoother zoom/scroll, and enabled freeform dragging of components. |
 | 2025‑10‑28 | Layout overhauled, ports docked to component edges, connector direction enforced. |
 | 2025‑10‑27 | Legendary redesign, English UI strings, initial connector binding fixes. |
