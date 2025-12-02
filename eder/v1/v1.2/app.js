@@ -59,6 +59,7 @@ const els = {
   btnTracePlay: document.getElementById('btnTracePlay'),
   btnTracePause: document.getElementById('btnTracePause'),
   btnTraceStep: document.getElementById('btnTraceStep'),
+  btnTraceStepBack: document.getElementById('btnTraceStepBack'),
   traceStatus: document.getElementById('traceStatus'),
   traceToggle: document.getElementById('traceToggle'),
   loopCount: document.getElementById('loopCount'),
@@ -68,6 +69,7 @@ const els = {
   copyParams: document.getElementById('copyParams'),
   parseErr: document.getElementById('parseErr'),
   architectureViz: document.getElementById('architectureViz'),
+  btnToggleViz: document.getElementById('btnToggleViz'),
   traceTableBody: document.getElementById('traceTableBody'),
   traceEventCount: document.getElementById('traceEventCount'),
   traceTableWrapper: document.querySelector('.trace-table-wrapper')
@@ -290,7 +292,7 @@ function collectTraceEvents() {
 
 function updateTraceControls() {
   const ready = traceEvents.length > 0 && visualizationController;
-  [els.btnTracePlay, els.btnTracePause, els.btnTraceStep].forEach(btn => {
+  [els.btnTracePlay, els.btnTracePause, els.btnTraceStep, els.btnTraceStepBack].forEach(btn => {
     if (!btn) return;
     btn.disabled = !ready;
   });
@@ -481,6 +483,28 @@ function stepTrace() {
   tracePlaying = false;
   stopTraceTimer();
   advanceTrace();
+}
+
+function stepBackTrace() {
+  if (!(traceEvents.length && visualizationController)) {
+    return;
+  }
+  tracePlaying = false;
+  stopTraceTimer();
+
+  // Go back one step
+  traceIndex -= 1;
+  if (traceIndex < 0) {
+    traceIndex = 0;
+  }
+
+  // Display the event at the new index
+  const evt = traceEvents[traceIndex];
+  if (visualizationController.highlightEvent) {
+    visualizationController.highlightEvent(evt);
+  }
+  highlightTraceTableRow(traceIndex, { smooth: false });
+  updateTraceControls();
 }
 
 function advanceTrace() {
@@ -1100,6 +1124,13 @@ if (els.btnToggleViz) {
         if (visualizationController && visualizationController.fit) {
           visualizationController.fit();
         }
+        // Refresh flow animator positions after layout change
+        // Multiple refreshes with delays to ensure positions update correctly
+        if (visualizationController && visualizationController.refresh) {
+          setTimeout(() => visualizationController.refresh(), 100);
+          setTimeout(() => visualizationController.refresh(), 300);
+          setTimeout(() => visualizationController.refresh(), 500);
+        }
       }, 50);
     }
   });
@@ -1171,6 +1202,7 @@ if (els.downloadLog) {
 els.btnTracePlay?.addEventListener('click', playTrace);
 els.btnTracePause?.addEventListener('click', pauseTrace);
 els.btnTraceStep?.addEventListener('click', stepTrace);
+els.btnTraceStepBack?.addEventListener('click', stepBackTrace);
 els.traceSpeed?.addEventListener('change', (event) => {
   const value = parseFloat(event.target.value);
   traceSpeedMultiplier = Number.isFinite(value) && value > 0 ? value : 1;

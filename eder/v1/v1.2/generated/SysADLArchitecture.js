@@ -633,7 +633,7 @@ class AN_ComponentsAGV_SendCommandAN extends Action {
     super(name, {
       ...opts,
       inParameters: [{"name":"move","type":"VehicleData","direction":"in"}],
-      outParameters: [{"name":"cmds","type":"CommandToArm","direction":"out"},{"name":"move","type":"Real","direction":"out"}],
+      outParameters: [{"name":"cmds","type":"CommandToArm","direction":"out"}],
       delegates: [{"from":"SendCommandAN","to":"cmd"},{"from":"move","to":"move"}],
       constraints: ["SendCommandEQ"],
       executables: ["SendCommandEX"],
@@ -647,7 +647,7 @@ class AN_ComponentsAGV_SendDestinationAN extends Action {
     super(name, {
       ...opts,
       inParameters: [{"name":"move","type":"VehicleData","direction":"in"}],
-      outParameters: [{"name":"SendDestinationAN","type":"Location","direction":"out"},{"name":"move","type":"Real","direction":"out"}],
+      outParameters: [{"name":"SendDestinationAN","type":"Location","direction":"out"}],
       delegates: [{"from":"SendDestinationAN","to":"destination"},{"from":"move","to":"move"}],
       constraints: ["SendDestinationEQ"],
       executables: ["SendDestinationEX"],
@@ -661,7 +661,7 @@ class AN_ComponentsAGV_NotifyAGVFromMotorAN extends Action {
     super(name, {
       ...opts,
       inParameters: [{"name":"statusMotor","type":"NotificationFromMotor","direction":"in"}],
-      outParameters: [{"name":"NotifyAGVFromMotorAN","type":"NotificationFromMotor","direction":"out"},{"name":"statusMotor","type":"Real","direction":"out"}],
+      outParameters: [{"name":"NotifyAGVFromMotorAN","type":"NotificationFromMotor","direction":"out"}],
       delegates: [{"from":"NotifyAGVFromMotorAN","to":"outStatusMotor"},{"from":"statusMotor","to":"inStatusMotor"}],
       constraints: ["NotifyAGVFromMotorEQ"],
       executables: ["NotifyAGVFromMotorEX"],
@@ -675,7 +675,7 @@ class AN_ComponentsAGV_NotifySupervisoryFromMotorAN extends Action {
     super(name, {
       ...opts,
       inParameters: [{"name":"statusMotor","type":"NotificationFromMotor","direction":"in"}],
-      outParameters: [{"name":"NotifySupervisoryFromMotorAN","type":"NotificationToSupervisory","direction":"out"},{"name":"statusMotor","type":"Real","direction":"out"}],
+      outParameters: [{"name":"NotifySupervisoryFromMotorAN","type":"NotificationToSupervisory","direction":"out"}],
       delegates: [{"from":"NotifySupervisoryFromMotorAN","to":"ack"},{"from":"statusMotor","to":"statusMotor"}],
       constraints: ["NotifySupervisoryFromMotorEQ"],
       executables: ["NotifySupervisoryFromMotorEX"],
@@ -689,7 +689,7 @@ class AN_ComponentsAGV_CompareStationsAN extends Action {
     super(name, {
       ...opts,
       inParameters: [{"name":"statusMotor","type":"NotificationFromMotor","direction":"in"},{"name":"destination","type":"Location","direction":"in"},{"name":"location","type":"Location","direction":"in"}],
-      outParameters: [{"name":"CompareStationsAN","type":"Boolean","direction":"out"},{"name":"location","type":"Real","direction":"out"},{"name":"destination","type":"Real","direction":"out"},{"name":"statusMotor","type":"Real","direction":"out"}],
+      outParameters: [{"name":"CompareStationsAN","type":"Boolean","direction":"out"}],
       delegates: [{"from":"CompareStationsAN","to":"result"},{"from":"location","to":"loc"},{"from":"destination","to":"dest"},{"from":"statusMotor","to":"statusMotor"}],
       constraints: ["CompareStationsEQ","NotificationMotorIsStartedEQ"],
       executables: ["CompareStationsEX"],
@@ -703,7 +703,7 @@ class AN_ComponentsAGV_StopMotorAN extends Action {
     super(name, {
       ...opts,
       inParameters: [{"name":"comparisonResult","type":"Boolean","direction":"in"}],
-      outParameters: [{"name":"cmds","type":"CommandToMotor","direction":"out"},{"name":"comparisonResult","type":"Real","direction":"out"}],
+      outParameters: [{"name":"cmds","type":"CommandToMotor","direction":"out"}],
       delegates: [{"from":"comparisonResult","to":"result"},{"from":"StopMotorAN","to":"cmd"}],
       constraints: ["StopMotorEQ"],
       executables: ["StopMotorEX"],
@@ -717,7 +717,7 @@ class AN_ComponentsAGV_PassedMotorAN extends Action {
     super(name, {
       ...opts,
       inParameters: [{"name":"comparisonResult","type":"Boolean","direction":"in"}],
-      outParameters: [{"name":"PassedMotorAN","type":"NotificationToSupervisory","direction":"out"},{"name":"comparisonResult","type":"Real","direction":"out"}],
+      outParameters: [{"name":"PassedMotorAN","type":"NotificationToSupervisory","direction":"out"}],
       delegates: [{"from":"PassedMotorAN","to":"ack"},{"from":"comparisonResult","to":"result"}],
       constraints: ["PassedMotorEQ"],
       executables: ["PassedMotorEX"],
@@ -731,7 +731,7 @@ class AN_ComponentsAGV_SendCurrentLocationAN extends Action {
     super(name, {
       ...opts,
       inParameters: [{"name":"location","type":"Location","direction":"in"}],
-      outParameters: [{"name":"SendCurrentLocationAN","type":"Location","direction":"out"},{"name":"location","type":"Real","direction":"out"}],
+      outParameters: [{"name":"SendCurrentLocationAN","type":"Location","direction":"out"}],
       delegates: [{"from":"location","to":"inLocation"},{"from":"SendCurrentLocationAN","to":"outLocation"}],
       constraints: ["SendCurrentLocationEQ"],
       executables: ["SendCurrentLocationEX"],
@@ -745,7 +745,7 @@ class AN_ComponentsAGV_ControlArmAN extends Action {
     super(name, {
       ...opts,
       inParameters: [{"name":"cmd","type":"CommandToArm","direction":"in"},{"name":"statusMotor","type":"NotificationFromMotor","direction":"in"}],
-      outParameters: [{"name":"cmds","type":"CommandToArm","direction":"out"},{"name":"statusMotor","type":"Real","direction":"out"},{"name":"cmd","type":"Real","direction":"out"}],
+      outParameters: [{"name":"cmds","type":"CommandToArm","direction":"out"}],
       delegates: [{"from":"ControlArmAN","to":"startArm"},{"from":"statusMotor","to":"statusMotor"},{"from":"cmd","to":"cmd"}],
       constraints: ["ControlArmEQ"],
       executables: ["ControlArmEX"],
@@ -773,7 +773,7 @@ class AN_ComponentsAGV_VehicleTimerAN extends Action {
     super(name, {
       ...opts,
       inParameters: [{"name":"destination","type":"Location","direction":"in"},{"name":"location","type":"Location","direction":"in"},{"name":"cmd","type":"CommandToArm","direction":"in"}],
-      outParameters: [{"name":"VehicleTimerAN","type":"Status","direction":"out"},{"name":"location","type":"Real","direction":"out"},{"name":"destination","type":"Real","direction":"out"},{"name":"cmd","type":"Real","direction":"out"}],
+      outParameters: [{"name":"VehicleTimerAN","type":"Status","direction":"out"}],
       delegates: [{"from":"VehicleTimerAN","to":"s"},{"from":"location","to":"loc"},{"from":"destination","to":"dest"},{"from":"cmd","to":"cmd"}],
       constraints: ["VehicleTimerEQ"],
       executables: ["VehicleTimerEX"],
@@ -1430,11 +1430,11 @@ class SysADLArchitecture extends Model {
       [{"from":"destination","to":"sc"},{"from":"cmd","to":"sd"},{"from":"start","to":"ssm"},{"from":"move","to":"moveSD"},{"from":"move","to":"moveSC"},{"from":"move","to":"moveSSM"}],
       {"outParameters":[{"name":"destination","type":"Real","direction":"out"},{"name":"cmd","type":"Real","direction":"out"},{"name":"start","type":"Real","direction":"out"},{"name":"move","type":"Real","direction":"out"},{"name":"move","type":"Real","direction":"out"},{"name":"move","type":"Real","direction":"out"}]}
     );
-    const ssm = new AN_ComponentsAGV_SendStartMotorAN("ssm", { outParameters: [{"name":"start","type":"Real","direction":"out"}] });
+    const ssm = new AN_ComponentsAGV_SendStartMotorAN("ssm");
     ac_StartMoving.registerAction(ssm);
-    const sc = new AN_ComponentsAGV_SendCommandAN("sc", { outParameters: [{"name":"destination","type":"Real","direction":"out"}] });
+    const sc = new AN_ComponentsAGV_SendCommandAN("sc");
     ac_StartMoving.registerAction(sc);
-    const sd = new AN_ComponentsAGV_SendDestinationAN("sd", { outParameters: [{"name":"cmd","type":"Real","direction":"out"}] });
+    const sd = new AN_ComponentsAGV_SendDestinationAN("sd");
     ac_StartMoving.registerAction(sd);
     try { ac_StartMoving.portToPinMapping["sc"] = "destination"; } catch(e) {}
     try { ac_StartMoving.portToPinMapping["sc"] = "destination"; } catch(e) {}
@@ -1460,9 +1460,9 @@ class SysADLArchitecture extends Model {
       [{"from":"outStatusMotor","to":"nagvm"},{"from":"ack","to":"nsm"},{"from":"inStatusMotor","to":"statusMotor"},{"from":"inStatusMotor","to":"statusMotor"}],
       {"outParameters":[{"name":"outStatusMotor","type":"Real","direction":"out"},{"name":"ack","type":"Real","direction":"out"},{"name":"inStatusMotor","type":"Real","direction":"out"},{"name":"inStatusMotor","type":"Real","direction":"out"}]}
     );
-    const nagvm = new AN_ComponentsAGV_NotifyAGVFromMotorAN("nagvm", { outParameters: [{"name":"outStatusMotor","type":"Real","direction":"out"}] });
+    const nagvm = new AN_ComponentsAGV_NotifyAGVFromMotorAN("nagvm");
     ac_NotifierMotor.registerAction(nagvm);
-    const nsm = new AN_ComponentsAGV_NotifySupervisoryFromMotorAN("nsm", { outParameters: [{"name":"ack","type":"Real","direction":"out"}] });
+    const nsm = new AN_ComponentsAGV_NotifySupervisoryFromMotorAN("nsm");
     ac_NotifierMotor.registerAction(nsm);
     try { ac_NotifierMotor.portToPinMapping["nagvm"] = "outStatusMotor"; } catch(e) {}
     try { ac_NotifierMotor.portToPinMapping["nagvm"] = "outStatusMotor"; } catch(e) {}
@@ -1486,11 +1486,11 @@ class SysADLArchitecture extends Model {
     );
     const cs = new AN_ComponentsAGV_CompareStationsAN("cs");
     ac_CheckStation.registerAction(cs);
-    const sm = new AN_ComponentsAGV_StopMotorAN("sm", { outParameters: [{"name":"stopMotor","type":"Real","direction":"out"}] });
+    const sm = new AN_ComponentsAGV_StopMotorAN("sm");
     ac_CheckStation.registerAction(sm);
-    const pm = new AN_ComponentsAGV_PassedMotorAN("pm", { outParameters: [{"name":"passed","type":"Real","direction":"out"}] });
+    const pm = new AN_ComponentsAGV_PassedMotorAN("pm");
     ac_CheckStation.registerAction(pm);
-    const scl = new AN_ComponentsAGV_SendCurrentLocationAN("scl", { outParameters: [{"name":"outLocation","type":"Real","direction":"out"}] });
+    const scl = new AN_ComponentsAGV_SendCurrentLocationAN("scl");
     ac_CheckStation.registerAction(scl);
     try { ac_CheckStation.portToPinMapping["NotificationsMotor"] = "statusMotor"; } catch(e) {}
     try { ac_CheckStation.portToPinMapping["notificationsmotor"] = "statusMotor"; } catch(e) {}
@@ -1522,7 +1522,7 @@ class SysADLArchitecture extends Model {
       [{"from":"startArm","to":"ca"},{"from":"cmd","to":"cmd"},{"from":"statusMotor","to":"statusMotor"}],
       {"outParameters":[{"name":"startArm","type":"Real","direction":"out"},{"name":"cmd","type":"Real","direction":"out"},{"name":"statusMotor","type":"Real","direction":"out"}]}
     );
-    const ca = new AN_ComponentsAGV_ControlArmAN("ca", { outParameters: [{"name":"startArm","type":"Real","direction":"out"}] });
+    const ca = new AN_ComponentsAGV_ControlArmAN("ca");
     ac_ControlArm.registerAction(ca);
     try { ac_ControlArm.portToPinMapping["ca"] = "startArm"; } catch(e) {}
     try { ac_ControlArm.portToPinMapping["ca"] = "startArm"; } catch(e) {}
@@ -1550,7 +1550,7 @@ class SysADLArchitecture extends Model {
       [{"from":"ack","to":"na"},{"from":"statusArm","to":"statusArm"}],
       {"outParameters":[{"name":"ack","type":"Real","direction":"out"},{"name":"statusArm","type":"Real","direction":"out"}]}
     );
-    const na = new AN_ComponentsAGV_NotifierArmAN("na", { outParameters: [{"name":"ack","type":"Real","direction":"out"}] });
+    const na = new AN_ComponentsAGV_NotifierArmAN("na");
     ac_NotifierArm.registerAction(na);
     try { ac_NotifierArm.portToPinMapping["na"] = "ack"; } catch(e) {}
     try { ac_NotifierArm.portToPinMapping["na"] = "ack"; } catch(e) {}
@@ -1568,7 +1568,7 @@ class SysADLArchitecture extends Model {
       [{"from":"status","to":"vt"},{"from":"cmd","to":"cmd"},{"from":"destination","to":"destination"},{"from":"location","to":"location"}],
       {"outParameters":[{"name":"status","type":"Real","direction":"out"},{"name":"cmd","type":"Real","direction":"out"},{"name":"destination","type":"Real","direction":"out"},{"name":"location","type":"Real","direction":"out"}]}
     );
-    const vt = new AN_ComponentsAGV_VehicleTimerAN("vt", { outParameters: [{"name":"status","type":"Real","direction":"out"}] });
+    const vt = new AN_ComponentsAGV_VehicleTimerAN("vt");
     ac_VehicleTimer.registerAction(vt);
     try { ac_VehicleTimer.portToPinMapping["vt"] = "status"; } catch(e) {}
     try { ac_VehicleTimer.portToPinMapping["vt"] = "status"; } catch(e) {}

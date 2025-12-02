@@ -929,6 +929,23 @@ function renderVisualization(containerId, generatedCode, logElement) {
       return nodeDataset?.get(path) ? path : null;
     };
 
+    const resolveConnectorNode = (connectorName) => {
+      if (!connectorName) return null;
+      // Connectors are typically represented as nodes in the graph
+      // Try direct lookup first
+      if (nodeDataset?.get(connectorName)) return connectorName;
+      // Try with common prefixes/suffixes
+      const candidates = [
+        connectorName,
+        `connector_${connectorName}`,
+        `CN_${connectorName}`
+      ];
+      for (const cand of candidates) {
+        if (nodeDataset?.get(cand)) return cand;
+      }
+      return null;
+    };
+
     const resetHighlights = () => {
       if (nodeDataset && activeNodes.size) {
         const updates = [];
@@ -948,43 +965,50 @@ function renderVisualization(containerId, generatedCode, logElement) {
         });
         if (updates.length) edgeDataset.update(updates);
       }
-      activeNodes = new Set();
-      activeEdges = new Set();
+      activeNodes.clear();
+      activeEdges.clear();
     };
 
-    const glowNodes = (ids = []) => {
-      if (!nodeDataset) return;
+    const glowNodes = (nodeIds) => {
+      if (!nodeDataset || !nodeIds || !nodeIds.length) return;
       const updates = [];
-      ids.filter(Boolean).forEach(id => {
-        const base = baseNodeStyles.get(id);
-        if (!base) return;
+      nodeIds.forEach(id => {
+        if (!id || !nodeDataset.get(id)) return;
+        if (!baseNodeStyles.has(id)) {
+          const node = nodeDataset.get(id);
+          baseNodeStyles.set(id, {
+            color: node.color,
+            size: node.size,
+            borderWidth: node.borderWidth,
+            shadow: node.shadow
+          });
+        }
+        activeNodes.add(id);
         updates.push({
           id,
-          color: { background: '#facc15', border: '#ca8a04' },
-          shadow: { enabled: true, size: 18, color: 'rgba(250,204,21,0.45)' },
-          size: base.size ? base.size * 1.1 : undefined,
-          borderWidth: (base.borderWidth || 1) + 2
+          color: { background: '#FFD700', border: '#FFA500' },
+          size: 30,
+          borderWidth: 3,
+          shadow: { enabled: true, color: '#FFA500', size: 15, x: 0, y: 0 }
         });
-        activeNodes.add(id);
       });
       if (updates.length) nodeDataset.update(updates);
     };
 
     const glowEdge = (fromId, toId) => {
-      if (!edgeDataset) return;
-      const key = `${fromId}->${toId}`;
-      const ids = edgeLookupMap.get(key) || [];
-      const updates = [];
-      ids.forEach(eid => {
-        const base = baseEdgeStyles.get(eid);
-        updates.push({
-          id: eid,
-          color: { color: '#f97316', highlight: '#facc15' },
-          width: (base?.width || 2) + 1
-        });
-        activeEdges.add(eid);
+      if (!edgeDataset || !fromId || !toId) return;
+      const edgeId = `${fromId}-${toId}`;
+      const edge = edgeDataset.get(edgeId);
+      if (!edge) return;
+      if (!baseEdgeStyles.has(edgeId)) {
+        baseEdgeStyles.set(edgeId, { color: edge.color, width: edge.width });
+      }
+      activeEdges.add(edgeId);
+      edgeDataset.update({
+        id: edgeId,
+        color: { color: '#FFA500', highlight: '#FF8C00' },
+        width: 4
       });
-      if (updates.length) edgeDataset.update(updates);
     };
 
     const getComponentForPort = (portId) => {
@@ -1055,7 +1079,20 @@ function renderVisualization(containerId, generatedCode, logElement) {
         case 'PORT_RECEIVE': {
           const pid = resolvePortNode(data.portPath);
           highlightPortContext(pid);
-          moved = moveTokenToNode(flowId, pid, data.value);
+
+          // If value came from a connector, animate from connector to port
+          if (event.type === 'PORT_RECEIVE' && data.sourceConnector) {
+            const connectorId = resolveConnectorNode(data.sourceConnector);
+            if (connectorId) {
+              glowNodes([connectorId]);
+              moved = flowAnimator.animate(flowId, connectorId, pid, data.value);
+            } else {
+              moved = moveTokenToNode(flowId, pid, data.value);
+            }
+          } else {
+            moved = moveTokenToNode(flowId, pid, data.value);
+          }
+
           message = `${event.type.replace('_', ' ')} ${data.portPath}${data.value !== undefined ? ` = ${data.value}` : ''}`;
           break;
         }
@@ -1082,8 +1119,12 @@ function renderVisualization(containerId, generatedCode, logElement) {
           message = `Activity ${data.activityName || ''} → ${data.targetPort}`;
           break;
         }
+        case 'COMPONENT_NO_ACTIVITY': {
+          // Skip visual animation for "no activity" events
+          message = `${event.type.replace('_', ' ')} ${data.component || ''}`;
+          break;
+        }
         case 'COMPONENT_INSTANTIATION':
-        case 'COMPONENT_NO_ACTIVITY':
         case 'SYNC_DECISION':
         case 'SYNC_CHECK': {
           if (data.component) {

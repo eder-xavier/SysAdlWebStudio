@@ -83,12 +83,6 @@
     <section class="panel">
       <h2>3) Architecture Visualization</h2>
 
-      <div class="viz-controls">
-        <button id="btnTracePlay" class="secondary" disabled>Animate trace</button>
-        <button id="btnTracePause" class="secondary" disabled>Pause</button>
-        <button id="btnTraceStep" class="secondary" disabled>Step</button>
-        <span id="traceStatus" class="trace-status">Run a simulation to enable trace animation.</span>
-      </div>
       <div class="viz-layout">
         <div class="viz-wrapper" style="position: relative; width: 100%;">
           <button id="btnToggleViz" class="secondary"
@@ -122,6 +116,34 @@
                 style="display:inline-block;width:24px;height:2px;background:#334155;margin-right:8px;border-radius:1px;"></span>Connector
               / flow</li>
           </ul>
+        </div>
+
+        <div class="viz-controls">
+          <button id="btnTracePlay" class="secondary" disabled title="Play trace animation"
+            style="padding: 4px 16px; min-width: auto;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </button>
+          <button id="btnTracePause" class="secondary" disabled title="Pause trace animation"
+            style="padding: 4px 16px; min-width: auto;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+            </svg>
+          </button>
+          <button id="btnTraceStepBack" class="secondary" disabled title="Step backward"
+            style="padding: 4px 16px; min-width: auto;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 19V5M5 12l7-7 7 7" />
+            </svg>
+          </button>
+          <button id="btnTraceStep" class="secondary" disabled title="Step forward"
+            style="padding: 4px 16px; min-width: auto;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 5v14M5 12l7 7 7-7" />
+            </svg>
+          </button>
+          <span id="traceStatus" class="trace-status">Run a simulation to enable trace animation.</span>
         </div>
         <aside class="trace-panel" aria-live="polite">
           <div class="trace-panel-header">
