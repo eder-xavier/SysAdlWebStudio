@@ -2826,8 +2826,88 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   function generateBehavioralClasses() {
     const behavioralLines = [];
 
+    // Collect ActionDef nodes with their pins FIRST (needed by buildDelegationMappings)
+    const actionDefs = [];
+    traverse(ast, n => {
+      if (n && (n.type === 'ActionDef' || /ActionDef/i.test(n.type))) {
+        const name = n.name || n.id || null;
+        if (!name) return;
+
+        const inPins = [];
+        const outPins = [];
+        let body = null;
+        let delegations = [];
+
+        // Extract input parameters (flatten nested arrays from parser)
+        if (n.inParameters && Array.isArray(n.inParameters)) {
+          const flatInParams = n.inParameters.flat(Infinity);
+          flatInParams.forEach(p => {
+            if (p && (typeof p === 'object')) {
+              const pinName = p.name || p.id || null;
+              if (pinName) {
+                const pinType = (typeof p.definition === 'string') ? p.definition :
+                  (p.definition?.name || p.typeName || 'String');
+                inPins.push({ name: pinName, type: pinType, direction: 'in' });
+              }
+            }
+          });
+        }
+
+        // Extract output parameters (flatten nested arrays from parser)
+        if (n.outParameters && Array.isArray(n.outParameters)) {
+          const flatOutParams = n.outParameters.flat(Infinity);
+          flatOutParams.forEach(p => {
+            if (p && (typeof p === 'object')) {
+              const pinName = p.name || p.id || null;
+              if (pinName) {
+                const pinType = (typeof p.definition === 'string') ? p.definition :
+                  (p.definition?.name || p.typeName || 'String');
+                outPins.push({ name: pinName, type: pinType, direction: 'out' });
+              }
+            }
+          });
+        }
+
+        // If no explicit outParameters, check for returnType (single return value)
+        if (outPins.length === 0 && n.returnType) {
+          const returnTypeName = (typeof n.returnType === 'string') ? n.returnType :
+            (n.returnType?.name || n.returnType?.id || 'Real');
+          outPins.push({ name: name, type: returnTypeName, direction: 'out' });
+        }
+
+        // Extract delegations from ActionDef
+        if (n.delegations && Array.isArray(n.delegations)) {
+          delegations = n.delegations.map(d => ({
+            source: d.source,
+            target: d.target
+          }));
+        }
+        if (n.body && n.body.relations && Array.isArray(n.body.relations)) {
+          delegations.push(...n.body.relations
+            .filter(r => r.type === 'ActionDelegation')
+            .map(d => ({
+              source: d.source,
+              target: d.target
+            })));
+        }
+
+        // Extract body from location if available
+        if (n.location && n.location.start && typeof n.location.start.offset === 'number') {
+          try {
+            const s = n.location.start.offset;
+            const e = n.location.end.offset;
+            const snippet = src.slice(s, e);
+            const m = snippet.match(/\{([\s\S]*)\}$/m);
+            if (m && m[1]) body = m[1].trim();
+          } catch (e) { }
+        }
+
+        actionDefs.push({ name, inPins, outPins, body, node: n, delegations });
+      }
+    });
+
     // Get the actionDelegations from the outer scope that was already built
-    const { activityDelegations: actDels, actionDelegations: actDels2 } = buildDelegationMappings();
+    const { activityDelegations: actDels, actionDelegations: actDels2 } = buildDelegationMappings(actionDefs);
     const constraintToActionMap = buildConstraintToActionMapping();
 
     // Create reverse mapping: action -> constraints
@@ -2901,72 +2981,6 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
       }
     });
 
-    // Collect ActionDef nodes with their pins
-    const actionDefs = [];
-    traverse(ast, n => {
-      if (n && (n.type === 'ActionDef' || /ActionDef/i.test(n.type))) {
-        const name = n.name || n.id || null;
-        if (!name) return;
-
-        const inPins = [];
-        const outPins = [];
-        let body = null;
-
-        // Extract input parameters (flatten nested arrays from parser)
-        if (n.inParameters && Array.isArray(n.inParameters)) {
-          const flatInParams = n.inParameters.flat(Infinity);
-          flatInParams.forEach(p => {
-            if (p && (typeof p === 'object')) {
-              const pinName = p.name || p.id || null;
-              if (pinName) {
-                // definition can be a string (type name) or an object with name property
-                const pinType = (typeof p.definition === 'string') ? p.definition :
-                  (p.definition?.name || p.typeName || 'String');
-                inPins.push({ name: pinName, type: pinType, direction: 'in' });
-              }
-            }
-          });
-        }
-
-        // Extract output parameters (flatten nested arrays from parser)
-        if (n.outParameters && Array.isArray(n.outParameters)) {
-          const flatOutParams = n.outParameters.flat(Infinity);
-          flatOutParams.forEach(p => {
-            if (p && (typeof p === 'object')) {
-              const pinName = p.name || p.id || null;
-              if (pinName) {
-                // definition can be a string (type name) or an object with name property
-                const pinType = (typeof p.definition === 'string') ? p.definition :
-                  (p.definition?.name || p.typeName || 'String');
-                outPins.push({ name: pinName, type: pinType, direction: 'out' });
-              }
-            }
-          });
-        }
-
-        // If no explicit outParameters, check for returnType (single return value)
-        // Syntax: action def Name ( params ) : ReturnType { ... }
-        if (outPins.length === 0 && n.returnType) {
-          const returnTypeName = (typeof n.returnType === 'string') ? n.returnType :
-            (n.returnType?.name || n.returnType?.id || 'Real');
-          // Use action name as the output parameter name (will be mapped via delegates)
-          outPins.push({ name: name, type: returnTypeName, direction: 'out' });
-        }
-
-        // Extract body from location if available
-        if (n.location && n.location.start && typeof n.location.start.offset === 'number') {
-          try {
-            const s = n.location.start.offset;
-            const e = n.location.end.offset;
-            const snippet = src.slice(s, e);
-            const m = snippet.match(/\{([\s\S]*)\}$/m);
-            if (m && m[1]) body = m[1].trim();
-          } catch (e) { }
-        }
-
-        actionDefs.push({ name, inPins, outPins, body, node: n });
-      }
-    });
     // Build a global set of input parameter names used by actions (helpful for heuristics)
     const globalActionInParamNames = new Set();
     try {
@@ -3062,27 +3076,28 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
       let finalOutPins = Array.isArray(actDef.outPins) ? actDef.outPins.slice() : [];
 
       try {
-        if ((!finalOutPins || finalOutPins.length === 0) && actionDels && actionDels.length > 0) {
-          // Use the 'from' side of action delegations as the action's out-parameters
-          const uniqueOutNames = [...new Set(actionDels.map(d => d.from).filter(Boolean))];
+        // Get list of input parameter names to exclude from outputs
+        const inParamNames = Array.isArray(actDef.inPins) ? actDef.inPins.map(p => p.name) : [];
+
+        // Robustly determine outParameters
+        // 1. If no outParameters declared, derive from delegates (from -> output)
+        if ((!finalOutPins || finalOutPins.length === 0) && Array.isArray(actionDels) && actionDels.length > 0) {
+          const uniqueOutNames = [...new Set(actionDels.map(d => d.from).filter(f => f && typeof f === 'string' && !inParamNames.includes(f)))];
           finalOutPins = uniqueOutNames.map(n => ({ name: n, type: 'Real', direction: 'out' }));
-        } else if (finalOutPins && finalOutPins.length > 0 && actionDels && actionDels.length > 0) {
-          // Align existing outPins to delegation 'from' names when possible
-          const delFroms = actionDels.map(d => d.from);
-          // If counts match, replace out pin names with delegation names to ensure mapping
-          if (delFroms.length === finalOutPins.length) {
-            finalOutPins = finalOutPins.map((p, idx) => ({ name: delFroms[idx] || p.name, type: p.type || 'Real', direction: p.direction || 'out' }));
-          } else {
-            // Otherwise ensure we include delegation outputs in addition to declared ones
-            const declaredNames = finalOutPins.map(p => p.name);
-            for (const df of delFroms) {
-              if (!declaredNames.includes(df)) finalOutPins.push({ name: df, type: 'Real', direction: 'out' });
+        }
+        // 2. If outParameters exist, merge with delegates to ensure nothing is missed
+        else if (finalOutPins && finalOutPins.length > 0 && Array.isArray(actionDels) && actionDels.length > 0) {
+          const delFroms = actionDels.map(d => d.from).filter(f => f && typeof f === 'string' && !inParamNames.includes(f));
+          const declaredNames = finalOutPins.map(p => p.name);
+          for (const df of delFroms) {
+            if (!declaredNames.includes(df)) {
+              finalOutPins.push({ name: df, type: 'Real', direction: 'out' });
             }
           }
         }
       } catch (e) {
         // defensive: if anything fails, fall back to declared outPins
-        try { finalOutPins = Array.isArray(actDef.outPins) ? actDef.outPins.slice() : finalOutPins; } catch (e2) { }
+        try { finalOutPins = Array.isArray(actDef.outPins) ? actDef.outPins.slice() : []; } catch (e2) { }
       }
 
       // Heuristic: if the action returns a Commands/Command-like type or
@@ -3198,11 +3213,11 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
         if (actionName && Array.isArray(actionDefs)) {
           const a = actionDefs.find(ad => ad.name === actionName);
           if (a && Array.isArray(a.inPins)) {
-            // Only override if counts match to avoid masking other issues
-            if (a.inPins.length === inPins.length) {
-              finalInPins = a.inPins;
-              actionInPins = a.inPins;
-            }
+            // Always use action inputs for parameter mapping if allocation exists
+            // This ensures that if Action has (t1, t2) and Executable has (temp1, temp2),
+            // the wrapper function will generate the correct mapping.
+            finalInPins = a.inPins; // Force usage of action inputs for inParameters
+            actionInPins = a.inPins;
           }
         }
       } catch (e) { /* ignore */ }
@@ -3288,7 +3303,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
   }
 
   // Build delegation mappings from AST
-  function buildDelegationMappings() {
+  function buildDelegationMappings(actionDefs = []) {
     const activityDelegations = {};
     const actionDelegations = {};
 
@@ -3399,10 +3414,52 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
           if (n.body && n.body.relations && Array.isArray(n.body.relations)) {
             delegations.push(...n.body.relations
               .filter(r => r.type === 'ActivityDelegation')
-              .map(d => ({
-                from: d.source,
-                to: d.target
-              })));
+              .map(d => {
+                let targetName = d.target;
+                const fs = require('fs');
+                fs.appendFileSync('/tmp/debug_transformer.log', `DEBUG buildDel: Activity delegation from=${d.source} to=${d.target}\n`);
+                // Fix for delegation mismatch where target resolves to a Constraint Pin instead of Action Pin
+                // We need to find the Action Usage that owns this target pin
+                if (n.body && n.body.elements) {
+                  // Find all Action Usages in this Activity
+                  const actionUsages = n.body.elements.filter(e => e.type === 'ActionUsage');
+                  fs.appendFileSync('/tmp/debug_transformer.log', `DEBUG buildDel: Found ${actionUsages.length} action usages\n`);
+                  for (const usage of actionUsages) {
+                    // We don't easily know which usage 'd.target' belongs to without more complex AST analysis
+                    // But we can check if the Action Definition for this usage has a delegation to 'd.target'
+                    const actionDefName = usage.actionDefinition ? (usage.actionDefinition.name || usage.actionDefinition) : null;
+                    fs.appendFileSync('/tmp/debug_transformer.log', `DEBUG buildDel: Checking usage with actionDefName=${actionDefName}\n`);
+                    if (actionDefName && actionDefs) {
+                      const actionDef = actionDefs.find(ad => ad.name === actionDefName);
+                      fs.appendFileSync('/tmp/debug_transformer.log', `DEBUG buildDel: Found actionDef=${!!actionDef}, has delegations=${!!actionDef?.delegations}\n`);
+                      if (actionDef && actionDef.delegations) {
+                        // Check if any Action Pin delegates to 'd.target'
+                        const matchingDelegation = actionDef.delegations.find(adDel => adDel.target === d.target);
+                        fs.appendFileSync('/tmp/debug_transformer.log', `DEBUG buildDel: matchingDelegation=${JSON.stringify(matchingDelegation)}\n`);
+                        if (matchingDelegation) {
+                          // Found it! The Action delegates 'matchingDelegation.source' to 'd.target'
+                          // So the Activity should be delegating to 'matchingDelegation.source' (the Action Pin)
+                          targetName = matchingDelegation.source;
+                          fs.appendFileSync('/tmp/debug_transformer.log', `DEBUG buildDel: FIXED targetName from ${d.target} to ${targetName}\n`);
+                          break;
+                        }
+                      }
+                      // Also check body relations for Action Delegations
+                      if (actionDef && actionDef.body && actionDef.body.relations) {
+                        const matchingRel = actionDef.body.relations.find(r => r.type === 'ActionDelegation' && r.target === d.target);
+                        if (matchingRel) {
+                          targetName = matchingRel.source;
+                          break;
+                        }
+                      }
+                    }
+                  }
+                }
+                return {
+                  from: d.source,
+                  to: targetName
+                };
+              }));
           }
 
           if (delegations.length > 0) {
@@ -3572,38 +3629,12 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
           const actionVarName = sanitizeId(resolvedInstance);
 
           if (exec) {
-            // Heuristic: derive action out-parameters from activity delegations when possible.
-            //  - If activity delegations reference this action by name (to == instanceName or to == actionName), use those 'from' names as out params.
-            //  - If activity has a single action, and delegations exist, use delegation 'from' names that are not listed as activity inputPorts.
-            //  - Otherwise, leave action's own declared outParameters as-is.
-            try {
-              const _actDels = activityDels || [];
-              const _inst = instanceNameRaw || actionName;
-              let _actionOuts = [];
-              try {
-                // match delegations that target this action by instance token or by action name
-                const matched = (_actDels || []).filter(d => d && (String(d.to) === String(_inst) || String(d.to) === String(actionName)));
-                if (matched && matched.length) {
-                  _actionOuts = [...new Set(matched.map(d => d.from).filter(Boolean))];
-                } else if ((_actDels || []).length && Array.isArray(actions) && actions.length === 1) {
-                  // single-action activity: treat all delegations that look like outputs (not in inputPorts)
-                  const inps = Array.isArray(inputPorts) ? inputPorts.map(x => String(x)) : [];
-                  const outs = (_actDels || []).map(d => d.from).filter(Boolean).filter(n => inps.indexOf(String(n)) === -1);
-                  _actionOuts = [...new Set(outs)];
-                }
-              } catch (e) { _actionOuts = []; }
-
-              if (_actionOuts && _actionOuts.length) {
-                const outPinsForEmit = _actionOuts.map(n => ({ name: n, type: 'Real', direction: 'out' }));
-                lines.push(`    const ${actionVarName} = new ${actionClassName}(${JSON.stringify(instanceNameRaw)}, { outParameters: ${JSON.stringify(outPinsForEmit)} });`);
-              } else {
-                // Create explicit action class instance using the resolved instance name
-                lines.push(`    const ${actionVarName} = new ${actionClassName}(${JSON.stringify(instanceNameRaw)});`);
-              }
-            } catch (e) {
-              // on any failure, fall back to simple instantiation
-              lines.push(`    const ${actionVarName} = new ${actionClassName}(${JSON.stringify(instanceNameRaw)});`);
-            }
+            // Heuristic DISABLED: Do not override action out-parameters.
+            // The Action Class defines the outputs (e.g. 'TempMonitorAN').
+            // The Activity Delegate maps Activity Port (e.g. 'average') to Action Pin (e.g. 'TempMonitorAN').
+            // Renaming the Action Instance output to 'average' breaks the internal connection in the Action Class.
+            // We rely on portToPinMapping to handle the name difference.
+            lines.push(`    const ${actionVarName} = new ${actionClassName}(${JSON.stringify(instanceNameRaw)});`);
             lines.push(`    ${actVar}.registerAction(${actionVarName});`);
           } else {
             // Fallback to legacy Action creation but use instance name as the Action name
@@ -3611,6 +3642,7 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
           }
         }
       }
+
 
       // Emit explicit port->pin mappings based on deduced delegations (best-effort)
       try {
@@ -6534,7 +6566,37 @@ async function main() {
         }
       }
 
-      // Not a participant role, assume it's a component instance
+      // NEW: Check if targetName is a known port alias in the current context
+      // This solves ambiguity when a port and a component have the same name (e.g. 's1')
+      // We look for the port in the owner component's port list (localCompPorts)
+      if (localCompPorts && ownerName) {
+        // ownerName is the name of the component definition we are currently processing
+        // localCompPorts maps component definition names to sets of port names
+        const ownerPorts = localCompPorts[ownerName];
+        if (ownerPorts && ownerPorts.has(targetName)) {
+          // It is a port on the parent component!
+          // Treat it as a direct port reference, not a component instance.
+          // We return it as a 'component' type but with the component being 'this' (or empty) and port being the name.
+          // However, the downstream logic expects { component: 'name', port: 'port' }.
+          // If we return component: '', it might break.
+          // Let's see how 'component' type is handled.
+          // Actually, for a port on 'this', we usually want to generate 'this.portName'.
+          // But here we are resolving the *side* of a binding.
+
+          // If we return type: 'port', the caller might not handle it.
+          // Let's look at how the caller handles the result.
+          // The caller uses result.component and result.port.
+
+          // If it's a port on 'this', we can say component is 'this' (or null/empty) and port is targetName.
+          return {
+            type: 'component', // reusing 'component' type to mean "endpoint"
+            component: null,   // null component means "this" or "local"
+            port: targetName
+          };
+        }
+      }
+
+      // Not a participant role and not a local port, assume it's a component instance
       return {
         type: 'component',
         component: targetName,
@@ -6583,14 +6645,20 @@ async function main() {
     }
 
     // Build alias maps by scanning component-use definitions text for 'using ports' clauses
+    // Map: OwnerDefName -> { aliasName: instanceName }
+    var portAliasToInstance = {};
+
     try {
       for (const cu of compUses) {
         try {
           const cuName = cu && (cu.name || (cu.id && cu.id.name) || cu.id) ? (cu.name || (cu.id && cu.id.name) || cu.id) : null;
           if (!cuName) continue;
 
-          if (cuName === 'as') {
-          }
+          // Owner is the component definition containing this usage
+          const ownerDef = cu._ownerComponent;
+          if (!ownerDef) continue;
+
+          if (!portAliasToInstance[ownerDef]) portAliasToInstance[ownerDef] = {};
 
           // Find the component use block and extract ALL port aliases
           // Structure: cuName : Type { using ports: alias1 : Type1 { } alias2 : Type2 { } ... }
@@ -6614,88 +6682,67 @@ async function main() {
 
             // Extract all 'alias : Type {' patterns from the entire component block
             const aliasRe = /([A-Za-z0-9_]+)\s*:\s*([A-Za-z0-9_\.]+)\s*\{/g;
-            const parts = [];
             let match;
-            while ((match = aliasRe.exec(componentBlock)) !== null) {
-              parts.push(`${match[1]} : ${match[2]}`);
-            }
 
-            if (cuName === 'as') {
-            }
-
-            // attempt to map alias -> actual port name on the component definition when unambiguous
+            // Prepare for usingAliasMap logic
             const defName = cu.definition || cu.def || null;
             const defNode = defName ? (compDefMap[defName] || compDefMap[String(defName)]) : null;
+            usingAliasMap[cuName] = usingAliasMap[cuName] || {};
 
-            if (cuName === 'as') {
-            }
+            while ((match = aliasRe.exec(componentBlock)) !== null) {
+              const aliasName = match[1];
+              const typeName = match[2];
 
-            for (const p of parts) {
-              const mm = p.match(/([A-Za-z0-9_\.]+)\s*:\s*([A-Za-z0-9_\.]+)/);
-              if (mm) {
-                const alias = mm[1];
-                const typeName = mm[2];
+              // 1. Populate portAliasToInstance (New Logic)
+              portAliasToInstance[ownerDef][aliasName] = cuName;
 
-                if (cuName === 'as') {
-                }
+              // Also add to localCompPorts so it's recognized as a port of the owner
+              if (!localCompPorts[ownerDef]) localCompPorts[ownerDef] = new Set();
+              localCompPorts[ownerDef].add(aliasName);
 
-                usingAliasMap[cuName] = usingAliasMap[cuName] || {};
-                // default mapping: alias -> instance name (we'll store actual port name when found)
-                let mappedPort = null;
-                try {
-                  if (defNode) {
-                    // collect candidate ports from defNode (ports and members)
-                    const defPorts = [];
-                    if (Array.isArray(defNode.ports)) defPorts.push(...defNode.ports);
-                    if (Array.isArray(defNode.members)) defPorts.push(...defNode.members);
-                    // if none found, try traversing defNode for participant/port-like nodes
-                    if (!defPorts.length) {
-                      traverse(defNode, pn => { if (pn && (Array.isArray(pn.ports) || Array.isArray(pn.members) || pn.participants)) { if (Array.isArray(pn.ports)) defPorts.push(...pn.ports); if (Array.isArray(pn.members)) defPorts.push(...pn.members); if (Array.isArray(pn.participants)) defPorts.push(...pn.participants); } });
-                    }
-                    const candidates = [];
-                    for (const dp of defPorts) {
-                      try {
-                        const dpName = dp && (dp.name || (dp.id && dp.id.name) || dp.id) ? (dp.name || (dp.id && dp.id.name) || dp.id) : null;
-                        if (!dpName) continue;
-                        // find type descriptor in common fields
-                        const dpType = dp && (dp.type || dp.portType || (dp.definition && dp.definition.name) || dp.value || dp.valueType || dp.typeName) ? (dp.type || dp.portType || (dp.definition && dp.definition.name) || dp.value || dp.valueType || dp.typeName) : null;
-                        if (dpType) {
-                          const tstr = String(dpType).split('.').pop(); const q = String(typeName).split('.').pop();
-                          if (String(dpType) === String(typeName) || tstr === q || q === tstr) candidates.push(dpName);
-                        } else {
-                          // if no type info, still consider it as candidate
-                          candidates.push(dpName);
-                        }
-                      } catch (e) { }
-                    }
-                    // if exactly one candidate, use it
-                    if (candidates.length === 1) mappedPort = candidates[0];
-                    else if (!candidates.length && defPorts.length === 1) {
-                      // fallback: single port defined -> map alias to that port
-                      const only = defPorts[0]; const onlyName = only && (only.name || (only.id && only.id.name) || only.id) ? (only.name || (only.id && only.id.name) || only.id) : null; if (onlyName) mappedPort = onlyName;
-                    }
+              // 2. Populate usingAliasMap (Original Logic)
+              let mappedPort = null;
+              try {
+                if (defNode) {
+                  // collect candidate ports from defNode (ports and members)
+                  const defPorts = [];
+                  if (Array.isArray(defNode.ports)) defPorts.push(...defNode.ports);
+                  if (Array.isArray(defNode.members)) defPorts.push(...defNode.members);
+                  // if none found, try traversing defNode for participant/port-like nodes
+                  if (!defPorts.length) {
+                    traverse(defNode, pn => { if (pn && (Array.isArray(pn.ports) || Array.isArray(pn.members) || pn.participants)) { if (Array.isArray(pn.ports)) defPorts.push(...pn.ports); if (Array.isArray(pn.members)) defPorts.push(...pn.members); if (Array.isArray(pn.participants)) defPorts.push(...pn.participants); } });
                   }
-                } catch (e) { }
-
-                // DEBUG: Before assignment
-                if (cuName === 'as') {
+                  const candidates = [];
+                  for (const dp of defPorts) {
+                    try {
+                      const dpName = dp && (dp.name || (dp.id && dp.id.name) || dp.id) ? (dp.name || (dp.id && dp.id.name) || dp.id) : null;
+                      if (!dpName) continue;
+                      // find type descriptor in common fields
+                      const dpType = dp && (dp.type || dp.portType || (dp.definition && dp.definition.name) || dp.value || dp.valueType || dp.typeName) ? (dp.type || dp.portType || (dp.definition && dp.definition.name) || dp.value || dp.valueType || dp.typeName) : null;
+                      if (dpType) {
+                        const tstr = String(dpType).split('.').pop(); const q = String(typeName).split('.').pop();
+                        if (String(dpType) === String(typeName) || tstr === q || q === tstr) candidates.push(dpName);
+                      } else {
+                        // if no type info, still consider it as candidate
+                        candidates.push(dpName);
+                      }
+                    } catch (e) { }
+                  }
+                  // if exactly one candidate, use it
+                  if (candidates.length === 1) mappedPort = candidates[0];
+                  else if (!candidates.length && defPorts.length === 1) {
+                    // fallback: single port defined -> map alias to that port
+                    const only = defPorts[0]; const onlyName = only && (only.name || (only.id && only.id.name) || only.id) ? (only.name || (only.id && only.id.name) || only.id) : null; if (onlyName) mappedPort = onlyName;
+                  }
                 }
+              } catch (e) { }
 
-                // set alias mapping: prefer actual port name if found, else store null to indicate alias exists
-                usingAliasMap[cuName][alias] = mappedPort || null;
-
-                // DEBUG: After assignment
-                if (cuName === 'as') {
-                }
-              }
+              usingAliasMap[cuName][aliasName] = mappedPort || null;
             }
           }
-        } catch (e) {
-          if (cuName === 'as') {
-          }
-        }
+        } catch (e) { console.warn('Error parsing aliases for', cu, e); }
       }
-    } catch (e) { }
+    } catch (e) { console.warn('Error building portAliasToInstance map', e); }
 
 
     try { dbg('[DBG] usingAliasMap:', JSON.stringify(usingAliasMap, null, 2)); } catch (e) { }

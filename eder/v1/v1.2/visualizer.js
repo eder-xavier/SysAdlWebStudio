@@ -999,10 +999,7 @@ function renderVisualization(containerId, generatedCode, logElement) {
 
     const highlightPortContext = (portId) => {
       if (!portId) return;
-      const compId = getComponentForPort(portId);
-      const nodesToGlow = [portId];
-      if (compId) nodesToGlow.push(compId);
-      glowNodes(nodesToGlow);
+      glowNodes([portId]);
     };
 
     const moveTokenToNode = (flowId, targetId, value) => {
@@ -1018,8 +1015,6 @@ function renderVisualization(containerId, generatedCode, logElement) {
     };
 
     const highlightConnectorPath = (fromId, toId) => {
-      if (fromId) highlightPortContext(fromId);
-      if (toId) highlightPortContext(toId);
       if (fromId && toId) {
         glowEdge(fromId, toId);
         return true;

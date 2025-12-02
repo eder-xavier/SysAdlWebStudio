@@ -28,13 +28,16 @@ package Elements {
 			c2 : FarToCelCN bindings temp2 = s2 ; 
 		c3 : CelToCelCN bindings average = avg ; }
 	} 
-	boundary component def TempMonitorCP { ports : s1 : CTempIPT ; s2 : CTempIPT ; average : CTempOPT ; }
-	component def SensorCP { ports : current : FTempOPT ; }
+	component def TempMonitorCP { 
+		ports : s1 : CTempIPT ; 
+				s2 : CTempIPT ; 
+				average : CTempOPT ; }
+	boundary component def SensorCP { ports : current : FTempOPT ; }
 	boundary component def StdOutCP { ports : c3 : CTempIPT ; } 
 
 	port def CTempIPT { flow in Real } 
 	port def CTempOPT { flow out Real } 
-	port def FTempOPT { flow in Real } 
+	port def FTempOPT { flow out Real }  
 	
 	connector def FarToCelCN { 
 		participants : 
