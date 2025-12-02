@@ -1011,6 +1011,57 @@ function renderVisualization(containerId, generatedCode, logElement) {
       });
     };
 
+    const glowConnectorEdge = (connectorName) => {
+      console.log('[GLOW CONNECTOR] Called with:', connectorName);
+      if (!edgeDataset || !connectorName) {
+        console.log('[GLOW CONNECTOR] Missing edgeDataset or connectorName');
+        return false;
+      }
+      // Find edge with ID starting with conn:{connectorName}:
+      const allEdges = edgeDataset.get();
+      console.log('[GLOW CONNECTOR] Total edges:', allEdges.length);
+      console.log('[GLOW CONNECTOR] Looking for edge starting with:', `conn:${connectorName}:`);
+
+      const connectorEdge = allEdges.find(e => e.id && e.id.startsWith(`conn:${connectorName}:`));
+      console.log('[GLOW CONNECTOR] Found edge:', connectorEdge ? connectorEdge.id : 'NOT FOUND');
+
+      if (!connectorEdge) {
+        // Try alternative patterns
+        const altEdge = allEdges.find(e => e.label === connectorName);
+        console.log('[GLOW CONNECTOR] Alternative search by label:', altEdge ? altEdge.id : 'NOT FOUND');
+        if (altEdge) {
+          const edgeId = altEdge.id;
+          if (!baseEdgeStyles.has(edgeId)) {
+            baseEdgeStyles.set(edgeId, { color: altEdge.color, width: altEdge.width });
+          }
+          activeEdges.add(edgeId);
+          edgeDataset.update({
+            id: edgeId,
+            color: { color: '#FFA500', highlight: '#FF8C00' },
+            width: 5,
+            shadow: { enabled: true, size: 10, color: 'rgba(255, 165, 0, 0.6)' }
+          });
+          console.log('[GLOW CONNECTOR] Highlighted edge by label:', edgeId);
+          return true;
+        }
+        return false;
+      }
+
+      const edgeId = connectorEdge.id;
+      if (!baseEdgeStyles.has(edgeId)) {
+        baseEdgeStyles.set(edgeId, { color: connectorEdge.color, width: connectorEdge.width });
+      }
+      activeEdges.add(edgeId);
+      edgeDataset.update({
+        id: edgeId,
+        color: { color: '#FFA500', highlight: '#FF8C00' },
+        width: 5,
+        shadow: { enabled: true, size: 10, color: 'rgba(255, 165, 0, 0.6)' }
+      });
+      console.log('[GLOW CONNECTOR] Highlighted edge:', edgeId);
+      return true;
+    };
+
     const getComponentForPort = (portId) => {
       if (!portId) return null;
       if (portOwnerMap.has(portId)) return portOwnerMap.get(portId);
@@ -1131,6 +1182,50 @@ function renderVisualization(containerId, generatedCode, logElement) {
             moved = highlightComponentNode(data.component, data.value ?? data.reason ?? '', flowId);
             message = `${event.type.replace('_', ' ')} ${data.component}`;
           }
+          break;
+        }
+        case 'ACTIVITY_START':
+        case 'ACTIVITY_INPUT_PINS':
+        case 'ACTIVITY_DELEGATES':
+        case 'ACTIVITY_WRITE_OUTPUT':
+        case 'ACTIVITY_END': {
+          // Highlight the component or connector where the activity is running
+          const owner = data.owner || data.component;
+          const ownerType = data.ownerType || '';
+
+          console.log('[ACTIVITY EVENT]', event.type, 'owner:', owner, 'ownerType:', ownerType, 'data:', data);
+
+          if (ownerType.toLowerCase().includes('connector') || (owner && owner.match(/^c\d+$/))) {
+            // It's a connector - highlight the connector edge
+            console.log('[ACTIVITY EVENT] Detected as connector, calling glowConnectorEdge');
+            const highlighted = glowConnectorEdge(owner);
+            if (highlighted) {
+              moved = true;
+            }
+          } else if (owner) {
+            // It's a component
+            console.log('[ACTIVITY EVENT] Detected as component');
+            moved = highlightComponentNode(owner, data.activityName || data.value || '', flowId);
+          }
+          message = `${event.type.replace(/_/g, ' ')} ${data.activityName || owner || ''}`;
+          break;
+        }
+        case 'ACTION_START':
+        case 'ACTION_INPUT_PARAMS':
+        case 'ACTION_DELEGATES':
+        case 'ACTION_OUTPUT':
+        case 'ACTION_END': {
+          // Actions run within activities - try to highlight the activity's owner
+          // For now, just show message (could be enhanced to track activity->owner mapping)
+          message = `${event.type.replace(/_/g, ' ')} ${data.actionName || ''}`;
+          break;
+        }
+        case 'EXECUTABLE_CALL':
+        case 'EXECUTABLE_INPUT':
+        case 'EXECUTABLE_EXECUTION':
+        case 'EXECUTABLE_OUTPUT': {
+          // Executables run within actions - show message
+          message = `${event.type.replace(/_/g, ' ')} ${data.executableName || ''}`;
           break;
         }
         default: {

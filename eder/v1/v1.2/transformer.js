@@ -3416,31 +3416,31 @@ function generateClassModule(modelName, compUses, portUses, connectorBindings, e
               .filter(r => r.type === 'ActivityDelegation')
               .map(d => {
                 let targetName = d.target;
-                const fs = require('fs');
-                fs.appendFileSync('/tmp/debug_transformer.log', `DEBUG buildDel: Activity delegation from=${d.source} to=${d.target}\n`);
+                // const fs = require('fs');
+                // fs.appendFileSync('/tmp/debug_transformer.log', `DEBUG buildDel: Activity delegation from=${d.source} to=${d.target}\n`);
                 // Fix for delegation mismatch where target resolves to a Constraint Pin instead of Action Pin
                 // We need to find the Action Usage that owns this target pin
                 if (n.body && n.body.elements) {
                   // Find all Action Usages in this Activity
                   const actionUsages = n.body.elements.filter(e => e.type === 'ActionUsage');
-                  fs.appendFileSync('/tmp/debug_transformer.log', `DEBUG buildDel: Found ${actionUsages.length} action usages\n`);
+                  // fs.appendFileSync('/tmp/debug_transformer.log', `DEBUG buildDel: Found ${actionUsages.length} action usages\n`);
                   for (const usage of actionUsages) {
                     // We don't easily know which usage 'd.target' belongs to without more complex AST analysis
                     // But we can check if the Action Definition for this usage has a delegation to 'd.target'
                     const actionDefName = usage.actionDefinition ? (usage.actionDefinition.name || usage.actionDefinition) : null;
-                    fs.appendFileSync('/tmp/debug_transformer.log', `DEBUG buildDel: Checking usage with actionDefName=${actionDefName}\n`);
+                    // fs.appendFileSync('/tmp/debug_transformer.log', `DEBUG buildDel: Checking usage with actionDefName=${actionDefName}\n`);
                     if (actionDefName && actionDefs) {
                       const actionDef = actionDefs.find(ad => ad.name === actionDefName);
-                      fs.appendFileSync('/tmp/debug_transformer.log', `DEBUG buildDel: Found actionDef=${!!actionDef}, has delegations=${!!actionDef?.delegations}\n`);
+                      // fs.appendFileSync('/tmp/debug_transformer.log', `DEBUG buildDel: Found actionDef=${!!actionDef}, has delegations=${!!actionDef?.delegations}\n`);
                       if (actionDef && actionDef.delegations) {
                         // Check if any Action Pin delegates to 'd.target'
                         const matchingDelegation = actionDef.delegations.find(adDel => adDel.target === d.target);
-                        fs.appendFileSync('/tmp/debug_transformer.log', `DEBUG buildDel: matchingDelegation=${JSON.stringify(matchingDelegation)}\n`);
+                        // fs.appendFileSync('/tmp/debug_transformer.log', `DEBUG buildDel: matchingDelegation=${JSON.stringify(matchingDelegation)}\n`);
                         if (matchingDelegation) {
                           // Found it! The Action delegates 'matchingDelegation.source' to 'd.target'
                           // So the Activity should be delegating to 'matchingDelegation.source' (the Action Pin)
                           targetName = matchingDelegation.source;
-                          fs.appendFileSync('/tmp/debug_transformer.log', `DEBUG buildDel: FIXED targetName from ${d.target} to ${targetName}\n`);
+                          // fs.appendFileSync('/tmp/debug_transformer.log', `DEBUG buildDel: FIXED targetName from ${d.target} to ${targetName}\n`);
                           break;
                         }
                       }

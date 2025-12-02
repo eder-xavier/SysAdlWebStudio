@@ -114,14 +114,14 @@ class SimulationLogger {
     }, flowId);
   }
 
-  logActivityInputPins(activityName, pins, flowId) {
+  logActivityInputPins(activityName, pins, flowId, owner = null, ownerType = null) {
     // pins = [{name, source, value, originalFlow}]
-    this.logEvent('ACTIVITY_INPUT_PINS', { activityName, pins }, flowId);
+    this.logEvent('ACTIVITY_INPUT_PINS', { activityName, pins, owner, ownerType }, flowId);
   }
 
-  logActivityDelegates(activityName, delegates, flowId) {
+  logActivityDelegates(activityName, delegates, flowId, owner = null, ownerType = null) {
     // delegates = [{from, to}]
-    this.logEvent('ACTIVITY_DELEGATES', { activityName, delegates }, flowId);
+    this.logEvent('ACTIVITY_DELEGATES', { activityName, delegates, owner, ownerType }, flowId);
   }
 
   logActivityWriteOutput(activityName, outputPin, targetPort, value, flowId) {
@@ -130,9 +130,9 @@ class SimulationLogger {
     }, flowId);
   }
 
-  logActivityEnd(activityName, status, duration, actionsExecuted, flowId) {
+  logActivityEnd(activityName, status, duration, actionsExecuted, flowId, owner = null, ownerType = null) {
     this.logEvent('ACTIVITY_END', {
-      activityName, status, duration, actionsExecuted
+      activityName, status, duration, actionsExecuted, owner, ownerType
     }, flowId);
   }
 

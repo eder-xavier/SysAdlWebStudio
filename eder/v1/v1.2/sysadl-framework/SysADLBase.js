@@ -3663,11 +3663,17 @@
           }
 
           // Log activity start
+          const activityOwner = this.component || this.componentName || 'unknown';
+          // Detect if owner is a Connector by checking if it's an instance of Connector class
+          const isConnector = this.parentComponent && this.parentComponent.constructor &&
+            this.parentComponent.constructor.name === 'Connector';
+          const activityOwnerType = isConnector ? 'Connector' : 'Component';
+
           logger.logActivityStart(
             this.name,
             this.constructor.name,
-            this.component || this.componentName || 'unknown',
-            'Component',
+            activityOwner,
+            activityOwnerType,
             'pins_ready',
             flowId
           );
@@ -3682,11 +3688,11 @@
               });
             }
           });
-          logger.logActivityInputPins(this.name, pinData, flowId);
+          logger.logActivityInputPins(this.name, pinData, flowId, activityOwner, activityOwnerType);
 
           // Log delegates if any
           if (this.delegates && this.delegates.length > 0) {
-            logger.logActivityDelegates(this.name, this.delegates, flowId);
+            logger.logActivityDelegates(this.name, this.delegates, flowId, activityOwner, activityOwnerType);
           }
         }
 
@@ -3707,7 +3713,7 @@
         // Simulation logging - activity end
         if (logger) {
           const duration = Date.now() - startTime;
-          logger.logActivityEnd(this.name, result, duration, flowId);
+          logger.logActivityEnd(this.name, result, duration, flowId, activityOwner, activityOwnerType);
         }
 
         // Trace activity execution end
