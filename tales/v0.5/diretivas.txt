@@ -1,0 +1,32 @@
+Estas diretivas devem ser consideradas em todos os prompts que você for executar.
+
+Diretivas gerais:
+
+0) Estamos trabalhando exclusivamente na pasta /tales/v0.4
+1) A solução deve ser sempre genérica, independente do arquivo sysadl usado como exemplo. 
+2) Não devem existir hardcodes
+3) Estamos trabalhando em um sistema de transformação de arquivos .sysadl em arquivos executáveis .js. Esta transformação é feita pelo transformer.js
+4) As classes base para a transformação e definições estão na pasta sysadl-framework
+5) Na transformação, são gerados 2 arquivos baseados em um arquivo.sysadl, por exempo: 1) arquivo.js 2) arquivo-env-scen.js
+6) O simulador é o arquivo environment-simulator.js. Ele deve executar os arquivos .js gerados e gravar um log na pasta /logs
+7) Este log deve mostrar as interações entre cada Entity do ambiente, considerando o sistema modelado na execução dos cenários. A interação com o sistema modelado se dá pela associação de uma entity com uma instancia de component em EnvironmentConfiguration. 
+8) No geral, os modelos funcionam assim: o EnvironmentConfigurations configura instancias que serão executadas nos eventos, cenas e cenários. Ele é executado antes de tudo, para instanciar os elementos do environmentdefinitions que serão utilizados. Ele também atribui valores iniciais para estas instÂncias, além de definir as associações entre os ambientes e cenários com o sistema modelado atrávés da relação roles->ports e entity->component. O que "comanda" a execução é a definição em ScenarioExecution, que chama ScenarioDefinitions, que chama SceneDefinitions que chama EventsDefinitions. Os eventsdefinitions utilizam as instancias e associações criadas em eventconfigurations. Assim, a partir do ScenarioExecution, é possível chegar a todos os elementos modelados. 
+9) resumindo: 
+ScenarioExecution 
+    ↓ chama
+ScenarioDefinitions 
+    ↓ chama  
+SceneDefinitions
+    ↓ chama
+EventsDefinitions
+    ↓ usa
+EnvironmentConfiguration (instâncias + associações)
+    - instâncias definiem quais elementos do ScenarioDefinitions serão utilizados
+    - associações informam a qual Port uma Role se associa, e a qual Component uma Entity se assococia, de forma que quando uma role ou entity for acionada, na verdade devem ser refletidas nas ports ou components correspondentes.
+10) Nenhuma alteração deve ser feita nos arquivos js gerados. Caso eles precisem de alguma mudança, as mudanças devem ser aplicadas no transformer.js
+11) O objetivo deste sistema todo é validar os models .sysadl através da simulação, através dos arquivos .js transformados. 
+12) Os arquivos .sysadl, sysadl.peg, sysadl-parser.js nunca devem ser modificados, a não ser com autorização explícita.
+13) Sempre que eu te pedir para transformar um arquivo .sysadl, você deve utilizar o transformer.js com os parâmetros correspondenes, ou o arquivo transform_all.sh, que já faz o trabalho completo.
+14) Sempre que eu te pedir para simular, você deve utilizar o enviroment-simulator.js com os parâmetros necessários.
+15) Todo arquivo de teste deve ser colocado na pasta /tales/v0.4/test
+

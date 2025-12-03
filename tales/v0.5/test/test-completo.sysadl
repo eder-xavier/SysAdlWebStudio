@@ -1,0 +1,14 @@
+Model TestCompleto;
+package SysADL.types {
+  value type Int {
+  }
+  value type String {
+  }
+  enum TestEnum {
+    value1, value2
+  }
+}
+package TestModel {
+  component def TestComponent {
+  }
+}

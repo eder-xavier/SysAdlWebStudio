@@ -1,0 +1,202 @@
+/**
+ * EXEMPLOS PRÁTICOS: Como Modificar Valores de Sensor para Disparar Eventos
+ * Baseado no modelo AGV-completo.sysadl
+ */
+
+// ========== MÉTODO 1: EVENT INJECTION NO SCENARIOEXECUTION ==========
+
+ScenarioExecution SensorModificationDemo to MyScenarios {
+  // Estado inicial
+  agv1.location = stationC.ID;
+  agv2.location = stationD.ID;
+  part.location = stationA.ID;
+  
+  // 🎯 EXEMPLO 1: Modificar sensor imediatamente
+  inject SetAGV2SensorStationD immediate {
+    agv2.sensor = stationD;  // Isso disparará: ON agv2.sensor == stationD
+  }
+  
+  // 🎯 EXEMPLO 2: Modificar sensor com delay
+  inject SetAGV1SensorStationA after 3s {
+    agv1.sensor = stationA;  // Disparará após 3 segundos
+  }
+  
+  // 🎯 EXEMPLO 3: Modificar sensor condicionalmente
+  inject SetAGV2SensorStationE when agv2.location == stationD.ID {
+    agv2.sensor = stationE;  // Só dispara se agv2 estiver em stationD
+  }
+  
+  // 🎯 EXEMPLO 4: Batch de modificações de sensores
+  inject_batch [
+    SetAGV1SensorStationB,
+    SetAGV2SensorStationC
+  ] parallel after 5s {
+    agv1.sensor = stationB;
+    agv2.sensor = stationC;
+  }
+  
+  // Executar cenários
+  Scenario1;
+}
+
+// ========== MÉTODO 2: EVENTOS CUSTOMIZADOS ==========
+
+EventsDefinitions SensorEvents to MyFactoryConfiguration {
+  
+  // Eventos para AGV1
+  Event def AGV1SensorEvents for agv1 {
+    // Simular detecção de stationA
+    ON SimulateAGV1AtStationA
+      THEN AGV1SensorDetectsA {
+        agv1.sensor = stationA;  // Disparará StationAEvents
+      }
+    
+    // Simular movimento entre estações
+    ON SimulateAGV1Moving
+      THEN AGV1SensorMoving {
+        agv1.sensor = null;  // Sensor não detecta nenhuma estação
+      }
+  }
+  
+  // Eventos para AGV2  
+  Event def AGV2SensorEvents for agv2 {
+    // Simular detecção sequencial de estações
+    ON SimulateAGV2Journey
+      THEN AGV2JourneyStart {
+        agv2.sensor = stationC;  // Primeiro stationC
+      }
+      THEN AGV2JourneyMiddle after 2s {
+        agv2.sensor = stationD;  // Depois stationD
+      }
+      THEN AGV2JourneyEnd after 4s {
+        agv2.sensor = stationE;  // Finalmente stationE
+      }
+  }
+  
+  // Eventos para simulação de falhas
+  Event def SensorFailureEvents for agv1 {
+    ON SimulateSensorFailure
+      THEN AGV1SensorFailed {
+        agv1.sensor = "FAILED";  // Simular falha do sensor
+      }
+    
+    ON SimulateSensorRecovery
+      THEN AGV1SensorRecovered {
+        agv1.sensor = stationA;  // Recuperar sensor
+      }
+  }
+}
+
+// ========== MÉTODO 3: SCENES COM MODIFICAÇÃO DE SENSOR ==========
+
+SceneDefinitions SensorScenes to SensorEvents {
+  
+  // Cena que simula AGV1 se movendo para stationA
+  Scene def SCN_AGV1MovesToA on {
+    pre-condition {
+      agv1.location != stationA.ID;
+    }
+    start SimulateAGV1Moving;
+    // Durante a cena, modificar sensor gradualmente
+    action SimulateAGV1AtStationA after 3s;
+    finish AGV1SensorDetectsA;
+    post-condition {
+      agv1.sensor == stationA;
+      agv1.location == stationA.ID;
+    }
+  }
+  
+  // Cena que simula jornada completa do AGV2
+  Scene def SCN_AGV2CompleteJourney on {
+    pre-condition {
+      agv2.location == stationC.ID;
+    }
+    start SimulateAGV2Journey;
+    finish AGV2JourneyEnd;
+    post-condition {
+      agv2.sensor == stationE;
+      agv2.location == stationE.ID;
+    }
+  }
+  
+  // Cena que simula falha e recuperação de sensor
+  Scene def SCN_SensorFailureRecovery on {
+    pre-condition {
+      agv1.sensor != "FAILED";
+    }
+    start SimulateSensorFailure;
+    action SimulateSensorRecovery after 5s;
+    finish AGV1SensorRecovered;
+    post-condition {
+      agv1.sensor == stationA;
+    }
+  }
+}
+
+// ========== MÉTODO 4: PROGRAMAÇÃO REATIVA ==========
+
+ScenarioExecution ReactiveSensorDemo to SensorScenes {
+  // Estado inicial
+  agv1.location = stationB.ID;
+  agv2.location = stationC.ID;
+  
+  // Modificação reativa de sensores
+  inject MonitorAGV1Location immediate {
+    // Quando agv1 muda de localização, atualizar sensor
+    when agv1.location.changed {
+      agv1.sensor = agv1.location;
+    }
+  }
+  
+  inject MonitorAGV2Movement after 1s {
+    // Simular movimento gradual do AGV2
+    agv2.sensor = stationC;
+    after 2s: agv2.sensor = stationD;
+    after 4s: agv2.sensor = stationE;
+  }
+  
+  // Executar cenas com sensor modificado
+  SCN_AGV1MovesToA;
+  SCN_AGV2CompleteJourney;
+  SCN_SensorFailureRecovery;
+}
+
+// ========== EXEMPLOS DE USO PRÁTICO ==========
+
+/*
+ * CASO 1: Testar comportamento quando AGV chega em estação específica
+ */
+ScenarioExecution TestAGV2AtStationD to MyScenarios {
+  // Forçar AGV2 a "chegar" em stationD
+  inject ForceAGV2AtStationD immediate {
+    agv2.sensor = stationD;  // Dispara: ON agv2.sensor == stationD
+  }
+  
+  // Verificar se evento AGV2locationStationD foi disparado
+  // e agv2.location foi atualizado para stationD.signal
+}
+
+/*
+ * CASO 2: Simular sequência de movimento realista
+ */
+ScenarioExecution RealisticMovement to MyScenarios {
+  // AGV2 viajando de C para E passando por D
+  inject StartJourney immediate;
+  inject PassStationC after 1s { agv2.sensor = stationC; }
+  inject PassStationD after 3s { agv2.sensor = stationD; }
+  inject ArriveStationE after 5s { agv2.sensor = stationE; }
+}
+
+/*
+ * CASO 3: Teste de condições múltiplas
+ */
+ScenarioExecution MultiConditionTest to MyScenarios {
+  // Testar evento que depende de múltiplas condições
+  inject SetupConditions immediate {
+    agv1.sensor = stationA;
+    agv2.sensor = stationD;
+    part.location = stationA.ID;
+  }
+  
+  // Depois verificar se todos os eventos dependentes foram disparados
+}

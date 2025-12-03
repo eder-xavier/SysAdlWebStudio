@@ -1,0 +1,7 @@
+Model TestModel;
+
+EnvironmentDefinition TestEnv {
+}
+
+ScenarioDefinitions TestScenarios to TestEnv {
+}

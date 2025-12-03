@@ -1,0 +1,48 @@
+Model AGVEventInjectionSimple;
+
+// Test basic event injection framework integration
+
+EnvironmentDefinition TestFactory {
+  Entity def Vehicle {
+    properties {
+      Property def location
+    }
+  }
+}
+
+EnvironmentConfiguration TestFactoryConfig to TestFactory {
+  agv1: Vehicle;
+}
+
+EventsDefinitions TestEvents to TestFactoryConfig {
+  Event def VehicleEvents for agv1 {
+    ON testEvent
+      THEN handleTest {
+        agv1.location = agv1.location;
+      }
+  }
+}
+
+SceneDefinitions TestScenes to TestEvents {
+  Scene def TestScene on {
+    pre-condition {
+      agv1.location == agv1.location;
+    }
+    start testEvent;
+    finish testEvent;
+    post-condition {
+      agv1.location == agv1.location;
+    }
+  }
+}
+
+ScenarioDefinitions TestScenarios to TestScenes {
+  Scenario def TestScenario {
+    TestScene;
+  }
+}
+
+ScenarioExecution to TestScenarios {
+  agv1.location = "test";
+  TestScenario;
+}

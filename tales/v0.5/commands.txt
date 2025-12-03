@@ -1,0 +1,10 @@
+node transformer.js AGV-completo.sysadl
+
+node environment-simulator.js generated/AGV-completo-env-scen.js --scenario=MyScenariosExecution
+
+//log detalhado do sistema modelado.
+node environment-simulator.js generated/AGV-completo-env-scen.js --log
+
+----- Éder
+ cd ../../eder/v1/v1.2
+node server-node.js  

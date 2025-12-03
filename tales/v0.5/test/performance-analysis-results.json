@@ -1,0 +1,160 @@
+{
+  "codeMetrics": {
+    "original": {
+      "lines": 3251,
+      "characters": 1440585,
+      "sizeKB": 1408.26,
+      "functions": 70,
+      "classes": 74,
+      "comments": 441
+    },
+    "hybrid": {
+      "lines": 581,
+      "characters": 20505,
+      "sizeKB": 20.1,
+      "functions": 17,
+      "classes": 2,
+      "comments": 91
+    },
+    "smartHome": {
+      "lines": 435,
+      "characters": 16234,
+      "sizeKB": 15.92,
+      "functions": 11,
+      "classes": 1,
+      "comments": 61
+    },
+    "codeReduction": {
+      "linesReduced": 2670,
+      "percentageReduction": 82.13,
+      "sizeReductionKB": 1388.16
+    }
+  },
+  "memoryMetrics": {
+    "hybrid": {
+      "loadTimeMs": 26,
+      "heapUsedMB": 5,
+      "heapTotalMB": 6,
+      "externalMB": 1
+    },
+    "smartHome": {
+      "loadTimeMs": 4,
+      "heapUsedMB": 5,
+      "heapTotalMB": 9
+    },
+    "efficiency": {
+      "hybridMemoryPerLine": 0.008605851979345954,
+      "smartHomeMemoryPerLine": 0.011494252873563218
+    }
+  },
+  "executionMetrics": {
+    "hybrid": {
+      "totalTimeMs": 1.79,
+      "scenarioTimeMs": 0.98,
+      "infraTimeMs": 0.8,
+      "scenariosExecuted": 3,
+      "averageScenarioTimeMs": 0.33
+    },
+    "smartHome": {
+      "totalTimeMs": 0.42,
+      "automationTimeMs": 0.27,
+      "infraTimeMs": 0.14,
+      "automationsExecuted": 3,
+      "averageAutomationTimeMs": 0.09
+    },
+    "comparison": {
+      "hybridVsSmart": 4.261904761904762,
+      "avgScenarioComparison": 3.666666666666667
+    }
+  },
+  "frameworkMetrics": {
+    "sysadlBase": {
+      "environmentDefinition": true,
+      "environmentConfiguration": true,
+      "eventsDefinitions": true,
+      "entityManagement": true
+    },
+    "taskExecutor": {
+      "executeTask": true,
+      "executeConnectionTask": true,
+      "executePropertyAssignment": true,
+      "genericExecution": true
+    },
+    "connections": {
+      "connectionExecutor": true,
+      "genericConnections": true,
+      "domainIndependent": true
+    },
+    "v04Framework": {
+      "phaseCompatibility": true,
+      "componentIntegration": true,
+      "modelCompatibility": true
+    },
+    "actualIntegration": {
+      "hybridModelLoads": true,
+      "smartModelLoads": true,
+      "bothUseTaskExecutor": true,
+      "bothUseSameBase": true
+    },
+    "compatibilityScore": 14,
+    "maxPossibleScore": 16,
+    "compatibilityPercentage": 88
+  },
+  "semanticMetrics": {
+    "sysadlMapping": {
+      "onThenPreserved": true,
+      "eventStructureIntact": true,
+      "entityRolesPreserved": true,
+      "associationsIntact": true,
+      "compositionsIntact": true
+    },
+    "domainIndependence": {
+      "agvDomain": true,
+      "smartHomeDomain": true,
+      "samePatterns": true,
+      "genericTaskExecutor": true
+    },
+    "semanticConsistency": {
+      "hybridApproach": true,
+      "infrastructureComplete": true,
+      "codeReduction": true,
+      "functionalityPreserved": true
+    },
+    "scores": {
+      "mapping": "5/5",
+      "independence": "4/4",
+      "consistency": "4/4",
+      "overall": "13/13"
+    },
+    "overallPercentage": 100
+  },
+  "overallComparison": {
+    "achievements": {
+      "codeReduction": 82.13,
+      "memoryEfficiency": 0.008605851979345954,
+      "executionPerformance": 0.33,
+      "frameworkCompatibility": 88,
+      "semanticFidelity": 100
+    },
+    "domainReusability": {
+      "agvImplementation": true,
+      "smartHomeImplementation": true,
+      "sameFramework": true,
+      "genericPatterns": true
+    },
+    "hybridSuccess": {
+      "infrastructureComplete": true,
+      "semanticFidelityMaintained": true,
+      "codeReduced": true,
+      "frameworkCompatible": false,
+      "domainIndependent": true
+    },
+    "overallScore": {
+      "achievements": "5/5",
+      "reusability": "4/4",
+      "hybrid": "4/5",
+      "total": "13/14"
+    },
+    "successPercentage": 93
+  }
+}
