@@ -3653,6 +3653,21 @@
           .filter(p => p.direction === 'in')
           .map(p => this.pins[p.name]?.value);
 
+
+        // Define activity owner and type for logging (used in multiple places)
+        const activityOwner = this.component || this.componentName || 'unknown';
+        // Detect if owner is a Connector by checking instanceof or checking model's connectors
+        let isConnector = false;
+        if (this.parentComponent) {
+          // Check if parentComponent is an instance of Connector (works with inheritance)
+          isConnector = this.parentComponent instanceof Connector;
+        }
+        // Fallback: check if owner name matches a connector in the model
+        if (!isConnector && this.model && this.model.connectors) {
+          isConnector = Object.keys(this.model.connectors).includes(activityOwner);
+        }
+        const activityOwnerType = isConnector ? 'Connector' : 'Component';
+
         // Merge flow IDs from all input pins
         if (logger) {
           const pinFlows = Object.values(this.pins)
@@ -3663,12 +3678,6 @@
           }
 
           // Log activity start
-          const activityOwner = this.component || this.componentName || 'unknown';
-          // Detect if owner is a Connector by checking if it's an instance of Connector class
-          const isConnector = this.parentComponent && this.parentComponent.constructor &&
-            this.parentComponent.constructor.name === 'Connector';
-          const activityOwnerType = isConnector ? 'Connector' : 'Component';
-
           logger.logActivityStart(
             this.name,
             this.constructor.name,
