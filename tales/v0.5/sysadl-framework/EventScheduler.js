@@ -15,24 +15,24 @@ class EventScheduler {
   constructor(model, logger = null) {
     this.model = model;
     this.logger = logger;
-    
+
     // Fila de eventos agendados
     this.scheduledEvents = [];
-    
+
     // Eventos agendados após cenas/cenários
     this.afterScenarioQueue = new Map(); // sceneName -> [eventNames]
-    
+
     // Eventos agendados por condição
     this.conditionalEvents = []; // { eventName, condition, checked }
-    
+
     // Monitoramento ativo
     this.monitoringActive = false;
     this.monitoringInterval = null;
     this.checkIntervalMs = 100; // Verificar condições a cada 100ms
-    
+
     // Contador de eventos disparados
     this.eventsFired = 0;
-    
+
     this.log('EventScheduler initialized', 'info');
   }
 
@@ -45,11 +45,11 @@ class EventScheduler {
     if (!this.afterScenarioQueue.has(scenarioName)) {
       this.afterScenarioQueue.set(scenarioName, []);
     }
-    
+
     this.afterScenarioQueue.get(scenarioName).push(eventName);
-    
+
     this.log(`Scheduled event '${eventName}' to fire after scenario '${scenarioName}'`, 'info');
-    
+
     if (this.logger) {
       this.logger.logExecution({
         type: 'event.scheduled',
@@ -71,21 +71,21 @@ class EventScheduler {
     if (typeof condition !== 'function') {
       throw new Error(`Condition for event '${eventName}' must be a function`);
     }
-    
+
     this.conditionalEvents.push({
       eventName,
       condition,
       checked: false,
       fired: false
     });
-    
+
     // Iniciar monitoramento se ainda não estiver ativo
     if (!this.monitoringActive) {
       this.startMonitoring();
     }
-    
+
     this.log(`Scheduled event '${eventName}' to fire on condition`, 'info');
-    
+
     if (this.logger) {
       this.logger.logExecution({
         type: 'event.scheduled',
@@ -107,16 +107,16 @@ class EventScheduler {
     const timeoutId = setTimeout(() => {
       this.fireEvent(eventName, 'delayed');
     }, delayMs);
-    
+
     this.scheduledEvents.push({
       eventName,
       type: 'delayed',
       delayMs,
       timeoutId
     });
-    
+
     this.log(`Scheduled event '${eventName}' to fire after ${delayMs}ms`, 'info');
-    
+
     if (this.logger) {
       this.logger.logExecution({
         type: 'event.scheduled',
@@ -136,14 +136,14 @@ class EventScheduler {
    */
   notifyScenarioCompleted(scenarioName) {
     const eventsToFire = this.afterScenarioQueue.get(scenarioName);
-    
+
     if (eventsToFire && eventsToFire.length > 0) {
       this.log(`Scenario '${scenarioName}' completed, firing ${eventsToFire.length} scheduled events`, 'info');
-      
+
       for (const eventName of eventsToFire) {
         this.fireEvent(eventName, 'after_scenario', { scenarioName });
       }
-      
+
       // Limpar eventos já disparados
       this.afterScenarioQueue.delete(scenarioName);
     }
@@ -154,10 +154,10 @@ class EventScheduler {
    */
   startMonitoring() {
     if (this.monitoringActive) return;
-    
+
     this.monitoringActive = true;
     this.log('Starting conditional event monitoring', 'info');
-    
+
     this.monitoringInterval = setInterval(() => {
       this.checkConditionalEvents();
     }, this.checkIntervalMs);
@@ -168,14 +168,14 @@ class EventScheduler {
    */
   stopMonitoring() {
     if (!this.monitoringActive) return;
-    
+
     this.monitoringActive = false;
-    
+
     if (this.monitoringInterval) {
       clearInterval(this.monitoringInterval);
       this.monitoringInterval = null;
     }
-    
+
     this.log('Stopped conditional event monitoring', 'info');
   }
 
@@ -187,21 +187,21 @@ class EventScheduler {
       this.stopMonitoring();
       return;
     }
-    
+
     const eventsToRemove = [];
-    
+
     for (let i = 0; i < this.conditionalEvents.length; i++) {
       const event = this.conditionalEvents[i];
-      
+
       if (event.fired) {
         eventsToRemove.push(i);
         continue;
       }
-      
+
       try {
         // Avaliar condição
         const conditionMet = event.condition();
-        
+
         if (conditionMet) {
           this.log(`Condition met for event '${event.eventName}', firing...`, 'info');
           this.fireEvent(event.eventName, 'condition');
@@ -214,7 +214,7 @@ class EventScheduler {
         eventsToRemove.push(i);
       }
     }
-    
+
     // Remover eventos já disparados (em ordem reversa para não afetar índices)
     for (let i = eventsToRemove.length - 1; i >= 0; i--) {
       this.conditionalEvents.splice(eventsToRemove[i], 1);
@@ -229,10 +229,20 @@ class EventScheduler {
    */
   fireEvent(eventName, triggerType = 'manual', metadata = {}) {
     this.eventsFired++;
-    
+
     this.log(`Firing event '${eventName}' (trigger: ${triggerType})`, 'info');
-    
-    if (this.logger) {
+
+    if (this.model && this.model.logEvent) {
+      this.model.logEvent({
+        elementType: 'event_fired',
+        name: eventName,
+        context: {
+          triggerType,
+          eventNumber: this.eventsFired,
+          ...metadata
+        }
+      });
+    } else if (this.logger) {
       this.logger.logExecution({
         type: 'event.fired',
         name: eventName,
@@ -243,14 +253,14 @@ class EventScheduler {
         }
       });
     }
-    
+
     // Disparar evento no EventInjector do modelo
     if (this.model && this.model.eventInjector) {
       try {
         this.model.eventInjector.injectEvent(eventName);
       } catch (error) {
         this.log(`Error firing event '${eventName}': ${error.message}`, 'error');
-        
+
         if (this.logger) {
           this.logger.logExecution({
             type: 'event.fire.failed',
@@ -277,14 +287,14 @@ class EventScheduler {
         clearTimeout(event.timeoutId);
       }
     }
-    
+
     this.scheduledEvents = [];
     this.afterScenarioQueue.clear();
     this.conditionalEvents = [];
     this.stopMonitoring();
-    
+
     this.log('Cleared all scheduled events', 'info');
-    
+
     if (this.logger) {
       this.logger.logExecution({
         type: 'event.scheduler.cleared',
@@ -327,7 +337,7 @@ class EventScheduler {
       warn: '[WARN]',
       error: '[ERROR]'
     }[level] || '[INFO]';
-    
+
     console.log(`${prefix} EventScheduler: ${message}`);
   }
 

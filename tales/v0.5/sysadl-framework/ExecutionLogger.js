@@ -23,7 +23,7 @@ class ExecutionLogger {
     this.sessionId = this.generateSessionId();
     this.startTime = Date.now();
     this.sequenceCounter = 0;
-    
+
     // Configuration
     this.config = {
       logLevel: options.logLevel || 'detailed', // 'minimal', 'standard', 'detailed', 'verbose'
@@ -112,14 +112,14 @@ class ExecutionLogger {
    */
   getDetailLevel(elementType) {
     if (!elementType) return 'compact';
-    
+
     const verboseTypes = [
       'scenario.started', 'scenario.completed', 'scenario.execution',
       'scene.completed',
       'preconditions.validated', 'postconditions.validated',
       'validation', 'error', 'warning'
     ];
-    
+
     return verboseTypes.some(type => elementType.includes(type)) ? 'verbose' : 'compact';
   }
 
@@ -128,40 +128,40 @@ class ExecutionLogger {
    */
   generateSummary(elementType, elementName, context) {
     if (!elementType) return `${elementName || 'Event'}`;
-    
+
     const templates = {
       'scenario.started': (name) => `Starting scenario: ${name}`,
       'scenario.completed': (name, ctx) => `Scenario ${name} completed ${ctx?.result || 'successfully'}`,
       'scenario.execution.started': (name) => `Starting scenario execution: ${name}`,
       'scenario.execution.completed': (name) => `Scenario execution ${name} completed`,
-      
+
       'scene.started': (name) => `Executing scene: ${name}`,
       'scene.completed': (name, ctx) => `Scene ${name} completed in ${ctx?.duration || '?'}ms`,
       'scene.preconditions.validated': (name, ctx) => `Scene ${name} pre-conditions ${ctx?.result || 'validated'}`,
       'scene.postconditions.validated': (name, ctx) => `Scene ${name} post-conditions ${ctx?.result || 'validated'}`,
-      
-      'entity.property.changed': (name, ctx) => 
+
+      'entity.property.changed': (name, ctx) =>
         `${name} changed ${ctx?.property || 'property'} to ${ctx?.to !== undefined ? ctx.to : '?'}`,
-      'entity.role.updated': (name, ctx) => 
+      'entity.role.updated': (name, ctx) =>
         `${name} updated role ${ctx?.role || 'role'} to ${ctx?.value !== undefined ? ctx.value : '?'}`,
-      
-      'event.triggered': (name, ctx) => 
+
+      'event.triggered': (name, ctx) =>
         `Event ${ctx?.event || name} triggered${ctx?.entity ? ` on ${ctx.entity}` : ''}`,
       'event.completed': (name) => `Event ${name} completed`,
-      'event.injected': (name, ctx) => 
-        ctx?.injectionType === 'when' 
+      'event.injected': (name, ctx) =>
+        ctx?.injectionType === 'when'
           ? `Event ${name} injected by reactive condition`
           : `Event ${name} injected after ${ctx?.afterScene || 'scene'}`,
-      'event.injection.registered': (name, ctx) => 
+      'event.injection.registered': (name, ctx) =>
         `Registered event injection: ${name} ${ctx?.injectionType || ''}`,
-      
-      'connection.activated': (name, ctx) => 
-        `Connection ${name}: ${ctx?.from || '?'} → ${ctx?.to || '?'}`,
-      
-      'environment.initialized': (name, ctx) => 
+
+      'connection.activated': (name, ctx) =>
+        `EnvConnector ${name}: ${ctx?.from || '?'} → ${ctx?.to || '?'}`,
+
+      'environment.initialized': (name, ctx) =>
         `Environment ${name} initialized with ${ctx?.entities || 0} entities`
     };
-    
+
     const template = templates[elementType];
     return template ? template(elementName, context) : `${elementType}: ${elementName}`;
   }
@@ -171,7 +171,7 @@ class ExecutionLogger {
    */
   compactContext(context) {
     if (!context || typeof context !== 'object') return context;
-    
+
     // Keep only essential fields
     const essential = {};
     const essentialFields = [
@@ -180,13 +180,13 @@ class ExecutionLogger {
       'result', 'duration',
       'injectionType', 'afterScene', 'condition'
     ];
-    
+
     for (const field of essentialFields) {
       if (context[field] !== undefined) {
         essential[field] = context[field];
       }
     }
-    
+
     return Object.keys(essential).length > 0 ? essential : context;
   }
 
@@ -195,7 +195,7 @@ class ExecutionLogger {
    */
   selectMetadata(elementType, elementInfo) {
     const metadata = {};
-    
+
     // If trace was passed explicitly in elementInfo, use it directly
     if (elementInfo.trace && typeof elementInfo.trace === 'object' && Object.keys(elementInfo.trace).length > 0) {
       // Debug: log when trace is found
@@ -204,26 +204,26 @@ class ExecutionLogger {
     } else {
       // Core trace fields for structural events (build from root-level fields)
       if (elementType && (
-        elementType.includes('scenario') || 
-        elementType.includes('scene') || 
+        elementType.includes('scenario') ||
+        elementType.includes('scene') ||
         elementType.includes('validation')
       )) {
         metadata.trace = {};
-        
+
         if (elementInfo.parent) metadata.trace.parent = elementInfo.parent;
         if (elementInfo.scenario) metadata.trace.scenario = elementInfo.scenario;
         if (elementInfo.scene) metadata.trace.scene = elementInfo.scene;
         if (elementInfo.causedBy) metadata.trace.causedBy = elementInfo.causedBy;
       }
     }
-    
+
     // Metrics for completion events
     if (elementType && elementType.includes('completed')) {
       if (elementInfo.duration !== undefined || elementInfo.context?.duration !== undefined) {
         metadata.metrics = {
           duration: elementInfo.duration || elementInfo.context?.duration || 0
         };
-        
+
         if (elementInfo.context?.eventsProcessed) {
           metadata.metrics.eventsProcessed = elementInfo.context.eventsProcessed;
         }
@@ -232,7 +232,7 @@ class ExecutionLogger {
         }
       }
     }
-    
+
     // Validation details
     if (elementType && elementType.includes('validation')) {
       if (elementInfo.context?.checks || elementInfo.context?.result) {
@@ -242,7 +242,7 @@ class ExecutionLogger {
         };
       }
     }
-    
+
     // Error details
     if (elementType && (elementType.includes('error') || elementInfo.errors?.length > 0)) {
       metadata.error = {
@@ -250,7 +250,7 @@ class ExecutionLogger {
         message: elementInfo.errors?.[0] || elementInfo.error?.message || 'An error occurred'
       };
     }
-    
+
     return metadata;
   }
 
@@ -261,10 +261,10 @@ class ExecutionLogger {
     const timestamp = Date.now();
     const elementType = elementInfo.type || 'unknown';
     const elementName = elementInfo.name || 'unnamed';
-    
+
     // Determine detail level for this event
     const detailLevel = this.getDetailLevel(elementType);
-    
+
     // Build narrative log entry
     const logEntry = {
       // Core fields (always present)
@@ -274,31 +274,62 @@ class ExecutionLogger {
       what: elementType,
       who: elementName,
       summary: this.generateSummary(elementType, elementName, elementInfo.context || {}),
-      
+
       // Context (full or compact based on detail level)
-      context: detailLevel === 'verbose' 
+      context: detailLevel === 'verbose'
         ? (elementInfo.context || {})
         : this.compactContext(elementInfo.context || {}),
-      
+
       // Selective metadata based on event type
       ...this.selectMetadata(elementType, elementInfo)
     };
 
     // Add to execution log
     this.executionLog.push(logEntry);
-    
+
     // Update metrics
     this.updateMetrics(logEntry);
-    
+
     // Write to outputs based on configuration
     this.writeLogEntry(logEntry);
-    
+
     // Console output for real-time monitoring
     if (this.config.enableConsoleLogging) {
       this.writeConsoleLog(logEntry);
     }
 
     return logEntry;
+  }
+
+  /**
+   * Alias for logExecution to support generated code expecting 'log'
+   */
+  log(info) {
+    return this.logExecution(info);
+  }
+
+  /**
+   * Alias for logExecution with warning level
+   */
+  warn(message, context = {}) {
+    return this.logExecution({
+      type: 'warning',
+      name: 'System',
+      summary: message,
+      context
+    });
+  }
+
+  /**
+   * Alias for logExecution with error level
+   */
+  error(message, context = {}) {
+    return this.logExecution({
+      type: 'error',
+      name: 'System',
+      summary: message,
+      context
+    });
   }
 
   /**
@@ -348,7 +379,7 @@ class ExecutionLogger {
     };
 
     this.performanceMarkers.delete(markerId);
-    
+
     // Log performance metrics
     this.logExecution({
       type: 'performance_marker',
@@ -377,7 +408,7 @@ class ExecutionLogger {
         totalDuration,
         totalExecutions: this.executionLog.length
       },
-      
+
       executionSummary: {
         byElementType: this.groupByElementType(),
         byResult: this.groupByResult(),
@@ -386,15 +417,15 @@ class ExecutionLogger {
         warningSummary: this.extractWarnings(),
         stateChangeSummary: this.extractStateChanges()
       },
-      
+
       detailedLog: this.config.logLevel === 'verbose' ? this.executionLog : this.executionLog.slice(-100),
-      
+
       analysisRecommendations: this.generateRecommendations(),
-      
+
       systemMetrics: {
         peakMemoryUsage: this.sessionMetrics.peakMemoryUsage,
         averageExecutionTime: this.sessionMetrics.averageExecutionTime,
-        errorRate: this.sessionMetrics.totalExecutions > 0 
+        errorRate: this.sessionMetrics.totalExecutions > 0
           ? (this.sessionMetrics.errorCount / this.sessionMetrics.totalExecutions * 100).toFixed(2) + '%'
           : '0%',
         successRate: this.sessionMetrics.totalExecutions > 0
@@ -409,7 +440,7 @@ class ExecutionLogger {
    */
   groupByElementType() {
     const groups = {};
-    
+
     this.executionLog.forEach(entry => {
       const type = entry.elementType;
       if (!groups[type]) {
@@ -421,10 +452,10 @@ class ExecutionLogger {
           failureCount: 0
         };
       }
-      
+
       groups[type].count++;
       groups[type].totalDuration += entry.executionDuration;
-      
+
       if (entry.executionResult === 'success') {
         groups[type].successCount++;
       } else if (entry.executionResult === 'failure' || entry.executionResult === 'error') {
@@ -447,7 +478,7 @@ class ExecutionLogger {
    */
   groupByResult() {
     const groups = {};
-    
+
     this.executionLog.forEach(entry => {
       const result = entry.executionResult;
       if (!groups[result]) {
@@ -499,7 +530,7 @@ class ExecutionLogger {
    */
   extractErrors() {
     const errors = {};
-    
+
     this.executionLog.forEach(entry => {
       if (entry.errors && entry.errors.length > 0) {
         entry.errors.forEach(error => {
@@ -520,7 +551,7 @@ class ExecutionLogger {
    */
   extractWarnings() {
     const warnings = {};
-    
+
     this.executionLog.forEach(entry => {
       if (entry.warnings && entry.warnings.length > 0) {
         entry.warnings.forEach(warning => {
@@ -541,7 +572,7 @@ class ExecutionLogger {
    */
   extractStateChanges() {
     const stateChanges = {};
-    
+
     this.executionLog.forEach(entry => {
       if (entry.stateChanges && entry.stateChanges.length > 0) {
         entry.stateChanges.forEach(change => {
@@ -611,32 +642,32 @@ class ExecutionLogger {
    */
   updateMetrics(logEntry) {
     this.sessionMetrics.totalExecutions++;
-    
+
     // Update by type (using 'what' field)
     const type = logEntry.what;
     if (!this.sessionMetrics.executionsByType[type]) {
       this.sessionMetrics.executionsByType[type] = 0;
     }
     this.sessionMetrics.executionsByType[type]++;
-    
+
     // Update by result (from context.result or validation.result)
     const result = logEntry.context?.result || logEntry.validation?.result || 'unknown';
     if (!this.sessionMetrics.executionsByResult[result]) {
       this.sessionMetrics.executionsByResult[result] = 0;
     }
     this.sessionMetrics.executionsByResult[result]++;
-    
+
     // Update timing (from metrics.duration)
     const duration = logEntry.metrics?.duration || 0;
     if (duration > 0) {
       this.sessionMetrics.totalExecutionTime += duration;
-      this.sessionMetrics.averageExecutionTime = 
+      this.sessionMetrics.averageExecutionTime =
         this.sessionMetrics.totalExecutionTime / this.sessionMetrics.totalExecutions;
     }
-    
+
     // Update memory (not tracked in narrative format by default)
     // Could be added as optional metadata if needed
-    
+
     // Update error/warning counts (from error field or context)
     if (logEntry.error || logEntry.what.includes('error')) {
       this.sessionMetrics.errorCount++;
@@ -672,7 +703,7 @@ class ExecutionLogger {
       logEntry.summary,    // human-readable summary
       logEntry.context     // context object
     );
-    
+
     console.log(message);
   }
 
@@ -682,9 +713,9 @@ class ExecutionLogger {
   async writeToFile(logEntry) {
     const logFileName = `sysadl-execution-${this.sessionId}.jsonl`;
     const logFilePath = path.join(this.config.logDirectory, logFileName);
-    
+
     const logLine = JSON.stringify(logEntry) + '\n';
-    
+
     try {
       await fs.appendFile(logFilePath, logLine);
     } catch (error) {
@@ -720,6 +751,13 @@ class ExecutionLogger {
     }, this.config.flushInterval);
   }
 
+  stop() {
+    if (this.flushInterval) {
+      clearInterval(this.flushInterval);
+      this.flushInterval = null;
+    }
+  }
+
   /**
    * Flush any pending operations
    */
@@ -749,7 +787,7 @@ class ExecutionLogger {
 
   getMemoryUsage() {
     if (!this.config.enableMemoryTracking) return null;
-    
+
     try {
       return process.memoryUsage();
     } catch (error) {
@@ -759,7 +797,7 @@ class ExecutionLogger {
 
   getCpuUsage() {
     if (!this.config.enablePerformanceTracking) return null;
-    
+
     try {
       return process.cpuUsage();
     } catch (error) {
@@ -776,7 +814,7 @@ class ExecutionLogger {
     }
 
     const report = this.generateReport();
-    
+
     try {
       await this.ensureLogDirectory();
       await fs.writeFile(filePath, JSON.stringify(report, null, 2));

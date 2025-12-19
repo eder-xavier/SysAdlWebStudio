@@ -284,7 +284,7 @@
 
       // Phase 4 Components Integration
       this.logger = new ExecutionLogger(name, {
-        enableFileLogging: true,
+        enableFileLogging: false,
         enableConsoleLogging: true,
         logLevel: 'detailed'
       });
@@ -346,6 +346,13 @@
       // Propagate to all components
       Object.values(this.components || {}).forEach(comp => {
         this._propagateSimulationLoggerToComponent(comp);
+      });
+
+      // Propagate to environments
+      Object.values(this.environments || {}).forEach(env => {
+        if (env && typeof env.attachSimulationLogger === 'function') {
+          env.attachSimulationLogger(logger);
+        }
       });
 
       // CRITICAL: Also propagate to all registered activities
@@ -1723,11 +1730,44 @@
 
     // Start scenario execution mode
     startScenarioExecution(executionName) {
+      console.error(`DEBUG: startScenarioExecution called for ${executionName}`);
+      console.error(`DEBUG: this.events keys: ${this.events ? Object.keys(this.events).join(', ') : 'undefined'}`);
+      console.error(`DEBUG: this.eventSystemManager: ${this.eventSystemManager ? 'present' : 'missing'}`);
+
       if (!this.scenarioExecutions) this.initializeScenarioExecution();
 
       const execution = this.scenarioExecutions[executionName];
       if (!execution) {
         throw new Error(`ScenarioExecution '${executionName}' not found`);
+      }
+      console.error(`DEBUG: execution object is instance of ${execution.constructor.name}`);
+      console.error(`DEBUG: execution.start is ${typeof execution.start}`);
+      if (execution.start) {
+        console.error(`DEBUG: execution.start source: ${execution.start.toString().substring(0, 100)}`);
+      }
+
+      // Initialize helpers with current context
+      this.helpers = new SysADLRuntimeHelpers({
+        environment: execution.environment,
+        entities: execution.environment ? execution.environment.entities : {},
+        sysadlBase: this,
+        model: this
+      });
+      console.error(`DEBUG: Initialized this.helpers`);
+
+      // Setup Event System for all EventsDefinitions
+      if (this.events && this.eventSystemManager) {
+        const globalEmitter = this.eventSystemManager.getGlobalEmitter();
+        for (const [name, eventDef] of Object.entries(this.events)) {
+          if (eventDef.setupEventSystem) {
+            // Pass context with sysadlBase (this) so helpers are available
+            eventDef.setupEventSystem(globalEmitter, {
+              sysadlBase: this,
+              environment: execution.environment
+            });
+            console.log(`✅ Setup event system for ${name}`);
+          }
+        }
       }
 
       this.activeScenarioExecution = execution;
@@ -1784,6 +1824,33 @@
       // If trace enabled, also log to console
       if (this._traceEnabled) {
         console.log('[EVENT]', JSON.stringify(traceEntry));
+      }
+
+      // Forward to SimulationLogger if available
+      if (this._simulationLogger && typeof this._simulationLogger.logEvent === 'function') {
+        // Map SysADLBase event types to SimulationLogger event types
+        let simEventType = 'GENERIC_EVENT';
+        let simEventData = { ...event };
+
+        if (event.elementType === 'scenario_execution_start') {
+          simEventType = 'SCENARIO_EXECUTION_START';
+        } else if (event.elementType === 'scenario_execution_stopped') {
+          simEventType = 'SCENARIO_EXECUTION_STOPPED';
+        } else if (event.elementType === 'scenario_started') {
+          simEventType = 'SCENARIO_START';
+          simEventData = { name: event.name, ...event.context };
+        } else if (event.elementType === 'scenario_completed') {
+          simEventType = 'SCENARIO_END';
+          simEventData = { name: event.name, status: 'completed' };
+        } else if (event.elementType === 'event_fired') {
+          simEventType = 'EVENT_FIRED';
+          simEventData = { name: event.name, ...event.context };
+        }
+
+        // Only log if we have a mapped type or it's a generic event we want to capture
+        if (simEventType !== 'GENERIC_EVENT') {
+          this._simulationLogger.logEvent(simEventType, simEventData, 'SYS');
+        }
       }
 
       return traceEntry;
@@ -2613,6 +2680,11 @@
       this.owner = opts.owner || null;
       this.expectedType = opts.expectedType || null; // Type validation
 
+      // NOVO: Binding bidirecional com EnvPort
+      this.envPortBinding = null;
+      this.onReceiveCallback = null;
+      this._propagating = false; // Proteção contra loops
+
       // Log port instantiation
       const logger = getSimulationLogger(this);
       if (logger && this.owner) {
@@ -2689,6 +2761,16 @@
     receive(v, model) {
       console.log(`[PORT RECEIVE DEBUG] ${this.owner}.${this.name} receive() called, value=${v}, model=${model?.name}`);
 
+      // NOVO: Callback para EnvPort (propagação reversa)
+      if (this.onReceiveCallback && !this._propagating) {
+        this._propagating = true;
+        try {
+          this.onReceiveCallback(v);
+        } finally {
+          this._propagating = false;
+        }
+      }
+
       // Detect source connector (generic approach)
       let sourceConnector = null;
       if (this.binding && this.binding.owner) {
@@ -2699,9 +2781,14 @@
         // If binding owner doesn't contain '.', it's likely a connector
         if (!bindingOwner.includes('.')) {
           sourceConnector = bindingOwner;
+        } else {
+          // Try to extract connector name from path
+          const parts = bindingOwner.split('.');
+          if (parts.length > 0) {
+            sourceConnector = parts[parts.length - 1];
+          }
         }
       }
-
       // Log port receive
       const logger = getSimulationLogger(this);
       if (logger) {
@@ -2748,6 +2835,17 @@
         const hasReceive = ref && typeof ref.receive === 'function';
         console.log(`[BIND TO] ${this.owner}.${this.name} bindTo -> bindingType=${bSummary}, hasReceive=${hasReceive}`);
       } catch (e) { console.log(`[BIND TO] ${this.owner}.${this.name} bindTo -> <error summarizing binding>`, e && e.message); }
+    }
+
+    // NOVO: Binding bidirecional com EnvPort
+    bindToEnvPort(envPort) {
+      this.envPortBinding = envPort;
+      console.log(`🔗 Port ${this.owner}.${this.name} bound to EnvPort ${envPort.name}`);
+    }
+
+    // NOVO: Registrar callback para propagação reversa
+    onReceive(callback) {
+      this.onReceiveCallback = callback;
     }
   }
 
@@ -4769,6 +4867,19 @@
       const oldValue = this.properties[propName];
       this.properties[propName] = value;
 
+      // SimulationLogger
+      if (this.environment && this.environment._simulationLogger && this.environment._simulationLogger.enabled) {
+        const flowId = this.environment._simulationLogger.createFlow(`Entity.${this.name}.property.${propName}`);
+        this.environment._simulationLogger.logStateChange(
+          this.name,
+          this.constructor.name,
+          propName,
+          oldValue,
+          value,
+          flowId
+        );
+      }
+
       // Propagate to bound model elements
       if (this.bindings[propName]) {
         const binding = this.bindings[propName];
@@ -5069,6 +5180,285 @@
     }
   }
 
+  // === NEW: Environment Component Classes ===
+
+  // EnvComponent class - represents environment components (formerly Entity)
+  // These are distinct from internal system Components
+  class EnvComponent extends Element {
+    constructor(name, opts = {}) {
+      super(name, opts);
+      this.envComponentType = opts.envComponentType || 'default';
+      this.properties = opts.properties || {};
+      this.envPorts = opts.envPorts || {};
+      this.state = opts.state || {};
+      this.componentBinding = opts.componentBinding || null;
+      this.environmentConfig = opts.environmentConfig || null;
+    }
+
+    addEnvPort(envPort) {
+      if (!envPort || !envPort.name) return;
+      this.envPorts[envPort.name] = envPort;
+      envPort.owner = this;
+    }
+
+    getEnvPort(portName) {
+      return this.envPorts[portName] || null;
+    }
+
+    setProperty(propName, value) {
+      const oldValue = this.properties[propName];
+      this.properties[propName] = value;
+
+      // Propagar para Component interno (se binding configurado)
+      if (this.componentBinding) {
+        const { component, propertyMapping } = this.componentBinding;
+
+        // Usar mapeamento se definido, senão usar mesmo nome
+        const targetProp = propertyMapping && propertyMapping[propName]
+          ? propertyMapping[propName]
+          : propName;
+
+        // Propagar para Component.props
+        if (component) {
+          if (!component.props) {
+            component.props = {};
+          }
+          component.props[targetProp] = value;
+          console.log(`📤 EnvComponent ${this.name}.${propName} → Component ${component.name}.${targetProp} = ${value}`);
+        }
+      }
+
+      // Logging
+      if (this.model && this.model.logger) {
+        this.model.logger.logExecution({
+          type: 'envcomponent.property.changed',
+          name: this.name,
+          context: { envComponentType: this.envComponentType, property: propName, from: oldValue, to: value, hasBinding: !!this.componentBinding }
+        });
+      }
+
+      // SimulationLogger
+      if (this.environment && this.environment._simulationLogger && this.environment._simulationLogger.enabled) {
+        const flowId = this.environment._simulationLogger.createFlow(`EnvComponent.${this.name}.property.${propName}`);
+        this.environment._simulationLogger.logStateChange(
+          this.name,
+          this.constructor.name,
+          propName,
+          oldValue,
+          value,
+          flowId
+        );
+      }
+    }
+
+    getProperty(propName) {
+      return this.properties[propName];
+    }
+
+    propagateToComponent(propName, value) {
+      if (!this.componentBinding) return;
+      const { component, portMapping } = this.componentBinding;
+      if (portMapping && portMapping[propName]) {
+        const portPath = portMapping[propName];
+        const port = this.resolvePortPath(component, portPath);
+        if (port && typeof port.send === 'function') {
+          port.send({ [propName]: value });
+        }
+      }
+    }
+
+    resolvePortPath(component, portPath) {
+      const parts = portPath.split('.');
+      let current = component;
+      for (let i = 0; i < parts.length - 1; i++) {
+        current = current.components && current.components[parts[i]];
+        if (!current) return null;
+      }
+      const portName = parts[parts.length - 1];
+      return current.ports && current.ports[portName];
+    }
+
+    bindToComponent(component, propertyMapping = {}) {
+      this.componentBinding = { component, propertyMapping };
+      console.log(`🔗 EnvComponent ${this.name} bound to Component ${component.name}`);
+    }
+  }
+
+  // EnvPort class - represents communication ports in environment components (formerly Role)
+  class EnvPort extends Element {
+    constructor(name, opts = {}) {
+      super(name, opts);
+      this.direction = opts.direction || 'def';
+      this.value = opts.value || null;
+      this.owner = opts.owner || null;
+      this.portBinding = opts.portBinding || null;
+      this._propagating = false; // NOVO: Proteção contra loops
+    }
+
+    setValue(value) {
+      const oldValue = this.value;
+      this.value = value;
+
+      // NOVO: Propagar para Port interno (com proteção contra loops)
+      if (this.portBinding && typeof this.portBinding.send === 'function' && !this._propagating) {
+        this._propagating = true;
+        try {
+          this.portBinding.send(value);
+        } finally {
+          this._propagating = false;
+        }
+      }
+
+      if (this.model && this.model.logger) {
+        this.model.logger.logExecution({
+          type: 'envport.value.changed',
+          name: this.name,
+          context: { owner: this.owner ? this.owner.name : 'unknown', direction: this.direction, from: oldValue, to: value, hasBinding: !!this.portBinding }
+        });
+      }
+
+      // SimulationLogger
+      const env = this.owner ? this.owner.environment : null;
+      if (env && env._simulationLogger && env._simulationLogger.enabled) {
+        const flowId = env._simulationLogger.createFlow(`EnvPort.${this.name}.value`);
+        env._simulationLogger.logStateChange(
+          this.name,
+          this.constructor.name,
+          'value',
+          oldValue,
+          value,
+          flowId
+        );
+      }
+    }
+
+    getValue() {
+      return this.value;
+    }
+
+    // NOVO: Binding bidirecional com Port
+    bindToPort(port) {
+      this.portBinding = port;
+
+      // Configurar callback reverso (Port → EnvPort)
+      if (port && typeof port.onReceive === 'function') {
+        port.onReceive((value) => {
+          this.receiveFromPort(value);
+        });
+      }
+
+      // Configurar binding reverso no Port
+      if (port && typeof port.bindToEnvPort === 'function') {
+        port.bindToEnvPort(this);
+      }
+
+      console.log(`🔗 EnvPort ${this.name} bound to Port ${port.name}`);
+    }
+
+    // NOVO: Receber valor de Port (propagação reversa)
+    receiveFromPort(value) {
+      // Atualizar valor sem propagar de volta (evitar loop)
+      if (!this._propagating) {
+        this.value = value;
+        console.log(`📥 EnvPort ${this.name} received from Port: ${value}`);
+      }
+    }
+  }
+
+  // EnvConnector class - represents connections between EnvPorts (formerly Connection)
+  class EnvConnector extends Element {
+    constructor(name, opts = {}) {
+      super(name, opts);
+      this.from = opts.from || null;
+      this.to = opts.to || null;
+      this.properties = opts.properties || {};
+      this.environmentConfig = opts.environmentConfig || null;
+    }
+
+    activate() {
+      console.log(`DEBUG: EnvConnector.activate called for ${this.name}`);
+      if (!this.from || !this.to) {
+        console.warn(`EnvConnector ${this.name}: missing endpoints`);
+        return false;
+      }
+      const sourceEnvPort = this.resolveEnvPort(this.from);
+      const targetEnvPort = this.resolveEnvPort(this.to);
+
+      console.log(`DEBUG: EnvConnector ${this.name} resolved ports: source=${sourceEnvPort?.name}, target=${targetEnvPort?.name}`);
+
+      if (!sourceEnvPort || !targetEnvPort) {
+        console.warn(`EnvConnector ${this.name}: could not resolve EnvPorts`);
+        return false;
+      }
+      const value = sourceEnvPort.getValue();
+      console.log(`DEBUG: EnvConnector ${this.name} transferring value:`, value);
+
+      targetEnvPort.setValue(value);
+
+      // Logging em duas camadas (ponte entre ambiente e sistema)
+      if (this.model) {
+        // ExecutionLogger (alto nível - narrativo)
+        if (this.model.logger) {
+          this.model.logger.logExecution({
+            type: 'envconnector.activated',
+            name: this.name,
+            context: { from: `${this.from.envComponent}.${this.from.envPort}`, to: `${this.to.envComponent}.${this.to.envPort}`, value }
+          });
+        }
+
+        // SimulationLogger (baixo nível - estruturado) - se disponível
+        if (this.model._simulationLogger && this.model._simulationLogger.enabled) {
+          console.log(`DEBUG: Logging EnvConnector trigger to SimulationLogger`);
+          const flowId = this.model._simulationLogger.createFlow(`EnvConnector.${this.name}`);
+          this.model._simulationLogger.logConnectorTriggered(
+            this.name,
+            this.constructor.name,
+            `${this.from.envComponent}.${this.from.envPort}`,
+            `${this.to.envComponent}.${this.to.envPort}`,
+            false,
+            null,
+            flowId
+          );
+        } else {
+          console.log(`DEBUG: SimulationLogger not available or disabled on EnvConnector model`);
+        }
+      } else {
+        console.log(`DEBUG: EnvConnector ${this.name} has no model attached`);
+        // Try to find logger from environmentConfig
+        if (this.environmentConfig && this.environmentConfig._simulationLogger) {
+          console.log(`DEBUG: Found SimulationLogger on environmentConfig`);
+          // ... (log using environmentConfig logger)
+        }
+      }
+
+      console.log(`🔗 EnvConnector ${this.name} activated: ${this.from.envComponent}.${this.from.envPort} → ${this.to.envComponent}.${this.to.envPort}`);
+      return true;
+    }
+
+    resolveEnvPort(endpoint) {
+      if (!this.environmentConfig) return null;
+      const envComponent = this.environmentConfig.envComponents && this.environmentConfig.envComponents[endpoint.envComponent];
+      if (!envComponent) return null;
+      return envComponent.getEnvPort(endpoint.envPort);
+    }
+
+    validate() {
+      if (!this.from || !this.to) {
+        throw new Error(`EnvConnector ${this.name} must have both 'from' and 'to' endpoints`);
+      }
+      if (!this.from.envComponent || !this.from.envPort) {
+        throw new Error(`EnvConnector ${this.name} 'from' endpoint must specify envComponent and envPort`);
+      }
+      if (!this.to.envComponent || !this.to.envPort) {
+        throw new Error(`EnvConnector ${this.name} 'to' endpoint must specify envComponent and envPort`);
+      }
+      return true;
+    }
+  }
+
+  // === END NEW: Environment Component Classes ===
+
+
   // Event class - represents events that can occur in scenarios
   class Event extends Element {
     constructor(name, opts = {}) {
@@ -5178,6 +5568,8 @@
       this.entities = opts.entities || [];
       this.initialStates = opts.initialStates || {};
       this.constraints = opts.constraints || [];
+      this.startEvent = opts.startEvent;
+      this.finishEvent = opts.finishEvent;
       this.active = false;
     }
 
@@ -5261,6 +5653,14 @@
         console.error(`[Scene.getEntity] Context is null or undefined`);
         return null;
       }
+      // DEBUG LOG
+      if (entityName === 'agv1') {
+        console.log(`[Scene.getEntity] Scene: ${this.name}, Looking for agv1`);
+        console.log('Type of context.entities:', typeof context.entities);
+        console.log('Is Array:', Array.isArray(context.entities));
+        console.log('Has own property agv1:', Object.prototype.hasOwnProperty.call(context.entities, 'agv1'));
+        console.log('Value of agv1:', context.entities['agv1']);
+      }
 
       // PRIORITY 1: Check in context.model.environmentConfig (EnvironmentConfiguration entities)
       // This is where entities are actually stored as properties
@@ -5272,7 +5672,10 @@
       if (context.entities) {
         // If entities is an object/map
         if (context.entities[entityName]) {
+          if (entityName === 'agv1') console.log('Found agv1 in context.entities!');
           return context.entities[entityName];
+        } else {
+          if (entityName === 'agv1') console.log('Not found in context.entities lookup. Boolean check:', Boolean(context.entities[entityName]));
         }
         // If entities is an array
         if (Array.isArray(context.entities)) {
@@ -5338,11 +5741,11 @@
     }
 
     /**
-     * Enhanced method to execute scene logic with event triggering
-     * Generic execution framework that works across all domains
-     * @param {Object} context - Execution context
-     * @returns {Object} - Execution result
-     */
+    * Enhanced method to execute scene logic with event triggering
+    * Generic execution framework that works across all domains
+    * @param {Object} context - Execution context
+    * @returns {Object} - Execution result
+    */
     async executeSceneLogic(context) {
       try {
         // Log scene execution start
@@ -5649,7 +6052,28 @@
         throw new Error('Context is required for scene execution');
       }
 
-      // Try to find and execute as scene first
+      console.error(`DEBUG: Scenario.executeScene called for ${name}`);
+      console.error(`DEBUG: this.model exists: ${!!this.model}`);
+      if (this.model) {
+        console.error(`DEBUG: this.model.sceneExecutor exists: ${!!this.model.sceneExecutor}`);
+      }
+
+      // Priority: Use SceneExecutor if available (New Architecture)
+      if (this.model && this.model.sceneExecutor) {
+        // Auto-register scene if not present
+        if (!this.model.sceneExecutor.sceneDefinitions.has(name)) {
+          if (context.scenes && context.scenes[name]) {
+            console.error(`DEBUG: Auto-registering scene ${name} in SceneExecutor`);
+            const sceneInstance = new context.scenes[name]();
+            this.model.sceneExecutor.registerScene(name, sceneInstance);
+          }
+        }
+
+        console.error(`DEBUG: Delegating to SceneExecutor for ${name}`);
+        return await this.model.sceneExecutor.executeScene(name, context);
+      }
+
+      // Fallback: Try to find and execute as scene directly (Old Architecture)
       if (context.scenes && context.scenes[name]) {
         const sceneInstance = new context.scenes[name]();
         sceneInstance.model = this.model; // Set model reference so scene can access logger
@@ -5818,10 +6242,11 @@
     }
 
     // Enhanced createEntity with validation and factory support
+    // Now uses EnvComponent instead of Entity to properly support envPorts
     createEntity(name, typeName, properties = {}, opts = {}) {
       const typeDef = this.entityTypes[typeName];
       if (!typeDef) {
-        throw new Error(`Unknown entity type: ${typeName} in environment definition ${this.name}`);
+        throw new Error(`Unknown entity type: ${typeName} in environment definition ${this.name}`)
       }
 
       // Validate properties against type definition
@@ -5832,23 +6257,48 @@
         return typeDef.factory(name, properties, opts, this);
       }
 
-      // Create entity with enhanced structure
-      const entity = new Entity(name, {
-        entityType: typeName,
+      // Initialize envPorts from roles (roles are the port names)
+      const envPorts = {};
+      if (typeDef.roles && Array.isArray(typeDef.roles)) {
+        for (const roleName of typeDef.roles) {
+          envPorts[roleName] = {
+            name: roleName,
+            value: null,
+            owner: null,
+            setValue: function (val) { this.value = val; },
+            getValue: function () { return this.value; }
+          };
+        }
+      }
+
+      // Create EnvComponent with enhanced structure (replaces Entity)
+      const entity = new EnvComponent(name, {
+        envComponentType: typeName,
         properties: { ...typeDef.properties, ...properties },
-        roles: [...(typeDef.roles || [])],
+        envPorts: envPorts,
         state: opts.initialState || {},
-        composition: {
-          parent: opts.parent || null,
-          children: {},
-          childCollections: {}
-        },
-        associations: {
-          outgoing: {},
-          incoming: {}
-        },
-        environmentDef: this
+        componentBinding: null,
+        environmentConfig: null
       });
+
+      // Set legacy fields for backward compatibility
+      entity.entityType = typeName;
+      entity.roles = [...(typeDef.roles || [])];
+      entity.composition = {
+        parent: opts.parent || null,
+        children: {},
+        childCollections: {}
+      };
+      entity.associations = {
+        outgoing: {},
+        incoming: {}
+      };
+      entity.environmentDef = this;
+
+      // Set owner reference for each envPort
+      for (const portName of Object.keys(entity.envPorts)) {
+        entity.envPorts[portName].owner = entity;
+      }
 
       // Initialize role-based communication interfaces
       entity.roles.forEach(roleName => {
@@ -5863,7 +6313,7 @@
           entity.composition.childCollections[comp.role] = [];
         });
 
-      console.log(`✨ Created entity ${name} (${typeName}) with roles [${entity.roles.join(', ')}]`);
+      console.log(`✨ Created EnvComponent ${name} (${typeName}) with envPorts [${Object.keys(entity.envPorts).join(', ')}]`);
       return entity;
     }
 
@@ -6000,7 +6450,8 @@
       super(name, opts);
       this.environmentDef = opts.environmentDef || null;
       this.entities = opts.entities || {};
-      this.events = opts.events || [];
+      this.connectors = opts.connectors || {};
+      this.environmentDef = opts.environmentDef;
       this.bindings = opts.bindings || []; // Bindings to model elements
       this.active = false;
       this.associations = new Map(); // Active associations between entities
@@ -6231,6 +6682,10 @@
       }
     }
 
+    attachSimulationLogger(logger) {
+      this._simulationLogger = logger;
+    }
+
     // Deactivate environment
     deactivate() {
       this.active = false;
@@ -6288,6 +6743,21 @@
       }
     }
 
+    // Build execution context (delegates to model)
+    buildExecutionContext() {
+      console.error(`[ScenarioExecution] buildExecutionContext called. Model present: ${!!this.model}`);
+      if (this.model && this.model.buildExecutionContext) {
+        const context = this.model.buildExecutionContext();
+        console.error(`[ScenarioExecution] Context built. eventSystem present: ${!!context.eventSystem}`);
+        return context;
+      }
+      return {
+        environment: this.environment,
+        model: this.model,
+        execution: this
+      };
+    }
+
     // Start execution of scenarios
     start() {
       if (this.scenarios.length === 0) {
@@ -6315,7 +6785,7 @@
     }
 
     // Execute next scenario in stack
-    executeNext() {
+    async executeNext() {
       if (this.executionStack.length === 0) {
         this.complete();
         return;
@@ -6324,6 +6794,22 @@
       this.currentScenario = this.executionStack.shift();
       const context = this.buildExecutionContext();
 
+      // Check if scenario has execute method (generated code style)
+      if (this.currentScenario.execute && typeof this.currentScenario.execute === 'function') {
+        try {
+          console.log(`[ScenarioExecution] Executing scenario: ${this.currentScenario.name}`);
+          await this.currentScenario.execute(context);
+          this.currentScenario.status = 'completed';
+          this.executeNext();
+        } catch (error) {
+          console.error(`[ScenarioExecution] Error executing scenario ${this.currentScenario.name}:`, error);
+          this.currentScenario.status = 'failed';
+          this.executeNext();
+        }
+        return;
+      }
+
+      // Fallback to start/monitor pattern (legacy/manual scenarios)
       if (this.currentScenario.start && this.currentScenario.start(context)) {
         // Monitor scenario completion
         this.monitorScenario();
@@ -6333,15 +6819,26 @@
       }
     }
 
+    // Stop execution
+    stop() {
+      this.status = 'stopped';
+      if (this.monitorTimeout) {
+        clearTimeout(this.monitorTimeout);
+        this.monitorTimeout = null;
+      }
+    }
+
     // Monitor current scenario for completion
     monitorScenario() {
-      if (!this.currentScenario) return;
+      if (!this.currentScenario || this.status === 'stopped') return;
 
       // This would typically be called by scenario completion events
       // For now, we'll implement a simple check
       const context = this.buildExecutionContext();
 
-      setTimeout(() => {
+      this.monitorTimeout = setTimeout(() => {
+        if (this.status === 'stopped') return;
+
         if (this.currentScenario && this.currentScenario.status === 'running') {
           // Check if scenario should complete
           if (this.currentScenario.checkPostConditions &&
@@ -6362,7 +6859,7 @@
 
     // Build execution context for scenarios
     buildExecutionContext() {
-      return {
+      const context = {
         environment: this.environment,
         entities: this.environment ? this.environment.entities : [],
         events: this.environment ? this.environment.events : [],
@@ -6372,6 +6869,41 @@
         scenes: this.model?.scenes || {},
         eventScheduler: this.model?.eventScheduler || {}
       };
+
+      // Add eventSystem adapter for scenes
+      if (this.model && this.model.eventInjector && this.model.eventSystemManager) {
+        context.eventSystem = {
+          triggerEvent: async (eventName, data = {}) => {
+            console.log(`[Context] Triggering event: ${eventName}`);
+            // Extract parameters from data if present, otherwise use data as parameters
+            const params = data.parameters || data;
+            return await this.model.eventInjector.injectEvent(eventName, params);
+          },
+          waitForEvent: (eventName, options = {}) => {
+            return new Promise((resolve) => {
+              const timeout = options.timeout || 30000;
+              const emitter = this.model.eventSystemManager.getGlobalEmitter();
+
+              let timer = null;
+              const listener = (data) => {
+                if (timer) clearTimeout(timer);
+                console.log(`[Context] Received expected event: ${eventName}`);
+                resolve({ success: true, data });
+              };
+
+              emitter.once(eventName, listener);
+
+              timer = setTimeout(() => {
+                emitter.removeListener(eventName, listener);
+                console.warn(`[Context] Timeout waiting for event: ${eventName}`);
+                resolve({ success: false, error: 'timeout' });
+              }, timeout);
+            });
+          }
+        };
+      }
+
+      return context;
     }
 
     // Helper method to execute a scenario by name (used by generated code)
@@ -6383,7 +6915,16 @@
       }
 
       // Log scenario execution start
-      if (this.model?.logger) {
+      if (this.model && this.model.logEvent) {
+        this.model.logEvent({
+          elementType: 'scenario_started',
+          name: scenarioName,
+          context: {
+            executionName: this.name,
+            parentExecution: this.name
+          }
+        });
+      } else if (this.model?.logger) {
         this.model.logger.logExecution({
           type: 'scenario.started',
           name: scenarioName,
@@ -6412,20 +6953,18 @@
         } else if (scenario.start && typeof scenario.start === 'function') {
           // Fallback to start method if execute doesn't exist
           result = scenario.start(context);
-        } else {
           throw new Error(`Scenario '${scenarioName}' has no execute() or start() method`);
         }
 
         // Log scenario execution completion
-        if (this.model?.logger) {
-          this.model.logger.logExecution({
-            type: 'scenario.completed',
+        if (this.model && this.model.logEvent) {
+          this.model.logEvent({
+            elementType: 'scenario_completed',
             name: scenarioName,
             context: {
-              executionName: this.name,
-              result: result?.message || 'completed'
-            },
-            metrics: { duration: Date.now() - scenarioStartTime }
+              result: result,
+              executionName: this.name
+            }
           });
         }
 
@@ -6538,10 +7077,119 @@
       this.eventEmitter = eventEmitter;
       this.context = context;
 
+      // Initialize ReactiveConditionWatcher if not already present
+      if (!context.reactiveWatcher && context.sysadlBase) {
+        try {
+          const { ReactiveConditionWatcher } = require('./ReactiveConditionWatcher');
+          const { ExpressionEvaluator } = require('./ExpressionEvaluator');
+
+          const expressionEvaluator = new ExpressionEvaluator();
+          context.reactiveWatcher = new ReactiveConditionWatcher(
+            context.sysadlBase,
+            { expressionEvaluator, debugMode: false }
+          );
+          console.log('[EventsDefinitions] ReactiveConditionWatcher initialized');
+        } catch (error) {
+          console.warn('[EventsDefinitions] Could not initialize ReactiveConditionWatcher:', error.message);
+        }
+      }
+
       // Register connections from context if available
       if (context.connections) {
         for (const [name, connectionDef] of Object.entries(context.connections)) {
           this.connections.set(name, connectionDef);
+        }
+      }
+
+      // Register listeners for all defined events with actions
+      if (this.events) {
+        for (const [eventName, eventDef] of Object.entries(this.events)) {
+          if (eventDef.action && typeof eventDef.action === 'function') {
+            console.log(`[EventsDefinitions] Registering listener for event: ${eventName}`);
+
+            this.eventEmitter.on(eventName, async (data) => {
+              try {
+                console.log(`[EventsDefinitions] Triggered event action: ${eventName}`);
+
+                // Merge event data into context for the action
+                const actionContext = {
+                  ...this.context,
+                  data: data,
+                  parameters: data.parameters || {}
+                };
+
+                await eventDef.action(actionContext);
+
+              } catch (error) {
+                console.error(`[EventsDefinitions] Error executing action for event '${eventName}':`, error);
+              }
+            });
+          }
+        }
+      }
+
+      // Register listeners for rule-based event definitions (generated code style)
+      for (const key of Object.keys(this)) {
+        const prop = this[key];
+        if (prop && prop.type === 'rule-based' && Array.isArray(prop.rules)) {
+          console.log(`[EventsDefinitions] Found rule-based event definition: ${prop.name}`);
+
+          for (const rule of prop.rules) {
+            if (rule.trigger && rule.execute) {
+              // Check if trigger is a condition (contains comparison operators)
+              const isCondition = /[=!<>]=|[<>]/.test(rule.trigger);
+
+              if (isCondition && context.reactiveWatcher) {
+                // Register as reactive condition
+                const conditionId = `${prop.name}_${rule.trigger.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                const conditionExpression = rule.trigger;
+
+                // Get the THEN action name from the first task
+                const thenActionName = rule.tasks && Object.keys(rule.tasks)[0];
+
+                if (thenActionName) {
+                  console.log(`[EventsDefinitions] Registering reactive condition: ${conditionExpression} -> ${thenActionName}`);
+
+                  try {
+                    context.reactiveWatcher.watchCondition(
+                      conditionId,
+                      conditionExpression,
+                      () => {
+                        // Callback: emit the THEN event
+                        console.log(`[ReactiveConditionWatcher] Condition met: ${conditionExpression} -> emitting ${thenActionName}`);
+                        if (this.eventEmitter) {
+                          this.eventEmitter.emit(thenActionName, {});
+                        }
+                      }
+                    );
+                  } catch (error) {
+                    console.warn(`[EventsDefinitions] Could not register reactive condition ${conditionId}:`, error.message);
+                  }
+                }
+              } else {
+                // Register as normal event listener
+                console.log(`[EventsDefinitions] Registering listener for rule trigger: ${rule.trigger}`);
+
+                this.eventEmitter.on(rule.trigger, async (data) => {
+                  try {
+                    console.log(`[EventsDefinitions] Triggered rule for: ${rule.trigger}`);
+
+                    // Merge event data into context
+                    const actionContext = {
+                      ...this.context,
+                      data: data,
+                      parameters: data.parameters || {}
+                    };
+
+                    await rule.execute(actionContext);
+
+                  } catch (error) {
+                    console.error(`[EventsDefinitions] Error executing rule for '${rule.trigger}':`, error);
+                  }
+                });
+              }
+            }
+          }
         }
       }
 
@@ -6917,31 +7565,190 @@
       return true;
     }
 
+    performAssignment(context, targetPath, value) {
+      // targetPath: e.g., "supervisor.outCommand.destination" or "agv1.location"
+      const parts = targetPath.split('.');
+
+      if (!context.environment) {
+        console.warn(`⚠️ Environment not available for assignment ${targetPath}`);
+        return;
+      }
+
+      const componentName = parts[0];
+      const component = context.environment.entities?.[componentName] || context.environment[componentName];
+
+      if (!component) {
+        console.warn(`⚠️ Component ${componentName} not found for assignment ${targetPath}`);
+        return;
+      }
+
+      // Case 1: Component.Port.Property (e.g., supervisor.outCommand.destination)
+      if (parts.length === 3) {
+        const portName = parts[1];
+        const propName = parts[2];
+
+        // Try to find port as property
+        let portValue = component[portName];
+        if (portValue === undefined && component.properties) portValue = component.properties[portName];
+        if (portValue === undefined && component.props) portValue = component.props[portName];
+
+        // If portValue is null/undefined, initialize it as empty object
+        if (!portValue || typeof portValue !== 'object') {
+          portValue = {};
+        }
+
+        portValue[propName] = value;
+
+        // Save back
+        if (component.setProperty) {
+          component.setProperty(portName, portValue);
+        } else if (component.properties) {
+          component.properties[portName] = portValue;
+        } else {
+          component[portName] = portValue;
+        }
+
+        // Notify ReactiveStateManager about the change
+        if (context.reactiveWatcher) {
+          context.reactiveWatcher.updateState(targetPath, value);
+        }
+        return;
+      }
+
+      // Case 2: Component.Property or Component.EnvPort (e.g., agv1.location or agv1.sensor)
+      if (parts.length === 2) {
+        const propName = parts[1];
+
+        // First, check if it's an EnvPort
+        if (component.envPorts && component.envPorts[propName]) {
+          const envPort = component.envPorts[propName];
+          if (typeof envPort.setValue === 'function') {
+            envPort.setValue(value);
+            console.log(`📡 EnvPort ${componentName}.${propName} = ${JSON.stringify(value)}`);
+          } else {
+            envPort.value = value;
+          }
+
+          // Notify ReactiveStateManager about the change
+          if (context.reactiveWatcher) {
+            context.reactiveWatcher.updateState(targetPath, value);
+          }
+          return;
+        }
+
+        // Second, check if getEnvPort method exists
+        if (typeof component.getEnvPort === 'function') {
+          const envPort = component.getEnvPort(propName);
+          if (envPort) {
+            if (typeof envPort.setValue === 'function') {
+              envPort.setValue(value);
+              console.log(`📡 EnvPort ${componentName}.${propName} = ${JSON.stringify(value)}`);
+            } else {
+              envPort.value = value;
+            }
+
+            // Notify ReactiveStateManager about the change
+            if (context.reactiveWatcher) {
+              context.reactiveWatcher.updateState(targetPath, value);
+            }
+            return;
+          }
+        }
+
+        // Fallback: Try setProperty for regular properties
+        if (typeof component.setProperty === 'function') {
+          component.setProperty(propName, value);
+        } else if (component.properties) {
+          // Direct assignment fallback
+          component.properties[propName] = value;
+        } else {
+          component[propName] = value;
+        }
+
+        // Notify ReactiveStateManager about the change
+        if (context.reactiveWatcher) {
+          context.reactiveWatcher.updateState(targetPath, value);
+        }
+        return;
+      }
+
+      console.warn(`⚠️ Could not handle assignment ${targetPath}`);
+    }
+
     /**
      * Generic connection executor
-     * @param {string} connectionType - Type of connection (e.g., 'Command', 'Notify')
+     * @param {string} connectionType - Type of connection (e.g., 'Command')
      * @param {string} fromEntity - Source entity name
      * @param {string} toEntity - Target entity name
      */
     executeConnection(connectionType, fromEntity, toEntity) {
-      if (!this.context.environment?.connections) {
+      console.error("!!! EXECUTE CONNECTION START !!!");
+      console.log(`DEBUG: executeConnection called: type=${connectionType}, from=${fromEntity}, to=${toEntity}`);
+      if (!this.context.environment) {
         if (this.context.sysadlBase?.logger) {
-          this.context.sysadlBase.logger.warn('⚠️ Environment or connections not available');
+          this.context.sysadlBase.logger.warn('⚠️ Environment not available for connection execution');
         }
         return false;
       }
 
-      const ConnectionClass = this.context.environment.connections.find(c => c.name === connectionType);
-      if (!ConnectionClass) {
-        if (this.context.sysadlBase?.logger) {
-          this.context.sysadlBase.logger.warn(`⚠️ Connection class ${connectionType} not found`);
+      const envConfig = this.context.environment;
+
+      // 1. Try to find an explicit EnvConnector instance in the environment configuration
+      // Iterate over all properties of envConfig to find EnvConnector instances
+      let connectorFound = null;
+
+      // Helper to check if object is a matching connector
+      const isMatchingConnector = (obj) => {
+        if (obj && typeof obj === 'object' && obj.from && obj.to && typeof obj.activate === 'function') {
+          // Simplified check: if the connector type name matches connectionType (e.g. "Command")
+          if (obj.constructor.name === connectionType || obj.name === connectionType) {
+            return true;
+          }
         }
         return false;
+      };
+
+      // Check direct properties
+      for (const key in envConfig) {
+        if (isMatchingConnector(envConfig[key])) {
+          connectorFound = envConfig[key];
+          break;
+        }
       }
 
-      const connectionInstance = new ConnectionClass();
-      const fromEntityInstance = this.context.entities?.[fromEntity];
-      const toEntityInstance = this.context.entities?.[toEntity];
+      // Check in 'connectors' map if not found
+      if (!connectorFound && envConfig.connectors) {
+        for (const key in envConfig.connectors) {
+          if (isMatchingConnector(envConfig.connectors[key])) {
+            connectorFound = envConfig.connectors[key];
+            break;
+          }
+        }
+      }
+
+      console.log(`DEBUG: connectorFound:`, connectorFound ? connectorFound.name : 'null');
+
+      if (connectorFound) {
+        // If it's an EnvConnector, it should have an activate method
+        if (connectorFound.activate) {
+          return connectorFound.activate();
+        }
+      }
+
+      // 2. Fallback: Dynamic resolution if no explicit connector instance exists
+      // This handles cases where the connection is implied by the scenario command but not explicitly instantiated in the config
+
+      // Ensure we can find the entities
+      let fromEntityInstance = this.context.entities?.[fromEntity];
+      let toEntityInstance = this.context.entities?.[toEntity];
+
+      // Fallback: check environment.entities if not found in context root
+      if (!fromEntityInstance && this.context.environment?.entities) {
+        fromEntityInstance = this.context.environment.entities[fromEntity];
+      }
+      if (!toEntityInstance && this.context.environment?.entities) {
+        toEntityInstance = this.context.environment.entities[toEntity];
+      }
 
       if (!fromEntityInstance || !toEntityInstance) {
         if (this.context.sysadlBase?.logger) {
@@ -6950,29 +7757,131 @@
         return false;
       }
 
+      // We need to find the ports involved.
+      // The connectionType (e.g., 'Command') might define the ports (e.g., 'outCommand' -> 'inCommand').
+      // But we don't have the definition here easily unless we look it up.
+      // However, the user said: "EnvConnector def Command { from Supervisory.outCommand to Vehicle.inCommand }"
+      // If we can't find the definition, we can't know the ports.
+
+      // BUT, if the scenario set values on the source port BEFORE calling this, 
+      // maybe we can just look for ports that have values? 
+      // No, that's risky.
+
+      // Better approach: Look for a matching EnvConnectorDef in the environment definition
+      const envDef = this.context.environment.environmentDef;
+      console.log(`DEBUG: envDef exists: ${!!envDef}`);
+      if (envDef) {
+        console.log(`DEBUG: envDef.connectors exists: ${!!envDef.connectors}`);
+        if (envDef.connectors) {
+          console.log(`DEBUG: envDef.connectors length: ${envDef.connectors.length}`);
+          console.log(`DEBUG: Available connectors: ${envDef.connectors.map(c => c.name).join(', ')}`);
+        }
+      }
+
+      if (envDef && envDef.connectors) {
+        const connectorDef = envDef.connectors.find(c => c.name === connectionType);
+        if (connectorDef) {
+          // Found definition, now map ports
+          // connectorDef.from (e.g., "Supervisory.outCommand")
+          // connectorDef.to (e.g., "Vehicle.inCommand")
+
+          const fromPortName = connectorDef.from.split('.')[1];
+          const toPortName = connectorDef.to.split('.')[1];
+
+
+          // Try to find port in envPorts, properties, or props (check envPorts FIRST since they are proper ports)
+          let fromPort = undefined;
+          if (fromEntityInstance.envPorts && fromEntityInstance.envPorts[fromPortName]) {
+            fromPort = fromEntityInstance.envPorts[fromPortName];
+          } else if (fromEntityInstance[fromPortName] !== undefined) {
+            fromPort = fromEntityInstance[fromPortName];
+          } else if (fromEntityInstance.properties && fromEntityInstance.properties[fromPortName] !== undefined) {
+            fromPort = fromEntityInstance.properties[fromPortName];
+          } else if (fromEntityInstance.props && fromEntityInstance.props[fromPortName] !== undefined) {
+            fromPort = fromEntityInstance.props[fromPortName];
+          }
+
+          let toPort = undefined;
+          if (toEntityInstance.envPorts && toEntityInstance.envPorts[toPortName]) {
+            toPort = toEntityInstance.envPorts[toPortName];
+          } else if (toEntityInstance[toPortName] !== undefined) {
+            toPort = toEntityInstance[toPortName];
+          } else if (toEntityInstance.properties && toEntityInstance.properties[toPortName] !== undefined) {
+            toPort = toEntityInstance.properties[toPortName];
+          } else if (toEntityInstance.props && toEntityInstance.props[toPortName] !== undefined) {
+            toPort = toEntityInstance.props[toPortName];
+          }
+
+
+          console.log(`DEBUG: Found connectorDef for ${connectionType}: ${connectorDef.from} -> ${connectorDef.to}`);
+          console.log(`DEBUG: Mapping ports: ${fromPortName} -> ${toPortName}`);
+
+          const fromFound = fromPort !== undefined ? 'Found' : 'MISSING';
+          const toFound = toPort !== undefined ? 'Found' : 'MISSING';
+          console.log(`DEBUG: Connection map: ${fromEntityInstance.name}.${fromPortName} (${fromFound}) -> ${toEntityInstance.name}.${toPortName} (${toFound})`);
+
+          if (fromFound === 'MISSING') {
+            console.log(`DEBUG: ${fromEntityInstance.name} keys:`, Object.keys(fromEntityInstance));
+            if (fromEntityInstance.properties) console.log(`DEBUG: ${fromEntityInstance.name}.properties keys:`, Object.keys(fromEntityInstance.properties));
+            if (fromEntityInstance.props) console.log(`DEBUG: ${fromEntityInstance.name}.props keys:`, Object.keys(fromEntityInstance.props));
+          }
+
+
+
+          if (fromPort !== undefined && toPort !== undefined) {
+            let value;
+            if (fromPort && typeof fromPort.getValue === 'function') {
+              value = fromPort.getValue();
+            } else {
+              value = fromPort;
+            }
+
+            if (toPort && typeof toPort.setValue === 'function') {
+              toPort.setValue(value);
+            } else {
+              // If toPort is a simple property, set it directly
+              // But toPort is a local variable. We need to set it on the instance.
+              toEntityInstance[toPortName] = value;
+              // Also update properties if it exists there
+              if (toEntityInstance.properties && toEntityInstance.properties.hasOwnProperty(toPortName)) {
+                toEntityInstance.setProperty(toPortName, value);
+              }
+            }
+
+            // Log it
+            if (this.context.sysadlBase?.logger) {
+              this.context.sysadlBase.logger.logExecution({
+                type: 'envconnector.activated',
+                name: connectionType,
+                context: { from: `${fromEntity}.${fromPortName}`, to: `${toEntity}.${toPortName}`, value: value }
+              });
+            }
+
+            // SimulationLogger (Visualizer) instrumentation for dynamic resolution
+            if (this.context.environment && this.context.environment._simulationLogger) {
+              const simLogger = this.context.environment._simulationLogger;
+              if (simLogger.enabled) {
+                const flowId = simLogger.createFlow(`EnvConnector.${connectionType}`);
+                simLogger.logConnectorTriggered(
+                  connectionType, // name
+                  'DynamicConnection', // class
+                  `${fromEntity}.${fromPortName}`,
+                  `${toEntity}.${toPortName}`,
+                  false, null, flowId
+                );
+              }
+            }
+            return true;
+          }
+        }
+      }
+
+      // 3. Legacy/Internal logic (if not an EnvConnector)
+      // ... (keep existing logic for internal connections if needed, or just warn)
       if (this.context.sysadlBase?.logger) {
-        this.context.sysadlBase.logger.log(`🔗 Executing connection ${connectionInstance.connectionType} from ${fromEntity} to ${toEntity}`);
+        this.context.sysadlBase.logger.warn(`⚠️ Could not execute connection ${connectionType}: definition or instance not found`);
       }
-
-      // Execute message passing
-      if (connectionInstance.from && connectionInstance.to) {
-        const fromRole = connectionInstance.from.split('.')[1];
-        const toRole = connectionInstance.to.split('.')[1];
-
-        if (this.context.sysadlBase?.logger) {
-          this.context.sysadlBase.logger.log(`📨 Message flow: ${fromEntity}.${fromRole} -> ${toEntity}.${toRole}`);
-        }
-
-        if (typeof toEntityInstance.receiveMessage === 'function') {
-          toEntityInstance.receiveMessage(fromEntity, fromRole, this.context);
-        }
-
-        if (typeof this.context.onConnectionExecuted === 'function') {
-          this.context.onConnectionExecuted(connectionInstance, fromEntity, toEntity, this.context);
-        }
-      }
-
-      return true;
+      return false;
     }
   }
 
@@ -6984,6 +7893,7 @@
     Element, SysADLBase, EventEmitter,
     EventSystemManager,
     Entity, Connection, Scene, Scenario, EnvironmentDefinition, EnvironmentConfiguration,
+    EnvComponent, EnvPort, EnvConnector,
     ScenarioExecution, EventsDefinitions, SceneDefinitions, ScenarioDefinitions,
     ExpressionEvaluator, SysADLRuntimeHelpers,
     ExecutionLogger, EventInjector, SceneExecutor

@@ -30,3 +30,41 @@ EnvironmentConfiguration (instâncias + associações)
 14) Sempre que eu te pedir para simular, você deve utilizar o enviroment-simulator.js com os parâmetros necessários.
 15) Todo arquivo de teste deve ser colocado na pasta /tales/v0.4/test
 
+
+
+
+
+
+
+O que te pedi inicialmente foi:
+
+0) Todos os arquivos que trabaharemos devem estar na pasta /tales/v0.5.
+
+1) Você alterou os nomes de alguns elementos na gramática de sysadl, definida em sysadl.peg. 
+    O funcionamento deve permanecer o mesmo, apenas os nomes dos elementos devem ser alterados, bem como todas as suas referências dentro da gramática. 
+    O que se chamava Entity, agora chama-se EnvComponent.
+    O que se chamava Role, agora chama-se EnvPort. 
+    O que se chamava Connection, agora chama-se EnvConnector.
+
+2) Após a alteração da gramática peggy, deve ser gerado o parser da linnguagem para o arquivo sysadl-parser.js. 
+    Peggy possui o gerador automático de parsers.
+
+3) Após a alteração da gramática, procederemos com a junção dos simuladores. Um novo simulador chamado SysADLSimulator.js deve ser criado.
+    Este simulador deve receber um arquivo .sysadl e simular o ambiente modelado nele, assim como o environment-simulator.js fazia com os arquivos .js gerados.
+    Você deve garantir que a ligação com o simulador interno através das associações em EnvironmentConfiguration estajam funcionando corretamente.
+    Quando uma connection (que passará a se chamar EnvConnector) for acionada, deve ser refletido na execução do sistema modelado.
+
+4) O que precisa ser definido antes da junção:
+    4.1) Os logs nos 2 simuladores devem ficar similares, para que eu possa avaliar os resultados de forma consistente, no formato que já é utilizado no environment-simulator hoje. 
+        Ao mesmo tempo, o log gerado no simulator.js serve de base para a visualização da arquitetura intern (visualizer.js), que deve continuar funcionando.
+        Preciso de sugestões da melhor forma de definiromos estes logs.
+    4.2) Hoje, a parametrização no simulator.js é feita através de parâmetros no formato json, e agora estes parâmetros passarão a ser enviados na execução dos eventos, considerando a associação entre elementos.
+        Prociso de sugestões da melhor forma de fazer isso.
+    
+5) monte um plano de tudo que precisa ser feito, de forma que se aconteça algum problema, e eu não possa continuar hoje, eu possa continuar amanhã de onde paramos hoje. Não implemente nada ainda. Estamos na fase de planejamento.
+
+Os itens 0, 1 e 2 foram feitos corretamente. Nos itens 3, 4 e 5 acho que você se perdeu na solução.
+
+Revise o que foi feito, e monte um plano do que é necessário para corrigir.
+
+não implemente nada ainda. 

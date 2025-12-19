@@ -762,69 +762,69 @@ Requirement ReceiveVehicleStatus ( 3.0 ) {
 
 EnvironmentDefinition MyFactory {
 
-	Entity def Station {
+	EnvComponent def Station {
 		properties {
 			Property def ID
 		}
-		roles {
-			Role def signal 
+		envPorts {
+			EnvPort def signal 
 		}
 	}
 
-	Entity def PartX {
+	EnvComponent def PartX {
 		properties {
 			Property def ID
 			Property def location
 		}
-		roles {
-			Role def surface 
+		envPorts {
+			EnvPort def surface 
 		}
 	}
 
-	Entity def Lane {
-		entities {
+	EnvComponent def Lane {
+		envComponents {
 			stations: Station[],
 			vehicles: Vehicle[],
 			partx: PartX
 		}
 	}
 
-	Entity def Supervisory {
-		roles {
-			Role def inNotification   
-			Role def outCommand   
+	EnvComponent def Supervisory {
+		envPorts {
+			EnvPort def inNotification   
+			EnvPort def outCommand   
 		}
 	}
 
-	Entity def Vehicle {
-		roles {
-			Role def outNotification 
-			Role def inCommand  
-			Role def sensor  	
-			Role def arm  
+	EnvComponent def Vehicle {
+		envPorts {
+			EnvPort def outNotification 
+			EnvPort def inCommand  
+			EnvPort def sensor  	
+			EnvPort def arm  
 		}
 		properties {
 			Property def location
 		}
 	}
 
-	Connection def Notify {
+	EnvConnector def Notify {
 		from Vehicle.outNotification to Supervisory.inNotification
 	}
 	
-	Connection def Command {
+	EnvConnector def Command {
 		from Supervisory.outCommand to Vehicle.inCommand 
 	}
 
-	Connection def Location {
+	EnvConnector def Location {
 		from Station.signal to Vehicle.sensor
 	}
 
-	Connection def Atach {
+	EnvConnector def Attach {
 		from Vehicle.arm to PartX.surface
 	}
 
-	Connection def Detach {
+	EnvConnector def Detach {
 		from Vehicle.arm to PartX.surface
 	}
 }
@@ -928,7 +928,7 @@ EventsDefinitions MyEvents to MyFactoryConfiguration {
       THEN AGV1NotifArriveA {				 
         agv1.outNotification.notification="arrived";
         :Notify(agv1, supervisor); }
-    ON AGV1atachPartX					 
+    ON AGV1attachPartX					 
       THEN AGV1NotifLoad {
         agv1.outNotification.notification="loaded";
         :Notify(agv1, supervisor); }
@@ -949,7 +949,7 @@ EventsDefinitions MyEvents to MyFactoryConfiguration {
       THEN AGV2NotifArriveC {	
         agv2.outNotification.notification="arrived";
         :Notify(agv2, supervisor); }
-    ON AGV2atachPartX
+    ON AGV2attachPartX
       THEN AGV2NotifLoad {
         agv2.outNotification.notification="loaded";
         :Notify(agv2, supervisor); }
@@ -970,47 +970,47 @@ EventsDefinitions MyEvents to MyFactoryConfiguration {
         agv2.sensor = stationD; }
   }
   Event def StationAEvents for stationA {		 
-    ON agv1.sensor == stationA
+    ON agv1.sensor == stationA.ID
       THEN AGV1locationStationA {
         agv1.location = stationA.signal; } 
   }
   Event def StationBEvents for stationB {
-    ON agv1.sensor == stationB	
+    ON agv1.sensor == stationB.ID
       THEN AGV1locationStationB {			 
         agv1.location = stationB.signal; }
   }
   Event def StationCEvents for stationC {		 
-    ON agv1.sensor == stationC				
+    ON agv1.sensor == stationC.ID				
       THEN AGV1locationStationC {
         agv1.location = stationC.signal; }
-    ON agv2.sensor == stationC			 	
+    ON agv2.sensor == stationC.ID			 	
       THEN AGV2locationStationC {
         agv2.location = stationC.signal; }
   }
   Event def StationDEvents for stationD {
-    ON agv2.sensor == stationD	
+    ON agv2.sensor == stationD.ID	
       THEN AGV2locationStationD {			 
         agv2.location = stationD.signal; }
     // Evento para modificar sensor programaticamente
     ON SetAGV2SensorStationD
       THEN UpdateAGV2SensorToD {
-        agv2.sensor = stationD; }
+        agv2.sensor = stationD.ID; }
   }
   Event def StationEEvents for stationE {		 
-    ON agv2.sensor == stationE				
+    ON agv2.sensor == stationE.ID				
       THEN agv2locationStationE {
         agv2.location = stationE.signal; }
   }
   Event def PartXEvents for part {
     ON cmdAGV1loadA					 
-      THEN AGV1atachPartX {
-        :Atach(agv1, part); }
+      THEN AGV1attachPartX {
+        :Attach(agv1, part); }
     ON cmdAGV1UnloadA					 
       THEN AGV1detachPartX {
         :Detach(agv1, part); }
     ON cmdAGV2loadC					 
-      THEN AGV2atachPartX {
-        :Atach(agv2, part); }
+      THEN AGV2attachPartX {
+        :Attach(agv2, part); }
     ON cmdAGV2UnloadE					 
       THEN AGV2detachPartX {
         :Detach(agv2, part); }

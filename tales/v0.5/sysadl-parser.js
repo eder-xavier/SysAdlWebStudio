@@ -293,13 +293,13 @@ function peg$parse(input, options) {
   const peg$c126 = "perhaps";
   const peg$c127 = "allocations";
   const peg$c128 = "EnvironmentDefinition";
-  const peg$c129 = "Entity";
-  const peg$c130 = "entities";
+  const peg$c129 = "EnvComponent";
+  const peg$c130 = "envComponents";
   const peg$c131 = "properties";
-  const peg$c132 = "roles";
+  const peg$c132 = "envPorts";
   const peg$c133 = "Property";
-  const peg$c134 = "Role";
-  const peg$c135 = "Connection";
+  const peg$c134 = "EnvPort";
+  const peg$c135 = "EnvConnector";
   const peg$c136 = "EnvironmentConfiguration";
   const peg$c137 = "EventsDefinitions";
   const peg$c138 = "Event";
@@ -482,13 +482,13 @@ function peg$parse(input, options) {
   const peg$e132 = peg$literalExpectation("allocations", false);
   const peg$e133 = peg$literalExpectation("EnvironmentDefinition", false);
   const peg$e134 = peg$classExpectation(["1", "n"], false, false, false);
-  const peg$e135 = peg$literalExpectation("Entity", false);
-  const peg$e136 = peg$literalExpectation("entities", false);
+  const peg$e135 = peg$literalExpectation("EnvComponent", false);
+  const peg$e136 = peg$literalExpectation("envComponents", false);
   const peg$e137 = peg$literalExpectation("properties", false);
-  const peg$e138 = peg$literalExpectation("roles", false);
+  const peg$e138 = peg$literalExpectation("envPorts", false);
   const peg$e139 = peg$literalExpectation("Property", false);
-  const peg$e140 = peg$literalExpectation("Role", false);
-  const peg$e141 = peg$literalExpectation("Connection", false);
+  const peg$e140 = peg$literalExpectation("EnvPort", false);
+  const peg$e141 = peg$literalExpectation("EnvConnector", false);
   const peg$e142 = peg$literalExpectation("EnvironmentConfiguration", false);
   const peg$e143 = peg$literalExpectation("EventsDefinitions", false);
   const peg$e144 = peg$literalExpectation("Event", false);
@@ -1028,12 +1028,12 @@ function peg$parse(input, options) {
   function peg$f203(source, target) {    return { type: "ActivityAllocation", source, target, location: location() };  }
   function peg$f204(lower, upper) {    return { lower, upper };  }
   function peg$f205(name, e) {    return e;  }
-  function peg$f206(name, entities, c) {    return c;  }
-  function peg$f207(name, entities, connections) {
+  function peg$f206(name, envComponents, c) {    return c;  }
+  function peg$f207(name, envComponents, connections) {
     return {
       type:         "EnvironmentDefinition",
       name,
-      entities,
+      envComponents,
       connections,
       location:     location()
     };
@@ -1048,7 +1048,7 @@ function peg$parse(input, options) {
     return { name: typeOnly, type: typeOnly, arrayIndex, location: location() };
   }
   function peg$f211(head, e) {    return e;  }
-  function peg$f212(head, tail) {    return { type: "EntityUseList", items: [head, ...tail], location: location() };  }
+  function peg$f212(head, tail) {    return { type: "EnvComponentUseList", items: [head, ...tail], location: location() };  }
   function peg$f213(name, c) {
     return { kind: "compositions", value: c };
   }
@@ -1056,41 +1056,41 @@ function peg$parse(input, options) {
     return { kind: "propertyDefs", value: ps.map(p => p[1]) };
   }
   function peg$f215(name, rs) {
-    return { kind: "roles", value: rs.map(r => r[1]) };
+    return { kind: "envPorts", value: rs.map(r => r[1]) };
   }
   function peg$f216(name, stmt) {    return stmt;  }
   function peg$f217(name, items) {
     // consolida todos os itens por tipo
-    let compositions = [], propertyDefs = [], roles = [];
+    let compositions = [], propertyDefs = [], envPorts = [];
     for (const it of items) {
       if (it.kind === "compositions")  compositions  = it.value;
       if (it.kind === "propertyDefs")  propertyDefs  = it.value;
-      if (it.kind === "roles")         roles         = it.value;
+      if (it.kind === "envPorts")      envPorts      = it.value;
     }
     return {
-      type:         "EntityDef",
+      type:         "EnvComponentDef",
       name,
       compositions,
       propertyDefs,
-      roles,
+      envPorts,
       location:     location()
     };
   }
   function peg$f218(name) {    return { type: "PropertyDef", name, location: location() };  }
-  function peg$f219(type, name) {    return { type: "RoleDef", roleType: type, name, location: location() };  }
-  function peg$f220(name, fromEntity, fromRole, toEntity, toRole) {
+  function peg$f219(type, name) {    return { type: "EnvPortDef", roleType: type, name, location: location() };  }
+  function peg$f220(name, fromEnvComponent, fromEnvPort, toEnvComponent, toEnvPort) {
     return {
-      type: "ConnectionDef",
+      type: "EnvConnectorDef",
       name,
-      from: { entity: fromEntity, port: fromRole },
-      to:   { entity: toEntity,   port: toRole   },
+      from: { envComponent: fromEnvComponent, port: fromEnvPort },
+      to:   { envComponent: toEnvComponent,   port: toEnvPort   },
       location: location()
     };
   }
   function peg$f221(name, definition, m) {    return m;  }
   function peg$f222(name, definition, mappings) {    return { type: "EnvironmentConfiguration", name, definition, mappings, location: location() };  }
-  function peg$f223(instance, entityType) {
-    return { type: "Instantiation", instance, entityType, location: location() };
+  function peg$f223(instance, envComponentType) {
+    return { type: "Instantiation", instance, envComponentType, location: location() };
   }
   function peg$f224(source, target) {
     return { type: "Association", source, target, location: location() };
@@ -12221,7 +12221,7 @@ function peg$parse(input, options) {
           s7 = [];
           s8 = peg$currPos;
           s9 = peg$parse_();
-          s10 = peg$parseEntityDef();
+          s10 = peg$parseEnvComponentDef();
           if (s10 !== peg$FAILED) {
             peg$savedPos = s8;
             s8 = peg$f205(s3, s10);
@@ -12233,7 +12233,7 @@ function peg$parse(input, options) {
             s7.push(s8);
             s8 = peg$currPos;
             s9 = peg$parse_();
-            s10 = peg$parseEntityDef();
+            s10 = peg$parseEnvComponentDef();
             if (s10 !== peg$FAILED) {
               peg$savedPos = s8;
               s8 = peg$f205(s3, s10);
@@ -12245,7 +12245,7 @@ function peg$parse(input, options) {
           s8 = [];
           s9 = peg$currPos;
           s10 = peg$parse_();
-          s11 = peg$parseConnectionDef();
+          s11 = peg$parseEnvConnectorDef();
           if (s11 !== peg$FAILED) {
             peg$savedPos = s9;
             s9 = peg$f206(s3, s7, s11);
@@ -12257,7 +12257,7 @@ function peg$parse(input, options) {
             s8.push(s9);
             s9 = peg$currPos;
             s10 = peg$parse_();
-            s11 = peg$parseConnectionDef();
+            s11 = peg$parseEnvConnectorDef();
             if (s11 !== peg$FAILED) {
               peg$savedPos = s9;
               s9 = peg$f206(s3, s7, s11);
@@ -12297,7 +12297,7 @@ function peg$parse(input, options) {
     return s0;
   }
 
-  function peg$parseEntityUse() {
+  function peg$parseEnvComponentUse() {
     let s0, s1, s2, s3, s4, s5, s6, s7, s8;
 
     s0 = peg$currPos;
@@ -12377,11 +12377,11 @@ function peg$parse(input, options) {
     return s0;
   }
 
-  function peg$parseEntityUseList() {
+  function peg$parseEnvComponentUseList() {
     let s0, s1, s2, s3, s4, s5, s6, s7;
 
     s0 = peg$currPos;
-    s1 = peg$parseEntityUse();
+    s1 = peg$parseEnvComponentUse();
     if (s1 !== peg$FAILED) {
       s2 = [];
       s3 = peg$currPos;
@@ -12395,7 +12395,7 @@ function peg$parse(input, options) {
       }
       if (s5 !== peg$FAILED) {
         s6 = peg$parse_();
-        s7 = peg$parseEntityUse();
+        s7 = peg$parseEnvComponentUse();
         if (s7 !== peg$FAILED) {
           peg$savedPos = s3;
           s3 = peg$f211(s1, s7);
@@ -12420,7 +12420,7 @@ function peg$parse(input, options) {
         }
         if (s5 !== peg$FAILED) {
           s6 = peg$parse_();
-          s7 = peg$parseEntityUse();
+          s7 = peg$parseEnvComponentUse();
           if (s7 !== peg$FAILED) {
             peg$savedPos = s3;
             s3 = peg$f211(s1, s7);
@@ -12443,13 +12443,13 @@ function peg$parse(input, options) {
     return s0;
   }
 
-  function peg$parseEntityDef() {
+  function peg$parseEnvComponentDef() {
     let s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16, s17, s18, s19, s20;
 
     s0 = peg$currPos;
-    if (input.substr(peg$currPos, 6) === peg$c129) {
+    if (input.substr(peg$currPos, 12) === peg$c129) {
       s1 = peg$c129;
-      peg$currPos += 6;
+      peg$currPos += 12;
     } else {
       s1 = peg$FAILED;
       if (peg$silentFails === 0) { peg$fail(peg$e135); }
@@ -12481,9 +12481,9 @@ function peg$parse(input, options) {
             s10 = peg$currPos;
             s11 = peg$parse_();
             s12 = peg$currPos;
-            if (input.substr(peg$currPos, 8) === peg$c130) {
+            if (input.substr(peg$currPos, 13) === peg$c130) {
               s13 = peg$c130;
-              peg$currPos += 8;
+              peg$currPos += 13;
             } else {
               s13 = peg$FAILED;
               if (peg$silentFails === 0) { peg$fail(peg$e136); }
@@ -12499,7 +12499,7 @@ function peg$parse(input, options) {
               }
               if (s15 !== peg$FAILED) {
                 s16 = peg$parse_();
-                s17 = peg$parseEntityUseList();
+                s17 = peg$parseEnvComponentUseList();
                 if (s17 !== peg$FAILED) {
                   s18 = peg$parse_();
                   if (input.charCodeAt(peg$currPos) === 125) {
@@ -12597,9 +12597,9 @@ function peg$parse(input, options) {
               }
               if (s12 === peg$FAILED) {
                 s12 = peg$currPos;
-                if (input.substr(peg$currPos, 5) === peg$c132) {
+                if (input.substr(peg$currPos, 8) === peg$c132) {
                   s13 = peg$c132;
-                  peg$currPos += 5;
+                  peg$currPos += 8;
                 } else {
                   s13 = peg$FAILED;
                   if (peg$silentFails === 0) { peg$fail(peg$e138); }
@@ -12618,7 +12618,7 @@ function peg$parse(input, options) {
                     s17 = [];
                     s18 = peg$currPos;
                     s19 = peg$parse_();
-                    s20 = peg$parseRoleDef();
+                    s20 = peg$parseEnvPortDef();
                     if (s20 !== peg$FAILED) {
                       s19 = [s19, s20];
                       s18 = s19;
@@ -12630,7 +12630,7 @@ function peg$parse(input, options) {
                       s17.push(s18);
                       s18 = peg$currPos;
                       s19 = peg$parse_();
-                      s20 = peg$parseRoleDef();
+                      s20 = peg$parseEnvPortDef();
                       if (s20 !== peg$FAILED) {
                         s19 = [s19, s20];
                         s18 = s19;
@@ -12676,9 +12676,9 @@ function peg$parse(input, options) {
               s10 = peg$currPos;
               s11 = peg$parse_();
               s12 = peg$currPos;
-              if (input.substr(peg$currPos, 8) === peg$c130) {
+              if (input.substr(peg$currPos, 13) === peg$c130) {
                 s13 = peg$c130;
-                peg$currPos += 8;
+                peg$currPos += 13;
               } else {
                 s13 = peg$FAILED;
                 if (peg$silentFails === 0) { peg$fail(peg$e136); }
@@ -12694,7 +12694,7 @@ function peg$parse(input, options) {
                 }
                 if (s15 !== peg$FAILED) {
                   s16 = peg$parse_();
-                  s17 = peg$parseEntityUseList();
+                  s17 = peg$parseEnvComponentUseList();
                   if (s17 !== peg$FAILED) {
                     s18 = peg$parse_();
                     if (input.charCodeAt(peg$currPos) === 125) {
@@ -12792,9 +12792,9 @@ function peg$parse(input, options) {
                 }
                 if (s12 === peg$FAILED) {
                   s12 = peg$currPos;
-                  if (input.substr(peg$currPos, 5) === peg$c132) {
+                  if (input.substr(peg$currPos, 8) === peg$c132) {
                     s13 = peg$c132;
-                    peg$currPos += 5;
+                    peg$currPos += 8;
                   } else {
                     s13 = peg$FAILED;
                     if (peg$silentFails === 0) { peg$fail(peg$e138); }
@@ -12813,7 +12813,7 @@ function peg$parse(input, options) {
                       s17 = [];
                       s18 = peg$currPos;
                       s19 = peg$parse_();
-                      s20 = peg$parseRoleDef();
+                      s20 = peg$parseEnvPortDef();
                       if (s20 !== peg$FAILED) {
                         s19 = [s19, s20];
                         s18 = s19;
@@ -12825,7 +12825,7 @@ function peg$parse(input, options) {
                         s17.push(s18);
                         s18 = peg$currPos;
                         s19 = peg$parse_();
-                        s20 = peg$parseRoleDef();
+                        s20 = peg$parseEnvPortDef();
                         if (s20 !== peg$FAILED) {
                           s19 = [s19, s20];
                           s18 = s19;
@@ -12944,13 +12944,13 @@ function peg$parse(input, options) {
     return s0;
   }
 
-  function peg$parseRoleDef() {
+  function peg$parseEnvPortDef() {
     let s0, s1, s2, s3, s4, s5;
 
     s0 = peg$currPos;
-    if (input.substr(peg$currPos, 4) === peg$c134) {
+    if (input.substr(peg$currPos, 7) === peg$c134) {
       s1 = peg$c134;
-      peg$currPos += 4;
+      peg$currPos += 7;
     } else {
       s1 = peg$FAILED;
       if (peg$silentFails === 0) { peg$fail(peg$e140); }
@@ -13004,13 +13004,13 @@ function peg$parse(input, options) {
     return s0;
   }
 
-  function peg$parseConnectionDef() {
+  function peg$parseEnvConnectorDef() {
     let s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16, s17, s18, s19, s20, s21, s22, s23, s24, s25, s26, s27, s28;
 
     s0 = peg$currPos;
-    if (input.substr(peg$currPos, 10) === peg$c135) {
+    if (input.substr(peg$currPos, 12) === peg$c135) {
       s1 = peg$c135;
-      peg$currPos += 10;
+      peg$currPos += 12;
     } else {
       s1 = peg$FAILED;
       if (peg$silentFails === 0) { peg$fail(peg$e141); }

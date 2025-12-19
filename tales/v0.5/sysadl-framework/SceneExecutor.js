@@ -15,7 +15,7 @@ class SceneExecutor {
     this.activeScenes = new Map(); // sceneId -> execution context
     this.sceneDefinitions = new Map(); // sceneName -> scene definition
     this.executionQueue = []; // scenes waiting to execute
-    
+
     // Configuration
     this.config = {
       defaultTimeout: options.defaultTimeout || 30000, // 30 seconds
@@ -65,7 +65,7 @@ class SceneExecutor {
     console.log(`📝 Created scene object:`, scene);
 
     this.sceneDefinitions.set(sceneName, scene);
-    
+
     if (this.config.debugMode) {
       console.log(`✅ Scene registered: ${sceneName}`);
     }
@@ -76,17 +76,17 @@ class SceneExecutor {
   /**
    * Execute a scene with full validation and logging
    */
-  async executeScene(sceneName, context = {}) {
+  async executeScene(sceneName, context = {}, retryCount = 0) {
     const sceneId = this.generateSceneId(sceneName);
     const startTime = Date.now();
-    
+
     try {
       // Get scene definition
       const scene = this.sceneDefinitions.get(sceneName);
       if (!scene) {
         throw new Error(`Scene not found: ${sceneName}`);
       }
-      
+
       console.log(`📋 Retrieved scene definition:`, {
         name: scene.name,
         startEvent: scene.startEvent,
@@ -108,7 +108,7 @@ class SceneExecutor {
         startTime,
         status: 'started',
         phase: 'initialization',
-        retryCount: 0,
+        retryCount: retryCount,
         errors: [],
         warnings: []
       };
@@ -172,17 +172,17 @@ class SceneExecutor {
       }
 
       console.error(`❌ Scene failed: ${sceneName} - ${error.message}`);
-      
+
       // Check if retry is possible
       if (execution && execution.retryCount < execution.scene.maxRetries) {
         console.log(`🔄 Retrying scene: ${sceneName} (attempt ${execution.retryCount + 1})`);
         execution.retryCount++;
-        
+
         // Wait before retry
         await this.sleep(this.config.retryDelay);
-        
+
         // Retry execution
-        return this.executeScene(sceneName, context);
+        return this.executeScene(sceneName, context, execution.retryCount);
       }
 
       throw error;
@@ -200,21 +200,21 @@ class SceneExecutor {
    */
   async validatePreConditions(execution) {
     const { scene, context } = execution;
-    
+
     console.log(`[DEBUG validatePreConditions] Scene: ${scene.name}, has method: ${typeof scene.validatePreConditions}`);
-    
+
     // Check if scene has validatePreConditions method (generated code style)
     if (typeof scene.validatePreConditions === 'function') {
       console.log(`🔍 Validating pre-conditions for: ${scene.name}`);
-      
+
       try {
         const result = scene.validatePreConditions(context);
-        
+
         // Log the validation result
         this.sysadlBase.logger?.logExecution({
           what: result ? 'scene.precondition.validated' : 'scene.precondition.validation.failed',
           who: scene.name,
-          summary: result 
+          summary: result
             ? `Pre-conditions validated for ${scene.name}`
             : `Pre-conditions validation failed for ${scene.name}`,
           context: {
@@ -260,14 +260,14 @@ class SceneExecutor {
             validationType: 'pre-condition'
           }
         });
-        
+
         // Force immediate flush to ensure validation failure is logged
         await this.sysadlBase.logger?.flush();
-        
+
         throw new Error(`Pre-condition validation failed: ${error.message}`);
       }
     }
-    
+
     // Legacy support: check for preConditions array
     if (!scene.preConditions || scene.preConditions.length === 0) {
       return; // No pre-conditions to validate
@@ -281,7 +281,7 @@ class SceneExecutor {
     for (const condition of scene.preConditions) {
       try {
         const result = await this.evaluateCondition(condition, context);
-        
+
         conditionResults.push({
           expression: condition.expression || condition,
           result: result,
@@ -337,7 +337,7 @@ class SceneExecutor {
         scenario: context.scenarioName || context.scenario,
         sceneName: scene.name,
         validationType: 'pre-condition'
-          }
+      }
     });
   }
 
@@ -346,7 +346,7 @@ class SceneExecutor {
    */
   async executeStartEvent(execution) {
     const { scene, context } = execution;
-    
+
     if (!scene.startEvent) {
       return; // No start event defined
     }
@@ -374,9 +374,9 @@ class SceneExecutor {
    */
   async waitForFinishEvent(execution) {
     const { scene, context } = execution;
-    
+
     console.log(`🔍 Checking finish event: ${scene.finishEvent}`);
-    
+
     if (!scene.finishEvent) {
       console.log(`⚠️  No finish event defined - scene completes immediately`);
       // No finish event - scene completes immediately after start event
@@ -392,10 +392,10 @@ class SceneExecutor {
       // Set up finish event listener
       const finishEventListener = (eventData) => {
         if (finishEventReceived) return;
-        
+
         finishEventReceived = true;
         clearTimeout(timeoutId);
-        
+
         execution.finishEventResult = eventData;
         console.log(`🏁 Finish event received: ${scene.finishEvent}`);
         resolve();
@@ -405,18 +405,21 @@ class SceneExecutor {
       const eventEmitter = this.sysadlBase.eventSystemManager
         ? this.sysadlBase.eventSystemManager.getGlobalEmitter()
         : this.sysadlBase.eventInjector.eventEmitter; // Use EventInjector's emitter in simulation mode
-      
+
       eventEmitter.once(scene.finishEvent, finishEventListener);
 
       // Set timeout
       timeoutId = setTimeout(() => {
         if (finishEventReceived) return;
-        
+
         finishEventReceived = true;
-        
+
         // Remove listener from correct emitter
         eventEmitter.removeListener(scene.finishEvent, finishEventListener);
-        
+
+        // Analyze dependencies to help diagnose why event didn't fire
+        this.analyzeDependencies(scene.finishEvent, context, scene);
+
         reject(new Error(`Scene timeout: finish event '${scene.finishEvent}' not received within ${scene.timeout}ms`));
       }, scene.timeout);
     });
@@ -427,14 +430,14 @@ class SceneExecutor {
    */
   async validatePostConditions(execution) {
     const { scene, context } = execution;
-    
+
     // Check if scene has validatePostConditions method (generated code style)
     if (typeof scene.validatePostConditions === 'function') {
       console.log(`🔍 Validating post-conditions for: ${scene.name}`);
-      
+
       try {
         const result = scene.validatePostConditions(context);
-        
+
         // Log the validation result
         this.sysadlBase.logger?.logExecution({
           what: result ? 'scene.postcondition.validated' : 'scene.postcondition.validation.failed',
@@ -481,14 +484,14 @@ class SceneExecutor {
             validationType: 'post-condition'
           }
         });
-        
+
         // Force immediate flush to ensure validation failure is logged
         await this.sysadlBase.logger?.flush();
-        
+
         throw new Error(`Post-condition validation failed: ${error.message}`);
       }
     }
-    
+
     // Legacy support: check for postConditions array
     if (!scene.postConditions || scene.postConditions.length === 0) {
       return; // No post-conditions to validate
@@ -502,7 +505,7 @@ class SceneExecutor {
     for (const condition of scene.postConditions) {
       try {
         const result = await this.evaluateCondition(condition, context);
-        
+
         conditionResults.push({
           expression: condition.expression || condition,
           result: result,
@@ -568,25 +571,25 @@ class SceneExecutor {
   async evaluateCondition(condition, context) {
     if (typeof condition === 'string') {
       // Simple expression string
-      const currentState = this.sysadlBase.stateManager 
+      const currentState = this.sysadlBase.stateManager
         ? this.sysadlBase.stateManager.getCurrentState()
         : this.sysadlBase.getSystemState();
-      
-      const expressionEvaluator = this.sysadlBase.expressionEvaluator 
+
+      const expressionEvaluator = this.sysadlBase.expressionEvaluator
         || new (require('./SysADLBase').ExpressionEvaluator)();
-      
+
       return expressionEvaluator.evaluate(condition, { ...currentState, ...context });
     }
 
     if (typeof condition === 'object' && condition.expression) {
       // Condition object with expression
-      const currentState = this.sysadlBase.stateManager 
+      const currentState = this.sysadlBase.stateManager
         ? this.sysadlBase.stateManager.getCurrentState()
         : this.sysadlBase.getSystemState();
-      
-      const expressionEvaluator = this.sysadlBase.expressionEvaluator 
+
+      const expressionEvaluator = this.sysadlBase.expressionEvaluator
         || new (require('./SysADLBase').ExpressionEvaluator)();
-      
+
       return expressionEvaluator.evaluate(condition.expression, { ...currentState, ...context });
     }
 
@@ -629,7 +632,7 @@ class SceneExecutor {
    */
   updateStatistics(execution, success) {
     this.stats.totalScenesExecuted++;
-    
+
     if (success) {
       this.stats.successfulScenes++;
     } else {
@@ -659,7 +662,7 @@ class SceneExecutor {
       ...this.stats,
       registeredScenes: this.sceneDefinitions.size,
       activeScenes: this.activeScenes.size,
-      successRate: this.stats.totalScenesExecuted > 0 
+      successRate: this.stats.totalScenesExecuted > 0
         ? (this.stats.successfulScenes / this.stats.totalScenesExecuted * 100).toFixed(2) + '%'
         : '0%'
     };
@@ -685,7 +688,7 @@ class SceneExecutor {
    */
   async stopAllScenes() {
     console.log(`🛑 Stopping ${this.activeScenes.size} active scenes...`);
-    
+
     const stopPromises = Array.from(this.activeScenes.keys()).map(sceneId => {
       const execution = this.activeScenes.get(sceneId);
       execution.status = 'stopped';
@@ -693,10 +696,10 @@ class SceneExecutor {
     });
 
     await Promise.all(stopPromises);
-    
+
     this.activeScenes.clear();
     this.stats.activeExecutions = 0;
-    
+
     console.log('✅ All scenes stopped');
   }
 
@@ -705,6 +708,123 @@ class SceneExecutor {
    */
   sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Analyze dependencies for a finish event that didn't fire
+   * Helps diagnose why a scene is timing out
+   */
+  analyzeDependencies(finishEvent, context, scene) {
+    console.log(`\n${'='.repeat(60)}`);
+    console.log(`TIMEOUT ANALYSIS`);
+    console.log(`${'='.repeat(60)}`);
+    console.log(`[TIMEOUT] Scene ${scene.name} timed out waiting for: ${finishEvent}`);
+
+    // Get the streaming logger if available
+    const streamingLogger = context.streamingLogger;
+
+    // Try to find which event rules emit the finish event
+    const eventsDefinitions = context.eventsDefinitions;
+    let foundTriggerRule = false;
+    let triggerEvent = null;
+
+    if (eventsDefinitions) {
+      // Search through event definitions to find what emits finishEvent
+      for (const key of Object.keys(eventsDefinitions)) {
+        const eventDef = eventsDefinitions[key];
+        if (eventDef && eventDef.rules && Array.isArray(eventDef.rules)) {
+          for (const rule of eventDef.rules) {
+            // Check if any task in this rule would emit finishEvent
+            if (rule.tasks) {
+              for (const taskName of Object.keys(rule.tasks)) {
+                if (taskName === finishEvent) {
+                  foundTriggerRule = true;
+                  triggerEvent = rule.trigger;
+                  console.log(`[ANALYSIS] Event ${finishEvent} is emitted by rule in ${eventDef.name}`);
+                  console.log(`[ANALYSIS]   Trigger: ${triggerEvent}`);
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Try to find reactive conditions that would emit triggerEvent
+    const reactiveWatcher = context.reactiveWatcher;
+    if (reactiveWatcher && triggerEvent) {
+      const conditions = reactiveWatcher.listConditions();
+
+      for (const condition of conditions) {
+        // Check if this condition's callback would emit triggerEvent
+        if (condition.expression) {
+          console.log(`[ANALYSIS] Checking reactive condition: ${condition.expression}`);
+
+          // Get current values for dependencies
+          const state = reactiveWatcher.getState();
+          const deps = condition.dependencies || [];
+
+          console.log(`[ANALYSIS]   Dependencies: ${deps.join(', ')}`);
+          console.log(`[ANALYSIS]   Current values:`);
+
+          for (const dep of deps) {
+            const parts = dep.split('.');
+            let value = state;
+            let found = true;
+
+            for (const part of parts) {
+              if (value && typeof value === 'object') {
+                // Check envPorts first
+                if (value.envPorts && value.envPorts[part]) {
+                  const port = value.envPorts[part];
+                  value = port.getValue ? port.getValue() : port.value;
+                } else if (part in value) {
+                  value = value[part];
+                } else if (value.properties && part in value.properties) {
+                  value = value.properties[part];
+                } else {
+                  found = false;
+                  break;
+                }
+              } else {
+                found = false;
+                break;
+              }
+            }
+
+            if (found) {
+              console.log(`[ANALYSIS]     ${dep} = ${JSON.stringify(value)}`);
+            } else {
+              console.log(`[ANALYSIS]     ${dep} = (not found)`);
+            }
+          }
+
+          console.log(`[ANALYSIS]   Expression: ${condition.expression}`);
+          console.log(`[ANALYSIS]   Last evaluated: ${condition.lastResult}`);
+          console.log(`[ANALYSIS]   Triggered count: ${condition.triggeredCount || 0}`);
+        }
+      }
+    } else if (!foundTriggerRule) {
+      console.log(`[ANALYSIS] Could not find rule that emits ${finishEvent}`);
+      console.log(`[ANALYSIS] Check EventsDefinitions for missing ON/THEN mapping`);
+    }
+
+    // Provide suggestion
+    console.log(`\n[SUGGESTION] To fix this timeout:`);
+    console.log(`  1. Check if there's an 'inject' statement for the required state change`);
+    console.log(`  2. Verify the reactive condition expression matches the actual state`);
+    console.log(`  3. Ensure the event chain from inject -> condition -> event is complete`);
+    console.log(`${'='.repeat(60)}\n`);
+
+    // Log to streaming logger if available
+    if (streamingLogger && typeof streamingLogger.logTimeoutAnalysis === 'function') {
+      streamingLogger.logTimeoutAnalysis(finishEvent, {
+        sceneName: scene.name,
+        triggerEvent: triggerEvent,
+        suggestion: 'Check inject statements and reactive condition expressions'
+      });
+    }
   }
 }
 

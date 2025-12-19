@@ -1261,27 +1261,27 @@ DataTypeDef
 
   EnvironmentDefinition
     = "EnvironmentDefinition" _ name:ID _ "{" _
-      entities:
+      envComponents:
         (
-          _ e:EntityDef { return e; }
+          _ e:EnvComponentDef { return e; }
         )*
-      // zero ou mais ConnectionDef, idem
+      // zero ou mais EnvConnectorDef, idem
       connections:
         (
-          _ c:ConnectionDef { return c; }
+          _ c:EnvConnectorDef { return c; }
         )*
     _ "}"
     {
       return {
         type:         "EnvironmentDefinition",
         name,
-        entities,
+        envComponents,
         connections,
         location:     location()
       };
     }
 
-  EntityUse
+  EnvComponentUse
     =
       // forma com identificador: id: Type[]  ou id: 1|n
       id:ID _ ":" _ (
@@ -1299,20 +1299,20 @@ DataTypeDef
         return { name: typeOnly, type: typeOnly, arrayIndex, location: location() };
       }
 
-  EntityUseList
-    = head:EntityUse tail:(_ "," _ e:EntityUse { return e; })*
-      { return { type: "EntityUseList", items: [head, ...tail], location: location() }; }
+  EnvComponentUseList
+    = head:EnvComponentUse tail:(_ "," _ e:EnvComponentUse { return e; })*
+      { return { type: "EnvComponentUseList", items: [head, ...tail], location: location() }; }
 
 
-  EntityDef
-    = "Entity" _ "def" _ name:ID _ "{" _
+  EnvComponentDef
+    = "EnvComponent" _ "def" _ name:ID _ "{" _
     items:
       (
         // pula whitespace antes de cada bloco
         _ stmt:
           (
             // bloco de sub-entidades, agora permitindo Station[] etc.
-            "entities" _ "{" _ c:EntityUseList _ "}"
+            "envComponents" _ "{" _ c:EnvComponentUseList _ "}"
               {
                 return { kind: "compositions", value: c };
               }
@@ -1324,11 +1324,11 @@ DataTypeDef
                 return { kind: "propertyDefs", value: ps.map(p => p[1]) };
               }
           / // bloco de papéis
-            "roles" _ "{" _
-              rs:( _ RoleDef )*
+            "envPorts" _ "{" _
+              rs:( _ EnvPortDef )*
             _ "}"
               {
-                return { kind: "roles", value: rs.map(r => r[1]) };
+                return { kind: "envPorts", value: rs.map(r => r[1]) };
               }
           )
         { return stmt; }
@@ -1336,18 +1336,18 @@ DataTypeDef
     _ "}"
     {
       // consolida todos os itens por tipo
-      let compositions = [], propertyDefs = [], roles = [];
+      let compositions = [], propertyDefs = [], envPorts = [];
       for (const it of items) {
         if (it.kind === "compositions")  compositions  = it.value;
         if (it.kind === "propertyDefs")  propertyDefs  = it.value;
-        if (it.kind === "roles")         roles         = it.value;
+        if (it.kind === "envPorts")      envPorts      = it.value;
       }
       return {
-        type:         "EntityDef",
+        type:         "EnvComponentDef",
         name,
         compositions,
         propertyDefs,
-        roles,
+        envPorts,
         location:     location()
       };
     }
@@ -1356,21 +1356,21 @@ DataTypeDef
       = "Property" _ "def" _ name:ID
       { return { type: "PropertyDef", name, location: location() }; }
 
-  RoleDef
-      = "Role" _ type:("def" / "in" / "out") _ name:ID
-      { return { type: "RoleDef", roleType: type, name, location: location() }; }
+  EnvPortDef
+      = "EnvPort" _ type:("def" / "in" / "out") _ name:ID
+      { return { type: "EnvPortDef", roleType: type, name, location: location() }; }
 
-  ConnectionDef
-   = "Connection" _ "def" _ name:ID _ "{" _
-     _ "from" _ fromEntity:ID _ "." _ fromRole:ID _
-     _ "to"   _ toEntity:ID   _ "." _ toRole:ID   _
+  EnvConnectorDef
+   = "EnvConnector" _ "def" _ name:ID _ "{" _
+     _ "from" _ fromEnvComponent:ID _ "." _ fromEnvPort:ID _
+     _ "to"   _ toEnvComponent:ID   _ "." _ toEnvPort:ID   _
    _ "}"
    {
      return {
-       type: "ConnectionDef",
+       type: "EnvConnectorDef",
        name,
-       from: { entity: fromEntity, port: fromRole },
-       to:   { entity: toEntity,   port: toRole   },
+       from: { envComponent: fromEnvComponent, port: fromEnvPort },
+       to:   { envComponent: toEnvComponent,   port: toEnvPort   },
        location: location()
      };
    }
@@ -1387,9 +1387,9 @@ DataTypeDef
     { return { type: "EnvironmentConfiguration", name, definition, mappings, location: location() }; }
 
   Instantiation
-    = instance:ID _ ":" _ entityType:QualifiedName _ ";" _
+    = instance:ID _ ":" _ envComponentType:QualifiedName _ ";" _
       {
-        return { type: "Instantiation", instance, entityType, location: location() };
+        return { type: "Instantiation", instance, envComponentType, location: location() };
       }
 
   Association

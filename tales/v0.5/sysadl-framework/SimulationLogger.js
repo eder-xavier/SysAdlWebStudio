@@ -10,17 +10,33 @@
  * - Real-time console output
  * - Component/Activity/Action/Executable instrumentation
  * - Pin and Delegate tracking
+ * - INCREMENTAL JSONL WRITING (each event written immediately)
  */
 
-console.log('📦 SimulationLogger.js loading...');
+// fs module for incremental file writing (Node.js only)
+let fs = null;
+let path = null;
+try {
+  fs = require('fs');
+  path = require('path');
+} catch (e) {
+  // Browser environment - file writing not available
+}
+
+console.log('[SimulationLogger] Loading...');
 
 class SimulationLogger {
-  constructor() {
+  constructor(config = {}) {
     this.enabled = false;
     this.events = [];           // Array de eventos [{timestamp, flowId, type, data}]
     this.flows = new Map();     // flowId -> {origin, startTime, events}
     this.startTime = null;
     this.flowCounter = 0;
+
+    // JSONL file configuration
+    this.logDir = config.logsDir || './logs';
+    this.logFile = null;
+    this.writeToFile = fs !== null;  // Only write if fs is available (Node.js)
   }
 
   // ===== Controle =====
@@ -28,6 +44,23 @@ class SimulationLogger {
   enable() {
     this.enabled = true;
     this.startTime = Date.now();
+
+    // Initialize JSONL file for incremental writing
+    if (this.writeToFile && fs) {
+      try {
+        if (!fs.existsSync(this.logDir)) {
+          fs.mkdirSync(this.logDir, { recursive: true });
+        }
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        this.logFile = path.join(this.logDir, `simulation-${timestamp}.jsonl`);
+        // Write header as first line
+        fs.writeFileSync(this.logFile, '');
+        console.log(`[SimulationLogger] Writing to: ${this.logFile}`);
+      } catch (e) {
+        console.error('[SimulationLogger] Failed to create log file:', e.message);
+        this.writeToFile = false;
+      }
+    }
   }
 
   disable() {
@@ -72,6 +105,15 @@ class SimulationLogger {
     };
 
     this.events.push(event);
+
+    // WRITE IMMEDIATELY TO JSONL FILE
+    if (this.writeToFile && this.logFile && fs) {
+      try {
+        fs.appendFileSync(this.logFile, JSON.stringify(event) + '\n');
+      } catch (e) {
+        // Silently ignore write errors to not interrupt simulation
+      }
+    }
 
     // Associar ao(s) fluxo(s)
     const flows = typeof flowId === 'string' ? flowId.split(',') : [flowId];
@@ -195,6 +237,12 @@ class SimulationLogger {
   logInputPortsStatus(component, portsStatus, flowId) {
     // portsStatus = [{name, status, value, flow, receivedAt}]
     this.logEvent('INPUT_PORTS_STATUS', { component, portsStatus }, flowId);
+  }
+
+  logStateChange(entityName, entityClass, property, oldValue, newValue, flowId) {
+    this.logEvent('STATE_CHANGE', {
+      entityName, entityClass, property, oldValue, newValue
+    }, flowId);
   }
 
   logSyncDecision(component, decision, reason, missingPorts, mergedFlows, flowId) {

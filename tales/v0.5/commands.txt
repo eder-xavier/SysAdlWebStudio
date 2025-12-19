@@ -8,3 +8,9 @@ node environment-simulator.js generated/AGV-completo-env-scen.js --log
 ----- Éder
  cd ../../eder/v1/v1.2
 node server-node.js  
+
+
+---- novo simulador
+
+node SysADLSimulator.js AGV-completo.sysadl
+

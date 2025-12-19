@@ -12,6 +12,16 @@ const EN_CommandToMotor = new Enum("start", "stop");
 const DT_Location = dataType('Location', { location: String });
 const DT_Status = dataType('Status', { location: DT_Location, destination: DT_Location, command: EN_CommandToArm });
 const DT_VehicleData = dataType('VehicleData', { destination: DT_Location, command: EN_CommandToArm });
+const types = {
+  NotificationToSupervisory: EN_NotificationToSupervisory,
+  NotificationFromArm: EN_NotificationFromArm,
+  CommandToArm: EN_CommandToArm,
+  NotificationFromMotor: EN_NotificationFromMotor,
+  CommandToMotor: EN_CommandToMotor,
+  Status: DT_Status,
+  Location: DT_Location,
+  VehicleData: DT_VehicleData
+};
 
 // Ports
 class PT_ComponentsAGV_inLocation extends SimplePort {
@@ -108,6 +118,46 @@ class PT_PortsAGV_ISupervisorySystem extends CompositePort {
     // Add sub-ports
     this.addSubPort("outMoveToStation", new SimplePort("outMoveToStation", "out", { ...{ expectedType: "VehicleData" }, owner: this.owner }));
     this.addSubPort("inNotifications", new SimplePort("inNotifications", "in", { ...{ expectedType: "NotificationToSupervisory" }, owner: this.owner }));
+  }
+}
+class PT_signal extends SimplePort {
+  constructor(name, opts = {}) {
+    super(name, "in", { ...{ expectedType: "EnvPortDef" }, ...opts });
+  }
+}
+class PT_surface extends SimplePort {
+  constructor(name, opts = {}) {
+    super(name, "in", { ...{ expectedType: "EnvPortDef" }, ...opts });
+  }
+}
+class PT_inNotification extends SimplePort {
+  constructor(name, opts = {}) {
+    super(name, "in", { ...{ expectedType: "EnvPortDef" }, ...opts });
+  }
+}
+class PT_outCommand extends SimplePort {
+  constructor(name, opts = {}) {
+    super(name, "in", { ...{ expectedType: "EnvPortDef" }, ...opts });
+  }
+}
+class PT_outNotification extends SimplePort {
+  constructor(name, opts = {}) {
+    super(name, "in", { ...{ expectedType: "EnvPortDef" }, ...opts });
+  }
+}
+class PT_inCommand extends SimplePort {
+  constructor(name, opts = {}) {
+    super(name, "in", { ...{ expectedType: "EnvPortDef" }, ...opts });
+  }
+}
+class PT_sensor extends SimplePort {
+  constructor(name, opts = {}) {
+    super(name, "in", { ...{ expectedType: "EnvPortDef" }, ...opts });
+  }
+}
+class PT_arm extends SimplePort {
+  constructor(name, opts = {}) {
+    super(name, "in", { ...{ expectedType: "EnvPortDef" }, ...opts });
   }
 }
 
@@ -365,6 +415,41 @@ class CN_ComponentsAGV_status extends Connector {
     });
   }
 }
+class CN_Notify extends Connector {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+    });
+  }
+}
+class CN_Command extends Connector {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+    });
+  }
+}
+class CN_Location extends Connector {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+    });
+  }
+}
+class CN_Attach extends Connector {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+    });
+  }
+}
+class CN_Detach extends Connector {
+  constructor(name, opts = {}) {
+    super(name, {
+      ...opts,
+    });
+  }
+}
 
 // Components
 class CP_ComponentsAGV_SupervisorySystem extends Component {
@@ -609,7 +694,7 @@ class AN_ComponentsAGV_SendStartMotorAN extends Action {
     super(name, {
       ...opts,
       inParameters: [{"name":"move","type":"VehicleData","direction":"in"}],
-      outParameters: [{"name":"SendStartMotorAN","type":"CommandToMotor","direction":"out"}],
+      outParameters: [{"name":"cmds","type":"CommandToMotor","direction":"out"}],
       delegates: [{"from":"SendStartMotorAN","to":"cmd"}],
       constraints: ["SendStartMotorEQ"],
       executables: ["SendStartMotorEX"],
@@ -623,7 +708,7 @@ class AN_ComponentsAGV_SendCommandAN extends Action {
     super(name, {
       ...opts,
       inParameters: [{"name":"move","type":"VehicleData","direction":"in"}],
-      outParameters: [{"name":"SendCommandAN","type":"CommandToArm","direction":"out"}],
+      outParameters: [{"name":"cmds","type":"CommandToArm","direction":"out"}],
       delegates: [{"from":"SendCommandAN","to":"cmd"},{"from":"move","to":"move"}],
       constraints: ["SendCommandEQ"],
       executables: ["SendCommandEX"],
@@ -693,7 +778,7 @@ class AN_ComponentsAGV_StopMotorAN extends Action {
     super(name, {
       ...opts,
       inParameters: [{"name":"comparisonResult","type":"Boolean","direction":"in"}],
-      outParameters: [{"name":"StopMotorAN","type":"CommandToMotor","direction":"out"}],
+      outParameters: [{"name":"cmds","type":"CommandToMotor","direction":"out"}],
       delegates: [{"from":"comparisonResult","to":"result"},{"from":"StopMotorAN","to":"cmd"}],
       constraints: ["StopMotorEQ"],
       executables: ["StopMotorEX"],
@@ -735,7 +820,7 @@ class AN_ComponentsAGV_ControlArmAN extends Action {
     super(name, {
       ...opts,
       inParameters: [{"name":"cmd","type":"CommandToArm","direction":"in"},{"name":"statusMotor","type":"NotificationFromMotor","direction":"in"}],
-      outParameters: [{"name":"ControlArmAN","type":"CommandToArm","direction":"out"}],
+      outParameters: [{"name":"cmds","type":"CommandToArm","direction":"out"}],
       delegates: [{"from":"ControlArmAN","to":"startArm"},{"from":"statusMotor","to":"statusMotor"},{"from":"cmd","to":"cmd"}],
       constraints: ["ControlArmEQ"],
       executables: ["ControlArmEX"],
@@ -780,11 +865,12 @@ class CT_ComponentsAGV_SendStartMotorEQ extends Constraint {
       outParameters: [{"name":"cmd","type":"CommandToMotor","direction":"out"}],
       equation: "(cmd == CommandToMotor.start)",
       constraintFunction: function(params) {// Constraint equation: (cmd == CommandToMotor.start)
-          const { CommandToMotor, start } = params;
+          const { CommandToMotor, start, cmd } = params;
           
           // Type validation
           if (typeof CommandToMotor !== 'number') throw new Error('Parameter CommandToMotor must be a Real (number)');
           if (typeof start !== 'number') throw new Error('Parameter start must be a Real (number)');
+          // Type validation for cmd: CommandToMotor (no validation implemented)
           return cmd == CommandToMotor.start;
         }
     });
@@ -800,10 +886,11 @@ class CT_ComponentsAGV_SendDestinationEQ extends Constraint {
       outParameters: [{"name":"destination","type":"Location","direction":"out"}],
       equation: "(destination == move.destination)",
       constraintFunction: function(params) {// Constraint equation: (destination == move.destination)
-          const { move } = params;
+          const { move, destination } = params;
           
           // Type validation
           // Type validation for move: VehicleData (no validation implemented)
+          // Type validation for destination: Location (no validation implemented)
           return destination == move.destination;
         }
     });
@@ -819,10 +906,11 @@ class CT_ComponentsAGV_NotifyAGVFromMotorEQ extends Constraint {
       outParameters: [{"name":"outStatusMotor","type":"NotificationFromMotor","direction":"out"}],
       equation: "(outStatusMotor == inStatusMotor)",
       constraintFunction: function(params) {// Constraint equation: (outStatusMotor == inStatusMotor)
-          const { inStatusMotor } = params;
+          const { inStatusMotor, outStatusMotor } = params;
           
           // Type validation
           // Type validation for inStatusMotor: NotificationFromMotor (no validation implemented)
+          // Type validation for outStatusMotor: NotificationFromMotor (no validation implemented)
           return outStatusMotor == inStatusMotor;
         }
     });
@@ -838,10 +926,11 @@ class CT_ComponentsAGV_SendCommandEQ extends Constraint {
       outParameters: [{"name":"cmd","type":"CommandToArm","direction":"out"}],
       equation: "(cmd == move.command)",
       constraintFunction: function(params) {// Constraint equation: (cmd == move.command)
-          const { move, command } = params;
+          const { move, cmd, command } = params;
           
           // Type validation
           // Type validation for move: VehicleData (no validation implemented)
+          // Type validation for cmd: CommandToArm (no validation implemented)
           if (typeof command !== 'number') throw new Error('Parameter command must be a Real (number)');
           return cmd == move.command;
         }
@@ -858,13 +947,13 @@ class CT_ComponentsAGV_NotifySupervisoryFromMotorEQ extends Constraint {
       outParameters: [{"name":"ack","type":"NotificationToSupervisory","direction":"out"}],
       equation: "((statusMotor == NotificationFromMotor.started) ? (ack == NotificationToSupervisory.departed) : (ack == NotificationToSupervisory.traveling))",
       constraintFunction: function(params) {// Conditional constraint: ((statusMotor == NotificationFromMotor.started) ? (ack == NotificationToSupervisory.departed) : (ack == NotificationToSupervisory.traveling))
-          const { statusMotor, NotificationFromMotor, started, ack, NotificationToSupervisory, departed, traveling } = params;
+          const { statusMotor, ack, NotificationFromMotor, started, NotificationToSupervisory, departed, traveling } = params;
           
           // Type validation
-          if (typeof statusMotor !== 'number') throw new Error('Parameter statusMotor must be a Real (number)');
+          // Type validation for statusMotor: NotificationFromMotor (no validation implemented)
+          // Type validation for ack: NotificationToSupervisory (no validation implemented)
           if (typeof NotificationFromMotor !== 'number') throw new Error('Parameter NotificationFromMotor must be a Real (number)');
           if (typeof started !== 'number') throw new Error('Parameter started must be a Real (number)');
-          if (typeof ack !== 'number') throw new Error('Parameter ack must be a Real (number)');
           if (typeof NotificationToSupervisory !== 'number') throw new Error('Parameter NotificationToSupervisory must be a Real (number)');
           if (typeof departed !== 'number') throw new Error('Parameter departed must be a Real (number)');
           if (typeof traveling !== 'number') throw new Error('Parameter traveling must be a Real (number)');
@@ -883,10 +972,11 @@ class CT_ComponentsAGV_NotificationMotorIsStartedEQ extends Constraint {
       outParameters: [],
       equation: "(statusMotor == NotificationFromMotor.started)",
       constraintFunction: function(params) {// Constraint equation: (statusMotor == NotificationFromMotor.started)
-          const { NotificationFromMotor, started } = params;
+          const { statusMotor, NotificationFromMotor, started } = params;
           
           // Type validation
-          // Type validation for NotificationFromMotor: NotificationFromMotor (no validation implemented)
+          // Type validation for statusMotor: NotificationFromMotor (no validation implemented)
+          if (typeof NotificationFromMotor !== 'number') throw new Error('Parameter NotificationFromMotor must be a Real (number)');
           if (typeof started !== 'number') throw new Error('Parameter started must be a Real (number)');
           return statusMotor == NotificationFromMotor.started;
         }
@@ -906,9 +996,9 @@ class CT_ComponentsAGV_CompareStationsEQ extends Constraint {
           const { dest, loc, result } = params;
           
           // Type validation
-          if (typeof dest !== 'number') throw new Error('Parameter dest must be a Real (number)');
-          if (typeof loc !== 'number') throw new Error('Parameter loc must be a Real (number)');
-          if (typeof result !== 'number') throw new Error('Parameter result must be a Real (number)');
+          // Type validation for dest: Location (no validation implemented)
+          // Type validation for loc: Location (no validation implemented)
+          if (typeof result !== 'boolean') throw new Error('Parameter result must be a Boolean');
           return (dest == loc) ? (result == true) : (result == false);
         }
     });
@@ -927,8 +1017,8 @@ class CT_ComponentsAGV_StopMotorEQ extends Constraint {
           const { result, cmd, CommandToMotor, stop, SysADL, Void } = params;
           
           // Type validation
-          if (typeof result !== 'number') throw new Error('Parameter result must be a Real (number)');
-          if (typeof cmd !== 'number') throw new Error('Parameter cmd must be a Real (number)');
+          if (typeof result !== 'boolean') throw new Error('Parameter result must be a Boolean');
+          // Type validation for cmd: CommandToMotor (no validation implemented)
           if (typeof CommandToMotor !== 'number') throw new Error('Parameter CommandToMotor must be a Real (number)');
           if (typeof stop !== 'number') throw new Error('Parameter stop must be a Real (number)');
           if (typeof SysADL !== 'number') throw new Error('Parameter SysADL must be a Real (number)');
@@ -951,8 +1041,8 @@ class CT_ComponentsAGV_PassedMotorEQ extends Constraint {
           const { result, ack, NotificationToSupervisory, passed, SysADL, Void } = params;
           
           // Type validation
-          if (typeof result !== 'number') throw new Error('Parameter result must be a Real (number)');
-          if (typeof ack !== 'number') throw new Error('Parameter ack must be a Real (number)');
+          if (typeof result !== 'boolean') throw new Error('Parameter result must be a Boolean');
+          // Type validation for ack: NotificationToSupervisory (no validation implemented)
           if (typeof NotificationToSupervisory !== 'number') throw new Error('Parameter NotificationToSupervisory must be a Real (number)');
           if (typeof passed !== 'number') throw new Error('Parameter passed must be a Real (number)');
           if (typeof SysADL !== 'number') throw new Error('Parameter SysADL must be a Real (number)');
@@ -972,10 +1062,11 @@ class CT_ComponentsAGV_SendCurrentLocationEQ extends Constraint {
       outParameters: [{"name":"outLocation","type":"Location","direction":"out"}],
       equation: "(outLocation == inLocation)",
       constraintFunction: function(params) {// Constraint equation: (outLocation == inLocation)
-          const { inLocation } = params;
+          const { inLocation, outLocation } = params;
           
           // Type validation
           // Type validation for inLocation: Location (no validation implemented)
+          // Type validation for outLocation: Location (no validation implemented)
           return outLocation == inLocation;
         }
     });
@@ -991,14 +1082,14 @@ class CT_ComponentsAGV_ControlArmEQ extends Constraint {
       outParameters: [{"name":"startArm","type":"CommandToArm","direction":"out"}],
       equation: "((statusMotor == NotificationFromMotor.stopped) ? (startArm == cmd) : (startArm == CommandToArm.idle))",
       constraintFunction: function(params) {// Conditional constraint: ((statusMotor == NotificationFromMotor.stopped) ? (startArm == cmd) : (startArm == CommandToArm.idle))
-          const { statusMotor, NotificationFromMotor, stopped, startArm, cmd, CommandToArm, idle } = params;
+          const { cmd, statusMotor, startArm, NotificationFromMotor, stopped, CommandToArm, idle } = params;
           
           // Type validation
-          if (typeof statusMotor !== 'number') throw new Error('Parameter statusMotor must be a Real (number)');
+          // Type validation for cmd: CommandToArm (no validation implemented)
+          // Type validation for statusMotor: NotificationFromMotor (no validation implemented)
+          // Type validation for startArm: CommandToArm (no validation implemented)
           if (typeof NotificationFromMotor !== 'number') throw new Error('Parameter NotificationFromMotor must be a Real (number)');
           if (typeof stopped !== 'number') throw new Error('Parameter stopped must be a Real (number)');
-          if (typeof startArm !== 'number') throw new Error('Parameter startArm must be a Real (number)');
-          if (typeof cmd !== 'number') throw new Error('Parameter cmd must be a Real (number)');
           if (typeof CommandToArm !== 'number') throw new Error('Parameter CommandToArm must be a Real (number)');
           if (typeof idle !== 'number') throw new Error('Parameter idle must be a Real (number)');
           return (statusMotor == NotificationFromMotor.stopped) ? (startArm == cmd) : (startArm == CommandToArm.idle);
@@ -1016,11 +1107,12 @@ class CT_ComponentsAGV_NotifierArmEQ extends Constraint {
       outParameters: [{"name":"ack","type":"NotificationToSupervisory","direction":"out"}],
       equation: "(ack == NotificationToSupervisory.arrived)",
       constraintFunction: function(params) {// Constraint equation: (ack == NotificationToSupervisory.arrived)
-          const { NotificationToSupervisory, arrived } = params;
+          const { NotificationToSupervisory, arrived, ack } = params;
           
           // Type validation
           if (typeof NotificationToSupervisory !== 'number') throw new Error('Parameter NotificationToSupervisory must be a Real (number)');
           if (typeof arrived !== 'number') throw new Error('Parameter arrived must be a Real (number)');
+          // Type validation for ack: NotificationToSupervisory (no validation implemented)
           return ack == NotificationToSupervisory.arrived;
         }
     });
@@ -1058,7 +1150,9 @@ class EX_ComponentsAGV_SendStartMotorEX extends Executable {
       executableFunction: function(params) {
           // Type validation
           // Type validation for move: (auto-detected from usage)
+          // Mapped move -> move (Exact Match)
           const { move } = params;
+          
           return CommandToMotor.start;
         }
     });
@@ -1075,7 +1169,9 @@ class EX_ComponentsAGV_SendCommandEX extends Executable {
       executableFunction: function(params) {
           // Type validation
           // Type validation for move: (auto-detected from usage)
+          // Mapped move -> move (Exact Match)
           const { move } = params;
+          
           return move.command;
         }
     });
@@ -1092,7 +1188,9 @@ class EX_ComponentsAGV_SendDestinationEX extends Executable {
       executableFunction: function(params) {
           // Type validation
           // Type validation for move: (auto-detected from usage)
+          // Mapped move -> move (Exact Match)
           const { move } = params;
+          
           return move.destination;
         }
     });
@@ -1109,7 +1207,9 @@ class EX_ComponentsAGV_NotifyAGVFromMotorEX extends Executable {
       executableFunction: function(params) {
           // Type validation
           // Type validation for statusMotor: (auto-detected from usage)
+          // Mapped statusMotor -> statusMotor (Exact Match)
           const { statusMotor } = params;
+          
           return statusMotor;
         }
     });
@@ -1126,7 +1226,9 @@ class EX_ComponentsAGV_NotifySupervisoryFromMotorEX extends Executable {
       executableFunction: function(params) {
           // Type validation
           // Type validation for statusMotor: (auto-detected from usage)
+          // Mapped statusMotor -> statusMotor (Exact Match)
           const { statusMotor } = params;
+          
           if (statusMotor == NotificationFromMotor.started) {
           return NotificationToSupervisory.departed;
         } else {
@@ -1142,14 +1244,18 @@ class EX_ComponentsAGV_CompareStationsEX extends Executable {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [{"name":"destination","type":"Location","direction":"in"},{"name":"location","type":"Location","direction":"in"},{"name":"statusMotor","type":"NotificationFromMotor","direction":"in"}],
+      inParameters: [{"name":"statusMotor","type":"NotificationFromMotor","direction":"in"},{"name":"destination","type":"Location","direction":"in"},{"name":"location","type":"Location","direction":"in"}],
       body: "executable def CompareStationsEX ( in destination : Location, in location : Location, \n\t\tin statusMotor : NotificationFromMotor) : \tout Boolean {\n\t\tif(statusMotor == NotificationFromMotor::started && destination == location)\n\t\t\treturn true;\n\t\telse\n\t\t\treturn false;\n\t}",
       executableFunction: function(params) {
           // Type validation
           // Type validation for destination: (auto-detected from usage)
           // Type validation for location: (auto-detected from usage)
           // Type validation for statusMotor: (auto-detected from usage)
+          // Mapped destination -> destination (Exact Match)
+          // Mapped location -> location (Exact Match)
+          // Mapped statusMotor -> statusMotor (Exact Match)
           const { destination, location, statusMotor } = params;
+          
           if(statusMotor == NotificationFromMotor.started && destination == location) {
           return true;
         } else {
@@ -1170,7 +1276,9 @@ class EX_ComponentsAGV_StopMotorEX extends Executable {
       executableFunction: function(params) {
           // Type validation
           // Type validation for comparisonResult: (auto-detected from usage)
+          // Mapped comparisonResult -> comparisonResult (Exact Match)
           const { comparisonResult } = params;
+          
           if(comparisonResult == true) {
           return CommandToMotor.stop;
         } else {
@@ -1191,7 +1299,9 @@ class EX_ComponentsAGV_PassedMotorEX extends Executable {
       executableFunction: function(params) {
           // Type validation
           // Type validation for comparisonResult: (auto-detected from usage)
+          // Mapped comparisonResult -> comparisonResult (Exact Match)
           const { comparisonResult } = params;
+          
           if(comparisonResult == false) {
           return NotificationToSupervisory.passed;
         } else {
@@ -1212,7 +1322,9 @@ class EX_ComponentsAGV_SendCurrentLocationEX extends Executable {
       executableFunction: function(params) {
           // Type validation
           // Type validation for location: (auto-detected from usage)
+          // Mapped location -> location (Exact Match)
           const { location } = params;
+          
           return location;
         }
     });
@@ -1224,13 +1336,16 @@ class EX_ComponentsAGV_ControlArmEX extends Executable {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [{"name":"statusMotor","type":"NotificationFromMotor","direction":"in"},{"name":"cmd","type":"CommandToArm","direction":"in"}],
+      inParameters: [{"name":"cmd","type":"CommandToArm","direction":"in"},{"name":"statusMotor","type":"NotificationFromMotor","direction":"in"}],
       body: "executable def ControlArmEX ( in statusMotor : NotificationFromMotor, in cmd : CommandToArm) : out CommandToArm {\n\t\tif(statusMotor == NotificationFromMotor::stopped)\n\t\t\treturn cmd;\n\t\telse\n\t\t\treturn CommandToArm::idle;\n\t}",
       executableFunction: function(params) {
           // Type validation
           // Type validation for statusMotor: (auto-detected from usage)
           // Type validation for cmd: (auto-detected from usage)
+          // Mapped statusMotor -> statusMotor (Exact Match)
+          // Mapped cmd -> cmd (Exact Match)
           const { statusMotor, cmd } = params;
+          
           if(statusMotor == NotificationFromMotor.stopped) {
           return cmd;
         } else {
@@ -1251,7 +1366,9 @@ class EX_ComponentsAGV_NotifierArmEX extends Executable {
       executableFunction: function(params) {
           // Type validation
           // Type validation for statusArm: (auto-detected from usage)
+          // Mapped statusArm -> statusArm (Exact Match)
           const { statusArm } = params;
+          
           return NotificationToSupervisory.arrived;
         }
     });
@@ -1263,14 +1380,18 @@ class EX_ComponentsAGV_VehicleTimerEX extends Executable {
   constructor(name, opts = {}) {
     super(name, {
       ...opts,
-      inParameters: [{"name":"location","type":"Location","direction":"in"},{"name":"cmd","type":"CommandToArm","direction":"in"},{"name":"destination","type":"Location","direction":"in"}],
+      inParameters: [{"name":"destination","type":"Location","direction":"in"},{"name":"location","type":"Location","direction":"in"},{"name":"cmd","type":"CommandToArm","direction":"in"}],
       body: "executable def VehicleTimerEX ( in location : Location, in cmd : CommandToArm, \n\t\tin destination : Location) : out Status {\n\t\t\n\t\tlet s : Status;\n\t\ts->destination = destination;\n\t\ts->location = location;\n\t\ts->command = cmd;\n\t\t\n\t\treturn s;\n\t}",
       executableFunction: function(params) {
           // Type validation
           // Type validation for location: (auto-detected from usage)
           // Type validation for cmd: (auto-detected from usage)
           // Type validation for destination: (auto-detected from usage)
+          // Mapped location -> location (Exact Match)
+          // Mapped cmd -> cmd (Exact Match)
+          // Mapped destination -> destination (Exact Match)
           const { location, cmd, destination } = params;
+          
           let s;
 		s.destination = destination;
 		s.location = location;
@@ -1319,51 +1440,70 @@ class SysADLArchitecture extends Model {
     this.FactoryAutomationSystem.agvs.addConnector(new CN_ConnectorsAGV_locationVehicle("arrived"));
     const arrived = this.FactoryAutomationSystem.agvs.connectors["arrived"];
     arrived.bind(this.FactoryAutomationSystem.agvs.as.getPort("arrivalDetected_out"), this.FactoryAutomationSystem.agvs.vc.getPort("arrivalDetected_in"));
+    try { (function(){ const _binds = [{"source":"arrivalDetected_out","destination":"arrivalDetected_in","left":"arrivalDetected_out","right":"arrivalDetected_in"}]; _binds.forEach(b => { try { const left = String(b.left || b.source || b.from); const right = String(b.right || b.destination || b.to); Object.values(model._activities || {}).forEach(act => { try { if (act && act.portToPinMapping) { const mapped = act.portToPinMapping[right] || act.portToPinMapping[String(right).toLowerCase()]; if (mapped) { try { act.portToPinMapping[left] = mapped; } catch(e){} } else {  try { act.portToPinMapping[left] = right; } catch(e){} } } } catch(e){} }); } catch(e){} }); })(); } catch(e) {}
     this.FactoryAutomationSystem.agvs.addConnector(new CN_ConnectorsAGV_notificationArm("ackArm"));
     const ackArm = this.FactoryAutomationSystem.agvs.connectors["ackArm"];
     ackArm.bind(this.FactoryAutomationSystem.agvs.ra.getPort("started"), this.FactoryAutomationSystem.agvs.vc.getPort("startedArm"));
+    try { (function(){ const _binds = [{"source":"started","destination":"startedArm","left":"started","right":"startedArm"}]; _binds.forEach(b => { try { const left = String(b.left || b.source || b.from); const right = String(b.right || b.destination || b.to); Object.values(model._activities || {}).forEach(act => { try { if (act && act.portToPinMapping) { const mapped = act.portToPinMapping[right] || act.portToPinMapping[String(right).toLowerCase()]; if (mapped) { try { act.portToPinMapping[left] = mapped; } catch(e){} } else {  try { act.portToPinMapping[left] = right; } catch(e){} } } } catch(e){} }); } catch(e){} }); })(); } catch(e) {}
     this.FactoryAutomationSystem.agvs.addConnector(new CN_ConnectorsAGV_commandArm("cmdArm"));
+    try { this.FactoryAutomationSystem.agvs.connectors["cmdArm"].activityName = "DecideCommandAC"; } catch(e) {}
     const cmdArm = this.FactoryAutomationSystem.agvs.connectors["cmdArm"];
     cmdArm.bind(this.FactoryAutomationSystem.agvs.vc.getPort("startArm"), this.FactoryAutomationSystem.agvs.ra.getPort("start"));
+    try { (function(){ const _binds = [{"source":"startArm","destination":"start","left":"startArm","right":"start"}]; _binds.forEach(b => { try { const left = String(b.left || b.source || b.from); const right = String(b.right || b.destination || b.to); Object.values(model._activities || {}).forEach(act => { try { if (act && act.portToPinMapping) { const mapped = act.portToPinMapping[right] || act.portToPinMapping[String(right).toLowerCase()]; if (mapped) { try { act.portToPinMapping[left] = mapped; } catch(e){} } else {  try { act.portToPinMapping[left] = right; } catch(e){} } } } catch(e){} }); } catch(e){} }); })(); } catch(e) {}
     this.FactoryAutomationSystem.agvs.addConnector(new CN_ConnectorsAGV_notificationMotor("ackMotor"));
     const ackMotor = this.FactoryAutomationSystem.agvs.connectors["ackMotor"];
     ackMotor.bind(this.FactoryAutomationSystem.agvs.m.getPort("started_stopped_out"), this.FactoryAutomationSystem.agvs.vc.getPort("started_stopped_in"));
+    try { (function(){ const _binds = [{"source":"started_stopped_out","destination":"started_stopped_in","left":"started_stopped_out","right":"started_stopped_in"}]; _binds.forEach(b => { try { const left = String(b.left || b.source || b.from); const right = String(b.right || b.destination || b.to); Object.values(model._activities || {}).forEach(act => { try { if (act && act.portToPinMapping) { const mapped = act.portToPinMapping[right] || act.portToPinMapping[String(right).toLowerCase()]; if (mapped) { try { act.portToPinMapping[left] = mapped; } catch(e){} } else {  try { act.portToPinMapping[left] = right; } catch(e){} } } } catch(e){} }); } catch(e){} }); })(); } catch(e) {}
     this.FactoryAutomationSystem.agvs.addConnector(new CN_ConnectorsAGV_commandMotor("cmdMotor"));
+    try { this.FactoryAutomationSystem.agvs.connectors["cmdMotor"].activityName = "DecideCommandAC"; } catch(e) {}
     const cmdMotor = this.FactoryAutomationSystem.agvs.connectors["cmdMotor"];
     cmdMotor.bind(this.FactoryAutomationSystem.agvs.vc.getPort("start_stop_out"), this.FactoryAutomationSystem.agvs.m.getPort("start_stop_in"));
+    try { (function(){ const _binds = [{"source":"start_stop_out","destination":"start_stop_in","left":"start_stop_out","right":"start_stop_in"}]; _binds.forEach(b => { try { const left = String(b.left || b.source || b.from); const right = String(b.right || b.destination || b.to); Object.values(model._activities || {}).forEach(act => { try { if (act && act.portToPinMapping) { const mapped = act.portToPinMapping[right] || act.portToPinMapping[String(right).toLowerCase()]; if (mapped) { try { act.portToPinMapping[left] = mapped; } catch(e){} } else {  try { act.portToPinMapping[left] = right; } catch(e){} } } } catch(e){} }); } catch(e){} }); })(); } catch(e) {}
     this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_locationVehicle("destinationStation2"));
     const destinationStation2 = this.FactoryAutomationSystem.agvs.vc.connectors["destinationStation2"];
     destinationStation2.bind(this.FactoryAutomationSystem.agvs.vc.sm.getPort("destination"), this.FactoryAutomationSystem.agvs.getPort("destination_vt"));
+    try { (function(){ const _binds = [{"source":"destination","destination":"destination_vt","left":"destination","right":"destination_vt"}]; _binds.forEach(b => { try { const left = String(b.left || b.source || b.from); const right = String(b.right || b.destination || b.to); Object.values(model._activities || {}).forEach(act => { try { if (act && act.portToPinMapping) { const mapped = act.portToPinMapping[right] || act.portToPinMapping[String(right).toLowerCase()]; if (mapped) { try { act.portToPinMapping[left] = mapped; } catch(e){} } else {  try { act.portToPinMapping[left] = right; } catch(e){} } } } catch(e){} }); } catch(e){} }); })(); } catch(e) {}
     this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_locationVehicle("destinationStation"));
     const destinationStation = this.FactoryAutomationSystem.agvs.vc.connectors["destinationStation"];
     destinationStation.bind(this.FactoryAutomationSystem.agvs.vc.sm.getPort("destination"), this.FactoryAutomationSystem.agvs.getPort("destination_cs"));
+    try { (function(){ const _binds = [{"source":"destination","destination":"destination_cs","left":"destination","right":"destination_cs"}]; _binds.forEach(b => { try { const left = String(b.left || b.source || b.from); const right = String(b.right || b.destination || b.to); Object.values(model._activities || {}).forEach(act => { try { if (act && act.portToPinMapping) { const mapped = act.portToPinMapping[right] || act.portToPinMapping[String(right).toLowerCase()]; if (mapped) { try { act.portToPinMapping[left] = mapped; } catch(e){} } else {  try { act.portToPinMapping[left] = right; } catch(e){} } } } catch(e){} }); } catch(e){} }); })(); } catch(e) {}
     this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_commandArm("command"));
+    try { this.FactoryAutomationSystem.agvs.vc.connectors["command"].activityName = "DecideCommandAC"; } catch(e) {}
     const command = this.FactoryAutomationSystem.agvs.vc.connectors["command"];
     command.bind(this.FactoryAutomationSystem.agvs.vc.sm.getPort("cmd_sm"), this.FactoryAutomationSystem.agvs.vc.vt.getPort("cmd"));
+    try { (function(){ const _binds = [{"source":"cmd_sm","destination":"cmd","left":"cmd_sm","right":"cmd"}]; _binds.forEach(b => { try { const left = String(b.left || b.source || b.from); const right = String(b.right || b.destination || b.to); Object.values(model._activities || {}).forEach(act => { try { if (act && act.portToPinMapping) { const mapped = act.portToPinMapping[right] || act.portToPinMapping[String(right).toLowerCase()]; if (mapped) { try { act.portToPinMapping[left] = mapped; } catch(e){} } else {  try { act.portToPinMapping[left] = right; } catch(e){} } } } catch(e){} }); } catch(e){} }); })(); } catch(e) {}
     this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_commandArm("command2"));
+    try { this.FactoryAutomationSystem.agvs.vc.connectors["command2"].activityName = "DecideCommandAC"; } catch(e) {}
     const command2 = this.FactoryAutomationSystem.agvs.vc.connectors["command2"];
     command2.bind(this.FactoryAutomationSystem.agvs.vc.sm.getPort("cmd_sm"), this.FactoryAutomationSystem.agvs.vc.ca.getPort("cmd_ca"));
+    try { (function(){ const _binds = [{"source":"cmd_sm","destination":"cmd_ca","left":"cmd_sm","right":"cmd_ca"}]; _binds.forEach(b => { try { const left = String(b.left || b.source || b.from); const right = String(b.right || b.destination || b.to); Object.values(model._activities || {}).forEach(act => { try { if (act && act.portToPinMapping) { const mapped = act.portToPinMapping[right] || act.portToPinMapping[String(right).toLowerCase()]; if (mapped) { try { act.portToPinMapping[left] = mapped; } catch(e){} } else {  try { act.portToPinMapping[left] = right; } catch(e){} } } } catch(e){} }); } catch(e){} }); })(); } catch(e) {}
     this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_locationVehicle("currentLocation"));
     const currentLocation = this.FactoryAutomationSystem.agvs.vc.connectors["currentLocation"];
     currentLocation.bind(this.FactoryAutomationSystem.agvs.vc.cs.getPort("location_cs"), this.FactoryAutomationSystem.agvs.getPort("location_vt"));
+    try { (function(){ const _binds = [{"source":"location_cs","destination":"location_vt","left":"location_cs","right":"location_vt"}]; _binds.forEach(b => { try { const left = String(b.left || b.source || b.from); const right = String(b.right || b.destination || b.to); Object.values(model._activities || {}).forEach(act => { try { if (act && act.portToPinMapping) { const mapped = act.portToPinMapping[right] || act.portToPinMapping[String(right).toLowerCase()]; if (mapped) { try { act.portToPinMapping[left] = mapped; } catch(e){} } else {  try { act.portToPinMapping[left] = right; } catch(e){} } } } catch(e){} }); } catch(e){} }); })(); } catch(e) {}
     this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_notificationMotor("sendNotificationMotor"));
     const sendNotificationMotor = this.FactoryAutomationSystem.agvs.vc.connectors["sendNotificationMotor"];
     sendNotificationMotor.bind(this.FactoryAutomationSystem.agvs.vc.nm.getPort("outAck"), this.FactoryAutomationSystem.agvs.vc.ca.getPort("ack_ca"));
+    try { (function(){ const _binds = [{"source":"outAck","destination":"ack_ca","left":"outAck","right":"ack_ca"}]; _binds.forEach(b => { try { const left = String(b.left || b.source || b.from); const right = String(b.right || b.destination || b.to); Object.values(model._activities || {}).forEach(act => { try { if (act && act.portToPinMapping) { const mapped = act.portToPinMapping[right] || act.portToPinMapping[String(right).toLowerCase()]; if (mapped) { try { act.portToPinMapping[left] = mapped; } catch(e){} } else {  try { act.portToPinMapping[left] = right; } catch(e){} } } } catch(e){} }); } catch(e){} }); })(); } catch(e) {}
     this.FactoryAutomationSystem.agvs.vc.addConnector(new CN_ConnectorsAGV_notificationMotor("sendNotificationMotor2"));
     const sendNotificationMotor2 = this.FactoryAutomationSystem.agvs.vc.connectors["sendNotificationMotor2"];
     sendNotificationMotor2.bind(this.FactoryAutomationSystem.agvs.vc.nm.getPort("outAck"), this.FactoryAutomationSystem.agvs.vc.cs.getPort("ack_cs"));
+    try { (function(){ const _binds = [{"source":"outAck","destination":"ack_cs","left":"outAck","right":"ack_cs"}]; _binds.forEach(b => { try { const left = String(b.left || b.source || b.from); const right = String(b.right || b.destination || b.to); Object.values(model._activities || {}).forEach(act => { try { if (act && act.portToPinMapping) { const mapped = act.portToPinMapping[right] || act.portToPinMapping[String(right).toLowerCase()]; if (mapped) { try { act.portToPinMapping[left] = mapped; } catch(e){} } else {  try { act.portToPinMapping[left] = right; } catch(e){} } } } catch(e){} }); } catch(e){} }); })(); } catch(e) {}
     this.FactoryAutomationSystem.addConnector(new CN_ConnectorsAGV_interactionAGVAndSupervisory("dataExchange"));
     const dataExchange = this.FactoryAutomationSystem.connectors["dataExchange"];
     dataExchange.bind(this.getPort("in_outDataS"), this.getPort("in_outDataAgv"));
+    try { (function(){ const _binds = [{"source":"in_outDataS","destination":"in_outDataAgv","left":"in_outDataS","right":"in_outDataAgv"}]; _binds.forEach(b => { try { const left = String(b.left || b.source || b.from); const right = String(b.right || b.destination || b.to); Object.values(model._activities || {}).forEach(act => { try { if (act && act.portToPinMapping) { const mapped = act.portToPinMapping[right] || act.portToPinMapping[String(right).toLowerCase()]; if (mapped) { try { act.portToPinMapping[left] = mapped; } catch(e){} } else {  try { act.portToPinMapping[left] = right; } catch(e){} } } } catch(e){} }); } catch(e){} }); })(); } catch(e) {}
     this.FactoryAutomationSystem.addConnector(new CN_ComponentsAGV_status("updateStatus"));
     const updateStatus = this.FactoryAutomationSystem.connectors["updateStatus"];
     updateStatus.bind(this.FactoryAutomationSystem.agvs.vc.getPort("sendStatus"), this.FactoryAutomationSystem.ds.getPort("receiveStatus"));
+    try { (function(){ const _binds = [{"source":"sendStatus","destination":"receiveStatus","left":"sendStatus","right":"receiveStatus"}]; _binds.forEach(b => { try { const left = String(b.left || b.source || b.from); const right = String(b.right || b.destination || b.to); Object.values(model._activities || {}).forEach(act => { try { if (act && act.portToPinMapping) { const mapped = act.portToPinMapping[right] || act.portToPinMapping[String(right).toLowerCase()]; if (mapped) { try { act.portToPinMapping[left] = mapped; } catch(e){} } else {  try { act.portToPinMapping[left] = right; } catch(e){} } } } catch(e){} }); } catch(e){} }); })(); } catch(e) {}
 
     const ac_StartMoving = new AC_ComponentsAGV_StartMovingAC(
       "StartMovingAC",
-      "StartMoving",
+      "FactoryAutomationSystem.agvs.vc.sm",
       [],
-      [{"from":"destination","to":"sc"},{"from":"cmd","to":"sd"},{"from":"start","to":"ssm"},{"from":"move","to":"moveSD"},{"from":"move","to":"moveSC"},{"from":"move","to":"moveSSM"}]
+      [{"from":"destination","to":"sc"},{"from":"cmd","to":"sd"},{"from":"start","to":"ssm"},{"from":"move","to":"moveSD"},{"from":"move","to":"moveSC"},{"from":"move","to":"moveSSM"}],
+      {"outParameters":[{"name":"destination","type":"Real","direction":"out"},{"name":"cmd","type":"Real","direction":"out"},{"name":"start","type":"Real","direction":"out"},{"name":"move","type":"Real","direction":"out"},{"name":"move","type":"Real","direction":"out"},{"name":"move","type":"Real","direction":"out"}]}
     );
     const ssm = new AN_ComponentsAGV_SendStartMotorAN("ssm");
     ac_StartMoving.registerAction(ssm);
@@ -1371,23 +1511,53 @@ class SysADLArchitecture extends Model {
     ac_StartMoving.registerAction(sc);
     const sd = new AN_ComponentsAGV_SendDestinationAN("sd");
     ac_StartMoving.registerAction(sd);
+    try { ac_StartMoving.portToPinMapping["sc"] = "destination"; } catch(e) {}
+    try { ac_StartMoving.portToPinMapping["sc"] = "destination"; } catch(e) {}
+    try { ac_StartMoving.portToPinMapping["sd"] = "cmd"; } catch(e) {}
+    try { ac_StartMoving.portToPinMapping["sd"] = "cmd"; } catch(e) {}
+    try { ac_StartMoving.portToPinMapping["ssm"] = "start"; } catch(e) {}
+    try { ac_StartMoving.portToPinMapping["ssm"] = "start"; } catch(e) {}
+    try { ac_StartMoving.portToPinMapping["moveSD"] = "move"; } catch(e) {}
+    try { ac_StartMoving.portToPinMapping["movesd"] = "move"; } catch(e) {}
+    try { ac_StartMoving.portToPinMapping["moveSC"] = "move"; } catch(e) {}
+    try { ac_StartMoving.portToPinMapping["movesc"] = "move"; } catch(e) {}
+    try { ac_StartMoving.portToPinMapping["moveSSM"] = "move"; } catch(e) {}
+    try { ac_StartMoving.portToPinMapping["movessm"] = "move"; } catch(e) {}
     this.registerActivity("StartMovingAC", ac_StartMoving);
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["FactoryAutomationSystem.agvs.vc.sm"] = ac_StartMoving; } catch(e) {}
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["factoryautomationsystem.agvs.vc.sm"] = ac_StartMoving; } catch(e) {}
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["vc.sm"] = ac_StartMoving; } catch(e) {}
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["sm"] = ac_StartMoving; } catch(e) {}
     const ac_NotifierMotor = new AC_ComponentsAGV_NotifierMotorAC(
       "NotifierMotorAC",
-      "NotifierMotor",
+      "FactoryAutomationSystem.agvs.vc.nm",
       [],
-      [{"from":"outStatusMotor","to":"nagvm"},{"from":"ack","to":"nsm"},{"from":"inStatusMotor","to":"statusMotor"},{"from":"inStatusMotor","to":"statusMotor"}]
+      [{"from":"outStatusMotor","to":"nagvm"},{"from":"ack","to":"nsm"},{"from":"inStatusMotor","to":"statusMotor"},{"from":"inStatusMotor","to":"statusMotor"}],
+      {"outParameters":[{"name":"outStatusMotor","type":"Real","direction":"out"},{"name":"ack","type":"Real","direction":"out"},{"name":"inStatusMotor","type":"Real","direction":"out"},{"name":"inStatusMotor","type":"Real","direction":"out"}]}
     );
     const nagvm = new AN_ComponentsAGV_NotifyAGVFromMotorAN("nagvm");
     ac_NotifierMotor.registerAction(nagvm);
     const nsm = new AN_ComponentsAGV_NotifySupervisoryFromMotorAN("nsm");
     ac_NotifierMotor.registerAction(nsm);
+    try { ac_NotifierMotor.portToPinMapping["nagvm"] = "outStatusMotor"; } catch(e) {}
+    try { ac_NotifierMotor.portToPinMapping["nagvm"] = "outStatusMotor"; } catch(e) {}
+    try { ac_NotifierMotor.portToPinMapping["nsm"] = "ack"; } catch(e) {}
+    try { ac_NotifierMotor.portToPinMapping["nsm"] = "ack"; } catch(e) {}
+    try { ac_NotifierMotor.portToPinMapping["statusMotor"] = "inStatusMotor"; } catch(e) {}
+    try { ac_NotifierMotor.portToPinMapping["statusmotor"] = "inStatusMotor"; } catch(e) {}
+    try { ac_NotifierMotor.portToPinMapping["statusMotor"] = "inStatusMotor"; } catch(e) {}
+    try { ac_NotifierMotor.portToPinMapping["statusmotor"] = "inStatusMotor"; } catch(e) {}
     this.registerActivity("NotifierMotorAC", ac_NotifierMotor);
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["FactoryAutomationSystem.agvs.vc.nm"] = ac_NotifierMotor; } catch(e) {}
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["factoryautomationsystem.agvs.vc.nm"] = ac_NotifierMotor; } catch(e) {}
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["vc.nm"] = ac_NotifierMotor; } catch(e) {}
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["nm"] = ac_NotifierMotor; } catch(e) {}
     const ac_CheckStation = new AC_ComponentsAGV_CheckStationAC(
       "CheckStationAC",
-      "CheckStation",
+      "FactoryAutomationSystem.agvs.vc.cs",
       [],
-      [{"from":"statusMotor","to":"NotificationsMotor"},{"from":"destination","to":"Destinations"},{"from":"inLocation","to":"location"},{"from":"outLocation","to":"scl"},{"from":"inLocation","to":"location"},{"from":"stopMotor","to":"sm"},{"from":"passed","to":"pm"}]
+      [{"from":"statusMotor","to":"NotificationsMotor"},{"from":"destination","to":"Destinations"},{"from":"inLocation","to":"location"},{"from":"outLocation","to":"scl"},{"from":"inLocation","to":"location"},{"from":"stopMotor","to":"sm"},{"from":"passed","to":"pm"}],
+      {"outParameters":[{"name":"statusMotor","type":"Real","direction":"out"},{"name":"destination","type":"Real","direction":"out"},{"name":"inLocation","type":"Real","direction":"out"},{"name":"outLocation","type":"Real","direction":"out"},{"name":"inLocation","type":"Real","direction":"out"},{"name":"stopMotor","type":"Real","direction":"out"},{"name":"passed","type":"Real","direction":"out"}]}
     );
     const cs = new AN_ComponentsAGV_CompareStationsAN("cs");
     ac_CheckStation.registerAction(cs);
@@ -1397,34 +1567,111 @@ class SysADLArchitecture extends Model {
     ac_CheckStation.registerAction(pm);
     const scl = new AN_ComponentsAGV_SendCurrentLocationAN("scl");
     ac_CheckStation.registerAction(scl);
+    try { ac_CheckStation.portToPinMapping["NotificationsMotor"] = "statusMotor"; } catch(e) {}
+    try { ac_CheckStation.portToPinMapping["notificationsmotor"] = "statusMotor"; } catch(e) {}
+    try { ac_CheckStation.portToPinMapping["Destinations"] = "destination"; } catch(e) {}
+    try { ac_CheckStation.portToPinMapping["destinations"] = "destination"; } catch(e) {}
+    try { ac_CheckStation.portToPinMapping["location"] = "inLocation"; } catch(e) {}
+    try { ac_CheckStation.portToPinMapping["location"] = "inLocation"; } catch(e) {}
+    try { ac_CheckStation.portToPinMapping["location_cs"] = "inLocation"; } catch(e) {}
+    try { ac_CheckStation.portToPinMapping["location_cs"] = "inLocation"; } catch(e) {}
+    try { ac_CheckStation.portToPinMapping["scl"] = "outLocation"; } catch(e) {}
+    try { ac_CheckStation.portToPinMapping["scl"] = "outLocation"; } catch(e) {}
+    try { ac_CheckStation.portToPinMapping["location"] = "inLocation"; } catch(e) {}
+    try { ac_CheckStation.portToPinMapping["location"] = "inLocation"; } catch(e) {}
+    try { ac_CheckStation.portToPinMapping["location_cs"] = "inLocation"; } catch(e) {}
+    try { ac_CheckStation.portToPinMapping["location_cs"] = "inLocation"; } catch(e) {}
+    try { ac_CheckStation.portToPinMapping["sm"] = "stopMotor"; } catch(e) {}
+    try { ac_CheckStation.portToPinMapping["sm"] = "stopMotor"; } catch(e) {}
+    try { ac_CheckStation.portToPinMapping["pm"] = "passed"; } catch(e) {}
+    try { ac_CheckStation.portToPinMapping["pm"] = "passed"; } catch(e) {}
     this.registerActivity("CheckStationAC", ac_CheckStation);
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["FactoryAutomationSystem.agvs.vc.cs"] = ac_CheckStation; } catch(e) {}
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["factoryautomationsystem.agvs.vc.cs"] = ac_CheckStation; } catch(e) {}
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["vc.cs"] = ac_CheckStation; } catch(e) {}
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["cs"] = ac_CheckStation; } catch(e) {}
     const ac_ControlArm = new AC_ComponentsAGV_ControlArmAC(
       "ControlArmAC",
-      "ControlArm",
+      "FactoryAutomationSystem.agvs.vc.ca",
       [],
-      [{"from":"startArm","to":"ca"},{"from":"cmd","to":"cmd"},{"from":"statusMotor","to":"statusMotor"}]
+      [{"from":"startArm","to":"ca"},{"from":"cmd","to":"cmd"},{"from":"statusMotor","to":"statusMotor"}],
+      {"outParameters":[{"name":"startArm","type":"Real","direction":"out"},{"name":"cmd","type":"Real","direction":"out"},{"name":"statusMotor","type":"Real","direction":"out"}]}
     );
     const ca = new AN_ComponentsAGV_ControlArmAN("ca");
     ac_ControlArm.registerAction(ca);
+    try { ac_ControlArm.portToPinMapping["ca"] = "startArm"; } catch(e) {}
+    try { ac_ControlArm.portToPinMapping["ca"] = "startArm"; } catch(e) {}
+    try { ac_ControlArm.portToPinMapping["cmd"] = "cmd"; } catch(e) {}
+    try { ac_ControlArm.portToPinMapping["cmd"] = "cmd"; } catch(e) {}
+    try { ac_ControlArm.portToPinMapping["cmd_ca"] = "cmd"; } catch(e) {}
+    try { ac_ControlArm.portToPinMapping["cmd_ca"] = "cmd"; } catch(e) {}
+    try { ac_ControlArm.portToPinMapping["cmd_sm"] = "cmd"; } catch(e) {}
+    try { ac_ControlArm.portToPinMapping["cmd_sm"] = "cmd"; } catch(e) {}
+    try { ac_ControlArm.portToPinMapping["cmd"] = "cmd"; } catch(e) {}
+    try { ac_ControlArm.portToPinMapping["cmd"] = "cmd"; } catch(e) {}
+    try { ac_ControlArm.portToPinMapping["cmd"] = "cmd"; } catch(e) {}
+    try { ac_ControlArm.portToPinMapping["cmd"] = "cmd"; } catch(e) {}
+    try { ac_ControlArm.portToPinMapping["statusMotor"] = "statusMotor"; } catch(e) {}
+    try { ac_ControlArm.portToPinMapping["statusmotor"] = "statusMotor"; } catch(e) {}
     this.registerActivity("ControlArmAC", ac_ControlArm);
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["FactoryAutomationSystem.agvs.vc.ca"] = ac_ControlArm; } catch(e) {}
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["factoryautomationsystem.agvs.vc.ca"] = ac_ControlArm; } catch(e) {}
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["vc.ca"] = ac_ControlArm; } catch(e) {}
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["ca"] = ac_ControlArm; } catch(e) {}
     const ac_NotifierArm = new AC_ComponentsAGV_NotifierArmAC(
       "NotifierArmAC",
-      "NotifierArm",
+      "FactoryAutomationSystem.agvs.vc.na",
       [],
-      [{"from":"ack","to":"na"},{"from":"statusArm","to":"statusArm"}]
+      [{"from":"ack","to":"na"},{"from":"statusArm","to":"statusArm"}],
+      {"outParameters":[{"name":"ack","type":"Real","direction":"out"},{"name":"statusArm","type":"Real","direction":"out"}]}
     );
     const na = new AN_ComponentsAGV_NotifierArmAN("na");
     ac_NotifierArm.registerAction(na);
+    try { ac_NotifierArm.portToPinMapping["na"] = "ack"; } catch(e) {}
+    try { ac_NotifierArm.portToPinMapping["na"] = "ack"; } catch(e) {}
+    try { ac_NotifierArm.portToPinMapping["statusArm"] = "statusArm"; } catch(e) {}
+    try { ac_NotifierArm.portToPinMapping["statusarm"] = "statusArm"; } catch(e) {}
     this.registerActivity("NotifierArmAC", ac_NotifierArm);
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["FactoryAutomationSystem.agvs.vc.na"] = ac_NotifierArm; } catch(e) {}
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["factoryautomationsystem.agvs.vc.na"] = ac_NotifierArm; } catch(e) {}
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["vc.na"] = ac_NotifierArm; } catch(e) {}
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["na"] = ac_NotifierArm; } catch(e) {}
     const ac_VehicleTimer = new AC_ComponentsAGV_VehicleTimerAC(
       "VehicleTimerAC",
-      "VehicleTimer",
+      "FactoryAutomationSystem.agvs.vc.vt",
       [],
-      [{"from":"status","to":"vt"},{"from":"cmd","to":"cmd"},{"from":"destination","to":"destination"},{"from":"location","to":"location"}]
+      [{"from":"status","to":"vt"},{"from":"cmd","to":"cmd"},{"from":"destination","to":"destination"},{"from":"location","to":"location"}],
+      {"outParameters":[{"name":"status","type":"Real","direction":"out"},{"name":"cmd","type":"Real","direction":"out"},{"name":"destination","type":"Real","direction":"out"},{"name":"location","type":"Real","direction":"out"}]}
     );
     const vt = new AN_ComponentsAGV_VehicleTimerAN("vt");
     ac_VehicleTimer.registerAction(vt);
+    try { ac_VehicleTimer.portToPinMapping["vt"] = "status"; } catch(e) {}
+    try { ac_VehicleTimer.portToPinMapping["vt"] = "status"; } catch(e) {}
+    try { ac_VehicleTimer.portToPinMapping["cmd"] = "cmd"; } catch(e) {}
+    try { ac_VehicleTimer.portToPinMapping["cmd"] = "cmd"; } catch(e) {}
+    try { ac_VehicleTimer.portToPinMapping["cmd_ca"] = "cmd"; } catch(e) {}
+    try { ac_VehicleTimer.portToPinMapping["cmd_ca"] = "cmd"; } catch(e) {}
+    try { ac_VehicleTimer.portToPinMapping["cmd_sm"] = "cmd"; } catch(e) {}
+    try { ac_VehicleTimer.portToPinMapping["cmd_sm"] = "cmd"; } catch(e) {}
+    try { ac_VehicleTimer.portToPinMapping["cmd"] = "cmd"; } catch(e) {}
+    try { ac_VehicleTimer.portToPinMapping["cmd"] = "cmd"; } catch(e) {}
+    try { ac_VehicleTimer.portToPinMapping["cmd"] = "cmd"; } catch(e) {}
+    try { ac_VehicleTimer.portToPinMapping["cmd"] = "cmd"; } catch(e) {}
+    try { ac_VehicleTimer.portToPinMapping["destination"] = "destination"; } catch(e) {}
+    try { ac_VehicleTimer.portToPinMapping["destination"] = "destination"; } catch(e) {}
+    try { ac_VehicleTimer.portToPinMapping["destination"] = "destination"; } catch(e) {}
+    try { ac_VehicleTimer.portToPinMapping["destination"] = "destination"; } catch(e) {}
+    try { ac_VehicleTimer.portToPinMapping["destination"] = "destination"; } catch(e) {}
+    try { ac_VehicleTimer.portToPinMapping["destination"] = "destination"; } catch(e) {}
+    try { ac_VehicleTimer.portToPinMapping["location"] = "location"; } catch(e) {}
+    try { ac_VehicleTimer.portToPinMapping["location"] = "location"; } catch(e) {}
+    try { ac_VehicleTimer.portToPinMapping["location_cs"] = "location"; } catch(e) {}
+    try { ac_VehicleTimer.portToPinMapping["location_cs"] = "location"; } catch(e) {}
     this.registerActivity("VehicleTimerAC", ac_VehicleTimer);
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["FactoryAutomationSystem.agvs.vc.vt"] = ac_VehicleTimer; } catch(e) {}
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["factoryautomationsystem.agvs.vc.vt"] = ac_VehicleTimer; } catch(e) {}
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["vc.vt"] = ac_VehicleTimer; } catch(e) {}
+    try { if (!this._activityOwnerIndex) this._activityOwnerIndex = {}; this._activityOwnerIndex["vt"] = ac_VehicleTimer; } catch(e) {}
   }
 
 }
@@ -1460,6 +1707,14 @@ function createModel(){
     PT_PortsAGV_outNotificationToSupervisory,
     PT_PortsAGV_IAGVSystem,
     PT_PortsAGV_ISupervisorySystem,
+    PT_signal,
+    PT_surface,
+    PT_inNotification,
+    PT_outCommand,
+    PT_outNotification,
+    PT_inCommand,
+    PT_sensor,
+    PT_arm,
     CN_ConnectorsAGV_notifySupervisory,
     CN_ConnectorsAGV_sendVehicleData,
     CN_ConnectorsAGV_notificationMotor,
@@ -1469,6 +1724,11 @@ function createModel(){
     CN_ConnectorsAGV_interactionAGVAndSupervisory,
     CN_ConnectorsAGV_locationVehicle,
     CN_ComponentsAGV_status,
+    CN_Notify,
+    CN_Command,
+    CN_Location,
+    CN_Attach,
+    CN_Detach,
     CT_ComponentsAGV_SendStartMotorEQ,
     CT_ComponentsAGV_SendDestinationEQ,
     CT_ComponentsAGV_NotifyAGVFromMotorEQ,
@@ -1494,6 +1754,14 @@ function createModel(){
     EX_ComponentsAGV_ControlArmEX,
     EX_ComponentsAGV_NotifierArmEX,
     EX_ComponentsAGV_VehicleTimerEX,
+    EN_NotificationToSupervisory,
+    EN_NotificationFromArm,
+    EN_CommandToArm,
+    EN_NotificationFromMotor,
+    EN_CommandToMotor,
+    DT_Status,
+    DT_Location,
+    DT_VehicleData,
   };
   
   // Initialize all connectors now that _moduleContext is available
@@ -1516,4 +1784,4 @@ function createModel(){
   return model;
 }
 
-module.exports = { createModel, SysADLArchitecture, EN_NotificationToSupervisory, EN_NotificationFromArm, EN_CommandToArm, EN_NotificationFromMotor, EN_CommandToMotor, DT_Status, DT_Location, DT_VehicleData, PT_ComponentsAGV_inLocation, PT_ComponentsAGV_outLocation, PT_PortsAGV_inStatus, PT_PortsAGV_outStatus, PT_PortsAGV_inVehicleData, PT_PortsAGV_outVehicleData, PT_PortsAGV_inNotificationFromMotor, PT_PortsAGV_outNotificationFromMotor, PT_PortsAGV_inCommandToMotor, PT_PortsAGV_outCommandToMotor, PT_PortsAGV_inNotificationFromArm, PT_PortsAGV_outNotificationFromArm, PT_PortsAGV_inCommandToArm, PT_PortsAGV_outCommandToArm, PT_PortsAGV_inNotificationToSupervisory, PT_PortsAGV_outNotificationToSupervisory, PT_PortsAGV_IAGVSystem, PT_PortsAGV_ISupervisorySystem };
+module.exports = { createModel, SysADLArchitecture, EN_NotificationToSupervisory, EN_NotificationFromArm, EN_CommandToArm, EN_NotificationFromMotor, EN_CommandToMotor, DT_Status, DT_Location, DT_VehicleData, PT_ComponentsAGV_inLocation, PT_ComponentsAGV_outLocation, PT_PortsAGV_inStatus, PT_PortsAGV_outStatus, PT_PortsAGV_inVehicleData, PT_PortsAGV_outVehicleData, PT_PortsAGV_inNotificationFromMotor, PT_PortsAGV_outNotificationFromMotor, PT_PortsAGV_inCommandToMotor, PT_PortsAGV_outCommandToMotor, PT_PortsAGV_inNotificationFromArm, PT_PortsAGV_outNotificationFromArm, PT_PortsAGV_inCommandToArm, PT_PortsAGV_outCommandToArm, PT_PortsAGV_inNotificationToSupervisory, PT_PortsAGV_outNotificationToSupervisory, PT_PortsAGV_IAGVSystem, PT_PortsAGV_ISupervisorySystem, PT_signal, PT_surface, PT_inNotification, PT_outCommand, PT_outNotification, PT_inCommand, PT_sensor, PT_arm };
