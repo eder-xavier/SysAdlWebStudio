@@ -121,6 +121,11 @@ class SceneExecutor {
 
       console.log(`🎬 Starting scene: ${sceneName} (${sceneId})`);
 
+      // Fire any events scheduled to happen before this scene
+      if (context.eventScheduler && typeof context.eventScheduler.notifyScenarioStarting === 'function') {
+        context.eventScheduler.notifyScenarioStarting(sceneName);
+      }
+
       // Phase 1: Validate pre-conditions
       execution.phase = 'pre_conditions';
       console.log(`🔄 Phase 1: Validating pre-conditions`);
@@ -371,23 +376,30 @@ class SceneExecutor {
 
   /**
    * Wait for scene finish event with timeout
+   * Includes progressive warnings every 5 seconds
    */
   async waitForFinishEvent(execution) {
     const { scene, context } = execution;
 
-    console.log(`🔍 Checking finish event: ${scene.finishEvent}`);
+    console.log(`[CHECK] Finish event: ${scene.finishEvent}`);
 
     if (!scene.finishEvent) {
-      console.log(`⚠️  No finish event defined - scene completes immediately`);
+      console.log(`[WARN] No finish event defined - scene completes immediately`);
       // No finish event - scene completes immediately after start event
       return;
     }
 
-    console.log(`⏳ Waiting for finish event: ${scene.finishEvent} (timeout: ${scene.timeout}ms)`);
+    const timeoutMs = scene.timeout || 30000;
+    const warningIntervalMs = 5000; // Warn every 5 seconds
+
+    console.log(`[WAIT] Waiting for finish event: ${scene.finishEvent} (timeout: ${timeoutMs}ms)`);
 
     return new Promise((resolve, reject) => {
       let finishEventReceived = false;
       let timeoutId;
+      let warningIntervalId;
+      const startWaitTime = Date.now();
+      let warningCount = 0;
 
       // Set up finish event listener
       const finishEventListener = (eventData) => {
@@ -395,9 +407,10 @@ class SceneExecutor {
 
         finishEventReceived = true;
         clearTimeout(timeoutId);
+        clearInterval(warningIntervalId);
 
         execution.finishEventResult = eventData;
-        console.log(`🏁 Finish event received: ${scene.finishEvent}`);
+        console.log(`[FINISH] Event received: ${scene.finishEvent}`);
         resolve();
       };
 
@@ -408,11 +421,49 @@ class SceneExecutor {
 
       eventEmitter.once(scene.finishEvent, finishEventListener);
 
+      // Set up periodic warning messages (first at 3s, then every 5s)
+      const firstWarningMs = 3000;
+      let firstWarningDone = false;
+
+      warningIntervalId = setInterval(() => {
+        if (finishEventReceived) return;
+
+        warningCount++;
+        const elapsedSec = Math.round((Date.now() - startWaitTime) / 1000);
+        const remainingSec = Math.round((timeoutMs - (Date.now() - startWaitTime)) / 1000);
+
+        // Use process.stdout.write to force immediate flush
+        process.stdout.write(`\n[WAITING ${elapsedSec}s] Still waiting for: ${scene.finishEvent} (${remainingSec}s remaining)\n`);
+
+        // After 3 warnings (15s), show more detailed info
+        if (warningCount >= 3) {
+          process.stdout.write(`[WAITING ${elapsedSec}s] Scene: ${scene.name}\n`);
+          process.stdout.write(`[WAITING ${elapsedSec}s] TIP: Check if there's an 'inject' that triggers the required event chain\n`);
+        }
+      }, warningIntervalMs);
+
+      console.log(`[DEBUG] Warning interval set up (every ${warningIntervalMs / 1000}s, timeout in ${timeoutMs / 1000}s)`);
+
+      // Immediate test to check if event loop is working
+      setImmediate(() => {
+        if (!finishEventReceived) {
+          console.log(`[DEBUG] Event loop check: setImmediate fired`);
+        }
+      });
+
+      // Short timeout to verify event loop (1 second)
+      setTimeout(() => {
+        if (!finishEventReceived) {
+          console.log(`[DEBUG] 1s check: Event loop is working, waiting for ${scene.finishEvent}...`);
+        }
+      }, 1000);
+
       // Set timeout
       timeoutId = setTimeout(() => {
         if (finishEventReceived) return;
 
         finishEventReceived = true;
+        clearInterval(warningIntervalId);
 
         // Remove listener from correct emitter
         eventEmitter.removeListener(scene.finishEvent, finishEventListener);
@@ -420,8 +471,8 @@ class SceneExecutor {
         // Analyze dependencies to help diagnose why event didn't fire
         this.analyzeDependencies(scene.finishEvent, context, scene);
 
-        reject(new Error(`Scene timeout: finish event '${scene.finishEvent}' not received within ${scene.timeout}ms`));
-      }, scene.timeout);
+        reject(new Error(`Scene timeout: finish event '${scene.finishEvent}' not received within ${timeoutMs}ms`));
+      }, timeoutMs);
     });
   }
 

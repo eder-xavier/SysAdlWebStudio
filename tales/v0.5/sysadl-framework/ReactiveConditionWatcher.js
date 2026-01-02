@@ -17,21 +17,21 @@ const { DependencyTracker } = require('./DependencyTracker');
 class ReactiveConditionWatcher {
   constructor(sysadlBase, options = {}) {
     this.sysadlBase = sysadlBase;
-    
+
     // Initialize reactive components
     this.stateManager = options.stateManager || new ReactiveStateManager();
     this.dependencyTracker = new DependencyTracker();
-    
+
     // ExpressionEvaluator must be provided due to circular dependency
     if (!options.expressionEvaluator) {
       throw new Error('ReactiveConditionWatcher requires expressionEvaluator in options');
     }
     this.expressionEvaluator = options.expressionEvaluator;
-    
+
     // Condition management
     this.conditions = new Map(); // conditionId -> condition config
     this.subscriptions = new Map(); // conditionId -> [unsubscribe functions]
-    
+
     // Performance tracking
     this.stats = {
       totalConditions: 0,
@@ -51,7 +51,7 @@ class ReactiveConditionWatcher {
     };
 
     console.log('ReactiveConditionWatcher initialized - event-driven condition monitoring ready');
-    
+
     if (this.config.debugMode) {
       this.dependencyTracker.runTests();
     }
@@ -74,7 +74,7 @@ class ReactiveConditionWatcher {
 
       // Extract dependencies from expression
       const dependencies = this.dependencyTracker.extractDependencies(conditionExpression);
-      
+
       if (dependencies.length === 0) {
         console.warn(`No dependencies found for condition "${conditionId}" - falling back to polling`);
         return this.watchConditionWithPolling(conditionId, conditionExpression, callback, options);
@@ -107,7 +107,7 @@ class ReactiveConditionWatcher {
 
       // Subscribe to each dependency
       const unsubscribeFunctions = [];
-      
+
       for (const dependency of dependencies) {
         const unsubscribe = this.stateManager.subscribe(
           dependency,
@@ -119,7 +119,7 @@ class ReactiveConditionWatcher {
             deep: true
           }
         );
-        
+
         unsubscribeFunctions.push(unsubscribe);
       }
 
@@ -156,13 +156,13 @@ class ReactiveConditionWatcher {
 
     } catch (error) {
       console.error(`Error setting up reactive condition ${conditionId}:`, error);
-      
+
       // Fallback to polling on error
       if (this.config.enableFallbackPolling) {
         console.log(`Falling back to polling for condition ${conditionId}`);
         return this.watchConditionWithPolling(conditionId, conditionExpression, callback, options);
       }
-      
+
       throw error;
     }
   }
@@ -172,25 +172,25 @@ class ReactiveConditionWatcher {
    */
   handleDependencyChange(conditionId, changedPath, newValue, oldValue) {
     const startTime = Date.now();
-    
+
     if (!this.conditions.has(conditionId)) {
       console.warn(`Received change for unknown condition: ${conditionId}`);
       return;
     }
 
     const condition = this.conditions.get(conditionId);
-    
+
     // Check timeout
-    if (condition.options.timeout && 
-        Date.now() - condition.createdAt > condition.options.timeout) {
+    if (condition.options.timeout &&
+      Date.now() - condition.createdAt > condition.options.timeout) {
       console.log(`Condition ${conditionId} timed out - removing`);
       this.unwatchCondition(conditionId);
       return;
     }
 
     // Check max triggers
-    if (condition.options.maxTriggers && 
-        condition.triggerCount >= condition.options.maxTriggers) {
+    if (condition.options.maxTriggers &&
+      condition.triggerCount >= condition.options.maxTriggers) {
       console.log(`Condition ${conditionId} reached max triggers - removing`);
       this.unwatchCondition(conditionId);
       return;
@@ -205,8 +205,8 @@ class ReactiveConditionWatcher {
 
     // Update response time stats
     const responseTime = Date.now() - startTime;
-    this.stats.averageResponseTime = 
-      (this.stats.averageResponseTime * this.stats.conditionsTriggered + responseTime) / 
+    this.stats.averageResponseTime =
+      (this.stats.averageResponseTime * this.stats.conditionsTriggered + responseTime) /
       (this.stats.conditionsTriggered + 1);
   }
 
@@ -218,9 +218,11 @@ class ReactiveConditionWatcher {
     if (!condition) return;
 
     try {
-      // Get current state
-      const currentState = this.stateManager.getSnapshot();
-      
+      // PERFORMANCE FIX: Use direct state reference instead of getSnapshot()
+      // getSnapshot() does JSON.parse(JSON.stringify()) which is extremely slow
+      // evaluate() only reads state, so direct access is safe
+      const currentState = this.stateManager.state;
+
       // Evaluate expression
       const currentValue = this.expressionEvaluator.evaluate(condition.expression, currentState);
       condition.evaluationCount++;
@@ -234,7 +236,7 @@ class ReactiveConditionWatcher {
 
     } catch (error) {
       console.error(`Error evaluating reactive condition ${conditionId}:`, error.message);
-      
+
       // Log evaluation error
       if (this.sysadlBase.logger) {
         this.sysadlBase.logger.logExecution({
@@ -300,13 +302,13 @@ class ReactiveConditionWatcher {
     // Unsubscribe from all dependencies
     const unsubscribeFunctions = this.subscriptions.get(conditionId) || [];
     unsubscribeFunctions.forEach(unsubscribe => unsubscribe());
-    
+
     // Clean up
     const condition = this.conditions.get(conditionId);
     if (condition && condition.dependencies) {
       this.stats.activeSubscriptions -= condition.dependencies.length;
     }
-    
+
     this.conditions.delete(conditionId);
     this.subscriptions.delete(conditionId);
 
@@ -328,7 +330,7 @@ class ReactiveConditionWatcher {
    */
   watchConditionWithPolling(conditionId, conditionExpression, callback, options = {}) {
     console.log(`Using polling fallback for condition: ${conditionId}`);
-    
+
     const condition = {
       id: conditionId,
       expression: conditionExpression,
@@ -346,7 +348,7 @@ class ReactiveConditionWatcher {
     // Set up polling interval
     const pollingInterval = setInterval(() => {
       this.evaluateCondition(conditionId);
-      
+
       // Track how many evaluations we would have saved with reactive approach
       this.stats.evaluationsSaved++;
     }, this.config.fallbackInterval);
@@ -376,7 +378,7 @@ class ReactiveConditionWatcher {
   getStatistics() {
     const uptime = Date.now() - this.stats.startTime;
     const pollingEquivalentEvaluations = Math.floor(uptime / 50) * this.stats.totalConditions;
-    
+
     return {
       reactive: true,
       uptime: uptime,
@@ -384,20 +386,20 @@ class ReactiveConditionWatcher {
       activeSubscriptions: this.stats.activeSubscriptions,
       conditionsTriggered: this.stats.conditionsTriggered,
       averageResponseTime: this.stats.averageResponseTime,
-      
+
       // Performance comparison
       pollingEquivalentEvaluations: pollingEquivalentEvaluations,
       actualEvaluations: Array.from(this.conditions.values()).reduce(
         (sum, condition) => sum + condition.evaluationCount, 0
       ),
-      efficiencyGain: pollingEquivalentEvaluations > 0 ? 
+      efficiencyGain: pollingEquivalentEvaluations > 0 ?
         (pollingEquivalentEvaluations / Math.max(1, Array.from(this.conditions.values()).reduce(
           (sum, condition) => sum + condition.evaluationCount, 0
         ))).toFixed(2) + 'x' : 'N/A',
-      
+
       // State manager stats
       stateManager: this.stateManager.getStatistics(),
-      
+
       // Condition details
       conditions: Array.from(this.conditions.values()).map(condition => ({
         id: condition.id,
@@ -415,7 +417,7 @@ class ReactiveConditionWatcher {
    */
   listConditions() {
     console.log('\n=== Reactive Condition Monitor Status ===');
-    
+
     if (this.conditions.size === 0) {
       console.log('No conditions are currently being watched');
       return;
@@ -424,16 +426,16 @@ class ReactiveConditionWatcher {
     for (const [conditionId, condition] of this.conditions) {
       const mode = condition.pollingMode ? 'POLLING' : 'REACTIVE';
       console.log(`${conditionId} [${mode}]: "${condition.expression}"`);
-      
+
       if (!condition.pollingMode) {
         console.log(`  - Dependencies: [${condition.dependencies.join(', ')}]`);
       }
-      
+
       console.log(`  - Evaluations: ${condition.evaluationCount}`);
       console.log(`  - Triggers: ${condition.triggerCount}`);
       console.log(`  - Last value: ${condition.lastValue}`);
     }
-    
+
     console.log('=========================================\n');
   }
 
@@ -442,9 +444,9 @@ class ReactiveConditionWatcher {
    */
   showDependencyGraph() {
     console.log('\n=== Dependency Graph ===');
-    
+
     const dependencyMap = new Map();
-    
+
     for (const condition of this.conditions.values()) {
       if (condition.dependencies) {
         for (const dep of condition.dependencies) {
@@ -459,7 +461,7 @@ class ReactiveConditionWatcher {
     for (const [dependency, conditionIds] of dependencyMap) {
       console.log(`${dependency} -> [${conditionIds.join(', ')}]`);
     }
-    
+
     console.log('========================\n');
   }
 }

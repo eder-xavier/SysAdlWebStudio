@@ -22,6 +22,9 @@ class EventScheduler {
     // Eventos agendados após cenas/cenários
     this.afterScenarioQueue = new Map(); // sceneName -> [eventNames]
 
+    // Eventos agendados antes de cenas/cenários
+    this.beforeScenarioQueue = new Map(); // sceneName -> [eventNames]
+
     // Eventos agendados por condição
     this.conditionalEvents = []; // { eventName, condition, checked }
 
@@ -146,6 +149,52 @@ class EventScheduler {
 
       // Limpar eventos já disparados
       this.afterScenarioQueue.delete(scenarioName);
+    }
+  }
+
+  /**
+   * Agenda um evento para ser disparado antes do início de uma cena/cenário
+   * @param {string} eventName - Nome do evento a ser disparado
+   * @param {string} scenarioName - Nome da cena/cenário antes do qual disparar
+   */
+  scheduleBeforeScenario(eventName, scenarioName) {
+    if (!this.beforeScenarioQueue.has(scenarioName)) {
+      this.beforeScenarioQueue.set(scenarioName, []);
+    }
+
+    this.beforeScenarioQueue.get(scenarioName).push(eventName);
+
+    this.log(`Scheduled event '${eventName}' to fire before scenario '${scenarioName}'`, 'info');
+
+    if (this.logger) {
+      this.logger.logExecution({
+        type: 'event.scheduled',
+        name: eventName,
+        context: {
+          triggerType: 'before_scenario',
+          triggerScenario: scenarioName
+        }
+      });
+    }
+  }
+
+  /**
+   * Notifica o scheduler que uma cena/cenário está prestes a iniciar
+   * Dispara eventos agendados para executar antes dessa cena
+   * @param {string} scenarioName - Nome da cena/cenário prestes a iniciar
+   */
+  notifyScenarioStarting(scenarioName) {
+    const eventsToFire = this.beforeScenarioQueue.get(scenarioName);
+
+    if (eventsToFire && eventsToFire.length > 0) {
+      this.log(`Scenario '${scenarioName}' starting, firing ${eventsToFire.length} scheduled before-events`, 'info');
+
+      for (const eventName of eventsToFire) {
+        this.fireEvent(eventName, 'before_scenario', { scenarioName });
+      }
+
+      // Limpar eventos já disparados
+      this.beforeScenarioQueue.delete(scenarioName);
     }
   }
 
@@ -290,6 +339,7 @@ class EventScheduler {
 
     this.scheduledEvents = [];
     this.afterScenarioQueue.clear();
+    this.beforeScenarioQueue.clear();
     this.conditionalEvents = [];
     this.stopMonitoring();
 

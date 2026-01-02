@@ -5757,6 +5757,11 @@ function generateExplicitScenarioExecution(executionData) {
               functionBody.push(`      context.eventScheduler.scheduleAfterScenario('${injection.eventName}', '${injection.timing.scenario}');`);
               functionBody.push(`    }`)
             }
+          } else if (injection.timing && injection.timing.type === 'before' && injection.timing.scenario) {
+            // Schedule event to fire before a scenario starts
+            functionBody.push(`    if (context.eventScheduler) {`);
+            functionBody.push(`      context.eventScheduler.scheduleBeforeScenario('${injection.eventName}', '${injection.timing.scenario}');`);
+            functionBody.push(`    }`);
           } else if (injection.timing && injection.timing.type === 'condition' && injection.timing.expression) {
             // Transform expression to access environmentConfig properties
             // Example: "agv1.location == stationA.ID" becomes 
