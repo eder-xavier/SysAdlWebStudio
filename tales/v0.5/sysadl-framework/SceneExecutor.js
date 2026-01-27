@@ -23,8 +23,12 @@ class SceneExecutor {
       enableParallelExecution: options.enableParallelExecution !== false,
       retryAttempts: options.retryAttempts || 3,
       retryDelay: options.retryDelay || 1000,
-      debugMode: options.debugMode || false
+      debugMode: options.debugMode || false,
+      executionMode: options.executionMode || 'strict' // 'strict' or 'permissive'
     };
+
+    // Auto-recovery tracking (for permissive mode)
+    this.autoRecoveries = [];
 
     // Statistics
     this.stats = {
@@ -37,6 +41,19 @@ class SceneExecutor {
     };
 
     console.log('SceneExecutor initialized - ready for scene execution');
+  }
+
+  /**
+   * Set execution mode at runtime
+   * @param {string} mode - 'strict' or 'permissive'
+   */
+  setExecutionMode(mode) {
+    if (mode === 'strict' || mode === 'permissive') {
+      this.config.executionMode = mode;
+      console.log(`[SceneExecutor] Execution mode set to: ${mode}`);
+    } else {
+      console.warn(`[SceneExecutor] Invalid mode '${mode}', using: ${this.config.executionMode}`);
+    }
   }
 
   /**
@@ -459,18 +476,40 @@ class SceneExecutor {
       }, 1000);
 
       // Set timeout
-      timeoutId = setTimeout(() => {
+      timeoutId = setTimeout(async () => {
         if (finishEventReceived) return;
 
-        finishEventReceived = true;
         clearInterval(warningIntervalId);
 
         // Remove listener from correct emitter
         eventEmitter.removeListener(scene.finishEvent, finishEventListener);
 
         // Analyze dependencies to help diagnose why event didn't fire
-        this.analyzeDependencies(scene.finishEvent, context, scene);
+        const analysis = this.analyzeDependencies(scene.finishEvent, context, scene);
 
+        // In permissive mode, try auto-recovery
+        if (this.config.executionMode === 'permissive') {
+          const recovery = this.attemptAutoRecovery(scene, context, analysis);
+          if (recovery.success) {
+            console.log(`\n[AUTO-RECOVERY] ${recovery.message}`);
+            this.autoRecoveries.push({
+              scene: scene.name,
+              finishEvent: scene.finishEvent,
+              ...recovery
+            });
+
+            // Force the finish event to complete the scene
+            finishEventReceived = true;
+            execution.finishEventResult = { autoRecovered: true, ...recovery };
+            console.log(`[AUTO-RECOVERY] Scene ${scene.name} auto-recovered, continuing simulation`);
+            resolve();
+            return;
+          } else {
+            console.log(`\n[AUTO-RECOVERY] Could not auto-recover: ${recovery.reason}`);
+          }
+        }
+
+        finishEventReceived = true;
         reject(new Error(`Scene timeout: finish event '${scene.finishEvent}' not received within ${timeoutMs}ms`));
       }, timeoutMs);
     });
@@ -778,6 +817,7 @@ class SceneExecutor {
     const eventsDefinitions = context.eventsDefinitions;
     let foundTriggerRule = false;
     let triggerEvent = null;
+    let pendingConditions = []; // Collect pending conditions for auto-recovery
 
     if (eventsDefinitions) {
       // Search through event definitions to find what emits finishEvent
@@ -854,6 +894,13 @@ class SceneExecutor {
           console.log(`[ANALYSIS]   Expression: ${condition.expression}`);
           console.log(`[ANALYSIS]   Last evaluated: ${condition.lastResult}`);
           console.log(`[ANALYSIS]   Triggered count: ${condition.triggeredCount || 0}`);
+
+          // Collect for auto-recovery
+          pendingConditions.push({
+            id: condition.id,
+            expression: condition.expression,
+            lastResult: condition.lastResult
+          });
         }
       }
     } else if (!foundTriggerRule) {
@@ -876,6 +923,189 @@ class SceneExecutor {
         suggestion: 'Check inject statements and reactive condition expressions'
       });
     }
+
+    // Return analysis for auto-recovery use
+    return {
+      finishEvent,
+      triggerEvent,
+      foundTriggerRule,
+      pendingConditions: pendingConditions || []
+    };
+  }
+
+  /**
+   * Attempt auto-recovery for a timed-out scene (permissive mode only)
+   */
+  attemptAutoRecovery(scene, context, analysis) {
+    console.log(`\n[AUTO-RECOVERY] Attempting auto-recovery for scene: ${scene.name}`);
+
+    // Try to find the reactive condition that's blocking
+    const watcher = this.sysadlBase.conditionWatcher;
+    // if (!watcher) {
+    //   return { success: false, reason: 'ReactiveConditionWatcher not available' };
+    // }
+
+    // Look for pending conditions that match the trigger event
+    if (analysis && analysis.pendingConditions && analysis.pendingConditions.length > 0) {
+      console.log(`[AUTO-RECOVERY] Found ${analysis.pendingConditions.length} pending condition(s) to analyze`);
+      for (const condition of analysis.pendingConditions) {
+        // Parse the condition expression to find what state needs to be set
+        const parseResult = this.parseConditionExpression(condition.expression);
+        if (parseResult) {
+          console.log(`[AUTO-RECOVERY] Trying to set: ${parseResult.leftPath} = ${parseResult.rightValue}`);
+          // Try to set the required state
+          const success = this.autoInjectState(parseResult, context);
+          if (success) {
+            return {
+              success: true,
+              message: `Auto-set ${parseResult.leftPath} = ${parseResult.rightValue}`,
+              injectedState: parseResult,
+              conditionId: condition.id
+            };
+          }
+        }
+      }
+    } else {
+      console.log(`[AUTO-RECOVERY] No pending conditions found in analysis, trying inference...`);
+    }
+
+    // Fallback: try to infer from finish event name
+    const inferredState = this.inferMissingState(scene, context);
+    if (inferredState) {
+      const success = this.autoInjectState(inferredState, context);
+      if (success) {
+        return {
+          success: true,
+          message: `Inferred and set ${inferredState.leftPath} = ${inferredState.rightValue}`,
+          injectedState: inferredState,
+          inferred: true
+        };
+      }
+    }
+
+    return { success: false, reason: 'Could not determine missing state to inject' };
+  }
+
+  /**
+   * Parse a condition expression like "agv2.sensor == stationC.ID"
+   */
+  parseConditionExpression(expression) {
+    if (!expression) return null;
+
+    // Match patterns like: entity.property == value or entity.property == entity2.property
+    const eqMatch = expression.match(/(\w+\.\w+)\s*==\s*(.+)/);
+    if (eqMatch) {
+      return {
+        leftPath: eqMatch[1].trim(),
+        rightValue: eqMatch[2].trim()
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Auto-inject the required state change
+   */
+  autoInjectState(stateChange, context) {
+    try {
+      const { leftPath, rightValue } = stateChange;
+      const [entityName, propertyName] = leftPath.split('.');
+
+      // Find the entity in the environment
+      let envConfig = null;
+      if (context.model && context.model.environments) {
+        for (const [envName, env] of Object.entries(context.model.environments)) {
+          if (env[entityName]) {
+            envConfig = env;
+            break;
+          }
+        }
+      }
+
+      if (!envConfig || !envConfig[entityName]) {
+        console.log(`[AUTO-RECOVERY] Entity ${entityName} not found in environment`);
+        return false;
+      }
+
+      const entity = envConfig[entityName];
+
+      // Resolve the right value (could be another entity.property reference)
+      let resolvedValue = rightValue;
+      if (rightValue.includes('.')) {
+        const [refEntity, refProp] = rightValue.split('.');
+        if (envConfig[refEntity]) {
+          const refObj = envConfig[refEntity];
+          if (refObj[refProp] !== undefined) {
+            resolvedValue = refObj[refProp];
+          } else if (refObj.properties && refObj.properties[refProp] !== undefined) {
+            resolvedValue = refObj.properties[refProp];
+          }
+        }
+      }
+
+      // Set the value on the entity
+      if (entity.envPorts && entity.envPorts[propertyName]) {
+        entity.envPorts[propertyName].setValue(resolvedValue);
+        console.log(`[AUTO-RECOVERY] Set ${entityName}.${propertyName} = ${JSON.stringify(resolvedValue)}`);
+        return true;
+      } else if (entity.properties && propertyName in entity.properties) {
+        entity.properties[propertyName] = resolvedValue;
+        console.log(`[AUTO-RECOVERY] Set ${entityName}.${propertyName} = ${JSON.stringify(resolvedValue)}`);
+        return true;
+      } else if (propertyName in entity) {
+        entity[propertyName] = resolvedValue;
+        console.log(`[AUTO-RECOVERY] Set ${entityName}.${propertyName} = ${JSON.stringify(resolvedValue)}`);
+        return true;
+      }
+
+      console.log(`[AUTO-RECOVERY] Property ${propertyName} not found on entity ${entityName}`);
+      return false;
+    } catch (error) {
+      console.log(`[AUTO-RECOVERY] Error injecting state: ${error.message}`);
+      return false;
+    }
+  }
+
+  /**
+   * Infer missing state from event naming patterns
+   */
+  inferMissingState(scene, context) {
+    // Try to infer from finish event name patterns
+    // Example: AGV2NotifArriveC -> agv2 needs to arrive at stationC
+    const finishEvent = scene.finishEvent;
+
+    // Pattern: AGV<N>NotifArrive<Station> -> agvN.sensor = station<Station>.ID
+    const arriveMatch = finishEvent.match(/AGV(\d)NotifArrive(\w+)/i);
+    if (arriveMatch) {
+      const agvNum = arriveMatch[1];
+      const stationLetter = arriveMatch[2];
+      return {
+        leftPath: `agv${agvNum}.sensor`,
+        rightValue: `station${stationLetter}.ID`
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Get summary of all auto-recoveries for end-of-simulation report
+   */
+  getAutoRecoverySummary() {
+    if (this.autoRecoveries.length === 0) {
+      return null;
+    }
+
+    return {
+      count: this.autoRecoveries.length,
+      recoveries: this.autoRecoveries.map(r => ({
+        scene: r.scene,
+        finishEvent: r.finishEvent,
+        message: r.message,
+        inferred: r.inferred || false
+      }))
+    };
   }
 }
 

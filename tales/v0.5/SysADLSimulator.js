@@ -59,6 +59,16 @@ class SysADLSimulator {
             console.log('Binding environment to system...');
             this.performBinding(mainModel, envModel);
 
+            // 4.5. Configure execution mode on SceneExecutors
+            if (this.config.mode) {
+                if (envModel.sceneExecutor) {
+                    envModel.sceneExecutor.setExecutionMode(this.config.mode);
+                }
+                if (mainModel && mainModel.sceneExecutor) {
+                    mainModel.sceneExecutor.setExecutionMode(this.config.mode);
+                }
+            }
+
             // 5. Run Scenarios
             // Note: JSONL is written incrementally, so Ctrl+C will preserve logs
             console.log('\nExecuting scenarios...');
@@ -73,6 +83,22 @@ class SysADLSimulator {
             }
             if (envModel.logger && typeof envModel.logger.stop === 'function') {
                 envModel.logger.stop();
+            }
+
+            // Show auto-recovery summary if in permissive mode
+            if (this.config.mode === 'permissive' && envModel.sceneExecutor) {
+                const summary = envModel.sceneExecutor.getAutoRecoverySummary();
+                if (summary) {
+                    console.log('\n' + '='.repeat(60));
+                    console.log('[SIMULATION SUMMARY]');
+                    console.log('='.repeat(60));
+                    console.log(`Mode: permissive`);
+                    console.log(`Auto-recoveries: ${summary.count}`);
+                    for (const recovery of summary.recoveries) {
+                        console.log(`  - ${recovery.scene}: ${recovery.message}${recovery.inferred ? ' (inferred)' : ''}`);
+                    }
+                    console.log('='.repeat(60));
+                }
             }
 
             console.log('\n[INFO] Simulation completed successfully!');
@@ -377,18 +403,19 @@ class SysADLSimulator {
     }
 
     saveLogs(simLogger, sysadlFile) {
-        if (!fs.existsSync(this.config.logsDir)) {
-            fs.mkdirSync(this.config.logsDir, { recursive: true });
-        }
+        // Use the same log file that SimulationLogger created
+        // This overwrites the incremental log with the complete version
+        const logFile = simLogger.logFile;
 
-        const baseName = path.basename(sysadlFile, '.sysadl');
-        const timestamp = Date.now();
-        const logFile = path.join(this.config.logsDir, `sysadl-execution-${baseName}-${timestamp}.jsonl`);
+        if (!logFile) {
+            console.log('[SimulationLogger] No log file was created (file logging may be disabled)');
+            return;
+        }
 
         // Get events from logger
         const events = simLogger.events;
 
-        // Write as JSONL
+        // Write as JSONL (overwrites the incremental log)
         const content = events.map(evt => JSON.stringify(evt)).join('\n');
         fs.writeFileSync(logFile, content);
 
@@ -396,19 +423,75 @@ class SysADLSimulator {
     }
 }
 
+// CLI Help
+function showHelp() {
+    console.log(`
+SysADL Simulator v1.0
+
+Usage: node SysADLSimulator.js <file.sysadl> [options]
+
+Arguments:
+  <file.sysadl>           Path to the SysADL model file to simulate
+
+Options:
+  --skip-transform        Skip code generation, use existing generated files
+  --mode=<mode>           Simulation mode (default: strict)
+                            strict     - Fail on timeout, abort after retries
+                            permissive - Auto-recover from missing events, continue simulation
+  --timeout=<ms>          Scene timeout in milliseconds (default: 30000)
+  --verbose               Show detailed execution logs
+  --help, -h              Show this help message
+
+Examples:
+  node SysADLSimulator.js AGV-completo.sysadl
+  node SysADLSimulator.js AGV-completo.sysadl --mode=permissive
+  node SysADLSimulator.js AGV-completo.sysadl --skip-transform --timeout=60000
+
+Logs:
+  Simulation logs are saved to ./logs/simulation-<timestamp>.jsonl
+`);
+    process.exit(0);
+}
+
+// Parse CLI arguments
+function parseArgs(args) {
+    const config = {
+        verbose: false,
+        skipTransform: false,
+        mode: 'strict',
+        timeout: 30000
+    };
+
+    for (const arg of args) {
+        if (arg === '--verbose') config.verbose = true;
+        if (arg === '--skip-transform') config.skipTransform = true;
+        if (arg.startsWith('--mode=')) config.mode = arg.split('=')[1];
+        if (arg.startsWith('--timeout=')) config.timeout = parseInt(arg.split('=')[1], 10);
+    }
+
+    return config;
+}
+
 // CLI Entry Point
 if (require.main === module) {
     const args = process.argv.slice(2);
-    if (args.length < 1) {
-        console.log('Usage: node SysADLSimulator.js <file.sysadl>');
-        process.exit(1);
+
+    // Show help if requested or no arguments
+    if (args.length < 1 || args.includes('--help') || args.includes('-h')) {
+        showHelp();
     }
 
-    const simulator = new SysADLSimulator({
-        verbose: args.includes('--verbose'),
-        skipTransform: args.includes('--skip-transform')
-    });
-    simulator.run(args[0]);
+    // Find the sysadl file (first argument that doesn't start with --)
+    const sysadlFile = args.find(arg => !arg.startsWith('--'));
+    if (!sysadlFile) {
+        showHelp();
+    }
+
+    const config = parseArgs(args);
+    console.log(`[MODE] Running in ${config.mode} mode`);
+
+    const simulator = new SysADLSimulator(config);
+    simulator.run(sysadlFile);
 }
 
 module.exports = SysADLSimulator;
