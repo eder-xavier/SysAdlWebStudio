@@ -1,32 +1,32 @@
 /*
   * =============================================================================
-  * Gramática SysADL Completa (com Viewpoints de Ambiente e Cenário)
-  * Convertida de Xtext para Peggy.js (Versão Definitiva e Completa)
+  * Complete SysADL Grammar (with Environment and Scenario Viewpoints)
+  * Converted from Xtext to Peggy.js (Definitive and Complete Version)
   * =============================================================================
-  * Esta gramática traduz a estrutura completa da linguagem SysADL, incluindo
-  * os pontos de vista Estrutural, Comportamental, Executável e os novos
-  * pontos de vista de Ambiente e Cenário.
+  * This grammar translates the complete structure of the SysADL language, including
+  * the Structural, Behavioral, Executable viewpoints and the new
+  * Environment and Scenario viewpoints.
   *
-  * NOTA: A resolução de referências (scoping), que no Xtext é feita com `[Type|ID]`,
-  * é representada aqui pela captura do nome (ex: `QualifiedName`). A lógica para
-  * ligar este nome ao seu objeto de definição correspondente deve ser
-  * implementada numa fase de pós-processamento (análise semântica) após o parsing.
+  * NOTE: Reference resolution (scoping), which in Xtext is done with `[Type|ID]`,
+  * is represented here by capturing the name (e.g., `QualifiedName`). The logic to
+  * bind this name to its corresponding definition object must be
+  * implemented in a post-processing phase (semantic analysis) after parsing.
   * =============================================================================
   */
 
   {
-    // Bloco de inicialização do Peggy.js (se necessário)
+    // Peggy.js initialization block (if needed)
   }
 
   // =============================================================================
-  // --- Regra Inicial ---
+  // --- Start Rule ---
   // =============================================================================
 
   start
     = _ model:Model _ { return model; }
 
   // =============================================================================
-  // --- Estrutura Principal do Modelo ---
+  // --- Main Model Structure ---
   // =============================================================================
 
   Model
@@ -38,7 +38,7 @@
             Package /
             Requirement /
             Style /
-            // --- NOVOS ELEMENTOS ADICIONADOS AQUI ---
+            // --- NEW ELEMENTS ADDED HERE ---
             EnvironmentDefinition /
             EnvironmentConfiguration /
             EventsDefinitions /
@@ -60,7 +60,7 @@
       }
 
   // =============================================================================
-  // --- Estilos (Styles) ---
+  // --- Styles ---
   // =============================================================================
 
   Style
@@ -86,7 +86,7 @@
       }
 
   // =============================================================================
-  // --- Definições Abstratas (Abstract) ---
+  // --- Abstract Definitions ---
   // =============================================================================
 
   AbstractDef
@@ -95,18 +95,18 @@
 
   AbstractActivityDef
     = "abstract" _ "activity" _ "def" _ name:ID
-      // a seguir, opcionalmente, assinatura completa + bloco
+      // below, optionally, full signature + block
       signature:
         (
-          // parâmetros de entrada (um ou mais)
+          // input parameters (one or more)
           inParams:( _ "(" _ PinList? _ ")" )+
-          // parâmetros de saída
+          // output parameters
           outParams:( _ ":" _ "(" _ PinList? _ ")" )?
-          // corpo
+          // body
           _ "{" _ body:ActivityBody _ "}" _
         )?
       {
-        // se não houver 'signature', é só uma declaração
+        // if there is no 'signature', it is just a declaration
         if (!signature) {
           return {
             type:         "AbstractActivityDef",
@@ -117,14 +117,14 @@
             location:     location()
           };
         }
-        // caso haja assinatura+bloco, extrai os valores
+        // if there is a signature+block, extract the values
         const [, inParams, outParams, body] = signature;
         return {
           type:         "AbstractActivityDef",
           name,
-          // inParams: cada p tem PinList em p[3]
+          // inParams: each p has PinList at p[3]
           inParameters: inParams.map(p => p[3] || []),
-          // outParams: PinList aparece em index 5 (por causa do ":" e parênteses)
+          // outParams: PinList appears at index 5 (due to ":" and parentheses)
           outParameters: outParams ? outParams[5] || [] : [],
           body,
           location:     location()
@@ -137,7 +137,7 @@
       ports:
         (
           _ "ports" _ ":" _
-          ps:(_ AbstractPortUse)*    // zero ou mais usos de porta, sempre pulando whitespace antes
+          ps:(_ AbstractPortUse)*    // zero or more port uses, always skipping whitespace before
           {
             return ps.map(item => item[1]);
           }
@@ -237,7 +237,7 @@
       }
 
   // =============================================================================
-  // --- Pacotes e Requisitos ---
+  // --- Packages and Requirements ---
   // =============================================================================
 
   Package
@@ -281,7 +281,7 @@
       { return [head, ...tail].join('.'); }
 
   // =============================================================================
-  // --- Definições de Elementos Principais ---
+  // --- Main Element Definitions ---
   // =============================================================================
 
   ElementDef
@@ -321,7 +321,7 @@
       }
 
   // =============================================================================
-  // --- Ponto de Vista Estrutural ---
+  // --- Structural Viewpoint ---
   // =============================================================================
 
   ComponentDef
@@ -357,7 +357,7 @@
       ports:
         (
           _ "participants" _ ":" _
-          ps:(_ PortUse_Reverse)*      // zero ou mais PortUse_Reverse, com skip antes de cada um
+          ps:(_ PortUse_Reverse)*      // zero or more PortUse_Reverse, with skip before each one
           {
             return ps.map(item => item[1]);
           }
@@ -379,7 +379,7 @@
       ports:
         (
           _ "ports" _ ":" _
-          ps:(_ PortUse)*       // zero ou mais, com skip antes de cada um
+          ps:(_ PortUse)*       // zero or more, with skip before each one
           {
             return ps.map(item => item[1]);
           }
@@ -476,7 +476,7 @@
       }
 
   // =============================================================================
-  // --- Ponto de Vista de Dados ---
+  // --- Data Viewpoint ---
   // =============================================================================
 
   AttributeUse
@@ -523,7 +523,7 @@ DataTypeDef
       literals:EnumLiteralValueList
       _ "}"
       {
-        // garantir que 'literals' seja um array (compatível com o analisador/semântica)
+        // ensure that 'literals' is an array (compatible with the analyzer/semantics)
         const literalItems = literals
           ? (Array.isArray(literals) ? literals : (literals.items || []))
           : [];
@@ -545,7 +545,7 @@ DataTypeDef
       { return { type: "UnitDef", name, dimension: body ? body.dimension : null, properties: body ? body.props : [], location: location() }; }
 
   // =============================================================================
-  // --- Ponto de Vista Comportamental e Executável ---
+  // --- Behavioral and Executable Viewpoint ---
   // =============================================================================
 
   ConstraintUse
@@ -567,7 +567,7 @@ DataTypeDef
   //      return { name, type };
   //    }
 
-  // --- antes: defina Pin e as outras regras (Property, BehaviorDef, DataDef, ConstraintUse, ActivityDelegation) ---
+  // --- first: define Pin and the other rules (Property, BehaviorDef, DataDef, ConstraintUse, ActivityDelegation) ---
 
   ActionDef
     = "action" _ "def" _ name:ID _ "(" _ inParameters:PinList _ ")" _ ":" _ returnType:QualifiedName _ "{" _
@@ -589,7 +589,7 @@ DataTypeDef
       )*
       _ "}"
       {
-        // monte o AST igual antes, usando inParameters direto
+        // build the AST as before, using inParameters directly
         const properties    = stmts.filter(s => s.type === "Property");
         const behaviorDefs  = stmts.filter(s => s.type === "BehaviorDef");
         const dataDefs      = stmts.filter(s => s.type === "DataDef");
@@ -598,7 +598,7 @@ DataTypeDef
         return {
           type:        "ActionDef",
           name,
-          inParameters,     // aqui vem o array montado pela sua PinList
+          inParameters,     // here comes the array built by PinList
           returnType,
           properties,
           behaviorDefs,
@@ -611,20 +611,20 @@ DataTypeDef
 
   ActivityDef
     = "activity" _ "def" _ name:ID
-      abstractActivity:( _ "implements" _ ac:QualifiedNameList )?  // implements opcional
-      _                                                            // SKIP extra
-      inParams:( _ "(" _ PinList? _ ")" )*                          // zero ou mais in-params
+      abstractActivity:( _ "implements" _ ac:QualifiedNameList )?  // optional implements
+      _                                                            // extra SKIP
+      inParams:( _ "(" _ PinList? _ ")" )*                          // zero or more in-params
       outParams:( _ ":" _ "(" _ PinList? _ ")" )?                   // optional out-params
       _ "{" _
-        body:ActivityBody?    // agora opcional
+        body:ActivityBody?    // now optional
       _ "}"    {
         return {
           type:           "ActivityDef",
           name,
           implements:     abstractActivity ? abstractActivity[3] : [],
-          // cada inParam tem PinList em p[3]
+          // each inParam has PinList at p[3]
           inParameters:   inParams.map(p => p[3] || []),
-          // outParams: PinList está em index 5 (por causa do ":" + parênteses)
+          // outParams: PinList is at index 5 (due to ":" + parentheses)
           outParameters:  outParams ? outParams[5] || [] : [],
           body:           body   || null,
           location:       location()
@@ -680,12 +680,12 @@ DataTypeDef
       }
 
   // =============================================================================
-  // --- Elementos de Comportamento ---
+  // --- Behavioral Elements ---
   // =============================================================================
 
   ActivityBody
     = "body" _ "{" _
-      // bloco actions
+      // actions block
       actions:
         (
           _ "actions" _ ":" _
@@ -696,7 +696,7 @@ DataTypeDef
         (
           _ r:ActivityRelation { return r; }
         )*
-      // e zero ou mais DataStore/DataBuffer
+      // and zero or more DataStore/DataBuffer
       dataObjs:
         (
           _ d:(DataStore / DataBuffer) { return d; }
@@ -726,7 +726,7 @@ DataTypeDef
 
   ActionUse
     = name:ID _ ":" _ definition:QualifiedName _ (
-        // forma simples
+        // simple form
         ";" _ {
           return {
             type:       "ActionUse",
@@ -737,7 +737,7 @@ DataTypeDef
             location:   location()
           };
         }
-      / // forma com bloco
+      / // form with block
         "{" _ 
             up:("using" _ "pins" _ ":" _ pu:PinUse* { return pu; })?
             props:Property*
@@ -765,7 +765,7 @@ DataTypeDef
 
   ActivityFlow
     = "flow" _ "from" _ source:QualifiedName _ "to" _
-      // agora o target pode ser um QualifiedName OU um bloco ActivitySwitch
+      // now the target can be a QualifiedName OR an ActivitySwitch block
       target:( ActivitySwitch / QualifiedName ) _
       ";"? _
       {
@@ -788,7 +788,7 @@ DataTypeDef
   DataStore
     = "datastore" _ name:ID? _ ":" _ type:QualifiedName _ arrayIndex:Index? _
       (
-        // primeiro, tenta o bloco
+        // first, try the block
         "{" _ 
           props:Property*
           initVal:("initial" _ "value" _ "=" _ v:Expression _ ";")?
@@ -804,7 +804,7 @@ DataTypeDef
             location:   location()
           };
         }
-      / // se não vier bloco, cai aqui: ponto‐e‐vírgula opcional
+      / // if no block follows, fall through here: optional semicolon
         ";"? _
         {
           return {
@@ -823,7 +823,7 @@ DataTypeDef
   DataBuffer
     = "databuffer" _ name:ID? _ ":" _ type:QualifiedName _ arrayIndex:Index? _
       (
-        // bloco primeiro
+        // block first
         "{" _
           props:Property*
           initVal:("initial" _ "value" _ "=" _ v:Expression _ ";")?
@@ -839,7 +839,7 @@ DataTypeDef
             location:   location()
           };
         }
-      / // depois a forma simples
+      / // then the simple form
         ";"? _
         {
           return {
@@ -876,7 +876,7 @@ DataTypeDef
       }
 
   // =============================================================================
-  // --- Statements (Comandos) ---
+  // --- Statements ---
   // =============================================================================
 
   Statement
@@ -973,7 +973,7 @@ DataTypeDef
       { return { type: "DefaultSwitchClause", body, location: location() }; }
 
   // =============================================================================
-  // --- Expressions (Expressões com Precedência de Operadores) ---
+  // --- Expressions (with Operator Precedence) ---
   // =============================================================================
 
   Expression
@@ -1053,31 +1053,31 @@ DataTypeDef
   //  / InstanceCreationExpression         // new Foo()
   //  / SequenceConstructionExpression     // {…}
   //  / SequenceAccessExpression           // foo[…]
-  //  / NameExpression                     // simples QualifiedName
-  //  / LiteralExpression                  // números, strings, true/false, null
+  //  / NameExpression                     // simple QualifiedName
+  //  / LiteralExpression                  // numbers, strings, true/false, null
   //  / ThisExpression                     // this
   //  / ParenthesizedExpression            // ( … )
 
-  // tenta primeiro acesso a tipo com '->'
+  // first try type access with '->'
   PrimaryExpression
     = DataTypeAccessExpression
-    // literal de enum com '::'
+    // enum literal with '::'
     / EnumValueLiteralExpression
-    // cria novos objetos
+    // create new objects
     / InstanceCreationExpression
-  // literais de array com colchetes: [ a, b, c ]
+  // array literals with brackets: [ a, b, c ]
   / ArrayLiteralExpression
-    // constrói sequências inline
+    // construct inline sequences
     / SequenceConstructionExpression
-    // acessa sequência
+    // access sequence
     / SequenceAccessExpression
-    // nomes simples (QualifiedName)
+    // simple names (QualifiedName)
     / NameExpression
-    // literais (string, número, booleano, null)
+    // literals (string, number, boolean, null)
     / LiteralExpression
     // 'this'
     / ThisExpression
-    // parênteses
+    // parentheses
     / ParenthesizedExpression
 
 
@@ -1101,7 +1101,7 @@ DataTypeDef
     = "{" _ elements:SequenceElements? _ "}"
       { return { type: "SequenceConstructionExpression", elements, location: location() }; }
 
-  // Array literal usando colchetes, ex: [ stationA, stationB ]
+  // Array literal using brackets, e.g.: [ stationA, stationB ]
   ArrayLiteralExpression
     = "[" _ elements:QualifiedNameList? _ "]"
       { return { type: "ArrayLiteralExpression", elements: elements ? elements.items : [], location: location() }; }
@@ -1170,7 +1170,7 @@ DataTypeDef
 
 
   // =============================================================================
-  // --- Operadores ---
+  // --- Operators ---
   // =============================================================================
 
   AssignmentOperator = op:("=" / "+=" / "-=" / "*=" / "%=" / "/=" / "&=" / "|=" / "^=" / "<<=" / ">>=" / ">>>=") { return op; }
@@ -1182,7 +1182,7 @@ DataTypeDef
   AffixOperator = op:("++" / "--") { return op; }
 
   // =============================================================================
-  // --- Elementos Básicos e Terminais ---
+  // --- Basic Elements and Terminals ---
   // =============================================================================
 
   Property
@@ -1265,7 +1265,7 @@ DataTypeDef
         (
           _ e:EnvComponentDef { return e; }
         )*
-      // zero ou mais EnvConnectorDef, idem
+      // zero or more EnvConnectorDef
       connections:
         (
           _ c:EnvConnectorDef { return c; }
@@ -1283,18 +1283,18 @@ DataTypeDef
 
   EnvComponentUse
     =
-      // forma com identificador: id: Type[]  ou id: 1|n
+      // form with identifier: id: Type[]  or id: 1|n
       id:ID _ ":" _ (
-        // forma com tipo explícito: stations: Station[]
+        // form with explicit type: stations: Station[]
         type:QualifiedName _ arrayIndex:Index? {
           return { name: id, type, arrayIndex, location: location() };
         }
-      / // forma abreviada com cardinalidade: stations: n  ou stations: 1
+      / // abbreviated form with cardinality: stations: n  or stations: 1
         card:("1" / "n") {
           return { name: id, cardinality: card, location: location() };
         }
       )
-    / // forma sem identificador, apenas o tipo (ex: Station[])
+    / // form without identifier, type only (e.g.: Station[])
       typeOnly:QualifiedName _ arrayIndex:Index? {
         return { name: typeOnly, type: typeOnly, arrayIndex, location: location() };
       }
@@ -1308,22 +1308,22 @@ DataTypeDef
     = "EnvComponent" _ "def" _ name:ID _ "{" _
     items:
       (
-        // pula whitespace antes de cada bloco
+        // skip whitespace before each block
         _ stmt:
           (
-            // bloco de sub-entidades, agora permitindo Station[] etc.
+            // sub-entities block, now allowing Station[] etc.
             "envComponents" _ "{" _ c:EnvComponentUseList _ "}"
               {
                 return { kind: "compositions", value: c };
               }
-          / // bloco de propriedades
+          / // properties block
             "properties" _ "{" _
               ps:( _ PropertyDef )*
             _ "}"
               {
                 return { kind: "propertyDefs", value: ps.map(p => p[1]) };
               }
-          / // bloco de papéis
+          / // ports block
             "envPorts" _ "{" _
               rs:( _ EnvPortDef )*
             _ "}"
@@ -1335,7 +1335,7 @@ DataTypeDef
       )*
     _ "}"
     {
-      // consolida todos os itens por tipo
+      // consolidate all items by type
       let compositions = [], propertyDefs = [], envPorts = [];
       for (const it of items) {
         if (it.kind === "compositions")  compositions  = it.value;
@@ -1558,7 +1558,7 @@ DataTypeDef
       { return { type: "ExecutionEntry", repeat: repeat || 1, scenario, location: location() }; }
 
   // =============================================================================
-  // --- Listas Auxiliares ---
+  // --- Auxiliary Lists ---
   // =============================================================================
 
   QualifiedNameList
@@ -1586,7 +1586,7 @@ DataTypeDef
       { return { type: "ForVarList", items: [head, ...tail], location: location() }; }
 
   // =============================================================================
-  // --- Nomes e Terminais ---
+  // --- Names and Terminals ---
   // =============================================================================
 
   QualifiedName
@@ -1597,7 +1597,7 @@ DataTypeDef
     = STRING
     / ID
 
-  // Terminais (Definições de baixo nível)
+  // Terminals (Low-level Definitions)
   ID "Identifier"
     = [a-zA-Z_] [a-zA-Z0-9_]* { return text(); }
 
